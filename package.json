@@ -1,0 +1,46 @@
+{
+  "name": "modela",
+  "version": "0.0.1",
+  "description": "Modela build with bun bundler",
+  "main": "./dist/index.js",
+  "files": [
+    "dist/",
+    "src/"
+  ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "author": "Fabrice K.E.M",
+  "private": false,
+  "scripts": {
+    "dev": "bun compile --watch",
+    "compile": "bun build --entrypoints ./src/modela.ts ./src/natives.loader.ts --entry-naming [name].min.[ext] --minify --root . --outdir ./dist --target browser --format esm --sourcemap=external --external sass",
+    "prepack": "bun compile",
+    "test": "Echo 'Error: No test specified' && exit 1",
+    "test:view": "yarn build:tsc && jest test/auth.test.js"
+  },
+  "dependencies": {
+    "boxicons": "^2.1.4",
+    "jquery": "^3.7.1",
+    "sass": "^1.77.2"
+  },
+  "devDependencies": {
+    "@types/jquery": "^3.5.30",
+    "browserslist": "^4.23.0",
+    "bun-style-loader": "^0.4.0"
+  },
+  "directories": {
+    "dist": "dist/",
+    "docs": "docs/",
+    "test": "test/"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/fabrice8/modela-editor"
+  },
+  "keywords": []
+}

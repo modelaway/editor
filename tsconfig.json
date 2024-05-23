@@ -1,0 +1,25 @@
+{
+  "ts-node": {
+    "files": true
+  },
+  "files": [
+    "src/index.ts",
+    "src/types/index.d.ts"
+  ],
+  "compilerOptions": {
+    "target": "es5",
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "outDir": "dist",
+    "rootDir": "src",
+    "allowJs": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "declaration": true,
+    "sourceMap": true
+  },
+  "include": ["./src/**/*"],
+  "exclude": ["./dist"]
+}

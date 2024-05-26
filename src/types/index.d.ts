@@ -1,4 +1,5 @@
 
+type ObjectType<T> = { [index: string]: T }
 
 type InputOptions = {
   type: 'text' | 'number' | 'checkbox' | 'radio' | 'select'
@@ -34,6 +35,14 @@ type ListItem = {
   disabled?: boolean
 }
 
+type AssetData = {
+  type: 'image' | 'video' | 'font'
+  name: string
+  source: string
+  size?: string // 
+  bytes?: number
+}
+
 type StyleSheetProps = {
   predefined?: {
     options?: string[]
@@ -63,7 +72,9 @@ type ToolbarSet = {
     shortcut?: string
   }
   sub?: ToolbarSet[]
+  meta?: boolean
   extra?: boolean
+  detached?: boolean
   disabled?: boolean
 }
 type Fieldset = {
@@ -85,8 +96,13 @@ type PanelSet = {
   more?: boolean
   active?: boolean
 }
-type PanelSections = {
-  [index: string]: PanelSet
+type PanelSections = ObjectType<PanelSet>
+
+interface GlobalSet {
+  css: Modela['css']
+  assets: Modela['assets']
+  i18n: ( text: string ) => string
+  defineProperties: ( props: ViewBlockProperties ) => string
 }
 
 type ViewCaptionPoster = { 
@@ -120,34 +136,26 @@ type ViewBlockProperties = {
    */
   allowedViewTypes?: string[]
 }
+
+type ViewEvent = {
+  type: string
+  dataset?: any
+  view: JQuery
+  state: ObjectType<any>
+}
 interface ViewComponent {
   name: string
   node: string
   caption: ViewCaption
   attributes: {}
-  toolbar?: ( e: ViewEvent, global: GlobalSet ) => ToolbarSet[]
-  panel?: ( e: ViewEvent, global: GlobalSet ) => PanelSections
   render: ( e: ViewEvent, global: GlobalSet ) => string
   styles?: ( e: ViewEvent, global: GlobalSet ) => StyleSheetProps
+  toolbar?: ( e: ViewEvent, global: GlobalSet ) => ToolbarSet[]
+  panel?: ( e: ViewEvent, global: GlobalSet ) => PanelSections
   apply?: ( e: ViewEvent, global: GlobalSet ) => void
   activate?: ( e: ViewEvent, global: GlobalSet ) => void
   dismiss?: ( e: ViewEvent, global: GlobalSet ) => void
   actions?: ( e: ViewEvent, global: GlobalSet) => void
-}
-type ViewEvent = {
-  type: string
-  dataset?: any
-  view: JQuery
-  state: {
-    [index: string]: any
-  }
-}
-
-interface GlobalSet {
-  css: Modela['css']
-  assets: Modela['assets']
-  i18n: ( text: string ) => string
-  defineProperties: ( props: ViewBlockProperties ) => string
 }
 
 type ModelaSettings = {
@@ -156,9 +164,7 @@ type ModelaSettings = {
   enablePlaceholders?: boolean
 }
 
-type Components = {
-  [index: string]: ViewComponent
-}
+type Components = ObjectType<ViewComponent>
 
 type ModelaStore = {
   components: Components,
@@ -168,9 +174,7 @@ type ModelaGlobalStyleSet = {
   group?: string
   label: string
   value?: any
-  values?: { 
-    [index: string]: string | number | boolean
-  }
+  values?: ObjectType<string | number | boolean>
   options?: { 
     value: string | number | boolean,
     hint?: string
@@ -186,7 +190,5 @@ type ModelaGlobalStyleSet = {
   display?: string // 'inline' | 'dropdown'
   customizable?: boolean
 }
-type ModelaGlobalStyles = {
-  [index: string]: ModelaGlobalStyleSet
-}
+type ModelaGlobalStyles = ObjectType<ModelaGlobalStyleSet>
 type ModalGlobalAssets = {}

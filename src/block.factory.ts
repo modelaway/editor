@@ -1,11 +1,17 @@
 
 import {
+  VIEW_REF_SELECTOR,
   VIEW_CONTROL_OPTIONS,
-  VIEW_KEY_SELECTOR,
   VIEW_PLACEHOLDER_SELECTOR,
+
   CONTROL_PANEL_SELECTOR,
   CONTROL_TOOLBAR_SELECTOR,
-  GLOBAL_CONTROL_OPTIONS
+  CONTROL_FLOATING_SELECTOR,
+
+  GLOBAL_CONTROL_OPTIONS,
+
+  FORM_INPUT_SELECTOR,
+  FORM_SEPERATOR_SELECTOR,
 } from './constants'
 import { generateKey } from './utils'
 
@@ -77,7 +83,7 @@ export const createToolbar = ( key: string, options: ToolbarSet[], editing = fal
 
     return `<li ${attrs}><i class="${icon}"></i></li>`
   },
-  composeLi = ({ icon, label, title, event, disabled, extra, sub }: ToolbarSet ) => {
+  composeLi = ({ icon, label, title, event, disabled, extra, sub, meta }: ToolbarSet ) => {
     let attrs = `${disabled ? 'class="disabled"' : ''}`
     
     // Trigger event type & params attributes
@@ -95,6 +101,7 @@ export const createToolbar = ( key: string, options: ToolbarSet[], editing = fal
     }
 
     // Add title attributes
+    if( meta ) attrs += ` meta`
     if( label ) attrs += ` class="label"`
     if( title ) attrs += ` title="${title}"`
 
@@ -104,6 +111,16 @@ export const createToolbar = ( key: string, options: ToolbarSet[], editing = fal
         : mainOptions += optionLi
   }
   
+  /**
+   * Attach meta options to every editable view.
+   */
+  const
+  metaOptions = VIEW_CONTROL_OPTIONS.filter( each => (each.meta) ),
+  detachedOptions = VIEW_CONTROL_OPTIONS.filter( each => (each.detached) )
+
+  if( editing && Array.isArray( metaOptions ) && metaOptions.length )
+    options = [ ...options, ...metaOptions ]
+
   // Generate HTML menu
   options.forEach( composeLi )
 
@@ -111,7 +128,7 @@ export const createToolbar = ( key: string, options: ToolbarSet[], editing = fal
     throw new Error('Undefined main options')
 
   return `<div ${CONTROL_TOOLBAR_SELECTOR}="${key}" ${editing ? 'class="editing"' : ''}>
-    <div>
+    <div container>
       <ul>
         <div options="main">
           ${mainOptions}
@@ -128,10 +145,10 @@ export const createToolbar = ( key: string, options: ToolbarSet[], editing = fal
         ${subOptions.length ? subOptions.join('') : ''}
       </ul>
 
-      ${ editing ? 
+      ${ editing && Array.isArray( detachedOptions ) && detachedOptions.length ? 
             `<ul>
               <div options="control">
-                ${VIEW_CONTROL_OPTIONS.map( composeSubLi ).join('')}
+                ${detachedOptions.map( composeSubLi ).join('')}
               </div>
             </ul>`: ''
       }
@@ -197,8 +214,8 @@ export const createPanel = ( key: string, caption: ViewCaption, options: PanelSe
   Object.entries( options ).map( ( [name, section], index ) => composeSection( name, section, active == name || index === 0) )
 
   return `<div ${CONTROL_PANEL_SELECTOR}="${key}">
-    <div dismiss="self" class="backdrop"></div>
-    <div class="container">
+    <div dismiss="self" backdrop></div>
+    <div container>
       <div class="label">
         <i class="${caption.icon}"></i>
         <label>${caption.title}</label>
@@ -213,11 +230,26 @@ export const createPanel = ( key: string, caption: ViewCaption, options: PanelSe
   </div>`
 }
 
+export const createFloating = ( key: string, type: 'view' | 'layout', triggers: string[], update = false ) => {
+  if( !Array.isArray( triggers ) || !triggers.length )
+    throw new Error('Undefined triggers list')
+
+  let list = ''
+  triggers.map( each => {
+    switch( each ){
+      case 'addpoint': list += `<li action="add" params="${type}"><i class="bx bx-plus"></i></li>`; break
+      case 'paste': list += `<li action="paste" params="${type}"><i class="bx bx-paste"></i></li>`; break
+    }
+  } )
+
+  return update ? `<ul>${list}</ul>` : `<div ${CONTROL_FLOATING_SELECTOR}="${key}"><ul>${list}</ul></div>`
+}
+
 /**
  * Create common placeholder block
  */
-export const createPlaceholder = () => {
-  return `<div ${VIEW_PLACEHOLDER_SELECTOR}="active" ${VIEW_KEY_SELECTOR}="${generateKey()}"></div>`
+export const createPlaceholder = ( key?: string ) => {
+  return `<div ${VIEW_PLACEHOLDER_SELECTOR}="${generateKey()}" ${VIEW_REF_SELECTOR}="${key}" status="active"></div>`
 }
 
 export const createInput = ({ type, label, name, value, pattern, placeholder, options, range, disabled }: InputOptions ) => {
@@ -226,7 +258,7 @@ export const createInput = ({ type, label, name, value, pattern, placeholder, op
 
   switch( type ){
     case 'text': {
-      return `<div mv-form-input="${type}">
+      return `<div ${FORM_INPUT_SELECTOR}="${type}">
         <!--<label for="${id}">${label}</label>-->
         <input id="${id}"
                 type="${type}"
@@ -240,7 +272,7 @@ export const createInput = ({ type, label, name, value, pattern, placeholder, op
     }
 
     case 'checkbox': {
-      return `<div mv-form-input="${type}">
+      return `<div ${FORM_INPUT_SELECTOR}="${type}">
         <input id="${id}"
                 type="${type}"
                 name="${name}"
@@ -253,7 +285,7 @@ export const createInput = ({ type, label, name, value, pattern, placeholder, op
 }
 
 export const createFormSeperator = ( options?: SeperatorOptions ) => {
-  return `<div mv-form-seperator></div>`
+  return `<div ${FORM_SEPERATOR_SELECTOR}></div>`
 }
 
 export const createListItem = ({ icon, title, value, event, sub, disabled }: ListItem ) => {

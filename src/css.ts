@@ -346,7 +346,7 @@ export class Stylesheet {
 }
 
 export default class CSS {
-  public flux: Modela
+  private flux: Modela
 
   constructor( flux: Modela ){
     this.flux = flux

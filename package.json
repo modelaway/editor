@@ -1,7 +1,7 @@
 {
-  "name": "modela",
+  "name": "modela-editor",
   "version": "0.0.1",
-  "description": "Modela build with bun bundler",
+  "description": "Modela editor development with bun bundler",
   "main": "./dist/index.js",
   "files": [
     "dist/",

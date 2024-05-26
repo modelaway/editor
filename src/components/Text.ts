@@ -108,6 +108,7 @@ const panelOptions: PanelSections = {
     fieldsets: [
       {
         label: 'Link',
+        seperate: true,
         fields: [
           { type: 'text', name: 'title', label: 'External link or existing page', placeholder: 'http://example.com/to/page' },
           { type: 'text', name: 'info', label: 'Title' },

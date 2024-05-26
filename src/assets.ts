@@ -2,7 +2,7 @@ import Modela from './modela'
 import { log } from './utils'
 
 export default class Assets {
-  private ASSETS: any = {}
+  private ASSETS: ObjectType<AssetData> = {}
 
   constructor({ settings }: Modela ){
     /**
@@ -11,7 +11,7 @@ export default class Assets {
     // this.settings = settings
   }
 
-  add( assets: ViewComponent ){
+  add( assets: AssetData ){
     if( !assets )
       throw new Error('Undefined assets')
     
@@ -35,6 +35,5 @@ export default class Assets {
   drop(){
     // Reset store to initial state
     this.ASSETS = {}
-    this.ASSETS.templates = {}
   }
 }

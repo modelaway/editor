@@ -9,17 +9,57 @@ import {
   
   CONTROL_PANEL_SELECTOR,
   CONTROL_TOOLBAR_SELECTOR,
+  CONTROL_FLOATING_SELECTOR,
   
   CONTROL_EDGE_MARGIN,
   CONTROL_PANEL_MARGIN,
   CONTROL_TOOLBAR_MARGIN
 } from './constants'
 import { Stylesheet } from './css'
-import { createPlaceholder, createToolbar, createPanel } from './block.factory'
-import { log, generateKey, i18n, defineProperties, extractProperties } from './utils'
+import {
+  createPlaceholder,
+  createToolbar,
+  createPanel
+} from './block.factory'
+import { 
+  log,
+  i18n,
+  generateKey,
+  defineProperties,
+  extractProperties
+} from './utils'
+
+class State {
+  private state: ObjectType<any> = {}
+
+  set( field: string, value: any ){
+    this.state[ field ] = value
+
+    // Call lifecyle event functions
+  }
+  get( field?: string ){
+    return field ? this.state[ field ] : this.state 
+  }
+  delete( field: string ) {
+    delete this.state[ field ]
+
+    // Call lifecyle event functions
+  }
+  clear(){
+    this.state = {}
+
+    // Call lifecyle event functions
+  }
+  json(){
+    return JSON.parse( JSON.stringify( this.state ) )
+  }
+}
 
 export default class View {
-
+  /**
+   * Access to modela's core instance and 
+   * relative functional classes.
+   */
   private flux: Modela
 
   /**
@@ -27,23 +67,53 @@ export default class View {
    */
   private styles?: Stylesheet 
 
+  /**
+   * Native HTML element and JQuery element
+   * object of the view.
+   */
   public element?: HTMLElement | string
   public $?: JQuery<HTMLElement>
 
+  /**
+   * Unique key identifying the view in
+   * the editor context.
+   */
   public key?: string
+
+  /**
+   * View component as original define.
+   */
   private component?: ViewComponent
   
   /**
-   * 
+   * Closes parent of this view that is also in
+   * the editor context view.
    */
   private $parent?: JQuery<HTMLElement>
 
-  private globalSet: GlobalSet
+  /**
+   * View component state
+   */
+  private state: State
+
+  /**
+   * Holding global properties and utils methods.
+   * provided to component lifecycle methods.
+   */
+  private global: GlobalSet
 
   constructor( flux: Modela ){
     this.flux = flux
 
-    this.globalSet = {
+    /**
+     * Initial component state
+     */
+    this.state = new State()
+    
+    /**
+     * global
+     */
+    this.global = {
       css: flux.css,
       assets: flux.assets,
       i18n,
@@ -51,6 +121,103 @@ export default class View {
     }
   }
 
+  private getEventObject( type: string, dataset?: ObjectType<any> ){
+    return {
+      type,
+      view: this.$ as JQuery<HTMLElement>,
+      dataset,
+      state: this.state
+    }
+  }
+  private getTopography( $view?: JQuery<HTMLElement> | null, strict = false ){
+    $view = $view || this.$
+    if( !$view?.length )
+      throw new Error('Invalid method call. Expected a valid $view element')
+    
+    /**
+     * View position coordinates in the DOM base on
+     * which related triggers will be positionned.
+     */
+    let { left, top } = $view.offset() || { left: 0, top: 0 }
+
+    // Determite position of element relative to window only
+    if( strict ){
+      top -= $(window).scrollTop() || 0
+      left -= $(window).scrollLeft() || 0
+    }
+
+    return { 
+      x: left,
+      y: top,
+      width: $view.width() || 0,
+      height: $view.height() || 0
+    }
+  }
+
+  /**
+   * Run initial 
+   */
+  private initialize(){
+    try {
+      /**
+       * Initialize default styles of the view
+       */
+      const { name, styles } = this.get()
+      if( name && typeof styles === 'function' ){
+        this.styles = new Stylesheet({
+          nsp: name,
+          key: this.key,
+          /**
+           * Run the defined `styles()` method of the component
+           * to get initial style properties.
+           */
+          props: styles( this.getEventObject('toolbar'), this.global )
+        })
+
+        this.styles.load()
+      }
+    }
+    catch( error: any ){ log( error.message ) }
+
+    /**
+     * Attach a next placeholder to the new view element
+     * 
+     * Only add placehlder to no `absolute`, `fixed` or `sticky`
+     * position elements to void unnecessary stack of placehlder
+     * element around static or relative position elements.
+     */
+    try {
+      if( this.flux.settings.enablePlaceholders
+          && !this.$?.next(`[${VIEW_PLACEHOLDER_SELECTOR}="${this.key}"]`).length ){
+        
+        this.$?.css('position')
+        && !['fixed', 'absolute', 'sticky'].includes( this.$.css('position') as string )
+        && this.$.after( createPlaceholder( this.key as string ) )
+      }
+    }
+    catch( error: any ){ log( error.message ) }
+  }
+
+  set( values: any ){
+    if( typeof values !== 'object' 
+        || !Object.keys( values ).length )
+      throw new Error('Invalid method argument')
+
+    this.component = this.component ? { ...this.component, ...values } : values
+    log('component - ', this.component )
+  }
+  get( type?: keyof ViewComponent ): any {
+    if( !this.component ) 
+      throw new Error('Invalid method called')
+
+    return type ? this.component[ type ] : this.component
+  }
+
+  /**
+   * Map out a normal HTML element to editor
+   * context view using native views cognition
+   * process.
+   */
   inspect( element: HTMLElement, name: string ){
     this.element = element
     log('current target - ', element )
@@ -60,7 +227,7 @@ export default class View {
       throw new Error('Invalid View Element')
     
     /**
-     * Mount view without key: Not inspected prior
+     * Mount inspected view into editor context
      */
     const isMounted = this.$.attr( VIEW_KEY_SELECTOR ) !== undefined
     if( !isMounted ){
@@ -75,7 +242,7 @@ export default class View {
       })
       
       // Set view specifications
-      this.setSpecs( this.flux.store.getComponent( name ) )
+      this.set( this.flux.store.getComponent( name ) )
       // Initialize view properties
       this.initialize()
     }
@@ -83,6 +250,9 @@ export default class View {
     // Auto-trigger current view
     this.trigger()
   }
+  /**
+   * Mount new view comopnent into the DOM
+   */
   mount( component: ViewComponent, to: string, isPlaceholder = true ){
     /**
      * `to` field should only be a model-view-key to be
@@ -100,15 +270,12 @@ export default class View {
      * Render new element with default component and 
      * defined global settings
      */
-    this.element = component.render( this.getEventObject('render'), this.globalSet )
+    this.element = component.render( this.getEventObject('render'), this.global )
     log('mount view - ', this.element )
 
     // Add view to the DOM
     this.$ = $(this.element)
     $to[ isPlaceholder ? 'after' : 'append' ]( this.$ )
-
-    // Attach a next placeholder to the new view element
-    this.$.after( createPlaceholder() )
 
     /**
      * Generate and assign tracking key to the 
@@ -128,13 +295,17 @@ export default class View {
     this.inject( renderingProps )
 
     // Set view specifications
-    this.setSpecs( component )
+    this.set( component )
     // Initialize view properties
     this.initialize()
     // Auto-trigger current view
     this.trigger()
   }
-  mirror( viewInstance: View ){
+  /**
+   * Create a clone/duplicate of an extisin view
+   * in the editor context.
+   */
+  mirror( viewInstance: View, $nextTo?: JQuery<HTMLElement> ){
     /**
      * Argument must be a new instance of view class
      */
@@ -151,12 +322,25 @@ export default class View {
 
     log('mirror view - ', this.element )
 
-    // Add duplicated view to the DOM
+    // Add cloned view to the DOM
     this.$ = $(this.element)
-    viewInstance.$.parent().append( this.$ )
 
-    // Attach a next placeholder to the new view element
-    this.flux.settings.enablePlaceholders && this.$.after( createPlaceholder() )
+    /**
+     * Add cloned view next to a given view element 
+     * at a specific position
+     */
+    if( $nextTo?.length ){
+      /**
+       * Add next to the view's attached placeholder 
+       * or the view itself if no placeholder.
+       */
+      if( $nextTo.next().is(`[${VIEW_PLACEHOLDER_SELECTOR}]`) )
+        $nextTo = $nextTo.next()
+      
+      $nextTo.after( this.$ )
+    }
+    // Append cloned view directly next to the original view
+    else viewInstance.$.parent().append( this.$ )
 
     /**
      * Generate and assign view tracking key
@@ -165,62 +349,9 @@ export default class View {
     this.$.attr( VIEW_KEY_SELECTOR, this.key )
 
     // Clone view specifications
-    this.setSpecs( viewInstance.getSpecs() )
+    this.set( viewInstance.get() )
     // Initialize view properties
     this.initialize()
-  }
-
-  setSpecs( values: any ){
-    if( typeof values !== 'object' 
-        || !Object.keys( values ).length )
-      throw new Error('Invalid method argument')
-
-    this.component = this.component ? { ...this.component, ...values } : values
-    log('component - ', this.component )
-  }
-  getSpecs( type?: keyof ViewComponent ): any {
-    if( !this.component ) 
-      throw new Error('Invalid method called')
-
-    return type ? this.component[ type ] : this.component
-  }
-
-  private getEventObject( type: string, dataset?: any ){
-    return {
-      type,
-      view: this.$ as JQuery<HTMLElement>,
-      state: {}
-    }
-  }
-
-  /**
-   * Run initial 
-   */
-  private initialize(){
-    try {
-      /**
-       * Initialize default styles of the view
-       */
-      const { name, styles } = this.getSpecs()
-      if( name && typeof styles === 'function' ){
-        this.styles = new Stylesheet({
-          nsp: name,
-          key: this.key,
-          /**
-           * Run the defined `styles()` method of the component
-           * to get initial style properties.
-           */
-          props: styles( this.getEventObject('toolbar'), this.globalSet )
-        })
-
-        this.styles.load()
-      }
-
-      /**
-       * 
-       */
-    }
-    catch( error: any ){ log( error.message ) }
   }
 
   setParent( parent: HTMLElement ){
@@ -236,25 +367,6 @@ export default class View {
   }
   getParent(){
     return this.$parent
-  }
-
-  getTopography( $view?: JQuery<HTMLElement> ){
-    $view = $view || this.$
-    if( !$view?.length )
-      throw new Error('Invalid method call. Expected a valid $view element')
-    
-    /**
-     * View position coordinates in the DOM base on
-     * which related triggers will be positionned.
-     */
-    const { left, top } = $view.offset() || {}
-
-    return { 
-      x: left || 0,
-      y: top || 0,
-      width: $view.width() || 0,
-      height: $view.height() || 0
-    }
   }
 
   inject( props: ViewBlockProperties[] ){
@@ -290,14 +402,20 @@ export default class View {
       throw new Error('Invalid method called')
 
     typeof this.component.apply == 'function'
-    && this.component.apply( this.getEventObject( type, dataset ), this.globalSet )
+    && this.component.apply( this.getEventObject( type, dataset ), this.global )
   }
   destroy(){
     if( !this.$?.length ) 
       throw new Error('Invalid method called')
+    
+    // Dismiss controls related to the view
+    this.dismiss()
 
     // Remove placeholder attached to the view
     this.$.next(`[${VIEW_PLACEHOLDER_SELECTOR}]`).remove()
+    // Remove visible floating active
+    this.flux.$root?.find(`[${CONTROL_FLOATING_SELECTOR}="${this.key}"]`).remove()
+
     this.$.remove()
 
     // Clear all styles attached from the DOM
@@ -320,10 +438,10 @@ export default class View {
     if( this.flux.$root.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}]"`).length ) 
       return
 
-    const toolbar = this.getSpecs('toolbar')
+    const toolbar = this.get('toolbar')
     if( !toolbar ) return
 
-    const $toolbar = $(createToolbar( this.key, toolbar( this.getEventObject('toolbar'), this.globalSet ), true ))
+    const $toolbar = $(createToolbar( this.key, toolbar( this.getEventObject('toolbar'), this.global ), true ))
 
     let { x, y, height } = this.getTopography()
     log('show view toolbar: ', x, y )
@@ -335,24 +453,24 @@ export default class View {
     this.flux.$root.append( $toolbar )
 
     const
-    tWidth = $toolbar.width() || 0,
-    tHeight = $toolbar.height() || 0
+    tHeight = $toolbar.find('> [container]').height() || 0,
+    dueYPosition = tHeight + CONTROL_TOOLBAR_MARGIN
     
     /**
      * Push slightly on top of element in normal position
-     * but adjust below the element if it's to close to 
+     * but adjust below the element if it's to close to
      * the top edge.
      */
-    if( y < CONTROL_EDGE_MARGIN ) y = height + CONTROL_TOOLBAR_MARGIN
-    else y -= tHeight + CONTROL_TOOLBAR_MARGIN
+    if( ( y - dueYPosition ) < CONTROL_EDGE_MARGIN ) y += height + CONTROL_TOOLBAR_MARGIN
+    else y -= dueYPosition
 
     // Adjust by right & bottom edges
     const
-    dWidth = $(window).width() || 0,
-    dHeight = $(window).height() || 0
+    wWidth = $(window).width() || 0,
+    wHeight = $(window).height() || 0
 
-    if( x > (dWidth - tHeight) ) x = dWidth - tHeight - CONTROL_EDGE_MARGIN
-    if( y > (dHeight - tHeight) ) y = dHeight - tHeight - CONTROL_EDGE_MARGIN
+    if( x > (wWidth - tHeight) ) x = wWidth - tHeight - CONTROL_EDGE_MARGIN
+    if( y > (wHeight - tHeight) ) y = wHeight - tHeight - CONTROL_EDGE_MARGIN
 
     $toolbar.css({ left: `${x}px`, top: `${y}px` })
   }
@@ -363,22 +481,22 @@ export default class View {
     if( this.flux.$modela.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}]"`).length ) 
       return
 
-    const { caption, panel } = this.getSpecs()
+    const { caption, panel } = this.get()
     if( !panel ) return
 
-    const $panel = $(createPanel( this.key, caption, panel( this.getEventObject('panel'), this.globalSet ) ))
+    const $panel = $(createPanel( this.key, caption, panel( this.getEventObject('panel'), this.global ) ))
 
-    let { x, y, width, height } = this.getTopography()
+    let { x, y, width } = this.getTopography( null, true )
     log('show view panel: ', x, y )
 
     this.flux.$modela.append( $panel )
 
     const
-    pWidth = $panel.find('> .container').width() || 0,
-    pHeight = $panel.find('> .container').height() || 0,
-    // Adjust by right & bottom edges
-    dWidth = $(window).width() || 0,
-    dHeight = $(window).height() || 0,
+    pWidth = $panel.find('> [container]').width() || 0,
+    pHeight = $panel.find('> [container]').height() || 0,
+    // Window dimensions
+    wWidth = $(window).width() || 0,
+    wHeight = $(window).height() || 0,
     
     dueXPosition = pWidth + CONTROL_PANEL_MARGIN
     
@@ -390,7 +508,7 @@ export default class View {
        * Not enough space at the right either, position 
        * over view.
        */
-      if( x + width + dueXPosition < dWidth )
+      if( x + width + dueXPosition < wWidth )
         x += width + CONTROL_PANEL_MARGIN
     }
     // Adjust by left edges
@@ -400,12 +518,90 @@ export default class View {
      * Display panel in window view when element 
      * is position to close to the bottom.
      */
-    if( y + pHeight > dHeight )
+    if( y + pHeight > wHeight )
       y -= pHeight
     
     $panel.css({ left: `${x}px`, top: `${y}px` })
   }
+  showMovable(){
 
+  }
+  
+  move( direction?: string ){
+    if( !this.$?.length || !this.key ) 
+      throw new Error('Invalid method called')
+
+    switch( direction ){
+      case 'up': {
+        const $placeholder = this.$?.next(`[${VIEW_PLACEHOLDER_SELECTOR}]`)
+        /**
+         * Check whether previous view above has placeholder then
+         * point moving anchor to after the placeholder (view itself).
+         */
+        let $anchor = this.$.prev(`[${VIEW_PLACEHOLDER_SELECTOR}]`).length ?
+                                    this.$.prev(`[${VIEW_PLACEHOLDER_SELECTOR}]`).prev()
+                                    : this.$.prev()
+                                    
+        /**
+         * In case this view is the last top element in its 
+         * container.
+         */
+        if( !$anchor.length ) return
+        
+        /**
+         * Move this view and its placeholder to the view 
+         * right above it in the same container
+         */
+        $anchor.before( this.$ )
+        $placeholder?.length && this.$.after( $placeholder )
+      } break
+
+      case 'down': {
+        const $placeholder = this.$?.next(`[${VIEW_PLACEHOLDER_SELECTOR}]`)
+
+        let $anchor = $placeholder?.length ?
+                          $placeholder.next() // View right below the placeholder
+                          : this.$.next()
+
+        /**
+         * In case this view is the last bottom element in its 
+         * container.
+         */
+        if( !$anchor.length ) return
+
+        /**
+         * Check whether next view below has placeholder then
+         * point moving anchor to the placeholder.
+         */
+        if( $anchor.next(`[${VIEW_PLACEHOLDER_SELECTOR}]`).length )
+          $anchor = $anchor.next(`[${VIEW_PLACEHOLDER_SELECTOR}]`)
+        
+        /**
+         * Move this view and its placeholder to the view 
+         * right below it in the same container
+         */
+        $anchor.after( this.$ )
+        $placeholder?.length && this.$.after( $placeholder )
+      } break
+
+      default: this.showMovable()
+    }
+  }
+  dismiss(){
+    // Unhighlight triggered views
+    $(`[${VIEW_KEY_SELECTOR}="${this.key}"]`).removeAttr( VIEW_ACTIVE_SELECTOR )
+    // Remove editing toolbar if active
+    this.flux.$root?.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`).remove()
+    // Remove editing control panel if active
+    this.flux.$modela?.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}"]`).remove()
+
+    /**
+     * Fire dismiss function provided with 
+     * view component.
+     */
+    const dismiss = this.get('dismiss')
+    typeof dismiss === 'function' && dismiss( this.getEventObject('dismiss'), this.global )
+  }
   trigger(){
     if( !this.key || !this.$ ) return
     log('trigger view')
@@ -420,27 +616,13 @@ export default class View {
      * Fire activation function provided with 
      * view component.
      */
-    const activate = this.getSpecs('activate')
-    typeof activate === 'function' && activate( this.getEventObject('activate'), this.globalSet )
+    const activate = this.get('activate')
+    typeof activate === 'function' && activate( this.getEventObject('activate'), this.global )
   }
   triggerParent(){
     if( !this.key ) return
     log('trigger parent view')
     
-  }
-
-  dismiss(){
-    // Unhighlight triggered views
-    $(`[${VIEW_KEY_SELECTOR}="${this.key}"]`).removeAttr( VIEW_ACTIVE_SELECTOR )
-    // Remove editing options menu if active
-    this.flux.$root?.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`).remove()
-
-    /**
-     * Fire dismiss function provided with 
-     * view component.
-     */
-    const dismiss = this.getSpecs('dismiss')
-    typeof dismiss === 'function' && dismiss( this.getEventObject('dismiss'), this.globalSet )
   }
   dismissParent(){
     

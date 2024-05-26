@@ -7,35 +7,55 @@ import {
 } from './constants'
 
 export default class Views {
+  private flux: Modela
+
   /**
    * List of actively mapped views
    */
-  public list: { [index: string]: View } = {}
+  public list: ObjectType<View> = {}
 
   /**
    * Default view state
    */
   private currentView?: View
 
-  private flux: Modela
-
   constructor( flux: Modela ){
     this.flux = flux
   }
 
+  /**
+   * Check whether a view is mounted into the
+   * editor context.
+   */
   has( key: string ){
     return this.list[ key ] && this.list[ key ].key === key
   }
+
+  /**
+   * Return view mounted in editor context
+   */
   get( key: string ){
     return this.list[ key ]
   }
+
+  /**
+   * Record editor context's view
+   */
   set( view: View ){
     if( !view.key ) return
     this.list[ view.key ] = view
   }
+
+  /**
+   * Clear all views mounted in the editor context
+   */
   clear(){
     this.list = {}
   }
+
+  /**
+   * Add view component via editor contxt to the DOM
+   */
   add( name: string, to: string, isPlaceholder = true ){
     const component = this.flux.store.getComponent( name )
     if( !component )
@@ -49,6 +69,14 @@ export default class Views {
      */
     this.set( this.currentView )
   }
+
+  /**
+   * Lookup existing HTML elements in the DOM to identify
+   * and mount any view that can be edited via the editor
+   * context
+   * 
+   * Target: Native HTML tags or custom views
+   */
   lookup( e: Event ){
     if( this.currentView && e.target == this.currentView.element ){
       /**
@@ -111,23 +139,41 @@ export default class Views {
      */
     this.set( this.currentView )
   }
+
+  /**
+   * Remove a view from the DOM and the 
+   * editor context
+   */
   remove( key: string ){
     if( !this.has( key ) ) return
     
-    const view = this.get( key )
-    view.destroy()
-
+    this.get( key ).destroy()
     delete this.list[ key ]
   }
-  duplicate( key: string ){
+
+  /**
+   * Duplicate a view
+   */
+  duplicate( key: string, $nextTo?: JQuery<HTMLElement> ){
     if( !this.has( key ) ) return
 
     const duplicateView = new View( this.flux )
-    duplicateView.mirror( this.get( key ) )
+    duplicateView.mirror( this.get( key ), $nextTo )
 
     /**
      * Set this view in global namespace
      */
     this.set( duplicateView )
+  }
+
+  /**
+   * Move view within the DOM
+   * 
+   * Direction: `up`, `down`, `any`
+   */
+  move( key: string, direction?: string ){
+    if( !this.has( key ) ) return
+    
+    this.get( key ).move( direction )
   }
 }

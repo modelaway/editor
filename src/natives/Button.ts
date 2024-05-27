@@ -3,8 +3,9 @@ const toolbar: ToolbarSet[] = []
 const Button: ViewComponent = {
   name: 'button',
   node: 'button',
+  category: 'block',
   caption: {
-    icon: 'bx bx-paragraph',
+    icon: 'bx bx-dice-2',
     title: 'Button',
     description: 'Clickable action button view component'
   },

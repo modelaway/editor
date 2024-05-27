@@ -40,12 +40,55 @@ export default class Store {
                       || Object.values( this.STORE.components ).filter( each => (each.node == name) )[0]
     return component ? { ...component } : null
   }
+  fetchComponents(){
+    return this.STORE.components
+  }
   removeComponent( name: string ){
     if( this.STORE.components[ name ] )
       throw new Error(`<${name}> view component already exists`)
 
     delete this.STORE.components[ name ]
     log('view component unregistered - ', name )
+  }
+  searchComponent( query?: string ){
+    const results: ObjectType<Listset> = {}
+
+    Object
+    .entries( this.STORE.components )
+    .map( ([name, { node, category, caption }]) => {
+      if( !category ) return
+
+      if( query ){
+        const regex = new RegExp( query )
+
+        // Filter by query
+        if( !regex.test( category )
+            && !regex.test( name )
+            && !regex.test( node )
+            && !regex.test( caption.title )
+            && !regex.test( caption.description ) ) return
+      }
+
+      if( !results[ category ] )
+        results[ category ] = {
+          label: category,
+          seperate: true,
+          items: []
+        }
+
+      results[ category ].items.push({
+        icon: caption.icon as string,
+        title: caption.title,
+        value: name,
+        event: {
+          type: 'action',
+          attr: 'add-view',
+          params: name
+        }
+      })
+    } )
+
+    return results
   }
 
   drop(){

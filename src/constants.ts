@@ -25,6 +25,7 @@ export const VIEW_TYPES_ALLOWED_SELECTOR = 'mv-types-allowed'
  */
 export const CONTROL_PANEL_SELECTOR = 'mv-panel'
 export const CONTROL_TOOLBAR_SELECTOR = 'mv-toolbar'
+export const CONTROL_DISCRET_SELECTOR = 'mv-discret'
 export const CONTROL_FLOATING_SELECTOR = 'mv-floating'
 export const CONTROL_BLOCK_SELECTOR = 'mv-control-block'
 

@@ -13,20 +13,23 @@ import {
   
   CONTROL_EDGE_MARGIN,
   CONTROL_PANEL_MARGIN,
-  CONTROL_TOOLBAR_MARGIN
+  CONTROL_TOOLBAR_MARGIN,
+  VIEW_REF_SELECTOR
 } from './constants'
 import { Stylesheet } from './css'
 import {
   createPlaceholder,
   createToolbar,
-  createPanel
+  createPanel,
+  createDiscretAddpoint
 } from './block.factory'
 import { 
   log,
   i18n,
   generateKey,
   defineProperties,
-  extractProperties
+  extractProperties,
+  getTopography
 } from './utils'
 
 class State {
@@ -129,30 +132,6 @@ export default class View {
       state: this.state
     }
   }
-  private getTopography( $view?: JQuery<HTMLElement> | null, strict = false ){
-    $view = $view || this.$
-    if( !$view?.length )
-      throw new Error('Invalid method call. Expected a valid $view element')
-    
-    /**
-     * View position coordinates in the DOM base on
-     * which related triggers will be positionned.
-     */
-    let { left, top } = $view.offset() || { left: 0, top: 0 }
-
-    // Determite position of element relative to window only
-    if( strict ){
-      top -= $(window).scrollTop() || 0
-      left -= $(window).scrollLeft() || 0
-    }
-
-    return { 
-      x: left,
-      y: top,
-      width: $view.width() || 0,
-      height: $view.height() || 0
-    }
-  }
 
   /**
    * Run initial 
@@ -181,18 +160,21 @@ export default class View {
 
     /**
      * Attach a next placeholder to the new view element
-     * 
-     * Only add placehlder to no `absolute`, `fixed` or `sticky`
-     * position elements to void unnecessary stack of placehlder
-     * element around static or relative position elements.
      */
     try {
       if( this.flux.settings.enablePlaceholders
           && !this.$?.next(`[${VIEW_PLACEHOLDER_SELECTOR}="${this.key}"]`).length ){
         
-        this.$?.css('position')
-        && !['fixed', 'absolute', 'sticky'].includes( this.$.css('position') as string )
-        && this.$.after( createPlaceholder( this.key as string ) )
+        /**
+         * Use discret placehlder to no `absolute`, `fixed` or `sticky`
+         * position elements to void unnecessary stack of relative placeholder
+         * elements around static or relative position elements.
+         */
+        const freePositions = ['fixed', 'absolute', 'sticky']
+        
+        freePositions.includes( this.$?.css('position') as string ) ?
+                                      this.$?.prepend( createDiscretAddpoint( this.key as string ) )
+                                      : this.$?.after( createPlaceholder( this.key as string ) )
       }
     }
     catch( error: any ){ log( error.message ) }
@@ -253,13 +235,13 @@ export default class View {
   /**
    * Mount new view comopnent into the DOM
    */
-  mount( component: ViewComponent, to: string, isPlaceholder = true ){
+  mount( component: ViewComponent, to: string, triggerType: AddViewTriggerType = 'self' ){
     /**
      * `to` field should only be a model-view-key to be
      * sure the destination view is within editor control
      * scope.
      */
-    const $to = $(`[${VIEW_KEY_SELECTOR}="${to}"]`)
+    const $to = $(`[${triggerType == 'placeholder' ? VIEW_REF_SELECTOR : VIEW_KEY_SELECTOR}="${to}"]`)
     if( !$to.length )
       throw new Error(`Invalid destination view - <key:${to}>`)
     
@@ -275,7 +257,13 @@ export default class View {
 
     // Add view to the DOM
     this.$ = $(this.element)
-    $to[ isPlaceholder ? 'after' : 'append' ]( this.$ )
+
+    switch( triggerType ){
+      case 'placeholder':
+      case 'discret': $to.after( this.$ ); break
+      case 'self':
+      default: $to.append( this.$ )
+    }
 
     /**
      * Generate and assign tracking key to the 
@@ -432,7 +420,7 @@ export default class View {
    * Show view's editing toolbar
    */
   showToolbar(){
-    if( !this.flux.$root || !this.key ) 
+    if( !this.flux.$root || !this.key || !this.$ ) 
       throw new Error('Invalid method called')
 
     if( this.flux.$root.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}]"`).length ) 
@@ -443,7 +431,7 @@ export default class View {
 
     const $toolbar = $(createToolbar( this.key, toolbar( this.getEventObject('toolbar'), this.global ), true ))
 
-    let { x, y, height } = this.getTopography()
+    let { x, y, height } = getTopography( this.$ )
     log('show view toolbar: ', x, y )
 
     // Adjust by left edges
@@ -475,7 +463,7 @@ export default class View {
     $toolbar.css({ left: `${x}px`, top: `${y}px` })
   }
   showPanel(){
-    if( !this.flux.$modela || !this.key ) 
+    if( !this.flux.$modela || !this.key || !this.$ ) 
       throw new Error('Invalid method called')
 
     if( this.flux.$modela.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}]"`).length ) 
@@ -486,7 +474,7 @@ export default class View {
 
     const $panel = $(createPanel( this.key, caption, panel( this.getEventObject('panel'), this.global ) ))
 
-    let { x, y, width } = this.getTopography( null, true )
+    let { x, y, width } = getTopography( this.$, true )
     log('show view panel: ', x, y )
 
     this.flux.$modela.append( $panel )
@@ -503,7 +491,7 @@ export default class View {
     /**
      * Not enough space at the left, position at the right
      */
-    if( ( x - dueXPosition ) < 15 ){
+    if( ( x - dueXPosition ) < CONTROL_EDGE_MARGIN ){
       /**
        * Not enough space at the right either, position 
        * over view.
@@ -518,7 +506,7 @@ export default class View {
      * Display panel in window view when element 
      * is position to close to the bottom.
      */
-    if( y + pHeight > wHeight )
+    if( ( y + pHeight + CONTROL_EDGE_MARGIN ) > wHeight )
       y -= pHeight
     
     $panel.css({ left: `${x}px`, top: `${y}px` })

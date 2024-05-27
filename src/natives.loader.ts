@@ -1,12 +1,15 @@
 import type Modela from './modela'
-import Text from './components/Text'
-import Paragraph from './components/Paragraph'
-import Button from './components/Button'
+
+import Div from './natives/Div'
+import Text from './natives/Text'
+import Button from './natives/Button'
+import Paragraph from './natives/Paragraph'
 
 const Native: ViewComponent[] = [
+  Div,
   Text,
-  Paragraph,
-  Button
+  Button,
+  Paragraph
 ]
 
 type NativeOptions = {

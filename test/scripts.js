@@ -15,13 +15,19 @@ natives.load()
 editor.store.addComponent({
   name: 'card',
   node: 'div.card',
+  category: 'block',
   attributes: {
     header: true
   },
+  caption: {
+    icon: 'bx bx-card',
+    title: 'Card',
+    description: 'HTML Card component with header, body and footer.'
+  },
 
-  styles(){},
+  styles( e, global ){},
 
-  render( props, global ){
+  render( e, global ){
     const
     headerProps = {
       selector: '.card-header',
@@ -91,14 +97,14 @@ editor.store.addComponent({
       ${global.defineProperties( cardProps )}
 
       <div class="card-content">
-        ${props.attributes.header ? header : ''}
+        ${this.attributes.header ? header : ''}
         <div class="card-body">${global.defineProperties( bodyProps )}</div>
-        ${props.attributes.footer ? footer : ''}
+        ${this.attributes.footer ? footer : ''}
       </div>
     </div>`
   },
   
-  apply( e ){
+  apply( e, global ){
     /**
      * e.type
      * e.dataset
@@ -107,7 +113,7 @@ editor.store.addComponent({
     console.log( e )
   },
 
-  activate( e ){
+  activate( e, global ){
     /**
      * e.type
      * e.dataset

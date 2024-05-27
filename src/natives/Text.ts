@@ -176,10 +176,11 @@ const panelOptions: PanelSections = {
 const Text: ViewComponent = {
   name: 'text',
   node: 'span',
+  category: 'text',
   caption: {
     icon: 'bx bx-text',
-    title: 'Text',
-    description: 'Short text view component'
+    title: 'Inline Text',
+    description: 'Short inline text view component'
   },
   attributes: {},
   

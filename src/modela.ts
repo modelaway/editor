@@ -12,12 +12,6 @@ import {
   createGlobalControlBlock
 } from './block.factory'
 
-declare global {
-  interface Window {
-    $: typeof jQuery
-  }
-}
-
 window.$ = jQuery
 
 export default class Modela {

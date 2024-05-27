@@ -2,9 +2,9 @@
 type ObjectType<T> = { [index: string]: T }
 
 type InputOptions = {
-  type: 'text' | 'number' | 'checkbox' | 'radio' | 'select'
+  type: 'text' | 'number' | 'checkbox' | 'radio' | 'select' | 'search'
   name: string
-  label: string
+  label?: string
   value?: string | number | boolean
   placeholder?: string
   pattern?: RegExp
@@ -17,6 +17,7 @@ type InputOptions = {
     max?: number
   }
   disabled?: boolean
+  autofocus?: boolean
 }
 type SeperatorOptions = {
   label?: string
@@ -146,6 +147,7 @@ type ViewEvent = {
 interface ViewComponent {
   name: string
   node: string
+  category: string
   caption: ViewCaption
   attributes: {}
   render: ( e: ViewEvent, global: GlobalSet ) => string
@@ -157,6 +159,7 @@ interface ViewComponent {
   dismiss?: ( e: ViewEvent, global: GlobalSet ) => void
   actions?: ( e: ViewEvent, global: GlobalSet) => void
 }
+type AddViewTriggerType = 'placeholder' | 'discret' | 'self'
 
 type ModelaSettings = {
   viewOnly?: boolean

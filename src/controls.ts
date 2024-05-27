@@ -7,17 +7,20 @@ import {
   VIEW_ACTIVE_SELECTOR,
   VIEW_PLACEHOLDER_SELECTOR,
   CONTROL_FLOATING_SELECTOR,
+  CONTROL_DISCRET_SELECTOR,
   CONTROL_TOOLBAR_SELECTOR,
   CONTROL_ADDPOINT_MARGIN,
   CONTROL_PANEL_SELECTOR,
-  CONTROL_BLOCK_SELECTOR
+  CONTROL_BLOCK_SELECTOR,
+  CONTROL_EDGE_MARGIN
 } from './constants'
-import { createFloating } from './block.factory'
+import { createFinderPanel, createFloating, createSearchResult } from './block.factory'
+import { getTopography } from './utils'
 
 let ADDPOINT_DISMISS_DELAY: any
 
 type Clipboard = {
-  type: 'view' | 'font'
+  type: string
   key?: string
   value?: any
 }
@@ -74,7 +77,6 @@ function onToolbarDismiss( $this: JQuery<HTMLElement>, self: Controls ){
   }
 }
 function onToolbarShow( $this: JQuery<HTMLElement>, self: Controls ){
-  console.log( self )
   if( !self.flux.views ) return
 
   const viewKey = $this.attr( VIEW_KEY_SELECTOR )
@@ -164,37 +166,119 @@ function onFloatingShow( $this: JQuery<HTMLElement>, self: Controls ){
 
   $trigger.css({ left: `${left}px`, top: `${top}px` })
 }
-function onAddPointDismiss( $this: JQuery<HTMLElement>, self: Controls ){
+function onFloatingDismiss( $this: JQuery<HTMLElement>, self: Controls ){
   ADDPOINT_DISMISS_DELAY = setTimeout( () => self.flux.$root?.find(`[${CONTROL_FLOATING_SELECTOR}]`).remove(), 500 )
 }
 
-function onViewStoreShow( e: Event, self: Controls ){
-  if( !e.target || !self.flux.views ) return
+function addView( $this: JQuery<HTMLElement>, self: Controls ){
+  const name = $this.attr('params')
+  if( !name 
+      || self.clipboard?.type !== 'finder'
+      || !self.clipboard.key ) return
 
-  const viewKey = $(e.target).attr( VIEW_KEY_SELECTOR )
-  if( !viewKey ) return
+  // Use finder initiation trigger key as destination
+  self.flux.views.add( name, self.clipboard.key, self.clipboard.value )
+  // Clear clipboard
+  self.clipboard = null
 
-  self.flux.views.add('card', viewKey, true )
+  onControlPanelDismiss( $this, self )
+}
+
+function finderPosition( $finder: JQuery<HTMLElement>, $trigger: JQuery<HTMLElement> ){
+  let { x, y } = getTopography( $trigger, true )
+  const
+  pWidth = $finder.find('> [container]').width() || 0,
+  pHeight = $finder.find('> [container]').height() || 0,
+  // Window dimensions
+  wWidth = $(window).width() || 0,
+  wHeight = $(window).height() || 0
+  
+  /**
+   * Not enough space at the left, position at the right
+   */
+  if( x < CONTROL_EDGE_MARGIN )
+    x = CONTROL_EDGE_MARGIN
+
+  /**
+   * Not enough space at the right either, position 
+   * over view.
+   */
+  if( ( x + pWidth + CONTROL_EDGE_MARGIN ) > wWidth )
+    x -= pWidth + CONTROL_EDGE_MARGIN
+
+  /**
+   * Display panel in window view when element 
+   * is position to close to the bottom.
+   */
+  if( ( y + pHeight + CONTROL_EDGE_MARGIN ) > wHeight )
+    y -= pHeight
+
+  $finder.css({ left: `${x}px`, top: `${y}px` })
+}
+function showViewFinder( key: string, $trigger: JQuery<HTMLElement>, self: Controls ){
+  const $finder = $( createFinderPanel( key, self.flux.store.searchComponent() ) )
+
+  self.flux.$modela?.append( $finder )
+
+  /**
+   * Put finder panel in position
+   */
+  finderPosition( $finder, $trigger )
+
+  /**
+   * Search input event listener
+   */
+  $finder
+  .find('input[type="search"]')
+  .on('input', function( this: Event ){
+    const query = String( $(this).val() )
+    // Trigger search with minimum 2 character input value
+    if( query.length < 2 ) return
+
+    const results = self.flux.store.searchComponent( query )
+
+    $finder.find('.results').html( createSearchResult( results ) )
+  })
 }
 
 function onEventShow( $this: JQuery<HTMLElement>, self: Controls ){
-  const $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}]`)
+  const 
+  $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}],[${CONTROL_DISCRET_SELECTOR}]`),
+  key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) 
+        || $trigger.attr( CONTROL_FLOATING_SELECTOR )
+        || $trigger.attr( CONTROL_DISCRET_SELECTOR )
+  if( !key ) return
 
   switch( $this.attr('show') ){
-    case 'panel': {
-      const key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
-      if( !key ) return
+    case 'panel': self.flux.views.get( key ).showPanel(); break
 
-      const view = self.flux.views.get( key )
-      view?.showPanel()
+    case 'finder': {
+      /**
+       * Hold find view trigger key in clipboard as 
+       * destination element to the following `add-view`
+       * procedure.
+       */
+      self.clipboard = {
+        type: 'finder',
+        value: $trigger.attr( CONTROL_DISCRET_SELECTOR ) ? 'discret' : 'placeholder',
+        key
+      }
+
+      switch( $this.attr('params') ){
+        case 'view': showViewFinder( key, $trigger, self ); break
+        // case 'layout': showLayoutFinder( $trigger, self ); break
+      }
     } break
   }
 
 }
 function onEventAction( $this: JQuery<HTMLElement>, self: Controls ){
-  const $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`)
+  const $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}],[${CONTROL_DISCRET_SELECTOR}]`)
   
   switch( $this.attr('action') ){
+    // Add new view to the DOM
+    case 'add-view': addView( $this, self ); break
+
     /**
      * -------------- View meta controls --------------
      */
@@ -239,8 +323,6 @@ function onEventAction( $this: JQuery<HTMLElement>, self: Controls ){
 
     // Move view up
     case 'move': self.flux.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, $this.attr('params') as string ); break
-
-
   }
 }
 
@@ -305,17 +387,33 @@ export default class Controls {
       if( e.defaultPrevented ) return
 
       switch( e.type || e.key ){
-        case 'ArrowDown': break
-        case 'ArrowUp': break
-        case 'ArrowLeft': break
-        case 'ArrowRight': break
-        case 'Enter': break
-        case 'Escape': break
+        // case 'ArrowDown': break
+        // case 'ArrowUp': break
+        // case 'ArrowLeft': break
+        // case 'ArrowRight': break
+        // case 'Escape': break
+
         case 'Enter': await self.flux.history.record( $(e).html() ); break
         case 'Tab': await self.flux.history.record( $(e).html() ); break
         case ' ': await self.flux.history.record( $(e).html() ); break
 
-        case 'paste': await self.flux.history.record( $(e).html() ); break
+        // case 'Backspace': break
+        // case 'Clear': break
+        // case 'Copy': break
+        // case 'CrSel': break
+        // case 'Cut': break
+        // case 'Delete': break
+        // case 'EraseEof': break
+        // case 'ExSel': break
+        // case 'Insert': break
+        // case 'Paste': await self.flux.history.record( $(e).html() ); break
+        // case 'Redo': break
+        // case 'Undo': break
+
+        // More key event values
+        // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
+
+        // case 'paste': await self.flux.history.record( $(e).html() ); break
 
         // Key event can't be handled
         default: return
@@ -336,7 +434,11 @@ export default class Controls {
     /**
      * Dismiss floating triggers on placeholder hover
      */
-    // .on('mouseleave', `[${VIEW_PLACEHOLDER_SELECTOR}]`, onAddPointDismiss )
+    // .on('mouseleave', `[${VIEW_PLACEHOLDER_SELECTOR}]`, onFloatingDismiss )
+    /**
+     * Dismiss extra and sub toolbar options
+     */
+    .on('click', `[${CONTROL_DISCRET_SELECTOR}]`, handler( onToolbarDismiss ) )
 
     /**
      * Show extra and sub toolbar options
@@ -384,11 +486,24 @@ export default class Controls {
     /**
      * Show control blocks
      */
-    .on('click', `[${CONTROL_TOOLBAR_SELECTOR}] [show], [${CONTROL_BLOCK_SELECTOR}] [show]`, handler( onControlBlockShow ) )
+    // .on('click', `[${CONTROL_TOOLBAR_SELECTOR}] [show], [${CONTROL_BLOCK_SELECTOR}] [show]`, handler( onControlBlockShow ) )
     /**
      * Dismiss control blocks
      */
-    .on('click', `[${CONTROL_TOOLBAR_SELECTOR}] [dismiss], [${CONTROL_BLOCK_SELECTOR}] [dismiss]`, handler( onControlBlockDismiss ) )
+    // .on('click', `[${CONTROL_TOOLBAR_SELECTOR}] [dismiss], [${CONTROL_BLOCK_SELECTOR}] [dismiss]`, handler( onControlBlockDismiss ) )
+
+    /**
+     * Show event trigger
+     */
+    .on('click', '[show]', handler( onEventShow ) )
+    /**
+     * Action event trigger
+     */
+    .on('click', '[action]', handler( onEventAction ) )
+    /**
+     * Action event trigger
+     */
+    // .on('click', '[dismiss]', handler( onEventDismiss ) )
   }
 
   destroy(){

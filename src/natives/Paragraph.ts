@@ -173,6 +173,7 @@ const panelOptions: PanelSections = {
 const Paragraph: ViewComponent = {
   name: 'paragraph',
   node: 'p',
+  category: 'text',
   caption: {
     icon: 'bx bx-paragraph',
     title: 'Paragraph',
@@ -185,7 +186,7 @@ const Paragraph: ViewComponent = {
       predefined: {
         options: [],
         css: `
-          width: 100%;
+          /* width: 100%; */
           font-size: inherit;
           content: "Loren upsum";
 

@@ -56,13 +56,13 @@ export default class Views {
   /**
    * Add view component via editor contxt to the DOM
    */
-  add( name: string, to: string, isPlaceholder = true ){
+  add( name: string, to: string, triggerType?: AddViewTriggerType ){
     const component = this.flux.store.getComponent( name )
     if( !component )
       throw new Error(`Unknown <${name}> view`)
 
     this.currentView = new View( this.flux )
-    this.currentView.mount( component, to, isPlaceholder )
+    this.currentView.mount( component, to, triggerType )
 
     /**
      * Set this view in global namespace

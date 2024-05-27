@@ -4,6 +4,7 @@ import CSS from './css'
 import Views from './views'
 import Store from './store'
 import Assets from './assets'
+import History from './history'
 import Controls from './controls'
 import { log } from './utils'
 import {
@@ -98,6 +99,11 @@ export default class Modela {
   public views: Views
 
   /**
+   * Editor history stack manager
+   */
+  public history: History
+
+  /**
    * Initialize modela controls
    */
   public controls: Controls
@@ -105,6 +111,11 @@ export default class Modela {
   constructor( settings = {} ){
 
     this.settings = { ...this.defaultSettings, ...settings }
+
+    /**
+     * Initialize history manager
+     */
+    this.history = new History()
 
     /**
      * Manage store manager
@@ -161,6 +172,8 @@ export default class Modela {
     // Process initial content
     const initialContent = this.$root.html()
     if( initialContent ){
+      this.history.initialize( initialContent )
+
 
     }
     

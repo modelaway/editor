@@ -244,6 +244,10 @@ function onEventAction( $this: JQuery<HTMLElement>, self: Controls ){
   }
 }
 
+function onContentChange( $this: JQuery<HTMLElement>, self: Controls ){
+  self.flux.history.lateRecord( $this.html() )
+}
+
 export default class Controls {
   flux: Modela
 
@@ -297,6 +301,29 @@ export default class Controls {
       }
     }
 
+    async function onUserAction( e: any ){
+      if( e.defaultPrevented ) return
+
+      switch( e.type || e.key ){
+        case 'ArrowDown': break
+        case 'ArrowUp': break
+        case 'ArrowLeft': break
+        case 'ArrowRight': break
+        case 'Enter': break
+        case 'Escape': break
+        case 'Enter': await self.flux.history.record( $(e).html() ); break
+        case 'Tab': await self.flux.history.record( $(e).html() ); break
+        case ' ': await self.flux.history.record( $(e).html() ); break
+
+        case 'paste': await self.flux.history.record( $(e).html() ); break
+
+        // Key event can't be handled
+        default: return
+      }
+
+      e.preventDefault()
+    }
+
     this.flux.$root
     /**
      * Show extra and sub toolbar options
@@ -328,6 +355,11 @@ export default class Controls {
      * Action event trigger
      */
     .on('click', '[action]', handler( onEventAction ) )
+
+    .on('input', '[contenteditable]', handler( onContentChange ) )
+
+    .on('keydown', onUserAction )
+    .on('paste', onUserAction )
 
 
     this.flux.$modela

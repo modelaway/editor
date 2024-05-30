@@ -53,8 +53,8 @@ const toolbar: ToolbarSet[] = [
     icon: 'bx bx-align-justify',
     title: 'Alignment',
     event: {
-      type: 'toggle',
-      attr: 'sub',
+      type: 'show',
+      attr: 'sub-toolbar',
       params: 'alignment'
     },
     sub: [

@@ -48,8 +48,8 @@ export const VIEW_CONTROL_OPTIONS: ToolbarSet[] = [
     icon: 'bx bx-square-rounded',
     title: 'View',
     event: {
-      type: 'toggle',
-      attr: 'sub',
+      type: 'show',
+      attr: 'sub-toolbar',
       params: 'view'
     },
     sub: [
@@ -158,8 +158,8 @@ export const GLOBAL_CONTROL_OPTIONS = [
     icon: 'bx bx-devices',
     title: 'Device Screens',
     event: {
-      type: 'toggle',
-      attr: 'sub',
+      type: 'show',
+      attr: 'sub-toolbar',
       params: 'screen-mode'
     },
     disabled: false,

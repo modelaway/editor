@@ -95,7 +95,7 @@ export const createToolbar = ( key: string, options: ToolbarSet[], editing = fal
       // Create a sub options
       if( Array.isArray( sub ) && sub.length )
         subOptions.push(`<mblock options="sub" extends="${event.params}">
-                          <mli dismiss="sub"><micon class="bx bx-chevron-left"></micon></mli>
+                          <mli dismiss="sub-toolbar"><micon class="bx bx-chevron-left"></micon></mli>
                           <mli class="label"><micon class="${icon}"></micon><mlabel>${label || title}</mlabel></mli>
                           ${sub.map( composeSubLi ).join('')}
                         </mblock>`)
@@ -133,13 +133,13 @@ export const createToolbar = ( key: string, options: ToolbarSet[], editing = fal
       <mul>
         <mblock options="main">
           ${mainOptions}
-          ${extraOptions ? `<mli toggle="extra"><micon class="bx bx-dots-horizontal-rounded"></micon></mli>` : ''}
+          ${extraOptions ? `<mli show="extra-toolbar"><micon class="bx bx-dots-horizontal-rounded"></micon></mli>` : ''}
         </mblock>
 
         ${ extraOptions ?
               `<mblock options="extra">
                 ${extraOptions}
-                <mli dismiss="extra"><micon class="bx bx-chevron-left"></micon></mli>
+                <mli dismiss="extra-toolbar"><micon class="bx bx-chevron-left"></micon></mli>
               </mblock>` : ''
         }
 
@@ -215,7 +215,7 @@ export const createPanel = ( key: string, caption: ViewCaption, options: PanelSe
   Object.entries( options ).map( ( [name, section], index ) => composeSection( name, section, active == name || index === 0) )
 
   return `<mblock ${CONTROL_PANEL_SELECTOR}="${key}">
-    <mblock dismiss="self" backdrop></mblock>
+    <mblock dismiss="panel" backdrop></mblock>
     <mblock container>
       <mblock class="header">
         <mblock>
@@ -223,7 +223,7 @@ export const createPanel = ( key: string, caption: ViewCaption, options: PanelSe
           <mlabel>${caption.title}</mlabel>
 
           <!-- Dismiss control panel -->
-          <span dismiss="self"><micon class="bx bx-x"></micon></span>
+          <span dismiss="panel"><micon class="bx bx-x"></micon></span>
         </mblock>
 
         <mul options="tabs">${sectionTabs}</mul>
@@ -345,14 +345,14 @@ export const createFinderPanel = ( key: string, list: ObjectType<Listset> ) => {
     throw new Error('Invalid createAddViewBlock options')
 
   return `<mblock ${CONTROL_PANEL_SELECTOR}="${key}">
-    <mblock dismiss="self" backdrop></mblock>
+    <mblock dismiss="panel" backdrop></mblock>
     <mblock container>
       <mblock class="header">
         <mblock>
           <minline>Add view</minline>
 
           <!-- Dismiss control panel -->
-          <minline dismiss="self"><micon class="bx bx-x"></micon></minline>
+          <minline dismiss="panel"><micon class="bx bx-x"></micon></minline>
         </mblock>
 
         ${createInput({

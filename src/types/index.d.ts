@@ -1,6 +1,12 @@
 
 type ObjectType<T> = { [index: string]: T }
 
+type ClipBoard = {
+  type: string
+  key?: string
+  value?: any
+}
+
 type InputOptions = {
   type: 'text' | 'number' | 'checkbox' | 'radio' | 'select' | 'search'
   name: string

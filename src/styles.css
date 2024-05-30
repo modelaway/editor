@@ -1,10 +1,10 @@
 /* @import url('https://fonts.googleapis.com/css2?family=Urbanist:wght@100;200;300;400;500;600;700;800;900&display=swap'); */
 
 :root {
-  --me-primary-color: rgba(0, 0, 20);
+  --me-primary-color: rgba(20, 20, 20);
   --me-secondary-color: rgb(88, 88, 88);
-  --me-primary-color-transparent: rgba(0, 0, 40, .4);
-  --me-secondary-color-transparent: rgb(88, 88, 90, .9);
+  --me-primary-color-transparent: rgba(20, 20, 40, 0.4);
+  --me-secondary-color-transparent: rgba(100, 100, 102, 0.9);
   --me-secondary-color-blur:  hsla(150, 1%, 100%, 0.1);
   --me-primary-color-fade: rgba(0, 0, 45, .09);
   --me-secondary-color-fade: rgba(220, 220, 220, 0.198);
@@ -402,7 +402,7 @@ mli { display: inherit; }
   background-color: var(--me-secondary-color-transparent);
   box-shadow: var(--me-box-shadow);
   transition: var(--me-active-transition);
-  transform: scale(0.2);
+  transform: scale(0.1);
 }
 [mv-discret] micon {
   visibility: hidden;

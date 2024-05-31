@@ -360,4 +360,8 @@ export default class CSS {
     // Give control to declare style
     return css
   }
+
+  getGlobal(){
+    return STYLES
+  }
 }

@@ -14,7 +14,7 @@ import {
   createFinderPanel,
   createSearchResult
 } from './block.factory'
-import { getTopography } from './utils'
+import { debug, getTopography } from './utils'
 
 /**
  * Auto-dismiss an element block at a 
@@ -99,6 +99,8 @@ function addView( $this: JQuery<HTMLElement>, Ctrl: Controls ){
 }
 
 export function onTab( $this: JQuery<HTMLElement>, Ctrl: Controls ){
+  debug('tab event --', $this.attr('tab'), $this.attr('params') )
+
   const
   /**
    * Lookup the DOM from the main parent perspective
@@ -115,6 +117,8 @@ export function onTab( $this: JQuery<HTMLElement>, Ctrl: Controls ){
   $block.find(`[section="${$this.attr('tab')}"]`).addClass('active')
 }
 export function onShow( $this: JQuery<HTMLElement>, Ctrl: Controls ){
+  debug('show event --', $this.attr('show'), $this.attr('params') )
+
   const
   /**
    * Lookup the DOM from the main parent perspective
@@ -153,7 +157,7 @@ export function onShow( $this: JQuery<HTMLElement>, Ctrl: Controls ){
 
       // Auto-dismiss extra options if exist
       $trigger.find('[options="extra"]').removeClass('active')
-      $trigger.find('[toggle="extra-toolbar"]').show() // Restore toggle
+      $trigger.find('[show="extra-toolbar"]').show() // Restore toggle
     } break
 
     case 'panel': Ctrl.flux.views.get( key ).showPanel(); break
@@ -178,6 +182,8 @@ export function onShow( $this: JQuery<HTMLElement>, Ctrl: Controls ){
   }
 }
 export function onDismiss( $this: JQuery<HTMLElement>, Ctrl: Controls ){
+  debug('dismiss event --', $this.attr('dismiss') )
+
   /**
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
@@ -193,7 +199,7 @@ export function onDismiss( $this: JQuery<HTMLElement>, Ctrl: Controls ){
     // Dismiss extra options
     case 'extra-toolbar': {
       $trigger.find('[options="extra"]').removeClass('active')
-      $trigger.find('[toggle="extra"]').show() // Restore toggle
+      $trigger.find('[show="extra-toolbar"]').show() // Restore toggle
     } break
 
     // Dismiss sub options
@@ -208,7 +214,29 @@ export function onDismiss( $this: JQuery<HTMLElement>, Ctrl: Controls ){
     default: $trigger.remove(); break
   }
 }
+export function onApply( $this: JQuery<HTMLElement>, Ctrl: Controls ){
+  debug('apply event --', $this.attr('apply'), $this.attr('params') )
+
+  const
+  /**
+   * Lookup the DOM from the main parent perspective
+   * make it easier to find different options blocks
+   */
+  $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}],[${CONTROL_DISCRET_SELECTOR}]`),
+  key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
+        || $trigger.attr( CONTROL_PANEL_SELECTOR )
+        || $trigger.attr( CONTROL_FLOATING_SELECTOR )
+        || $trigger.attr( CONTROL_DISCRET_SELECTOR )
+  if( !key ) return
+
+  const 
+  _attr = $this.attr('apply') as string,
+  _params = $this.attr('params')
+
+  Ctrl.flux.views.get( key )?.bridge.events.emit('apply', _attr, _params )
+}
 export function onAction( $this: JQuery<HTMLElement>, Ctrl: Controls ){
+  debug('action event --', $this.attr('action'), $this.attr('params') )
   /**
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
@@ -223,14 +251,18 @@ export function onAction( $this: JQuery<HTMLElement>, Ctrl: Controls ){
      * -------------- View meta Ctrl --------------
      */
 
-    // Duplicate exising view
-    case 'duplicate': Ctrl.flux.views.duplicate( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string ); break
-
+    // Move view up
+    case 'view.move-up': Ctrl.flux.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'up' ); break
+    // Move view down
+    case 'view.move-down': Ctrl.flux.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'down' ); break
+    // Move view
+    case 'view.move': Ctrl.flux.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'any' ); break
+    // Duplicate view
+    case 'view.duplicate': Ctrl.flux.views.duplicate( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string ); break
     // Delete view
-    case 'delete': Ctrl.flux.views.remove( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string ); break
-
+    case 'view.delete': Ctrl.flux.views.remove( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string ); break
     // Copy to clipboard
-    case 'copy': {
+    case 'view.copy': {
       Ctrl.clipboard = {
         type: $this.attr('params') as ClipBoard['type'],
         key: $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
@@ -238,51 +270,42 @@ export function onAction( $this: JQuery<HTMLElement>, Ctrl: Controls ){
     } break
 
     // Paste clipboard content
-    case 'paste': {
-      if( !Ctrl.clipboard ) return
+    case 'view.paste': {
+      if( !Ctrl.clipboard?.key || Ctrl.clipboard.type !== 'view' )
+        return
 
       // Paste view
-      if( Ctrl.clipboard.type == 'view' ){
-        if( !Ctrl.clipboard.key ) return
+      const
+      nextViewKey = $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) || $trigger.attr( CONTROL_FLOATING_SELECTOR ),
+      nextToView = Ctrl.flux.views.get( nextViewKey as string )
 
-        const
-        nextViewKey = $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) || $trigger.attr( CONTROL_FLOATING_SELECTOR ),
-        nextToView = Ctrl.flux.views.get( nextViewKey as string )
-
-        // Duplicated view next to specified pasting view position
-        nextToView && Ctrl.flux.views.duplicate( Ctrl.clipboard.key as string, nextToView.$ )
-        // Remove visible floating active
-        Ctrl.flux.$root?.find(`[${CONTROL_FLOATING_SELECTOR}]`).remove()
-      }
-
-      // TODO: Paste image
-      // ...
+      // Duplicated view next to specified pasting view position
+      nextToView && Ctrl.flux.views.duplicate( Ctrl.clipboard.key as string, nextToView.$ )
+      // Remove visible floating active
+      Ctrl.flux.$root?.find(`[${CONTROL_FLOATING_SELECTOR}]`).remove()
 
       Ctrl.clipboard = null
     } break
 
-    // Move view up
-    case 'move': Ctrl.flux.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, $this.attr('params') as string ); break
   }
 }
 export function onToolbar( $this: JQuery<HTMLElement>, Ctrl: Controls ){
-  if( !Ctrl.flux.views ) return
+  const key = $this.attr( VIEW_KEY_SELECTOR )
+  debug('toolbar event --', key )
 
-  const viewKey = $this.attr( VIEW_KEY_SELECTOR )
-  if( !viewKey ) return
+  if( !key ) return
 
   // Show toolbar
-  const view = Ctrl.flux.views.get( viewKey )
+  const view = Ctrl.flux.views.get( key )
   view && view.showToolbar()
 }
 export function onFloating( $this: JQuery<HTMLElement>, Ctrl: Controls ){
   // Placeholder's ref key to attached view
   const key = $this.attr( VIEW_REF_SELECTOR )
+  debug('floating event --', key )
 
   if( !key ) return
-
-  const 
-  triggers = ['addpoint']
+  const triggers = ['addpoint']
 
   /**
    * Show paste-view trigger point when a pending
@@ -300,7 +323,7 @@ export function onFloating( $this: JQuery<HTMLElement>, Ctrl: Controls ){
     $trigger = Ctrl.flux.$root?.find(`[${CONTROL_FLOATING_SELECTOR}="${key}"]`)
     if( !$trigger?.length ) return
 
-    autoDismiss('addpoint', $trigger )
+    autoDismiss('floating', $trigger )
   }
 
   // Change key of currently floating point to new trigger's key
@@ -308,7 +331,7 @@ export function onFloating( $this: JQuery<HTMLElement>, Ctrl: Controls ){
     $trigger.attr( CONTROL_FLOATING_SELECTOR, key )
             .html( createFloating( key, 'view', triggers, true ) )
 
-    autoDismiss('addpoint', $trigger )
+    autoDismiss('floating', $trigger )
   }
   
   // Addpoint already active
@@ -326,6 +349,27 @@ export function onFloating( $this: JQuery<HTMLElement>, Ctrl: Controls ){
     left -= dueXPosition
 
   $trigger.css({ left: `${left}px`, top: `${top}px` })
+}
+export function onCustomListener( $this: JQuery<HTMLElement>, Ctrl: Controls ){
+  debug('custom on-* event --', $this.attr('on'), $this.attr('params') )
+
+  const
+  /**
+   * Lookup the DOM from the main parent perspective
+   * make it easier to find different options blocks
+   */
+  $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}],[${CONTROL_DISCRET_SELECTOR}]`),
+  key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
+        || $trigger.attr( CONTROL_PANEL_SELECTOR )
+        || $trigger.attr( CONTROL_FLOATING_SELECTOR )
+        || $trigger.attr( CONTROL_DISCRET_SELECTOR )
+  if( !key ) return
+
+  const 
+  _event = $this.attr('on') as string,
+  _params = $this.attr('params')
+
+  Ctrl.flux.views.get( key )?.bridge.events.emit( _event, _params )
 }
 
 export function onContentChange( $this: JQuery<HTMLElement>, Ctrl: Controls ){

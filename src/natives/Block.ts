@@ -1,21 +1,21 @@
 import type { ViewComponent } from '../types/view'
 
-const
+const 
 toolbar: ObjectType<ToolbarSet> = {},
 
-Button: ViewComponent = {
-  name: 'button',
-  node: 'button',
+Block: ViewComponent = {
+  name: 'block',
+  node: 'div',
   category: 'block',
   caption: {
-    icon: 'bx bx-dice-2',
-    title: 'Button',
-    description: 'Clickable action button view component'
+    icon: 'bx bx-rectangle',
+    title: 'Div',
+    description: 'Division block HTML native tag'
   },
   attributes: {},
   
   render(){
-    return `<button>Click me</button>`
+    return `<div></div>`
   },
   takeover( view ){
     view.events
@@ -30,6 +30,6 @@ Button: ViewComponent = {
 }
 
 /**
- * Button view (button) 
+ * Block view (div) 
  */
-export default Button
+export default Block

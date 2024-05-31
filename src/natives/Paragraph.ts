@@ -1,104 +1,93 @@
-const toolbar: ToolbarSet[] = [
-  {
+import type { ViewComponent } from '../types/view'
+
+const
+toolbarOptions: ObjectType<ToolbarSet> = {
+  bold: { 
     icon: 'bx bx-bold',
     title: 'Bold',
     event: {
-      type: 'action',
-      attr: 'apply',
-      params: 'bold',
+      type: 'apply',
+      params: 'BINARY_SWITCH',
       shortcut: 'command + alt + b'
     }
   },
-  { 
+  italic: { 
     icon: 'bx bx-italic',
     title: 'Italic',
     event: {
-      type: 'action',
-      attr: 'apply',
-      params: 'italic',
+      type: 'apply',
+      params: 'BINARY_SWITCH',
       shortcut: 'command + alt + i'
     }
   },
-  { 
+  underline: { 
     icon: 'bx bx-underline',
     title: 'Underline',
     event: {
-      type: 'action',
-      attr: 'apply',
-      params: 'underline',
+      type: 'apply',
+      params: 'BINARY_SWITCH',
       shortcut: 'command + alt + u'
     }
   },
-  {
+  strikethrough: {
     icon: 'bx bx-strikethrough',
     title: 'Stike',
     event: {
-      type: 'action',
-      attr: 'apply',
-      params: 'strikethrough',
+      type: 'apply',
+      params: 'BINARY_SWITCH',
       shortcut: 'command + alt + s'
     }
   },
-  {
+  'font-color': {
     icon: 'bx bx-font-color',
     title: 'Font Color',
     event: {
-      type: 'action',
-      attr: 'apply',
-      params: 'font-color',
+      type: 'apply',
+      params: 'BINARY_SWITCH',
       shortcut: 'command + alt + c'
     }
   },
-  { 
+  alignment: { 
     icon: 'bx bx-align-justify',
     title: 'Alignment',
-    event: {
-      type: 'show',
-      attr: 'sub-toolbar',
-      params: 'alignment'
-    },
-    sub: [
-      {
+    sub: {
+      left: {
         icon: 'bx bx-align-left',
         title: 'Align Left',
         event: {
-          type: 'action',
-          attr: 'align',
-          params: 'left'
-        }
+          type: 'apply',
+          params: true
+        },
+        active: true
       },
-      {
+      center: {
         icon: 'bx bx-align-middle',
         title: 'Align Center',
         event: {
-          type: 'action',
-          attr: 'align',
-          params: 'center'
+          type: 'apply',
+          params: true
         }
       },
-      {
+      right: {
         icon: 'bx bx-align-right',
         title: 'Align Right',
         event: {
-          type: 'action',
-          attr: 'align',
-          params: 'right'
+          type: 'apply',
+          params: true
         }
       },
-      {
+      justify: {
         icon: 'bx bx-align-justify',
         title: 'Align Justify',
         event: {
-          type: 'action',
-          attr: 'align',
-          params: 'justify'
+          type: 'apply',
+          params: true
         }
       }
-    ]
+    }
   }
-]
-
-const panelOptions: PanelSections = {
+},
+panelOptions: PanelSections = {
   attributes: {
     icon: 'bx bx-edit-alt',
     title: 'Properties',
@@ -168,9 +157,9 @@ const panelOptions: PanelSections = {
     fieldsets: [],
     more: true
   }
-}
+},
 
-const Paragraph: ViewComponent = {
+Paragraph: ViewComponent = {
   name: 'paragraph',
   node: 'p',
   category: 'text',
@@ -181,7 +170,24 @@ const Paragraph: ViewComponent = {
   },
   attributes: {},
 
-  styles( e, global ){
+  render( view ){
+    return `<p>Loren upsum</p>`
+  },
+  takeover( view ){
+    view.events
+    .on('show.toolbar', () => {})
+    .on('show.panel', () => {})
+
+    .on('view.styles', data => view.$?.css( data ) )
+    .on('global.styles', data => view.$?.css( data ) )
+
+    .on('activate', data => view.$?.attr('contenteditable', 'true') )
+  },
+  dismiss( view ){
+    view.$?.removeAttr('contenteditable')
+  },
+
+  styles( view ){
     return {
       predefined: {
         options: [],
@@ -210,28 +216,12 @@ const Paragraph: ViewComponent = {
       }
     }
   },
-
-  render( e, global ){
-    return `<p>Loren upsum</p>`
+  toolbar( view ){
+    return toolbarOptions
   },
-
-  toolbar( e, global ){
-    return toolbar
-  },
-
-  panel( e, global ){
+  panel( view ){
     return panelOptions
-  },
-
-  activate( e, global ){ 
-    e.view.attr('contenteditable', 'true')
-  },
-
-  dismiss( e, global ){
-    e.view.removeAttr('contenteditable')
-  },
-
-  actions( e, global ){}
+  }
 }
 
 /**

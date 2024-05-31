@@ -16,18 +16,16 @@ editor.store.addComponent({
   name: 'card',
   node: 'div.card',
   category: 'block',
-  attributes: {
-    header: true
-  },
   caption: {
     icon: 'bx bx-card',
     title: 'Card',
     description: 'HTML Card component with header, body and footer.'
   },
+  attributes: {
+    header: true
+  },
 
-  styles( e, global ){},
-
-  render( e, global ){
+  render( view ){
     const
     headerProps = {
       selector: '.card-header',
@@ -36,10 +34,10 @@ editor.store.addComponent({
        * users know how it should be used.
        */
       caption: {
-        title: global.i18n('Card Header'),
-        description: global.i18n('Usually contain the title of the body content'),
+        title: view.fn.i18n('Card Header'),
+        description: view.fn.i18n('Usually contain the title of the body content'),
         posters: [
-          { type: 'image', src: '...', info: global.i18n('Example of header with a title and subtitle') }
+          { type: 'image', src: '...', info: view.fn.i18n('Example of header with a title and subtitle') }
         ]
       },
       /**
@@ -86,43 +84,27 @@ editor.store.addComponent({
           { type: 'image', src: '...', info: 'Plain card design illustration' }
         ]
       }
-    }
+    },
 
-    header = `<div class="card-header">${global.defineProperties( headerProps )}</div>`,
-    footer = `<div class="card-footer">${global.defineProperties( footerProps )}</div>`,
+    header = `<div class="card-header">${view.fn.defineProperties( headerProps )}</div>`,
+    footer = `<div class="card-footer">${view.fn.defineProperties( footerProps )}</div>`,
 
-    { primaryColor, borderWidth } = global.styles
+    { primaryColor, borderWidth } = view.css.getGlobal()
 
     return `<div class="card bg-primary-${primaryColor.value}">
-      ${global.defineProperties( cardProps )}
+      ${view.fn.defineProperties( cardProps )}
 
       <div class="card-content">
         ${this.attributes.header ? header : ''}
-        <div class="card-body">${global.defineProperties( bodyProps )}</div>
+        <div class="card-body">${view.fn.defineProperties( bodyProps )}</div>
         ${this.attributes.footer ? footer : ''}
       </div>
     </div>`
   },
-  
-  apply( e, global ){
-    /**
-     * e.type
-     * e.dataset
-     * e.view
-     */
-    console.log( e )
-  },
+  takeover( view ){},
+  dismiss( view ){},
 
-  activate( e, global ){
-    /**
-     * e.type
-     * e.dataset
-     * e.view
-     */
-    console.log( e )
-  },
-
-  styles(){},
+  styles( view ){},
   
   translation: {
     en: {

@@ -6,7 +6,8 @@ import Store from './store'
 import Assets from './assets'
 import History from './history'
 import Controls from './controls'
-import { log } from './utils'
+import Functions from './functions'
+import { debug } from './utils'
 import {
   createStoreControlBlock,
   createGlobalControlBlock
@@ -88,6 +89,11 @@ export default class Modela {
   public assets: Assets
 
   /**
+   * Utility functions
+   */
+  public fn: Functions
+
+  /**
    * Manage supported views
    */
   public views: Views
@@ -126,6 +132,11 @@ export default class Modela {
     this.assets = new Assets( this )
 
     /**
+     * Initialize utility functions
+     */
+    this.fn = new Functions( this )
+
+    /**
      * Initialize global css manager
      */
     this.css = new CSS( this )
@@ -143,7 +154,7 @@ export default class Modela {
 
   render(){
     if( !this.enabled ){
-      log('Modela functions disabled')
+      debug('Modela functions disabled')
       return ''
     }
 
@@ -155,7 +166,7 @@ export default class Modela {
 
   mount( selector: string ){
     if( !this.enabled ){
-      log('Modela functions disabled')
+      debug('Modela functions disabled')
       return
     }
 
@@ -181,7 +192,7 @@ export default class Modela {
 
   propagateUpdate( type: string, updates: any, applyOnly = false ){
     if( !this.enabled ){
-      log('Modela functions disabled')
+      debug('Modela functions disabled')
       return
     }
 
@@ -205,7 +216,7 @@ export default class Modela {
 
   dismiss(){
     if( !this.enabled ){
-      log('Modela functions disabled')
+      debug('Modela functions disabled')
       return
     }
 

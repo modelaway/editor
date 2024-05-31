@@ -1,5 +1,6 @@
-import Modela from './modela'
-import { log } from './utils'
+import type Modela from './modela'
+import type { ViewComponent } from './types/view'
+import { debug } from './utils'
 
 export default class Store {
   private STORE: ModelaStore = {
@@ -24,7 +25,7 @@ export default class Store {
       throw new Error(`<${component.name}> view component already exists`)
 
     this.STORE.components[ component.name ] = component
-    log('view component registered - ', component.name )
+    debug('view component registered - ', component.name )
   }
   getComponent( name: string ): ViewComponent | null {
     /**
@@ -48,7 +49,7 @@ export default class Store {
       throw new Error(`<${name}> view component already exists`)
 
     delete this.STORE.components[ name ]
-    log('view component unregistered - ', name )
+    debug('view component unregistered - ', name )
   }
   searchComponent( query?: string ){
     const results: ObjectType<Listset> = {}

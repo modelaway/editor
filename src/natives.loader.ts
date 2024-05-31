@@ -1,13 +1,16 @@
 import type Modela from './modela'
+import { ViewComponent } from './types/view'
 
-import Div from './natives/Div'
 import Text from './natives/Text'
+import Block from './natives/Block'
+import Image from './natives/Image'
 import Button from './natives/Button'
 import Paragraph from './natives/Paragraph'
 
 const Native: ViewComponent[] = [
-  Div,
   Text,
+  Block,
+  Image,
   Button,
   Paragraph
 ]

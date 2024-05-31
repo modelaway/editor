@@ -1,5 +1,5 @@
-import Modela from './modela'
-import { log } from './utils'
+import type Modela from './modela'
+import { debug } from './utils'
 
 export default class Assets {
   private ASSETS: ObjectType<AssetData> = {}
@@ -19,7 +19,7 @@ export default class Assets {
       throw new Error(`<${assets.name}> assets already exists`)
 
     this.ASSETS[ assets.name ] = assets
-    log('assets added - ', assets.name )
+    debug('assets added - ', assets.name )
   }
   get( name: string ){
     return this.ASSETS[ name ]
@@ -29,7 +29,42 @@ export default class Assets {
       throw new Error(`<${name}> assets already exists`)
 
     delete this.ASSETS[ name ]
-    log('assets removed - ', name )
+    debug('assets removed - ', name )
+  }
+
+  upload( files: InputFiles[] ){
+    return new Promise( ( resolve, reject ) => {
+      const data = new FormData()
+      files.map( ({ file }) => data.append( 'file', file ) )
+      
+      const
+      url = '',
+      headers = {}
+      
+      // Axios
+      // .post( url, data, {
+      //   headers,
+      //   onUploadProgress: e => {
+      //     if( !e.lengthComputable ) return
+
+      //     // Uploaded percentage
+      //     let Percent = Math.round( ( e.loaded / e.total ) * 100 )
+      //   }
+      // })
+      // .then( ({ data }) => resolve( data ) )
+      // .catch( ({ request, response, message }) => {
+      //   let error
+
+      //   if( response ) error = response.status +' > '+ message
+      //   else if( request ) error = request.status +' > '+ message
+      //   else error = message
+        
+      //   debug('[PosterPlus] Upload Failed: ', error )
+        
+      //   // _this.state.alert = 'Unexpected Uploading Error Occured. Try again'
+      //   reject( error )
+      // } )
+    } )
   }
 
   drop(){

@@ -25,6 +25,15 @@ type InputOptions = {
   disabled?: boolean
   autofocus?: boolean
 }
+type SelectFileOptions = {
+  id: string
+  accepts?: string
+  multiple?: boolean
+}
+type InputFiles = {
+  file: File
+  src: string
+}
 type SeperatorOptions = {
   label?: string
 }
@@ -72,17 +81,18 @@ type ToolbarSet = {
   icon: string
   label?: string
   title: string
-  event: {
-    type: string,
-    attr: string,
+  event?: {
+    type: string
+    // attr: string,
     params: string | boolean
     shortcut?: string
   }
-  sub?: ToolbarSet[]
+  sub?: ObjectType<ToolbarSet>
   meta?: boolean
   extra?: boolean
   detached?: boolean
   disabled?: boolean
+  active?: boolean
 }
 type Fieldset = {
   label?: string
@@ -112,59 +122,6 @@ interface GlobalSet {
   defineProperties: ( props: ViewBlockProperties ) => string
 }
 
-type ViewCaptionPoster = { 
-  type: 'image' | 'video'
-  src: string
-  info?: string
-}
-type ViewCaption = {
-  icon?: string
-  title: string
-  description: string
-  posters?: ViewCaptionPoster[]
-}
-type ViewBlockProperties = {
-  selector: string
-  /**
-   * Define the caption of header to help 
-   * users know how it should be used.
-   */
-  caption?: ViewCaption
-  /**
-   * Tells whether to add new views to this
-   * block.
-   */
-  addView?: boolean
-  /**
-   * Define an option list of view content types that
-   * could be added to this block.
-   * 
-   * Default: any (if `addView` param is set to true)
-   */
-  allowedViewTypes?: string[]
-}
-
-type ViewEvent = {
-  type: string
-  dataset?: any
-  view: JQuery
-  state: ObjectType<any>
-}
-interface ViewComponent {
-  name: string
-  node: string
-  category: string
-  caption: ViewCaption
-  attributes: {}
-  render: ( e: ViewEvent, global: GlobalSet ) => string
-  styles?: ( e: ViewEvent, global: GlobalSet ) => StyleSheetProps
-  toolbar?: ( e: ViewEvent, global: GlobalSet ) => ToolbarSet[]
-  panel?: ( e: ViewEvent, global: GlobalSet ) => PanelSections
-  apply?: ( e: ViewEvent, global: GlobalSet ) => void
-  activate?: ( e: ViewEvent, global: GlobalSet ) => void
-  dismiss?: ( e: ViewEvent, global: GlobalSet ) => void
-  actions?: ( e: ViewEvent, global: GlobalSet) => void
-}
 type AddViewTriggerType = 'placeholder' | 'discret' | 'self'
 
 type ModelaSettings = {

@@ -1,3 +1,4 @@
+import type { ViewBlockProperties } from './types/view'
 import { CONTROL_EDGE_MARGIN } from './constants'
 
 declare global {
@@ -18,7 +19,7 @@ String.prototype.toCapitalCase = function(){
 /**
  * Debug logger
  */
-export const log = ( ...args: any[] ) => {
+export const debug = ( ...args: any[] ) => {
   console.debug('[debug]:', ...args )
 }
 
@@ -28,30 +29,6 @@ export const log = ( ...args: any[] ) => {
 export const i18n = ( text: string ): string => {
 
   return text
-}
-
-/**
- * Define view block props as HTML comment.
- */
-export const defineProperties = ( props: ViewBlockProperties ) => {
-  if( typeof props !== 'object'
-      || !Object.keys( props ).length )
-    throw new Error('Invalid props. Non-empty object expected')
-
-  return `<!--${JSON.stringify( props )}-->`
-}
-/**
- * Extract defined view block props from HTML comment
- * format to object.
- */
-export const extractProperties = ( element: string ): ViewBlockProperties[] => {
-  const extracted = element.match(/<!--{(.+)}-->/g)
-  if( !extracted?.length ) return []
-
-  return extracted.map( each => {
-    try { return JSON.parse( each.replace(/^<!--/, '').replace(/-->$/, '') ) }
-    catch( error ){ return null }
-  } )
 }
 
 /**

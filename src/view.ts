@@ -1,4 +1,9 @@
 import type Modela from './modela'
+import type { ViewBlockProperties, ViewComponent, ViewComponentBridge } from './types/view'
+
+import EventEmitter from 'events'
+import State from './state'
+import Functions from './functions'
 import {
   VIEW_KEY_SELECTOR,
   VIEW_NAME_SELECTOR,
@@ -24,39 +29,10 @@ import {
   createDiscretAddpoint
 } from './block.factory'
 import { 
-  log,
-  i18n,
+  debug,
   generateKey,
-  defineProperties,
-  extractProperties,
   getTopography
 } from './utils'
-
-class State {
-  private state: ObjectType<any> = {}
-
-  set( field: string, value: any ){
-    this.state[ field ] = value
-
-    // Call lifecyle event functions
-  }
-  get( field?: string ){
-    return field ? this.state[ field ] : this.state 
-  }
-  delete( field: string ) {
-    delete this.state[ field ]
-
-    // Call lifecyle event functions
-  }
-  clear(){
-    this.state = {}
-
-    // Call lifecyle event functions
-  }
-  json(){
-    return JSON.parse( JSON.stringify( this.state ) )
-  }
-}
 
 export default class View {
   /**
@@ -95,44 +71,23 @@ export default class View {
   private $parent?: JQuery<HTMLElement>
 
   /**
-   * View component state
+   * Between View & Component interaction bridge
    */
-  private state: State
-
-  /**
-   * Holding global properties and utils methods.
-   * provided to component lifecycle methods.
-   */
-  private global: GlobalSet
+  public bridge: ViewComponentBridge
 
   constructor( flux: Modela ){
     this.flux = flux
 
-    /**
-     * Initial component state
-     */
-    this.state = new State()
-    
-    /**
-     * global
-     */
-    this.global = {
-      css: flux.css,
+    this.bridge = {
+      state: new State(),
+      events: new EventEmitter(),
       assets: flux.assets,
-      i18n,
-      defineProperties
+      css: flux.css,
+      fn: flux.fn,
+      $: null
     }
   }
-
-  private getEventObject( type: string, dataset?: ObjectType<any> ){
-    return {
-      type,
-      view: this.$ as JQuery<HTMLElement>,
-      dataset,
-      state: this.state
-    }
-  }
-
+  
   /**
    * Run initial 
    */
@@ -150,13 +105,13 @@ export default class View {
            * Run the defined `styles()` method of the component
            * to get initial style properties.
            */
-          props: styles( this.getEventObject('toolbar'), this.global )
+          props: styles( this.bridge )
         })
 
         this.styles.load()
       }
     }
-    catch( error: any ){ log( error.message ) }
+    catch( error: any ){ debug( error.message ) }
 
     /**
      * Attach a next placeholder to the new view element
@@ -177,7 +132,16 @@ export default class View {
                                       : this.$?.after( createPlaceholder( this.key as string ) )
       }
     }
-    catch( error: any ){ log( error.message ) }
+    catch( error: any ){ debug( error.message ) }
+
+    // Make view's JQuery object
+    this.bridge.$ = this.$ as JQuery<HTMLElement>
+
+    // Give away control to view component
+    const takeover = this.get('takeover')
+    typeof takeover == 'function' && takeover( this.bridge )
+
+    debug('view initialized')
   }
 
   set( values: any ){
@@ -186,7 +150,7 @@ export default class View {
       throw new Error('Invalid method argument')
 
     this.component = this.component ? { ...this.component, ...values } : values
-    log('component - ', this.component )
+    debug('component - ', this.component )
   }
   get( type?: keyof ViewComponent ): any {
     if( !this.component ) 
@@ -202,7 +166,7 @@ export default class View {
    */
   inspect( element: HTMLElement, name: string ){
     this.element = element
-    log('current target - ', element )
+    debug('current target - ', element )
 
     this.$ = $(element)
     if( !this.$.length )
@@ -252,8 +216,8 @@ export default class View {
      * Render new element with default component and 
      * defined global settings
      */
-    this.element = component.render( this.getEventObject('render'), this.global )
-    log('mount view - ', this.element )
+    this.element = component.render( this.bridge )
+    debug('mount view - ', this.element )
 
     // Add view to the DOM
     this.$ = $(this.element)
@@ -279,7 +243,7 @@ export default class View {
     /**
      * Extract defined view blocks props
      */
-    const renderingProps = extractProperties( this.element )
+    const renderingProps = this.flux.fn.extractProperties( this.element )
     this.inject( renderingProps )
 
     // Set view specifications
@@ -308,7 +272,7 @@ export default class View {
     if( !this.element )
       throw new Error('View instance HTML element not found')
 
-    log('mirror view - ', this.element )
+    debug('mirror view - ', this.element )
 
     // Add cloned view to the DOM
     this.$ = $(this.element)
@@ -346,7 +310,7 @@ export default class View {
     if( !parent ) return
 
     this.$parent = $(parent)
-    log('parent target - ', parent )
+    debug('parent target - ', parent )
 
     // Get parent's default component
 
@@ -389,8 +353,7 @@ export default class View {
     if( !this.component ) 
       throw new Error('Invalid method called')
 
-    typeof this.component.apply == 'function'
-    && this.component.apply( this.getEventObject( type, dataset ), this.global )
+    this.bridge.events.emit('apply', type, dataset )
   }
   destroy(){
     if( !this.$?.length ) 
@@ -423,16 +386,16 @@ export default class View {
     if( !this.flux.$root || !this.key || !this.$ ) 
       throw new Error('Invalid method called')
 
-    if( this.flux.$root.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}]"`).length ) 
+    if( this.flux.$root.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`).length ) 
       return
 
     const toolbar = this.get('toolbar')
     if( !toolbar ) return
 
-    const $toolbar = $(createToolbar( this.key, toolbar( this.getEventObject('toolbar'), this.global ), true ))
+    const $toolbar = $(createToolbar( this.key, toolbar( this.bridge ), true ))
 
     let { x, y, height } = getTopography( this.$ )
-    log('show view toolbar: ', x, y )
+    debug('show view toolbar: ', x, y )
 
     // Adjust by left edges
     if( x < 15 ) x = CONTROL_EDGE_MARGIN
@@ -442,40 +405,46 @@ export default class View {
 
     const
     tHeight = $toolbar.find('> [container]').height() || 0,
-    dueYPosition = tHeight + CONTROL_TOOLBAR_MARGIN
+    dueYPosition = tHeight + (CONTROL_TOOLBAR_MARGIN * 2)
     
+    const
+    wWidth = $(window).width() || 0,
+    wHeight = $(window).height() || 0
+
+    // Adjust by right edge
+    if( x > (wWidth - tHeight) ) x = wWidth - tHeight - CONTROL_EDGE_MARGIN
+
     /**
      * Push slightly on top of element in normal position
      * but adjust below the element if it's to close to
      * the top edge.
      */
-    if( ( y - dueYPosition ) < CONTROL_EDGE_MARGIN ) y += height + CONTROL_TOOLBAR_MARGIN
-    else y -= dueYPosition
-
-    // Adjust by right & bottom edges
-    const
-    wWidth = $(window).width() || 0,
-    wHeight = $(window).height() || 0
-
-    if( x > (wWidth - tHeight) ) x = wWidth - tHeight - CONTROL_EDGE_MARGIN
+    if( height < (wHeight - tHeight) ){
+      if( ( y - dueYPosition ) < CONTROL_EDGE_MARGIN ) y += height
+      else y -= dueYPosition
+    }
+    // Adjust by the bottom edges
     if( y > (wHeight - tHeight) ) y = wHeight - tHeight - CONTROL_EDGE_MARGIN
 
     $toolbar.css({ left: `${x}px`, top: `${y}px` })
+
+    // Fire show toolbar listeners
+    this.bridge.events.emit('show.toolbar')
   }
   showPanel(){
     if( !this.flux.$modela || !this.key || !this.$ ) 
       throw new Error('Invalid method called')
 
-    if( this.flux.$modela.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}]"`).length ) 
+    if( this.flux.$modela.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}"]`).length ) 
       return
 
     const { caption, panel } = this.get()
     if( !panel ) return
 
-    const $panel = $(createPanel( this.key, caption, panel( this.getEventObject('panel'), this.global ) ))
+    const $panel = $(createPanel( this.key, caption, panel( this.bridge ) ))
 
     let { x, y, width } = getTopography( this.$, true )
-    log('show view panel: ', x, y )
+    debug('show view panel: ', x, y )
 
     this.flux.$modela.append( $panel )
 
@@ -509,10 +478,20 @@ export default class View {
     if( ( y + pHeight + CONTROL_EDGE_MARGIN ) > wHeight )
       y -= pHeight
     
+    // Adjust by the top edges
+    else if( y < CONTROL_EDGE_MARGIN )
+      y = CONTROL_EDGE_MARGIN
+    
     $panel.css({ left: `${x}px`, top: `${y}px` })
+
+    // Fire show panel listeners
+    this.bridge.events.emit('show.panel')
   }
   showMovable(){
 
+
+    // Fire show movable listeners
+    this.bridge.events.emit('show.movable')
   }
   
   move( direction?: string ){
@@ -588,11 +567,11 @@ export default class View {
      * view component.
      */
     const dismiss = this.get('dismiss')
-    typeof dismiss === 'function' && dismiss( this.getEventObject('dismiss'), this.global )
+    typeof dismiss === 'function' && dismiss( this.bridge )
   }
   trigger(){
     if( !this.key || !this.$ ) return
-    log('trigger view')
+    debug('trigger view')
 
     /**
      * Highlight triggered view: Delay due to 
@@ -604,12 +583,11 @@ export default class View {
      * Fire activation function provided with 
      * view component.
      */
-    const activate = this.get('activate')
-    typeof activate === 'function' && activate( this.getEventObject('activate'), this.global )
+    this.bridge.events.emit('activate')
   }
   triggerParent(){
     if( !this.key ) return
-    log('trigger parent view')
+    debug('trigger parent view')
     
   }
   dismissParent(){

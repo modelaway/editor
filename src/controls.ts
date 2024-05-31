@@ -20,7 +20,7 @@ export default class Controls {
    * Copy element clipboard
    */
   clipboard: ClipBoard | null = null
-  
+
   constructor( flux: Modela ){
     this.flux = flux
   }
@@ -36,7 +36,6 @@ export default class Controls {
 
     // Activate all inert add-view placeholders
     this.setPlaceholders('active')
-
     // Initialize event listeners
     this.events()
   }
@@ -76,6 +75,10 @@ export default class Controls {
        */
       .on('click', '[show]', handler( Event.onShow ) )
       /**
+       * Apply event trigger
+       */
+      .on('click', '[apply]', handler( Event.onApply ) )
+      /**
        * Action event trigger
        */
       .on('click', '[action]', handler( Event.onAction ) )
@@ -83,6 +86,10 @@ export default class Controls {
        * Dismiss event trigger
        */
       .on('click', '[dismiss]', handler( Event.onDismiss ) )
+      /**
+       * Custom `on-*` event trigger
+       */
+      .on('click', '[on]', handler( Event.onCustomListener ) )
     }
 
     async function onUserAction( e: any ){

@@ -16,6 +16,7 @@
   --me-border-radius: 5px;
   --me-border-color: rgba(0, 0, 20, .15);
   --me-trigger-text-color: #fff;
+  --me-active-text-color: #20035b;
   --me-disabled-text-color: #a6a6a6;
   --me-active-transition: 250ms;
   --me-slide-transition: 400ms;
@@ -141,6 +142,7 @@ mli { display: inherit; }
   justify-content: space-around;
 }
 
+[mv-toolbar] > mblock { padding: 6px 0; }
 [mv-toolbar] > mblock > mul:not(:first-child) {
   margin: 0 6px;
 }
@@ -158,15 +160,19 @@ mli { display: inherit; }
 [mv-control-block] > [options="tabs"] > mli:not(.label) {
   cursor: pointer;
 }
-[mv-toolbar] mli.disabled,
-[mv-control-block] > [options="tabs"] > mli.disabled {
+[mv-toolbar] mli[active],
+[mv-control-block] > [options="tabs"] > mli[active] {
+  color: var(--me-active-text-color);
+}
+[mv-toolbar] mli[disabled],
+[mv-control-block] > [options="tabs"] > mli[disabled] {
   color: var(--me-disabled-text-color);
   cursor: not-allowed;
 }
 [mv-toolbar] [meta],
 [mv-toolbar] [dismiss],
-[mv-toolbar] mli:not(.label,.disabled):hover,
-[mv-control-block] > [options="tabs"] > mli:not(.label,.disabled):hover {
+[mv-toolbar] mli:not(.label,[disabled]):hover,
+[mv-control-block] > [options="tabs"] > mli:not(.label,[disabled]):hover {
   background-color: var(--me-secondary-color-fade);
 }
 [mv-toolbar] mli.label > micon,
@@ -417,7 +423,7 @@ mli { display: inherit; }
 [mv-form-input="radio"],
 [mv-form-input="checkbox"] */
 [mv-form-input] {
-  display: block;
+  display: flex;
   font-size: var(--me-font-size);
   margin-bottom: 0.8rem;
 }
@@ -456,8 +462,8 @@ mli { display: inherit; }
 [type="radio"] ~ label::before,
 [type="checkbox"] ~ label::before {
   position: absolute;
-  top: -0.1rem;
-  left: -1.5rem;
+  top: -0.25rem;
+  left: -1.25rem;
   display: block;
   width: 1.2rem;
   height: 1.2rem;
@@ -469,8 +475,8 @@ mli { display: inherit; }
 [type="radio"] ~ label::after,
 [type="checkbox"] ~ label::after {
   position: absolute;
-  top: -0.03rem;
-  left: -1.642rem;
+  top: -0.17rem;
+  left: -1.4rem;
   display: block;
   width: 1.6rem;
   height: 1.2rem;

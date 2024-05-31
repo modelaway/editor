@@ -1,4 +1,4 @@
-
+import type { ViewCaption } from './types/view'
 import {
   VIEW_REF_SELECTOR,
   VIEW_CONTROL_OPTIONS,
@@ -58,10 +58,8 @@ export const createStoreControlBlock = () => {
 /**
  * Process toolbar options into HTML content
  */
-export const createToolbar = ( key: string, options: ToolbarSet[], editing = false ) => {
-  if( typeof key !== 'string' 
-      || !Array.isArray( options ) 
-      || !options.length )
+export const createToolbar = ( key: string, options: ObjectType<ToolbarSet>, editing = false ) => {
+  if( typeof options !== 'object' )
     throw new Error('Invalid createToolbar Arguments')
 
   let 
@@ -70,60 +68,75 @@ export const createToolbar = ( key: string, options: ToolbarSet[], editing = fal
   subOptions: string[] = []
 
   const
-  composeSubLi = ({ icon, title, event, disabled }: ToolbarSet ) => {
-    let attrs = `${disabled ? 'class="disabled"' : ''}`
-    
-    // Trigger event type & params attributes
-    if( event ){
-      if( event.type && event.attr ) attrs += ` ${event.type}="${event.attr}"`
-      if( event.params ) attrs += ` params="${event.params}"`
+  composeSubLi = ( parentAttr?: string ) => {
+    return ([ attr, { icon, title, event, disabled, active }]: [ attr: string, tset: ToolbarSet ] ) => {
+      let attrs = ''
+      
+      // Trigger event type & params attributes
+      if( event ){
+        if( event.type && attr ) attrs += ` ${event.type}="${parentAttr ? `${parentAttr}.` : ''}${attr}"`
+        if( event.params ) attrs += ` params="${event.params}"`
+      }
+
+      // Add title attributes
+      if( active ) attrs += ` active`
+      if( disabled ) attrs += ` disabled`
+      if( title ) attrs += ` title="${title}"`
+
+      return `<mli ${attrs}><micon class="${icon}"></micon></mli>`
     }
-
-    // Add title attributes
-    if( title ) attrs += ` title="${title}"`
-
-    return `<mli ${attrs}><micon class="${icon}"></micon></mli>`
   },
-  composeLi = ({ icon, label, title, event, disabled, extra, sub, meta }: ToolbarSet ) => {
-    let attrs = `${disabled ? 'class="disabled"' : ''}`
+  composeLi = ([ attr, { icon, label, title, event, disabled, active, extra, sub, meta }]: [ attr: string, tset: ToolbarSet ]) => {
+    let attrs = ''
     
-    // Trigger event type & params attributes
-    if( event ){
-      if( event.type && event.attr ) attrs += ` ${event.type}="${event.attr}"`
-      if( event.params ) attrs += ` params="${event.params}"`
+    // Option has sub options
+    if( sub && Object.keys( sub ).length ){
+      attrs += ` show="sub-toolbar" params="${attr}"`
 
       // Create a sub options
-      if( Array.isArray( sub ) && sub.length )
-        subOptions.push(`<mblock options="sub" extends="${event.params}">
-                          <mli dismiss="sub-toolbar"><micon class="bx bx-chevron-left"></micon></mli>
-                          <mli class="label"><micon class="${icon}"></micon><mlabel>${label || title}</mlabel></mli>
-                          ${sub.map( composeSubLi ).join('')}
-                        </mblock>`)
+      subOptions.push(`<mblock options="sub" extends="${attr}">
+                        <mli dismiss="sub-toolbar"><micon class="bx bx-chevron-left"></micon></mli>
+                        <mli class="label"><micon class="${icon}"></micon><mlabel>${label || title}</mlabel></mli>
+                        ${Object.entries( sub ).map( composeSubLi( attr ) ).join('')}
+                      </mblock>`)
+    }
+
+    // Trigger event type & params attributes
+    else if( event ){
+      if( event.type && attr ) attrs += ` ${event.type}="${attr}"`
+      if( event.params ) attrs += ` params="${event.params}"`
     }
 
     // Add title attributes
     if( meta ) attrs += ` meta`
+    if( active ) attrs += ` active`
+    if( disabled ) attrs += ` disabled`
     if( label ) attrs += ` class="label"`
     if( title ) attrs += ` title="${title}"`
 
     const optionLi = `<mli ${attrs}><micon class="${icon}"></micon><mlabel>${label ? ` ${label}` : ''}</mlabel></mli>`
     extra ?
-        extraOptions += optionLi
-        : mainOptions += optionLi
+      extraOptions += optionLi
+      : mainOptions += optionLi
   }
   
   /**
    * Attach meta options to every editable view.
    */
-  const
-  metaOptions = VIEW_CONTROL_OPTIONS.filter( each => (each.meta) ),
-  detachedOptions = VIEW_CONTROL_OPTIONS.filter( each => (each.detached) )
+  const 
+  metaOptions: ObjectType<ToolbarSet> = {},
+  detachedOptions: ObjectType<ToolbarSet> = {}
 
-  if( editing && Array.isArray( metaOptions ) && metaOptions.length )
-    options = [ ...options, ...metaOptions ]
+  Object.entries( VIEW_CONTROL_OPTIONS ).map( ([attr, option]) => {
+    if( option.meta ) metaOptions[ attr ] = option
+    if( option.detached ) detachedOptions[ attr ] = option
+  } )
+
+  if( editing && Object.keys( metaOptions ).length )
+    options = { ...options, ...metaOptions }
 
   // Generate HTML menu
-  options.forEach( composeLi )
+  Object.entries( options ).map( composeLi )
 
   if( !mainOptions )
     throw new Error('Undefined main options')
@@ -146,10 +159,10 @@ export const createToolbar = ( key: string, options: ToolbarSet[], editing = fal
         ${subOptions.length ? subOptions.join('') : ''}
       </mul>
 
-      ${ editing && Array.isArray( detachedOptions ) && detachedOptions.length ? 
+      ${ editing && Object.keys( detachedOptions ) ? 
             `<mul>
               <mblock options="control">
-                ${detachedOptions.map( composeSubLi ).join('')}
+                ${Object.entries( detachedOptions ).map( composeSubLi() ).join('')}
               </mblock>
             </mul>`: ''
       }
@@ -158,7 +171,7 @@ export const createToolbar = ( key: string, options: ToolbarSet[], editing = fal
 }
 
 export const createPanel = ( key: string, caption: ViewCaption, options: PanelSections, active?: string ) => {
-  if( !options || !Object.keys( options ).length )
+  if( typeof options !== 'object' )
     throw new Error('Invalid createPanel options')
 
   let
@@ -204,8 +217,8 @@ export const createPanel = ( key: string, caption: ViewCaption, options: PanelSe
     } )
 
     sectionBodies += `<mblock section="attributes" class="active">
-      ${fieldsetHTML}
-      ${listsetHTML}
+      <mblock>${fieldsetHTML}</mblock>
+      <mblock>${listsetHTML}</mblock>
     </mblock>`
   }
 
@@ -292,6 +305,15 @@ export const createInput = ({ type, label, name, value, pattern, placeholder, au
       </mblock>`
     }
   }
+}
+
+export const createSelectFileInput = ({ id, accepts, multiple }: SelectFileOptions ) => {
+  return `<mblock ${FORM_INPUT_SELECTOR}="upload" style="display:none!important">
+    <input id="${id}"
+            type="file"
+            multiple="${!!multiple}"
+            accept="${accepts || '*'}">
+  </mblock>`
 }
 
 export const createFormSeperator = ( options?: SeperatorOptions ) => {

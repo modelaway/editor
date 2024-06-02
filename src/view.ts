@@ -3,7 +3,6 @@ import type { ViewBlockProperties, ViewComponent, ViewComponentBridge } from './
 
 import EventEmitter from 'events'
 import State from './state'
-import Functions from './functions'
 import {
   VIEW_KEY_SELECTOR,
   VIEW_NAME_SELECTOR,
@@ -160,7 +159,7 @@ export default class View {
    * context view using native views cognition
    * process.
    */
-  inspect( $this: JQuery<HTMLElement>, name: string ){
+  inspect( $this: JQuery<HTMLElement>, name: string, activate = false ){
     debug('current target - ', $this.get(0) )
 
     this.$ = $this
@@ -170,8 +169,8 @@ export default class View {
     /**
      * Mount inspected view into editor context
      */
-    const isMounted = this.$.attr( VIEW_KEY_SELECTOR ) !== undefined
-    if( !isMounted ){
+    this.key = this.$.attr( VIEW_KEY_SELECTOR )
+    if( !this.key ){
       /**
        * Generate and assign view tracking key
        */
@@ -181,7 +180,9 @@ export default class View {
         [VIEW_KEY_SELECTOR]: this.key, // Set view key
         [VIEW_NAME_SELECTOR]: name // Set view node name identify
       })
-      
+    }
+
+    if( !this.component ){
       // Set view specifications
       this.set( this.flux.store.getComponent( name ) )
       // Initialize view properties
@@ -189,7 +190,7 @@ export default class View {
     }
 
     // Auto-trigger current view
-    this.trigger()
+    activate && this.trigger()
   }
   /**
    * Mount new view comopnent into the DOM
@@ -388,9 +389,13 @@ export default class View {
       return
 
     const 
-    toolbar = this.get('toolbar'),
+    { toolbar, panel } = this.get() as ViewComponent,
     options = typeof toolbar == 'function' ? toolbar( this.bridge ) : {},
-    $toolbar = $(createToolbar( this.key, options, true ))
+    settings = {
+      editing: true,
+      detached: typeof panel == 'function'
+    },
+    $toolbar = $(createToolbar( this.key, options, settings ))
 
     let { x, y, height } = getTopography( this.$ )
     debug('show view toolbar: ', x, y )
@@ -436,7 +441,7 @@ export default class View {
     if( this.flux.$modela.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}"]`).length ) 
       return
 
-    const { caption, panel } = this.get()
+    const { caption, panel } = this.get() as ViewComponent
     if( typeof panel !== 'function' ) return
 
     const $panel = $(createPanel( this.key, caption, panel( this.bridge ) ))

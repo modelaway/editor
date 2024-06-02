@@ -184,34 +184,9 @@ export default class Modela {
     // Process initial content
     const initialContent = this.$root.html()
     if( initialContent ){
-      
-
+      // Set initial content as first history stack
       this.history.initialize( initialContent )
     }
-  }
-
-  propagateUpdate( type: string, updates: any, applyOnly = false ){
-    if( !this.enabled ){
-      debug('Modela functions disabled')
-      return
-    }
-
-    /**
-     * CSS top level styles application
-     * 
-     * NOTE: No need to apply this to views
-     * directly. The expected effect should be handle 
-     * the stylesheet way.
-     */
-    if( applyOnly ){
-      this.$root?.css({})
-      return
-    }
-
-    // Apply to all active views
-    Object
-    .values( this.views.list )
-    .map( view => view.update( type, updates ) )
   }
 
   dismiss(){

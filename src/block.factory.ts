@@ -58,9 +58,16 @@ export const createStoreControlBlock = () => {
 /**
  * Process toolbar options into HTML content
  */
-export const createToolbar = ( key: string, options: ObjectType<ToolbarOption> = {}, editing = false ) => {
+export const createToolbar = ( key: string, options: ObjectType<ToolbarOption> = {}, settings?: ToolbarSettings ) => {
   if( typeof options !== 'object' )
     throw new Error('Invalid createToolbar Arguments')
+  
+  // Apply settings
+  settings = {
+    editing: false,
+    detached: false,
+    ...settings
+  }
 
   let 
   mainOptions = '',
@@ -129,10 +136,10 @@ export const createToolbar = ( key: string, options: ObjectType<ToolbarOption> =
 
   Object.entries( VIEW_CONTROL_OPTIONS ).map( ([attr, option]) => {
     if( option.meta ) metaOptions[ attr ] = option
-    if( option.detached ) detachedOptions[ attr ] = option
+    if( settings.detached && option.detached ) detachedOptions[ attr ] = option
   } )
 
-  if( editing && Object.keys( metaOptions ).length )
+  if( settings.editing && Object.keys( metaOptions ).length )
     options = { ...options, ...metaOptions }
 
   // Generate HTML menu
@@ -141,7 +148,7 @@ export const createToolbar = ( key: string, options: ObjectType<ToolbarOption> =
   if( !mainOptions )
     throw new Error('Undefined main options')
 
-  return `<mblock ${CONTROL_TOOLBAR_SELECTOR}="${key}" ${editing ? 'class="editing"' : ''}>
+  return `<mblock ${CONTROL_TOOLBAR_SELECTOR}="${key}" ${settings.editing ? 'class="editing"' : ''}>
     <mblock container>
       <mul>
         <mblock options="main">
@@ -149,23 +156,21 @@ export const createToolbar = ( key: string, options: ObjectType<ToolbarOption> =
           ${extraOptions ? `<mli show="extra-toolbar"><micon class="bx bx-dots-horizontal-rounded"></micon></mli>` : ''}
         </mblock>
 
-        ${ extraOptions ?
+        ${extraOptions ?
               `<mblock options="extra">
                 ${extraOptions}
                 <mli dismiss="extra-toolbar"><micon class="bx bx-chevron-left"></micon></mli>
-              </mblock>` : ''
-        }
+              </mblock>` : ''}
 
         ${subOptions.length ? subOptions.join('') : ''}
       </mul>
 
-      ${ editing && Object.keys( detachedOptions ) ? 
+      ${Object.keys( detachedOptions ).length ? 
             `<mul>
               <mblock options="control">
                 ${Object.entries( detachedOptions ).map( composeSubLi() ).join('')}
               </mblock>
-            </mul>`: ''
-      }
+            </mul>`: ''}
     </mblock>
   </mblock>`
 }

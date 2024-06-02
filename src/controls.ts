@@ -29,15 +29,20 @@ export default class Controls {
    * Enable control actions' event listeners
    */
   enable(){
+    const self = this
+
     this.flux.$modela = $(CONTROL_ROOT)
 
     this.$globalBlock = $(`${CONTROL_ROOT} [${CONTROL_BLOCK_SELECTOR}="global"]`)
     this.$globalToolbar = $(`${CONTROL_ROOT} [${CONTROL_TOOLBAR_SELECTOR}="global"]`)
 
-    // this.map()
+    /**
+     * Propagate view control over the existing content
+     */
+    this.flux.$root && this.flux.views.propagate( this.flux.$root )
 
     // Activate all inert add-view placeholders
-    // this.setPlaceholders('active')
+    this.setPlaceholders('active')
     // Initialize event listeners
     this.events()
   }
@@ -156,10 +161,6 @@ export default class Controls {
      */
     wildEvents( this.flux.$root )
     wildEvents( this.flux.$modela )
-  }
-
-  map( $elem: JQuery<HTMLElement> ){
-    // this.flux.views.lookup( $elem )
   }
 
   destroy(){

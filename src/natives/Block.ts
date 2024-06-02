@@ -5,17 +5,17 @@ toolbar: ObjectType<ToolbarOption> = {},
 
 Block: ViewComponent = {
   name: 'block',
-  node: 'div',
+  node: 'block',
   category: 'block',
   caption: {
     icon: 'bx bx-rectangle',
-    title: 'Div',
-    description: 'Division block HTML native tag'
+    title: 'Custom Block',
+    description: 'Custom HTML block as native tag'
   },
   attributes: {},
   
   render(){
-    return `<div></div>`
+    return `<block></block>`
   },
   takeover( view ){
     view.events

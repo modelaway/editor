@@ -96,6 +96,10 @@ type ToolbarOption = {
   disabled?: boolean
   active?: boolean
 }
+type ToolbarSettings = {
+  editing: boolean
+  detached: boolean
+}
 type Fieldset = {
   label?: string
   seperate?: boolean

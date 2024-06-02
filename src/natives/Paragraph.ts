@@ -1,7 +1,7 @@
 import type { ViewComponent } from '../types/view'
 
 const
-toolbarOptions: ObjectType<ToolbarSet> = {
+toolbarOptions: ObjectType<ToolbarOption> = {
   bold: { 
     icon: 'bx bx-bold',
     title: 'Bold',
@@ -188,31 +188,25 @@ Paragraph: ViewComponent = {
   },
 
   styles( view ){
+    
     return {
-      predefined: {
-        options: [],
-        css: `
-          /* width: 100%; */
-          font-size: inherit;
-          content: "Loren upsum";
+      css: `
+        /* width: 100%; */
+        font-size: inherit;
+        content: "Loren upsum";
+        color: var(--primary-color);
 
-          &[mv-active="true"]:not([mv-placeholder]) {
-            background: var(--me-primary-color-fade);
-            border-radius: var(--me-placeholder-radius);
-            transition: var(--me-active-transition);
-          }
-          &[contenteditable] { outline: none; }
-        `
-      },
+        &[mv-active="true"]:not([mv-placeholder]) {
+          background: var(--me-primary-color-fade);
+          border-radius: var(--me-placeholder-radius);
+          transition: var(--me-active-transition);
+        }
+        &[contenteditable] { outline: none; }
+      `,
       custom: {
         enabled: true,
-        required: [],
-        options: [],
-        css: `
-          font-weight: italic;
-
-          &:active { color: red; }
-        `
+        allowedRules: [],
+        allowedProperties: []
       }
     }
   },

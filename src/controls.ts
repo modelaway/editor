@@ -11,7 +11,7 @@ import {
 } from './constants'
 
 export default class Controls {
-  flux: Modela
+  readonly flux: Modela
 
   $globalBlock?: JQuery<HTMLElement>
   $globalToolbar?: JQuery<HTMLElement>
@@ -34,8 +34,10 @@ export default class Controls {
     this.$globalBlock = $(`${CONTROL_ROOT} [${CONTROL_BLOCK_SELECTOR}="global"]`)
     this.$globalToolbar = $(`${CONTROL_ROOT} [${CONTROL_TOOLBAR_SELECTOR}="global"]`)
 
+    // this.map()
+
     // Activate all inert add-view placeholders
-    this.setPlaceholders('active')
+    // this.setPlaceholders('active')
     // Initialize event listeners
     this.events()
   }
@@ -154,6 +156,10 @@ export default class Controls {
      */
     wildEvents( this.flux.$root )
     wildEvents( this.flux.$modela )
+  }
+
+  map( $elem: JQuery<HTMLElement> ){
+    // this.flux.views.lookup( $elem )
   }
 
   destroy(){

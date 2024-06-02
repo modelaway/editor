@@ -5,7 +5,7 @@ import { createSelectFileInput } from './block.factory'
 import { i18n, debug, getTopography } from './utils'
 
 export default class Functions {
-  flux: Modela
+  private readonly flux: Modela
 
   constructor( flux: Modela ){
     this.flux = flux
@@ -20,7 +20,7 @@ export default class Functions {
   selectFile( options: SelectFileOptions ): Promise<InputFiles[]> {
     return new Promise( resolve => {
       const $input = $( createSelectFileInput( options ) )
-      this.flux.$modela?.append( $input )
+      // this.flux.$modela?.append( $input )
 
       $input
       /**
@@ -79,4 +79,21 @@ export default class Functions {
     } )
   }
 
+  /**
+   * Extract an element style attribute value
+   * into an object.
+   */
+  extractStyle( $this: JQuery<HTMLElement> ){
+    const styleStr = $this.attr('style')
+    if( !styleStr ) return {}
+
+    const styles: ObjectType<string> = {}
+    
+    styleStr.split(/;/).forEach( each => {
+      const [name, value] = each.split(':')
+      styles[ name.trim() ] = value.trim()
+    } )
+
+    return styles
+  }
 }

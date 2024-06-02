@@ -78,7 +78,7 @@ export default class Views {
    * Target: Native HTML tags or custom views
    */
   lookup( e: Event ){
-    if( this.currentView && e.target == this.currentView.element ){
+    if( this.currentView?.$ && e.target == this.currentView.$.get(0) ){
       /**
        * Identify parent of target by `e.currentTarget`
        * that are different from `e.target`: Upward cascade
@@ -99,13 +99,13 @@ export default class Views {
      * Mount current view with only known tags or 
      * components
      */
-    const $currentTarget = $(e.currentTarget)
+    const $currentTarget = $(e.currentTarget) as JQuery<HTMLElement>
     // Identify component name or its HTML nodeName
     let cname = $currentTarget.attr( VIEW_NAME_SELECTOR )
                 || $currentTarget.prop('nodeName').toLowerCase()
 
     const component = this.flux.store.getComponent( cname )
-    if( !component || this.currentView && e.currentTarget == this.currentView.element )
+    if( !component || this.currentView?.$ && e.currentTarget == this.currentView.$.get(0) )
       return
     
     /**
@@ -132,7 +132,7 @@ export default class Views {
     const viewKey = $currentTarget.attr( VIEW_KEY_SELECTOR )
 
     this.currentView = viewKey ? this.get( viewKey ) : new View( this.flux )
-    this.currentView.inspect( e.currentTarget as HTMLElement, cname )
+    this.currentView.inspect( $currentTarget, cname )
 
     /**
      * Set this view in global namespace

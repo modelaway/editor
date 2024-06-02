@@ -1,7 +1,7 @@
 import type { ViewComponent } from '../types/view'
 
 const
-toolbarOptions: ObjectType<ToolbarSet> = {
+toolbarOptions: ObjectType<ToolbarOption> = {
   bold: { 
     icon: 'bx bx-bold',
     title: 'Bold',
@@ -183,6 +183,9 @@ Text: ViewComponent = {
     .on('global.styles', data => view.$?.css( data ) )
 
     .on('activate', data => view.$?.attr('contenteditable', 'true') )
+
+    console.log( view.css?.custom() )
+    console.log( view.css?.style() )
   },
   dismiss( view ){
     view.$?.removeAttr('contenteditable')
@@ -191,31 +194,25 @@ Text: ViewComponent = {
   styles( view ){
 
     return {
-      predefined: {
-        options: [],
-        css: `
-          min-width: 1.3rem;
-          font-size: inherit;
-          display: inline-block;
-          content: "Loren upsum";
-          
-          &[mv-active="true"]:not([mv-placeholder]) {
-            border-radius: var(--me-placeholder-radius);
-            background: var(--me-primary-color-fade);
-            transition: var(--me-active-transition);
-          }
-          &[contenteditable] { outline: none; }
-        `
-      },
+      css: `
+        min-width: 1.3rem;
+        font-size: inherit;
+        display: inline-block;
+        content: "Loren upsum";
+        
+        &[mv-active="true"]:not([mv-placeholder]) {
+          border-radius: var(--me-placeholder-radius);
+          background: var(--me-primary-color-fade);
+          transition: var(--me-active-transition);
+        }
+        &[contenteditable] { outline: none; }
+
+        &:active { color: var(--primary-color); }
+      `,
       custom: {
         enabled: true,
-        required: [],
-        options: [],
-        css: `
-          font-weight: bold;
-
-          &:active { color: green; }
-        `
+        allowedRules: [],
+        allowedProperties: []
       }
     }
   },

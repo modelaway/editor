@@ -127,19 +127,19 @@ export default class Modela {
     this.store = new Store( this )
 
     /**
+     * Initialize global css manager
+     */
+    this.css = new CSS()
+
+    /**
      * Manage global assets manager
      */
-    this.assets = new Assets( this )
+    this.assets = new Assets()
 
     /**
      * Initialize utility functions
      */
     this.fn = new Functions( this )
-
-    /**
-     * Initialize global css manager
-     */
-    this.css = new CSS( this )
 
     /**
      * Manage views manager
@@ -174,20 +174,20 @@ export default class Modela {
     if( !this.$root.length )
       throw new Error(`Root <${selector}> element not found`)
     
+    // Add editor controls to root container in the DOM
+    $('body').prepend( this.render() )
+    // Define global css variables (Custom properties)
+    this.css.setVariables()
+    // Enable modela controls
+    this.controls.enable()
+
     // Process initial content
     const initialContent = this.$root.html()
     if( initialContent ){
+      
+
       this.history.initialize( initialContent )
-
-
     }
-    
-    // Add editor controls to root container in the DOM
-    $('body').prepend( this.render() )
-    // Declare & apply global styles to the DOM
-    this.css.declare({ nsp: 'global', props: {} }, true )
-    // Enable modela controls
-    this.controls.enable()
   }
 
   propagateUpdate( type: string, updates: any, applyOnly = false ){

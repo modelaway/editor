@@ -1,7 +1,7 @@
 import type { ViewComponent } from '../types/view'
 
 const 
-toolbar: ObjectType<ToolbarSet> = {},
+toolbar: ObjectType<ToolbarOption> = {},
 
 Block: ViewComponent = {
   name: 'block',

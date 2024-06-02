@@ -86,17 +86,15 @@ editor.store.addComponent({
       }
     },
 
-    header = `<div class="card-header">${view.fn.defineProperties( headerProps )}</div>`,
-    footer = `<div class="card-footer">${view.fn.defineProperties( footerProps )}</div>`,
+    header = `<div class="card-header">${view.fn.defineProperties( headerProps )} Card header</div>`,
+    footer = `<div class="card-footer">${view.fn.defineProperties( footerProps )} Card footer</div>`
 
-    { primaryColor, borderWidth } = view.css.getGlobal()
-
-    return `<div class="card bg-primary-${primaryColor.value}">
+    return `<div class="card">
       ${view.fn.defineProperties( cardProps )}
 
       <div class="card-content">
         ${this.attributes.header ? header : ''}
-        <div class="card-body">${view.fn.defineProperties( bodyProps )}</div>
+        <div class="card-body">${view.fn.defineProperties( bodyProps )} Card body</div>
         ${this.attributes.footer ? footer : ''}
       </div>
     </div>`
@@ -104,7 +102,22 @@ editor.store.addComponent({
   takeover( view ){},
   dismiss( view ){},
 
-  styles( view ){},
+  styles( view ){
+    
+    return {
+      css: `
+        min-height: 10rem;
+        background-color: var(--ambiant-color);
+
+        .card-header {
+          background-color: var(--primary-color);
+        }
+        .card-body {
+          background-color: var(--secondary-color);
+        }
+      `
+    }
+  },
   
   translation: {
     en: {

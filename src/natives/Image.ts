@@ -1,6 +1,6 @@
 import type { ViewComponent } from '../types/view'
 
-const toolbar: ObjectType<ToolbarSet> = {
+const toolbar: ObjectType<ToolbarOption> = {
   upload: {
     icon: 'bx bx-image-add',
     title: 'Add image',

@@ -43,7 +43,7 @@ export const FORM_SEPERATOR_SELECTOR = 'mv-form-seperator'
  * - meta
  * - detached
  */
-export const VIEW_CONTROL_OPTIONS: ObjectType<ToolbarSet> = {
+export const VIEW_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
   view: {
     meta: true,
     icon: 'bx bx-square-rounded',
@@ -120,7 +120,7 @@ export const VIEW_CONTROL_OPTIONS: ObjectType<ToolbarSet> = {
 /**
  * Global control options
  */
-export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarSet> = {
+export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
   undo: { 
     icon: 'bx bx-undo',
     title: 'Undo',
@@ -215,5 +215,205 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarSet> = {
     },
     disabled: false,
     extra: true
+  }
+}
+
+/**
+ * Default CSS custom properties variables
+ */
+export const CSS_CUSTOM_VARIABLES: ObjectType<CSSRuleOption> = {
+  primaryColor: {
+    group: 'palette',
+    label: 'Primary Color',
+    name: '--primary-color',
+    value: '#ff7028',
+    display: 'inline',
+    customizable: true
+  },
+  secondaryColor: {
+    group: 'palette',
+    label: 'Secondary Color',
+    name: '--secondary-color',
+    value: '#116b1a',
+    display: 'inline',
+    customizable: true
+  },
+  accentColor: {
+    group: 'palette',
+    label: 'Accent Color',
+    name: '--accent-color',
+    value: '#696969',
+    display: 'inline',
+    customizable: true
+  },
+  ambiantColor: {
+    group: 'palette',
+    label: 'Ambiant Color',
+    name: '--ambiant-color',
+    value: '#696969',
+    display: 'inline',
+    customizable: true
+  },
+
+  fontFamily: {
+    group: 'font',
+    label: 'Font Family',
+    name: '--font-family',
+    value: 'Lexend, Lexend+Deca, Lato, Rubik, sans-serif',
+    display: 'dropdown',
+    customizable: true
+  },
+  fontSize: {
+    group: 'font',
+    label: 'Font Size',
+    name: '--font-size',
+    values: {
+      '*': 'inherit',
+      'XXL': 'inherit',
+      'XL': 'inherit',
+      'LG': 'inherit',
+      'MD': 'inherit',
+      'SM': 'inherit',
+      'XS': 'inherit'
+    },
+    // options: [
+    //   { value: 'inherit', label: 'Auto' },
+    //   { value: 'font-lg', label: 'LG' },
+    //   { value: 'font-md', label: 'MD' },
+    //   { value: 'font-sm', label: 'SM' }
+    // ],
+    display: 'inline',
+    customizable: true
+  },
+  fontWeight: {
+    group: 'font',
+    label: 'Font Weight',
+    name: '--font-weight',
+    value: '400',
+    // options: [
+    //   { value: '100', hint: 'Thin' },
+    //   { value: '200', hint: 'Extra Light' },
+    //   { value: '300', hint: 'Light' },
+    //   { value: '400', hint: 'Regular' },
+    //   { value: '500', hint: 'Medium' },
+    //   { value: '600', hint: 'Semi Bold' },
+    //   { value: '700', hint: 'Bold' },
+    //   { value: '800', hint: 'Extra Bold' },
+    //   { value: '900', hint: 'Black' }
+    // ],
+    // featuredOptions: [ 0, 2, 3, 4, 6 ],
+    display: 'inline',
+    customizable: true
+  },
+  lineHeight: {
+    group: 'font',
+    label: 'Line Spacement (line-height)',
+    name: '--line-height',
+    value: 1,
+    // options: [
+    //   { value: 0, hint: 'None' },
+    //   { value: 1, hint: '1' },
+    //   { value: 2, hint: '1.2' },
+    //   { value: 3, hint: '1.3' },
+    //   { value: 4, hint: '1.4' },
+    //   { value: 5, hint: '1.5' },
+    // ],
+    display: 'inline',
+    customizable: true
+  },
+
+  padding: {
+    group: 'spacement',
+    label: 'Padding',
+    name: '--padding',
+    values: {
+      '*': 0,
+      'XXL': 0,
+      'XL': 0,
+      'LG': 0,
+      'MD': 0,
+      'SM': 0,
+      'XS': 0
+    },
+    // options: [
+    //   { value: 0, hint: 'None' },
+    //   { value: 1, hint: '1rem' },
+    //   { value: 2, hint: '1.5rem' },
+    //   { value: 3, hint: '3rem' },
+    //   { value: 4, hint: '3.5rem' },
+    //   { value: 5, hint: '4rem' },
+    // ],
+    display: 'inline',
+    customizable: true
+  },
+  margin: {
+    group: 'spacement',
+    label: 'Margin',
+    name: '--margin',
+    values: {
+      '*': 0,
+      'XXL': 0,
+      'XL': 0,
+      'LG': 0,
+      'MD': 0,
+      'SM': 0,
+      'XS': 0
+    },
+    // options: [
+    //   { value: 0, hint: 'None' },
+    //   { value: 1, hint: '1rem' },
+    //   { value: 2, hint: '1.5rem' },
+    //   { value: 3, hint: '3rem' },
+    //   { value: 4, hint: '3.5rem' },
+    //   { value: 5, hint: '4rem' },
+    // ],
+    display: 'inline',
+    customizable: true
+  },
+
+  borderColor: {
+    group: 'border',
+    label: 'Border Color',
+    value: '#2e2e2e',
+    name: '--border-color',
+    // palette: [
+    //   { value: 'none', hint: 'None' },
+    //   { value: '#2e2e2e', hint: '#2e2e2e' },
+    //   { value: '#656565', hint: '#656565' },
+    //   { value: '#a9a9a9', hint: '#a9a9a9' }
+    // ],
+    display: 'inline',
+    customizable: true
+  },
+  borderWidth: {
+    group: 'border',
+    label: 'Border Width',
+    name: '--border-width',
+    value: 0,
+    // options: [
+    //   { value: 0, hint: 'None' },
+    //   { value: 1, hint: '1px' },
+    //   { value: 2, hint: '2px' },
+    //   { value: 3, hint: '3px' }
+    // ],
+    display: 'inline',
+    customizable: true
+  },
+  borderRadius: {
+    group: 'border',
+    label: 'Rounded Corner (Border Radius)',
+    name: '--border-radius',
+    value: 0,
+    // options: [
+    //   { value: 'none', hint: 'None' },
+    //   { value: 'circle', hint: '50%' },
+    //   { value: 'rounded', hint: '4px' },
+    //   { value: 'rounded-sm', hint: '2px' },
+    //   { value: 'rounded-lg', hint: '10px' },
+    //   { value: 'rounded-xl', hint: '15px' }
+    // ],
+    // featuredOptions: [ 0, 1, 2, 3, 4 ],
+    display: 'inline',
+    customizable: true
   }
 }

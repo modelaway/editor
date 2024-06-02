@@ -1,7 +1,7 @@
 import type { ViewComponent } from '../types/view'
 
 const
-toolbar: ObjectType<ToolbarSet> = {},
+toolbar: ObjectType<ToolbarOption> = {},
 
 Button: ViewComponent = {
   name: 'button',
@@ -22,11 +22,7 @@ Button: ViewComponent = {
     .on('show.toolbar', () => {})
     .on('show.panel', () => {})
   },
-  dismiss( view ){},
-
-  toolbar(){
-    return toolbar
-  }
+  dismiss( view ){}
 }
 
 /**

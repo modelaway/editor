@@ -39,7 +39,7 @@ export default class View {
    * Access to modela's core instance and 
    * relative functional classes.
    */
-  private flux: Modela
+  private readonly flux: Modela
 
   /**
    * View's styles application handler
@@ -50,7 +50,6 @@ export default class View {
    * Native HTML element and JQuery element
    * object of the view.
    */
-  public element?: HTMLElement | string
   public $?: JQuery<HTMLElement>
 
   /**
@@ -77,14 +76,14 @@ export default class View {
 
   constructor( flux: Modela ){
     this.flux = flux
-
+    
     this.bridge = {
       state: new State(),
       events: new EventEmitter(),
       assets: flux.assets,
-      css: flux.css,
       fn: flux.fn,
-      $: null
+      css: undefined,
+      $: undefined
     }
   }
   
@@ -97,19 +96,16 @@ export default class View {
        * Initialize default styles of the view
        */
       const { name, styles } = this.get()
-      if( name && typeof styles === 'function' ){
-        this.styles = new Stylesheet({
-          nsp: name,
-          key: this.key,
-          /**
-           * Run the defined `styles()` method of the component
-           * to get initial style properties.
-           */
-          props: styles( this.bridge )
-        })
+      if( name && typeof styles === 'function' )
+        this.styles =
+        this.bridge.css = new Stylesheet( name, styles( this.bridge ) )
 
-        this.styles.load()
-      }
+        /**
+         * Override bridge css.style() function to
+         * return style of this view only.
+         */
+        if( this.bridge.css )
+          this.bridge.css.style = () => (this.flux.fn.extractStyle( this.$ as JQuery<HTMLElement> ))
     }
     catch( error: any ){ debug( error.message ) }
 
@@ -164,11 +160,10 @@ export default class View {
    * context view using native views cognition
    * process.
    */
-  inspect( element: HTMLElement, name: string ){
-    this.element = element
-    debug('current target - ', element )
+  inspect( $this: JQuery<HTMLElement>, name: string ){
+    debug('current target - ', $this.get(0) )
 
-    this.$ = $(element)
+    this.$ = $this
     if( !this.$.length )
       throw new Error('Invalid View Element')
     
@@ -216,11 +211,11 @@ export default class View {
      * Render new element with default component and 
      * defined global settings
      */
-    this.element = component.render( this.bridge )
-    debug('mount view - ', this.element )
+    const element = component.render( this.bridge )
+    debug('mount view - ', element )
 
     // Add view to the DOM
-    this.$ = $(this.element)
+    this.$ = $(element)
 
     switch( triggerType ){
       case 'placeholder':
@@ -243,7 +238,7 @@ export default class View {
     /**
      * Extract defined view blocks props
      */
-    const renderingProps = this.flux.fn.extractProperties( this.element )
+    const renderingProps = this.flux.fn.extractProperties( element )
     this.inject( renderingProps )
 
     // Set view specifications
@@ -268,14 +263,11 @@ export default class View {
       return
 
     // Clone view element
-    this.element = viewInstance.$.clone().get(0)
-    if( !this.element )
+    this.$ = viewInstance.$.clone()
+    if( !this.$.length )
       throw new Error('View instance HTML element not found')
 
-    debug('mirror view - ', this.element )
-
-    // Add cloned view to the DOM
-    this.$ = $(this.element)
+    debug('mirror view - ', this.$.get(0) )
 
     /**
      * Add cloned view next to a given view element 
@@ -367,10 +359,16 @@ export default class View {
     // Remove visible floating active
     this.flux.$root?.find(`[${CONTROL_FLOATING_SELECTOR}="${this.key}"]`).remove()
 
+    // Remove element from the DOM
     this.$.remove()
 
-    // Clear all styles attached from the DOM
-    this.styles?.clear()
+    /**
+     * Clear all namespaces styles attached to this
+     * viwe element if there are no other instances of 
+     * this view in the DOM.
+     */
+    !this.flux.$root?.find(`[${VIEW_NAME_SELECTOR}="${this.get('name')}"]`).length 
+    && this.styles?.clear()
 
     this.$ = undefined
     this.key = undefined
@@ -389,10 +387,10 @@ export default class View {
     if( this.flux.$root.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`).length ) 
       return
 
-    const toolbar = this.get('toolbar')
-    if( !toolbar ) return
-
-    const $toolbar = $(createToolbar( this.key, toolbar( this.bridge ), true ))
+    const 
+    toolbar = this.get('toolbar'),
+    options = typeof toolbar == 'function' ? toolbar( this.bridge ) : {},
+    $toolbar = $(createToolbar( this.key, options, true ))
 
     let { x, y, height } = getTopography( this.$ )
     debug('show view toolbar: ', x, y )
@@ -439,7 +437,7 @@ export default class View {
       return
 
     const { caption, panel } = this.get()
-    if( !panel ) return
+    if( typeof panel !== 'function' ) return
 
     const $panel = $(createPanel( this.key, caption, panel( this.bridge ) ))
 

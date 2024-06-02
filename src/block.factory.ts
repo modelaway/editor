@@ -58,7 +58,7 @@ export const createStoreControlBlock = () => {
 /**
  * Process toolbar options into HTML content
  */
-export const createToolbar = ( key: string, options: ObjectType<ToolbarSet>, editing = false ) => {
+export const createToolbar = ( key: string, options: ObjectType<ToolbarOption> = {}, editing = false ) => {
   if( typeof options !== 'object' )
     throw new Error('Invalid createToolbar Arguments')
 
@@ -69,7 +69,7 @@ export const createToolbar = ( key: string, options: ObjectType<ToolbarSet>, edi
 
   const
   composeSubLi = ( parentAttr?: string ) => {
-    return ([ attr, { icon, title, event, disabled, active }]: [ attr: string, tset: ToolbarSet ] ) => {
+    return ([ attr, { icon, title, event, disabled, active }]: [ attr: string, tset: ToolbarOption ] ) => {
       let attrs = ''
       
       // Trigger event type & params attributes
@@ -86,7 +86,7 @@ export const createToolbar = ( key: string, options: ObjectType<ToolbarSet>, edi
       return `<mli ${attrs}><micon class="${icon}"></micon></mli>`
     }
   },
-  composeLi = ([ attr, { icon, label, title, event, disabled, active, extra, sub, meta }]: [ attr: string, tset: ToolbarSet ]) => {
+  composeLi = ([ attr, { icon, label, title, event, disabled, active, extra, sub, meta }]: [ attr: string, tset: ToolbarOption ]) => {
     let attrs = ''
     
     // Option has sub options
@@ -124,8 +124,8 @@ export const createToolbar = ( key: string, options: ObjectType<ToolbarSet>, edi
    * Attach meta options to every editable view.
    */
   const 
-  metaOptions: ObjectType<ToolbarSet> = {},
-  detachedOptions: ObjectType<ToolbarSet> = {}
+  metaOptions: ObjectType<ToolbarOption> = {},
+  detachedOptions: ObjectType<ToolbarOption> = {}
 
   Object.entries( VIEW_CONTROL_OPTIONS ).map( ([attr, option]) => {
     if( option.meta ) metaOptions[ attr ] = option
@@ -178,7 +178,7 @@ export const createPanel = ( key: string, caption: ViewCaption, options: PanelSe
   sectionTabs = '',
   sectionBodies = ''
 
-  const composeSection = ( name: string, { icon, fieldsets, listsets }: PanelSet, isActive: boolean ) => {
+  const composeSection = ( name: string, { icon, fieldsets, listsets }: PanelSection, isActive: boolean ) => {
     /**
      * List of tabs
      */

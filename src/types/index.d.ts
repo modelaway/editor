@@ -59,25 +59,27 @@ type AssetData = {
   bytes?: number
 }
 
-type StyleSheetProps = {
-  predefined?: {
-    options?: string[]
-    css?: string
-  }
+type StyleSettings = {
+  css?: string
+  meta?: boolean
   custom?: {
     enabled: boolean
-    required: string[]
-    options: string[]
-    css?: string
+    allowedRules: string[]
+    allowedProperties: string[]
   }
 }
-type StylesheetParams = { 
-  nsp?: string
-  key?: string
-  props?: StyleSheetProps 
+type CSSRuleOption = {
+  group: string
+  label: string
+  name: string
+  value?: string | number | boolean
+  values?: ObjectType<string | number | boolean>
+  applyOnly?: string
+  display?: string
+  customizable?: boolean
 }
 
-type ToolbarSet = {
+type ToolbarOption = {
   icon: string
   label?: string
   title: string
@@ -87,7 +89,7 @@ type ToolbarSet = {
     params: string | boolean
     shortcut?: string
   }
-  sub?: ObjectType<ToolbarSet>
+  sub?: ObjectType<ToolbarOption>
   meta?: boolean
   extra?: boolean
   detached?: boolean
@@ -105,7 +107,7 @@ type Listset = {
   items: ListItem[]
 }
 
-type PanelSet = {
+type PanelSection = {
   icon: string
   title?: string
   fieldsets?: Fieldset[]
@@ -113,7 +115,7 @@ type PanelSet = {
   more?: boolean
   active?: boolean
 }
-type PanelSections = ObjectType<PanelSet>
+type PanelSections = ObjectType<PanelSection>
 
 interface GlobalSet {
   css: Modela['css']

@@ -1,7 +1,7 @@
 import type { EventEmitter } from 'events'
-import type CSS from '../css'
 import type Assets from '../assets'
 import type Controls from '../controls'
+import type { Stylesheet } from '../css'
 import type Functions from '../functions'
 
 type ViewCaptionPoster = { 
@@ -36,34 +36,26 @@ type ViewBlockProperties = {
   allowedViewTypes?: string[]
 }
 
-type ViewSelf = {
-  view: JQuery
-  state: ObjectType<any>
-}
-type ViewEvent = {
-  view: JQuery
-  state: ObjectType<any>
-}
 interface ViewComponentBridge {
-  $: JQuery<HTMLElement> | null
-  events: EventEmitter
-  fn: Functions
   state: State
+  fn: Functions
   assets: Assets
-  css: CSS
+  events: EventEmitter
+  $?: JQuery<HTMLElement>
+  css?: Stylesheet
 }
 interface ViewComponent {
   name: string
   node: string
   category: string
   caption: ViewCaption
-  attributes: {}
+  attributes: ObjectType<any>
 
   render: ( view: ViewComponentBridge ) => string
   takeover: ( view: ViewComponentBridge ) => void
   dismiss: ( view: ViewComponentBridge ) => void
 
-  styles?: ( view: ViewComponentBridge ) => StyleSheetProps
+  styles?: ( view: ViewComponentBridge ) => StyleSettings
   toolbar?: ( view: ViewComponentBridge ) => ObjectType<ToolbarSet>
   panel?: ( view: ViewComponentBridge ) => PanelSections
 }

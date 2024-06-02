@@ -4,12 +4,7 @@ import { debug } from './utils'
 export default class Assets {
   private ASSETS: ObjectType<AssetData> = {}
 
-  constructor({ settings }: Modela ){
-    /**
-     * General settings inherited from Modela
-     */
-    // this.settings = settings
-  }
+  // constructor(){}
 
   add( assets: AssetData ){
     if( !assets )

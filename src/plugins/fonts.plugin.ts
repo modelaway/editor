@@ -14,10 +14,10 @@ export default class Fonts implements Plugin {
 
   private readonly defaultWeights = [ 100, 200, 300, 400, 500, 600, 700, 800, 900 ]
   private readonly fonts: ObjectType<string> = {}
-  private css: Stylesheet
+  private sheet: Stylesheet
 
   constructor( factory: PluginFactory, config?: PluginConfig ){
-    this.css = factory.flux.css.declare('fonts')
+    this.sheet = factory.flux.css.declare('fonts')
 
     if( typeof config !== 'object' ) return
 
@@ -37,6 +37,9 @@ export default class Fonts implements Plugin {
 
     // Auto-load
     config.autoload && this.load()
+
+    // Set font-family as to global custom variables
+    config.fontFamily && factory.flux.css?.setVariables({ fontFamily: config.fontFamily })
   }
 
   /**
@@ -63,8 +66,11 @@ export default class Fonts implements Plugin {
     return this
   }
 
+  /**
+   * Load fonts into the DOM
+   */
   load(){
-    this.css.load({ css: Object.values( this.fonts ).join('\n'), meta: true })
+    this.sheet.load({ css: Object.values( this.fonts ).join('\n'), meta: true })
   }
   list(){
     return Object.keys( this.fonts )

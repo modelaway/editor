@@ -12,8 +12,9 @@ const fontPluginConfig = {
     { name: 'Legend', weights: [] }
   ],
   custom: [
-    { name: 'Legend', url: 'https://fonts.googleapis.com/css2?family=Alata:wght@100;200;300;400;500&display=swap' }, 
-  ]
+    { name: 'Alata', url: 'https://fonts.googleapis.com/css2?family=Alata:wght@100;200;300;400;500&display=swap' }, 
+  ],
+  fontFamily: 'Urbanist, Legend, helvetica, Sans serif'
 }
 
 const settings = {

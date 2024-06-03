@@ -21,6 +21,6 @@
     "declaration": true,
     "sourceMap": true
   },
-  "include": ["./src/**/*"],
+  "include": ["./src/**/*", "examples/website/i18n.plugin.js"],
   "exclude": ["./dist"]
 }

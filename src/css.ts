@@ -100,7 +100,6 @@ export class Stylesheet {
     str = this.settings.meta ? str : `[${VIEW_NAME_SELECTOR}="${id}"] { ${str} }`
 
     const result = await this.compile( str )
-
     if( !result?.css )
       throw new Error(`<view:${id}> css injection failed`)
 
@@ -108,7 +107,7 @@ export class Stylesheet {
                     // Replace existing content
                     $(`head style[${selector}]`).html( result.css )
                     // Inject new style
-                    : $('head').append(`<style ${selector}>${result.css}</style>`)
+                    : $('head')[ this.settings.meta ? 'prepend' : 'append' ](`<style ${selector}>${result.css}</style>`)
   }
 
   /**

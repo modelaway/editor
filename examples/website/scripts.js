@@ -4,10 +4,27 @@ import ModelaNativesLoader from '../../dist/natives.loader.min.js'
 import i18n from './i18n.plugin.js'
 import cardView from './card.view.js'
 
-const
-settings = {
+// In-build `Fonts` plugin configuration
+const fontPluginConfig = {
+  autoload: true,
+  googlefonts: [
+    { name: 'Urbanist' },
+    { name: 'Legend', weights: [] }
+  ],
+  custom: [
+    { name: 'Legend', url: 'https://fonts.googleapis.com/css2?family=Alata:wght@100;200;300;400;500&display=swap' }, 
+  ]
+}
+
+const settings = {
   // viewOnly: true,
-  hoverSelect: true
+  hoverSelect: true,
+  plugins: [
+    // Active in-build `Live` ollaboration plugin
+    'Live',
+    // Active in-build `Fonts` plugin
+    { name: 'Fonts', config: fontPluginConfig }
+  ]
 },
 editor = new Modela( settings )
 
@@ -18,7 +35,7 @@ natives.load()
 // Register custom view component
 editor.store.addComponent( cardView )
 
-// Register a plugin
+// Register custom plugin
 const i18nConfig = {
   ai: true
 }

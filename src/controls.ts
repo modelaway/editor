@@ -10,6 +10,7 @@ import {
   CONTROL_BLOCK_SELECTOR
 } from './constants'
 import { createControlLayer } from './block.factory'
+import { PluginConfig, PluginInstance } from './types/plugin'
 
 export default class Controls {
   readonly flux: Modela
@@ -30,10 +31,12 @@ export default class Controls {
    * Enable control actions' event listeners
    */
   enable(){
-    // Add editor controls to root container in the DOM
+    /**
+     * Create modela control layer and apply translation 
+     * to text contents
+     */
     this.flux.$modela = $(createControlLayer())
 
-    // Apply translation to text contents in modela control layer
     this.flux.$modela = this.flux.i18n.propagate( this.flux.$modela, 'mlang' )
     $('body').prepend( this.flux.$modela )
 

@@ -44,7 +44,14 @@ const sassLoader = {
 // })
 
 const result = await Bun.build({
-  entrypoints: ['./src/modela.ts', './src/natives.loader.ts'],
+  entrypoints: [
+    './src/modela.ts',
+    './src/natives.loader.ts',
+
+    // In-build plugins
+    './src/plugins/live.plugin.ts',
+    './src/plugins/fonts.plugin.ts'
+  ],
   outdir: './dist',
   root: '.',
   target: 'browser',

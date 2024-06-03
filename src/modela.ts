@@ -102,7 +102,7 @@ export default class Modela {
   /**
    * Manage plugins
    */
-  private plugins: Plugins
+  public plugins: Plugins
 
   /**
    * Utility functions

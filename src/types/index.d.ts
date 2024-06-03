@@ -132,10 +132,15 @@ type ModelaLanguage = {
   internal: string
   default: string
 }
+type ModelaPluginOption = { 
+  name: string,
+  config: ObjectType<any>
+}
 type ModelaSettings = {
   lang?: string
   viewOnly?: boolean
   hoverSelect?: boolean
   enablePlaceholders?: boolean
+  plugins?: (string | ModelaPluginOption)[]
 }
 type ModelaLanguageDictionary = ObjectType<ObjectType<string> | string>

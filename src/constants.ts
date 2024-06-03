@@ -267,7 +267,7 @@ export const CSS_CUSTOM_VARIABLES: ObjectType<CSSRuleOption> = {
     group: 'font',
     label: 'Font Size',
     name: '--font-size',
-    values: {
+    value: {
       '*': 'inherit',
       'XXL': 'inherit',
       'XL': 'inherit',
@@ -326,7 +326,7 @@ export const CSS_CUSTOM_VARIABLES: ObjectType<CSSRuleOption> = {
     group: 'spacement',
     label: 'Padding',
     name: '--padding',
-    values: {
+    value: {
       '*': 0,
       'XXL': 0,
       'XL': 0,
@@ -350,7 +350,7 @@ export const CSS_CUSTOM_VARIABLES: ObjectType<CSSRuleOption> = {
     group: 'spacement',
     label: 'Margin',
     name: '--margin',
-    values: {
+    value: {
       '*': 0,
       'XXL': 0,
       'XL': 0,

@@ -1,6 +1,7 @@
 
-import Modela from '../dist/modela.min.js'
-import ModelaNativesLoader from '../dist/natives.loader.min.js'
+import Modela from '../../dist/modela.min.js'
+import ModelaNativesLoader from '../../dist/natives.loader.min.js'
+import i18n from './i18n.plugin.js'
 
 const 
 editor = new Modela({
@@ -132,6 +133,8 @@ editor.store.addComponent({
     }
   }
 })
+
+editor.plugins.register( i18n, { ai: true } )
 
 editor.mount('.editor')
 

@@ -68,12 +68,12 @@ type StyleSettings = {
     allowedProperties: string[]
   }
 }
+type CSSRuleValue = string | number | boolean
 type CSSRuleOption = {
   group: string
   label: string
   name: string
-  value?: string | number | boolean
-  values?: ObjectType<string | number | boolean>
+  value: ObjectType<CSSRuleValue> | CSSRuleValue
   applyOnly?: string
   display?: string
   customizable?: boolean

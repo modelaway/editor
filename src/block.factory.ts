@@ -39,7 +39,6 @@ export const createGlobalControlBlock = () => {
     </mblock>
   </mblock>`
 }
-
 export const createStoreControlBlock = () => {
   const
     storeBlock = `<mblock mv-control-block="store">
@@ -53,6 +52,12 @@ export const createStoreControlBlock = () => {
 
       ${storeBlock}
     </mblock>`
+}
+export const createControlLayer = () => {
+  return `<div id="modela">
+    ${createStoreControlBlock()}
+    ${createGlobalControlBlock()}
+  </div>`
 }
 
 /**

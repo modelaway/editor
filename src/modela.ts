@@ -5,13 +5,11 @@ import Views from './views'
 import Store from './store'
 import Assets from './assets'
 import History from './history'
+import Plugins from './plugins'
 import Controls from './controls'
 import Functions from './functions'
 import { debug } from './utils'
-import {
-  createStoreControlBlock,
-  createGlobalControlBlock
-} from './block.factory'
+import { createControlLayer } from './block.factory'
 
 window.$ = jQuery
 
@@ -77,7 +75,7 @@ export default class Modela {
    * - templates
    * - etc
    */
-  public store: Store
+  private store: Store
 
   /**
    * Manage store elements
@@ -89,24 +87,29 @@ export default class Modela {
   public assets: Assets
 
   /**
+   * Manage plugins
+   */
+  private plugins: Plugins
+
+  /**
    * Utility functions
    */
-  public fn: Functions
+  private fn: Functions
 
   /**
    * Manage supported views
    */
-  public views: Views
+  private views: Views
 
   /**
    * Editor history stack manager
    */
-  public history: History
+  private history: History
 
   /**
    * Initialize modela controls
    */
-  public controls: Controls
+  private controls: Controls
 
   constructor( settings = {} ){
 
@@ -142,7 +145,12 @@ export default class Modela {
     this.fn = new Functions( this )
 
     /**
-     * Manage views manager
+     * Initialize plugins support
+     */
+    this.plugins = new Plugins( this )
+
+    /**
+     * Initialize views manager
      */
     this.views = new Views( this )
 
@@ -150,18 +158,6 @@ export default class Modela {
      * Initialize modela controls
      */
     this.controls = new Controls( this )
-  }
-
-  render(){
-    if( !this.enabled ){
-      debug('Modela functions disabled')
-      return ''
-    }
-
-    return `<div id="modela">
-      ${createStoreControlBlock()}
-      ${createGlobalControlBlock()}
-    </div>`
   }
 
   mount( selector: string ){
@@ -175,8 +171,8 @@ export default class Modela {
       throw new Error(`Root <${selector}> element not found`)
     
     // Add editor controls to root container in the DOM
-    $('body').prepend( this.render() )
-    // Define global css variables (Custom properties)
+    $('body').prepend( createControlLayer() )
+    // Define initial :root css variables (Custom properties)
     this.css.setVariables()
     // Enable modela controls
     this.controls.enable()

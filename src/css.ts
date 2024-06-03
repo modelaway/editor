@@ -12,7 +12,7 @@ export class Stylesheet {
   private nsp: string
   private settings: StyleSettings
 
-  constructor( nsp: string, settings: StyleSettings ){
+  constructor( nsp: string, settings?: StyleSettings ){
     if( typeof nsp !== 'string' ) 
       throw new Error('Undefined or invalid styles attachement element(s) namespace')
     
@@ -147,7 +147,7 @@ export class Stylesheet {
     .from( document.styleSheets )
     .forEach( sheet => {
       // Only style rules
-      const rules = Array.from( sheet.cssRules ).filter( ( rule ) => rule.type === 1 ) as CSSStyleRule[]
+      const rules = Array.from( sheet.cssRules || sheet.rules ).filter( ( rule ) => rule.type === 1 ) as CSSStyleRule[]
 
       rules.forEach( rule => {
         Array
@@ -174,23 +174,85 @@ export class Stylesheet {
 export default class CSS {
   private variables?: Stylesheet
 
-  setVariables(){
-    let varStr = ''
+  declare( nsp: string, settings?: StyleSettings ){
+    return new Stylesheet( nsp, settings )
+  }
 
+  setVariables( updates?: ObjectType<string | ObjectType<string>> ){
+    /**
+     * Apply properties updates to the variables
+     */
+    typeof updates == 'object' 
+    && Object.keys( updates ).length
+    && Object.entries( updates )
+              .map( ([ prop, value ]) => {
+                if( !CSS_CUSTOM_VARIABLES[ prop ] ) return
+                CSS_CUSTOM_VARIABLES[ prop ].value = value
+              } )
+
+    /**
+     * Generate CSS rule string
+     */
+    let varStr = ''
     Object
     .values( CSS_CUSTOM_VARIABLES )
-    .forEach( ({ name, value, values }) => {
-      value = values ? values['*'] : value
+    .forEach( ({ name, value }) => {
+      value = typeof value == 'object' ? value['*'] : value
       varStr += `\t${name}: ${value};\n`
     } )
 
     if( !varStr ) return
-    return this.variables = new Stylesheet('variables', { css: `:root { ${varStr} }`, meta: true })
+
+    const settings = { 
+      css: `:root { ${varStr} }`,
+      meta: true
+    }
+
+    this.variables ?
+            this.variables.load( settings )
+            : this.variables = new Stylesheet('variables', settings )
+
+    return this.variables
   }
   getVariables(){
     return this.variables?.custom()
   }
   clearVariables(){
     this.variables?.clear()
+  }
+
+  rules(){
+    const selectors: ObjectType<ObjectType<string>> = {}
+
+    Array
+    .from( document.styleSheets )
+    .forEach( sheet => {
+      // Only style rules
+      const rules = Array.from( sheet.cssRules || sheet.rules )
+                          .filter( ( rule ) => rule.type === 1 ) as CSSStyleRule[]
+      
+      rules.forEach( ({ style, selectorText }) => {
+        selectorText = selectorText.trim()
+        if( /[:,#>\[ ]/.test( selectorText )
+            || ['html', 'body'].includes( selectorText ) ) 
+          return
+
+        /**
+         * Contain properties defined under a css rule
+         * 
+         * Allow to collect even selector defined
+         * multiple times with different properties.
+         */
+        if( !selectors[ selectorText ] )
+          selectors[ selectorText ] = {}
+
+        Array
+        .from( style )
+        .filter( prop => (!/^--/.test( prop )) )
+        .map( prop => selectors[ selectorText ][ prop.trim() ] = style.getPropertyValue( prop ).trim() )
+      } )
+    } )
+    
+    return selectors
   }
 }

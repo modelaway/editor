@@ -171,7 +171,7 @@ Paragraph: ViewComponent = {
   attributes: {},
 
   render( view ){
-    return `<p>Loren upsum</p>`
+    return `<p lang>Loren upsum</p>`
   },
   takeover( view ){
     view.events

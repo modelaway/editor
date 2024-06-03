@@ -2,7 +2,7 @@ import type Modela from './modela'
 import type { ViewBlockProperties } from './types/view'
 
 import { createSelectFileInput } from './block.factory'
-import { i18n, debug, getTopography } from './utils'
+import { debug, getTopography } from './utils'
 
 export default class Functions {
   private readonly flux: Modela
@@ -13,13 +13,12 @@ export default class Functions {
     this.selectFile = this.selectFile.bind( this )
   }
 
-  i18n = i18n
   debug = debug
   getTopography = getTopography
 
   selectFile( options: SelectFileOptions ): Promise<InputFiles[]> {
     return new Promise( resolve => {
-      const $input = $( createSelectFileInput( options ) )
+      const $input = $(createSelectFileInput( options ))
       // this.flux.$modela?.append( $input )
 
       $input

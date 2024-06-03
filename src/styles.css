@@ -354,7 +354,7 @@ mli { display: inherit; }
   padding: 4px;
   border-radius: var(--me-border-radius);
 }
-[mv-panel] .listset mul mli span:not(.value) {
+[mv-panel] .listset mul mli minline:not(.value) {
   padding: 0 .8rem;
 }
 [mv-panel] .listset mul mli .sub-arrow {
@@ -362,7 +362,7 @@ mli { display: inherit; }
   right: 0;
 }
 [mv-panel] .listset mul mli.disabled,
-[mv-panel] .listset mul mli span.value,
+[mv-panel] .listset mul mli minline.value,
 [mv-panel] .listset mul mli .sub-arrow {
   color: var(--me-primary-color-transparent);
 }
@@ -410,13 +410,23 @@ mli { display: inherit; }
   transition: var(--me-active-transition);
   transform: scale(0.1);
 }
+[mv-discret] mblock { 
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  transform: scale(4);
+  transition: 500ms;
+}
 [mv-discret] micon {
+  position: relative;
   visibility: hidden;
   padding: 0.6rem;
   color: #fff;
   font-size: var(--me-icon-size);
 }
-[mv-discret]:hover { transform: scale(1); }
+[mv-discret]:hover,
+[mv-discret]:hover mblock { transform: scale(1); }
 [mv-discret]:hover micon { visibility: visible; }
 
 /* 

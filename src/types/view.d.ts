@@ -1,4 +1,5 @@
 import type { EventEmitter } from 'events'
+import type I18N from '../i18n'
 import type Assets from '../assets'
 import type Controls from '../controls'
 import type { Stylesheet } from '../css'
@@ -38,6 +39,7 @@ type ViewBlockProperties = {
 
 interface ViewComponentBridge {
   state: State
+  i18n: I18N
   fn: Functions
   assets: Assets
   events: EventEmitter
@@ -59,3 +61,5 @@ interface ViewComponent {
   toolbar?: ( view: ViewComponentBridge ) => ObjectType<ToolbarSet>
   panel?: ( view: ViewComponentBridge ) => PanelSections
 }
+
+type AddViewTriggerType = 'placeholder' | 'discret' | 'self'

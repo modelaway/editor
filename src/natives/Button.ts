@@ -15,7 +15,7 @@ Button: ViewComponent = {
   attributes: {},
   
   render(){
-    return `<button>Click me</button>`
+    return `<button><span lang>Click me</span></button>`
   },
   takeover( view ){
     view.events

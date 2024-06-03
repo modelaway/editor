@@ -1,5 +1,7 @@
 
 import type Modela from './modela'
+import type { AddViewTriggerType } from './types/view'
+
 import View from './view'
 import {
   VIEW_KEY_SELECTOR,
@@ -109,12 +111,12 @@ export default class Views {
       return
     
     /**
-     * Component's name can be the same as its HTML 
+     * Component's name can be the same as its HTML
      * nodeName identifier.
      * 
      * Eg. `fieldset` name for <fieldset> tag/nodeName
      * 
-     * If not, then preempt to the component's actual name 
+     * If not, then preempt to the component's actual name
      * instead of the HTML nodeName.
      * 
      * Eg. `text` for <span> tag/nodeName

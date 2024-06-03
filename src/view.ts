@@ -1,5 +1,5 @@
 import type Modela from './modela'
-import type { ViewBlockProperties, ViewComponent, ViewComponentBridge } from './types/view'
+import type { AddViewTriggerType, ViewBlockProperties, ViewComponent, ViewComponentBridge } from './types/view'
 
 import EventEmitter from 'events'
 import State from './state'
@@ -81,6 +81,7 @@ export default class View {
       events: new EventEmitter(),
       assets: flux.assets,
       fn: flux.fn,
+      i18n: flux.i18n,
       css: undefined,
       $: undefined
     }
@@ -123,7 +124,7 @@ export default class View {
         const freePositions = ['fixed', 'absolute', 'sticky']
         
         freePositions.includes( this.$?.css('position') as string ) ?
-                                      this.$?.prepend( createDiscretAddpoint( this.key as string ) )
+                                      this.$?.prepend( this.flux.i18n.propagate( $(createDiscretAddpoint( this.key as string )) ) )
                                       : this.$?.after( createPlaceholder( this.key as string ) )
       }
     }
@@ -394,8 +395,10 @@ export default class View {
     settings = {
       editing: true,
       detached: typeof panel == 'function'
-    },
-    $toolbar = $(createToolbar( this.key, options, settings ))
+    }
+    let $toolbar = $(createToolbar( this.key, options, settings ))
+    // Apply translation to text contents in toolbar
+    $toolbar = this.flux.i18n.propagate( $toolbar )
 
     let { x, y, height } = getTopography( this.$ )
     debug('show view toolbar: ', x, y )
@@ -444,7 +447,9 @@ export default class View {
     const { caption, panel } = this.get() as ViewComponent
     if( typeof panel !== 'function' ) return
 
-    const $panel = $(createPanel( this.key, caption, panel( this.bridge ) ))
+    let $panel = $(createPanel( this.key, caption, panel( this.bridge ) ))
+    // Apply translation to text contents in panel
+    $panel = this.flux.i18n.propagate( $panel )
 
     let { x, y, width } = getTopography( this.$, true )
     debug('show view panel: ', x, y )

@@ -59,10 +59,12 @@ function finderPosition( $finder: JQuery<HTMLElement>, $trigger: JQuery<HTMLElem
 
   $finder.css({ left: `${x}px`, top: `${y}px` })
 }
-function showViewFinder( key: string, $trigger: JQuery<HTMLElement>, Ctrl: Controls ){
-  const $finder = $( createFinderPanel( key, Ctrl.flux.store.searchComponent() ) )
+function showViewFinder( key: string, $trigger: JQuery<HTMLElement>, self: Controls ){
+  let $finder = $(createFinderPanel( key, self.flux.store.searchComponent() ))
 
-  Ctrl.flux.$modela?.append( $finder )
+  // Apply translation to text content in finder panel
+  $finder = self.flux.i18n.propagate( $finder )
+  self.flux.$modela?.append( $finder )
 
   /**
    * Put finder panel in position
@@ -76,29 +78,38 @@ function showViewFinder( key: string, $trigger: JQuery<HTMLElement>, Ctrl: Contr
   .find('input[type="search"]')
   .on('input', function( this: Event ){
     const query = String( $(this).val() )
-    // Trigger search with minimum 2 character input value
-    if( query.length < 2 ) return
+    /**
+     * Trigger search with minimum 2 character input value
+     * but also allow empty input to redisplay default
+     * result list.
+     */
+    if( query.length == 1 ) return
 
-    const results = Ctrl.flux.store.searchComponent( query )
+    const 
+    results = self.flux.store.searchComponent( query ),
+    $results = $finder.find('.results')
 
-    $finder.find('.results').html( createSearchResult( results ) )
+    $results.html( createSearchResult( results ) )
+
+    // Apply translation to results text contents
+    self.flux.i18n.propagate( $results )
   })
 }
-function addView( $this: JQuery<HTMLElement>, Ctrl: Controls ){
+function addView( $this: JQuery<HTMLElement>, self: Controls ){
   const name = $this.attr('params')
   if( !name 
-      || Ctrl.clipboard?.type !== 'finder'
-      || !Ctrl.clipboard.key ) return
+      || self.clipboard?.type !== 'finder'
+      || !self.clipboard.key ) return
 
   // Use finder initiation trigger key as destination
-  Ctrl.flux.views.add( name, Ctrl.clipboard.key, Ctrl.clipboard.value )
+  self.flux.views.add( name, self.clipboard.key, self.clipboard.value )
   // Clear clipboard
-  Ctrl.clipboard = null
+  self.clipboard = null
 
-  onDismiss( $this, Ctrl )
+  onDismiss( $this, self )
 }
 
-export function onTab( $this: JQuery<HTMLElement>, Ctrl: Controls ){
+export function onTab( $this: JQuery<HTMLElement>, self: Controls ){
   debug('tab event --', $this.attr('tab'), $this.attr('params') )
 
   const
@@ -116,7 +127,7 @@ export function onTab( $this: JQuery<HTMLElement>, Ctrl: Controls ){
   // Show active section
   $block.find(`[section="${$this.attr('tab')}"]`).addClass('active')
 }
-export function onShow( $this: JQuery<HTMLElement>, Ctrl: Controls ){
+export function onShow( $this: JQuery<HTMLElement>, self: Controls ){
   debug('show event --', $this.attr('show'), $this.attr('params') )
 
   const
@@ -133,8 +144,8 @@ export function onShow( $this: JQuery<HTMLElement>, Ctrl: Controls ){
 
   switch( $this.attr('show') ){
     case 'global': {
-      Ctrl.$globalToolbar?.hide()
-      Ctrl.$globalBlock?.show()
+      self.$globalToolbar?.hide()
+      self.$globalBlock?.show()
 
       // TODO: Open global tabs by `$this.attr('params')` value
 
@@ -160,7 +171,7 @@ export function onShow( $this: JQuery<HTMLElement>, Ctrl: Controls ){
       $trigger.find('[show="extra-toolbar"]').show() // Restore toggle
     } break
 
-    case 'panel': Ctrl.flux.views.get( key ).showPanel(); break
+    case 'panel': self.flux.views.get( key ).showPanel(); break
 
     case 'finder': {
       /**
@@ -168,20 +179,20 @@ export function onShow( $this: JQuery<HTMLElement>, Ctrl: Controls ){
        * destination element to the following `add-view`
        * procedure.
        */
-      Ctrl.clipboard = {
+      self.clipboard = {
         type: 'finder',
         value: $trigger.attr( CONTROL_DISCRET_SELECTOR ) ? 'discret' : 'placeholder',
         key
       }
 
       switch( $this.attr('params') ){
-        case 'view': showViewFinder( key, $trigger, Ctrl ); break
-        // case 'layout': showLayoutFinder( $trigger, Ctrl ); break
+        case 'view': showViewFinder( key, $trigger, self ); break
+        // case 'layout': showLayoutFinder( $trigger, self ); break
       }
     } break
   }
 }
-export function onDismiss( $this: JQuery<HTMLElement>, Ctrl: Controls ){
+export function onDismiss( $this: JQuery<HTMLElement>, self: Controls ){
   debug('dismiss event --', $this.attr('dismiss') )
 
   /**
@@ -192,8 +203,8 @@ export function onDismiss( $this: JQuery<HTMLElement>, Ctrl: Controls ){
   
   switch( $this.attr('dismiss') ){
     case 'global': {
-      Ctrl.$globalToolbar?.show()
-      Ctrl.$globalBlock?.hide()
+      self.$globalToolbar?.show()
+      self.$globalBlock?.hide()
     } break
 
     // Dismiss extra options
@@ -214,7 +225,7 @@ export function onDismiss( $this: JQuery<HTMLElement>, Ctrl: Controls ){
     default: $trigger.remove(); break
   }
 }
-export function onApply( $this: JQuery<HTMLElement>, Ctrl: Controls ){
+export function onApply( $this: JQuery<HTMLElement>, self: Controls ){
   debug('apply event --', $this.attr('apply'), $this.attr('params') )
 
   const
@@ -233,9 +244,9 @@ export function onApply( $this: JQuery<HTMLElement>, Ctrl: Controls ){
   _attr = $this.attr('apply') as string,
   _params = $this.attr('params')
 
-  Ctrl.flux.views.get( key )?.bridge.events.emit('apply', _attr, _params )
+  self.flux.views.get( key )?.bridge.events.emit('apply', _attr, _params )
 }
-export function onAction( $this: JQuery<HTMLElement>, Ctrl: Controls ){
+export function onAction( $this: JQuery<HTMLElement>, self: Controls ){
   debug('action event --', $this.attr('action'), $this.attr('params') )
   /**
    * Lookup the DOM from the main parent perspective
@@ -245,25 +256,25 @@ export function onAction( $this: JQuery<HTMLElement>, Ctrl: Controls ){
   
   switch( $this.attr('action') ){
     // Add new view to the DOM
-    case 'add-view': addView( $this, Ctrl ); break
+    case 'add-view': addView( $this, self ); break
 
     /**
-     * -------------- View meta Ctrl --------------
+     * -------------- View meta self --------------
      */
 
     // Move view up
-    case 'view.move-up': Ctrl.flux.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'up' ); break
+    case 'view.move-up': self.flux.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'up' ); break
     // Move view down
-    case 'view.move-down': Ctrl.flux.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'down' ); break
+    case 'view.move-down': self.flux.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'down' ); break
     // Move view
-    case 'view.move': Ctrl.flux.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'any' ); break
+    case 'view.move': self.flux.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'any' ); break
     // Duplicate view
-    case 'view.duplicate': Ctrl.flux.views.duplicate( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string ); break
+    case 'view.duplicate': self.flux.views.duplicate( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string ); break
     // Delete view
-    case 'view.delete': Ctrl.flux.views.remove( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string ); break
+    case 'view.delete': self.flux.views.remove( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string ); break
     // Copy to clipboard
     case 'view.copy': {
-      Ctrl.clipboard = {
+      self.clipboard = {
         type: $this.attr('params') as ClipBoard['type'],
         key: $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
       }
@@ -271,35 +282,35 @@ export function onAction( $this: JQuery<HTMLElement>, Ctrl: Controls ){
 
     // Paste clipboard content
     case 'view.paste': {
-      if( !Ctrl.clipboard?.key || Ctrl.clipboard.type !== 'view' )
+      if( !self.clipboard?.key || self.clipboard.type !== 'view' )
         return
 
       // Paste view
       const
       nextViewKey = $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) || $trigger.attr( CONTROL_FLOATING_SELECTOR ),
-      nextToView = Ctrl.flux.views.get( nextViewKey as string )
+      nextToView = self.flux.views.get( nextViewKey as string )
 
       // Duplicated view next to specified pasting view position
-      nextToView && Ctrl.flux.views.duplicate( Ctrl.clipboard.key as string, nextToView.$ )
+      nextToView && self.flux.views.duplicate( self.clipboard.key as string, nextToView.$ )
       // Remove visible floating active
-      Ctrl.flux.$root?.find(`[${CONTROL_FLOATING_SELECTOR}]`).remove()
+      self.flux.$root?.find(`[${CONTROL_FLOATING_SELECTOR}]`).remove()
 
-      Ctrl.clipboard = null
+      self.clipboard = null
     } break
 
   }
 }
-export function onToolbar( $this: JQuery<HTMLElement>, Ctrl: Controls ){
+export function onToolbar( $this: JQuery<HTMLElement>, self: Controls ){
   const key = $this.attr( VIEW_KEY_SELECTOR )
   debug('toolbar event --', key )
 
   if( !key ) return
 
   // Show toolbar
-  const view = Ctrl.flux.views.get( key )
+  const view = self.flux.views.get( key )
   view && view.showToolbar()
 }
-export function onFloating( $this: JQuery<HTMLElement>, Ctrl: Controls ){
+export function onFloating( $this: JQuery<HTMLElement>, self: Controls ){
   // Placeholder's ref key to attached view
   const key = $this.attr( VIEW_REF_SELECTOR )
   debug('floating event --', key )
@@ -311,16 +322,20 @@ export function onFloating( $this: JQuery<HTMLElement>, Ctrl: Controls ){
    * Show paste-view trigger point when a pending
    * copy of view is in the clipboard.
    */
-  if( Ctrl.clipboard?.type == 'view' )
+  if( self.clipboard?.type == 'view' )
     triggers.push('paste')
 
-  let $trigger = Ctrl.flux.$root?.find(`[${CONTROL_FLOATING_SELECTOR}]`)
+  let $trigger = self.flux.$root?.find(`[${CONTROL_FLOATING_SELECTOR}]`)
 
   // Insert new floating point to the DOM
   if( !$trigger?.length ){
-    Ctrl.flux.$root?.append( createFloating( key, 'view', triggers ) )
+    let $floating = $(createFloating( key, 'view', triggers ))
 
-    $trigger = Ctrl.flux.$root?.find(`[${CONTROL_FLOATING_SELECTOR}="${key}"]`)
+    // Apply translation to text content on floating element
+    $floating = self.flux.i18n.propagate( $floating )
+    self.flux.$root?.append( $floating )
+
+    $trigger = self.flux.$root?.find(`[${CONTROL_FLOATING_SELECTOR}="${key}"]`)
     if( !$trigger?.length ) return
 
     autoDismiss('floating', $trigger )
@@ -350,7 +365,7 @@ export function onFloating( $this: JQuery<HTMLElement>, Ctrl: Controls ){
 
   $trigger.css({ left: `${left}px`, top: `${top}px` })
 }
-export function onCustomListener( $this: JQuery<HTMLElement>, Ctrl: Controls ){
+export function onCustomListener( $this: JQuery<HTMLElement>, self: Controls ){
   debug('custom on-* event --', $this.attr('on'), $this.attr('params') )
 
   const
@@ -369,9 +384,9 @@ export function onCustomListener( $this: JQuery<HTMLElement>, Ctrl: Controls ){
   _event = $this.attr('on') as string,
   _params = $this.attr('params')
 
-  Ctrl.flux.views.get( key )?.bridge.events.emit( _event, _params )
+  self.flux.views.get( key )?.bridge.events.emit( _event, _params )
 }
 
-export function onContentChange( $this: JQuery<HTMLElement>, Ctrl: Controls ){
-  Ctrl.flux.history.lateRecord( $this.html() )
+export function onContentChange( $this: JQuery<HTMLElement>, self: Controls ){
+  self.flux.history.lateRecord( $this.html() )
 }

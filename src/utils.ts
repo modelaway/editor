@@ -1,4 +1,3 @@
-import type { ViewBlockProperties } from './types/view'
 import { CONTROL_EDGE_MARGIN } from './constants'
 
 declare global {
@@ -21,14 +20,6 @@ String.prototype.toCapitalCase = function(){
  */
 export const debug = ( ...args: any[] ) => {
   console.debug('[debug]:', ...args )
-}
-
-/**
- * Internationalization support function
- */
-export const i18n = ( text: string ): string => {
-
-  return text
 }
 
 /**

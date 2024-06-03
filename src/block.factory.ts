@@ -21,10 +21,10 @@ import { generateKey } from './utils'
  */
 export const createGlobalControlBlock = () => {
   const globalTabs = `<mul options="tabs">
-    <mli show="global" target="settings"><micon class="bx bx-cog"></micon></mli>
-    <mli show="global" target="styles"><micon class="bx bxs-brush"></micon></mli>
-    <mli show="global" target="assets"><micon class="bx bx-landscape"></micon></mli>
-    <mli dismiss="global"><micon class="bx bx-x"></micon></mli>
+    <mli show="global" target="settings" title="Settings" mlang><micon class="bx bx-cog"></micon></mli>
+    <mli show="global" target="styles" title="Styles" mlang><micon class="bx bxs-brush"></micon></mli>
+    <mli show="global" target="assets" title="Assets" mlang><micon class="bx bx-landscape"></micon></mli>
+    <mli dismiss="global" title="Dismiss" mlang><micon class="bx bx-x"></micon></mli>
   </mul>`,
   globalBody = `<mblock>
 
@@ -48,7 +48,7 @@ export const createStoreControlBlock = () => {
      * 
      */
     return `<mblock class="modela-store">
-      <span show="store"><micon class="bx bx-dots-vertical-rounded"></micon></span>
+      <minline show="store"><micon class="bx bx-dots-vertical-rounded"></micon></minline>
 
       ${storeBlock}
     </mblock>`
@@ -95,7 +95,7 @@ export const createToolbar = ( key: string, options: ObjectType<ToolbarOption> =
       if( disabled ) attrs += ` disabled`
       if( title ) attrs += ` title="${title}"`
 
-      return `<mli ${attrs}><micon class="${icon}"></micon></mli>`
+      return `<mli ${attrs} title="${title}" mlang><micon class="${icon}"></micon></mli>`
     }
   },
   composeLi = ([ attr, { icon, label, title, event, disabled, active, extra, sub, meta }]: [ attr: string, tset: ToolbarOption ]) => {
@@ -107,8 +107,8 @@ export const createToolbar = ( key: string, options: ObjectType<ToolbarOption> =
 
       // Create a sub options
       subOptions.push(`<mblock options="sub" extends="${attr}">
-                        <mli dismiss="sub-toolbar"><micon class="bx bx-chevron-left"></micon></mli>
-                        <mli class="label"><micon class="${icon}"></micon><mlabel>${label || title}</mlabel></mli>
+                        <mli dismiss="sub-toolbar" title="Back" mlang><micon class="bx bx-chevron-left"></micon></mli>
+                        <mli class="label"><micon class="${icon}"></micon><mlabel mlang>${label || title}</mlabel></mli>
                         ${Object.entries( sub ).map( composeSubLi( attr ) ).join('')}
                       </mblock>`)
     }
@@ -126,7 +126,7 @@ export const createToolbar = ( key: string, options: ObjectType<ToolbarOption> =
     if( label ) attrs += ` class="label"`
     if( title ) attrs += ` title="${title}"`
 
-    const optionLi = `<mli ${attrs}><micon class="${icon}"></micon><mlabel>${label ? ` ${label}` : ''}</mlabel></mli>`
+    const optionLi = `<mli ${attrs} mlang><micon class="${icon}"></micon>${label ? `<mlabel mlang>${label}</mlabel>` : ''}</mli>`
     extra ?
       extraOptions += optionLi
       : mainOptions += optionLi
@@ -158,13 +158,13 @@ export const createToolbar = ( key: string, options: ObjectType<ToolbarOption> =
       <mul>
         <mblock options="main">
           ${mainOptions}
-          ${extraOptions ? `<mli show="extra-toolbar"><micon class="bx bx-dots-horizontal-rounded"></micon></mli>` : ''}
+          ${extraOptions ? `<mli show="extra-toolbar" title="Extra options" mlang><micon class="bx bx-dots-horizontal-rounded"></micon></mli>` : ''}
         </mblock>
 
         ${extraOptions ?
               `<mblock options="extra">
                 ${extraOptions}
-                <mli dismiss="extra-toolbar"><micon class="bx bx-chevron-left"></micon></mli>
+                <mli dismiss="extra-toolbar" title="Back" mlang><micon class="bx bx-chevron-left"></micon></mli>
               </mblock>` : ''}
 
         ${subOptions.length ? subOptions.join('') : ''}
@@ -188,11 +188,11 @@ export const createPanel = ( key: string, caption: ViewCaption, options: PanelSe
   sectionTabs = '',
   sectionBodies = ''
 
-  const composeSection = ( name: string, { icon, fieldsets, listsets }: PanelSection, isActive: boolean ) => {
+  const composeSection = ( name: string, { icon, title, fieldsets, listsets }: PanelSection, isActive: boolean ) => {
     /**
      * List of tabs
      */
-    sectionTabs += `<mli tab="${name}" ${isActive ? 'class="active"' : ''}><micon class="${icon}"></micon></mli>`
+    sectionTabs += `<mli tab="${name}" ${isActive ? 'class="active"' : ''} ${title ? `title="${title}" mlang` : ''}><micon class="${icon}"></micon></mli>`
 
     let fieldsetHTML = ''
     fieldsets?.map( ({ label, fields, seperate }) => {
@@ -201,7 +201,7 @@ export const createPanel = ( key: string, caption: ViewCaption, options: PanelSe
         return
       
       fieldsetHTML += `<fieldset>
-        ${label ? `<mlabel>${label}</mlabel>` : ''}
+        ${label ? `<mlabel mlang>${label}</mlabel>` : ''}
         ${fields.map( each => (createInput( each )) ).join('')}
       </fieldset>`
 
@@ -217,7 +217,7 @@ export const createPanel = ( key: string, caption: ViewCaption, options: PanelSe
         return
       
       listsetHTML += `<mblock class="listset">
-        ${label ? `<mlabel>${label}</mlabel>` : ''}
+        ${label ? `<mlabel mlang>${label}</mlabel>` : ''}
         <mul>${items.map( each => (createListItem( each )) ).join('')}</mul>
       </mblock>`
 
@@ -243,10 +243,10 @@ export const createPanel = ( key: string, caption: ViewCaption, options: PanelSe
       <mblock class="header">
         <mblock>
           <micon class="${caption.icon}"></micon>
-          <mlabel>${caption.title}</mlabel>
+          <mlabel mlang>${caption.title}</mlabel>
 
           <!-- Dismiss control panel -->
-          <span dismiss="panel"><micon class="bx bx-x"></micon></span>
+          <span dismiss="panel" title="Dismiss" mlang><micon class="bx bx-x"></micon></span>
         </mblock>
 
         <mul options="tabs">${sectionTabs}</mul>
@@ -264,8 +264,8 @@ export const createFloating = ( key: string, type: 'view' | 'layout', triggers: 
   let list = ''
   triggers.map( each => {
     switch( each ){
-      case 'addpoint': list += `<mli show="finder" params="${type}"><micon class="bx bx-plus"></micon></mli>`; break
-      case 'paste': list += `<mli action="paste" params="${type}"><micon class="bx bx-paste"></micon></mli>`; break
+      case 'addpoint': list += `<mli show="finder" params="${type}" title="Add view" mlang><micon class="bx bx-plus"></micon></mli>`; break
+      case 'paste': list += `<mli action="paste" params="${type}" title="Paste view" mlang><micon class="bx bx-paste"></micon></mli>`; break
     }
   } )
 
@@ -273,7 +273,10 @@ export const createFloating = ( key: string, type: 'view' | 'layout', triggers: 
 }
 
 export const createDiscretAddpoint = ( key: string ) => {
-  return `<mblock ${CONTROL_DISCRET_SELECTOR}="${key}"><micon show="finder" params="view" class="bx bx-plus"></micon></mblock>`
+  return `<mblock ${CONTROL_DISCRET_SELECTOR}="${key}">
+    <mblock></mblock>
+    <micon show="finder" params="view" class="bx bx-plus" title="Add view" mlang></micon>
+  </mblock>`
 }
 
 /**
@@ -292,7 +295,8 @@ export const createInput = ({ type, label, name, value, pattern, placeholder, au
     case 'search': {
       return `<mblock ${FORM_INPUT_SELECTOR}="${type}">
         <!--<mlabel for="${id}">${label}</mlabel>-->
-        <input id="${id}"
+        <input mlang
+                id="${id}"
                 type="${type}"
                 name="${name}"
                 ${label ? `title="${label}"`: ''}
@@ -311,7 +315,7 @@ export const createInput = ({ type, label, name, value, pattern, placeholder, au
                 name="${name}"
                 ${disabled ? `disabled="true"`: ''}
                 ${value ? `checked="true"`: ''}>
-        <label for="${id}">${label}</label>
+        <label for="${id}" mlang>${label}</label>
       </mblock>`
     }
   }
@@ -341,10 +345,10 @@ export const createListItem = ({ icon, title, value, event, sub, disabled }: Lis
 
   return `<mli ${attrs}>
     <micon class="${icon}"></micon>
-    <span>${title}</span>
-    ${value ? `<span class="value">${value}</span>` : ''}
+    <minline mlang>${title}</minline>
+    ${value ? `<minline class="value" mlang>${value}</minline>` : ''}
 
-    ${sub ? `<span class="sub-arrow"><micon class="bx bx-chevron-right"></micon></span>` : ''}
+    ${sub ? `<minline class="sub-arrow"><micon class="bx bx-chevron-right"></micon></minline>` : ''}
   </mli>`
 }
 
@@ -360,7 +364,7 @@ export const createSearchResult = ( list: ObjectType<Listset> ) => {
       return
     
     listsetHTML += `<mblock class="listset">
-      ${label ? `<mlabel>${label.replace(/-/g, ' ').toCapitalCase()}</mlabel>` : ''}
+      ${label ? `<mlabel mlang>${label.replace(/-/g, ' ').toCapitalCase()}</mlabel>` : ''}
       <mul>${items.map( each => (createListItem( each )) ).join('')}</mul>
     </mblock>`
 
@@ -369,7 +373,7 @@ export const createSearchResult = ( list: ObjectType<Listset> ) => {
       listsetHTML += createFormSeperator()
   } )
 
-  return listsetHTML || '<mblock mv-empty>No result</mblock>'
+  return listsetHTML || '<mblock mv-empty mlang>No result</mblock>'
 }
 
 export const createFinderPanel = ( key: string, list: ObjectType<Listset> ) => {
@@ -381,10 +385,10 @@ export const createFinderPanel = ( key: string, list: ObjectType<Listset> ) => {
     <mblock container>
       <mblock class="header">
         <mblock>
-          <minline>Add view</minline>
+          <minline mlang>Add view</minline>
 
           <!-- Dismiss control panel -->
-          <minline dismiss="panel"><micon class="bx bx-x"></micon></minline>
+          <minline dismiss="panel" title="Dismiss" mlang><micon class="bx bx-x"></micon></minline>
         </mblock>
 
         ${createInput({

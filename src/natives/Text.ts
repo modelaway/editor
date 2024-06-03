@@ -172,7 +172,7 @@ Text: ViewComponent = {
   attributes: {},
 
   render( view ){
-    return `<span>Loren upsum</span>`
+    return `<span lang>Loren upsum</span>`
   },
   async takeover( view ){
     view.events

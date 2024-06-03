@@ -128,39 +128,14 @@ interface GlobalSet {
   defineProperties: ( props: ViewBlockProperties ) => string
 }
 
-type AddViewTriggerType = 'placeholder' | 'discret' | 'self'
-
+type ModelaLanguage = {
+  internal: string
+  default: string
+}
 type ModelaSettings = {
+  lang?: string
   viewOnly?: boolean
   hoverSelect?: boolean
   enablePlaceholders?: boolean
 }
-
-type Components = ObjectType<ViewComponent>
-
-type ModelaStore = {
-  components: Components,
-  templates: {}
-}
-type ModelaGlobalStyleSet = {
-  group?: string
-  label: string
-  value?: any
-  values?: ObjectType<string | number | boolean>
-  options?: { 
-    value: string | number | boolean,
-    hint?: string
-    apply?: string[]
-  }[]
-  palette?: { 
-    value: string | number | boolean,
-    hint?: string
-    apply?: string[]
-  }[]
-  featuredOptions?: number[]
-  applyOnly?: string
-  display?: string // 'inline' | 'dropdown'
-  customizable?: boolean
-}
-type ModelaGlobalStyles = ObjectType<ModelaGlobalStyleSet>
-type ModalGlobalAssets = {}
+type ModelaLanguageDictionary = ObjectType<ObjectType<string> | string>

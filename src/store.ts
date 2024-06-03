@@ -2,8 +2,13 @@ import type Modela from './modela'
 import type { ViewComponent } from './types/view'
 import { debug } from './utils'
 
+type StoreMemory = {
+  components: ObjectType<ViewComponent>,
+  templates: {}
+}
+
 export default class Store {
-  private STORE: ModelaStore = {
+  private STORE: StoreMemory = {
     components: {},
     templates: {}
   }

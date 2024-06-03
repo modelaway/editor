@@ -1,3 +1,4 @@
+import french from './languages/fr.json'
 
 export const CONTROL_ROOT = '#modela'
 
@@ -416,4 +417,11 @@ export const CSS_CUSTOM_VARIABLES: ObjectType<CSSRuleOption> = {
     display: 'inline',
     customizable: true
   }
+}
+
+/**
+ * Support languages translation dictionaries
+ */
+export const LANGUAGE_DICTIONARIES: ObjectType<ModelaLanguageDictionary> = {
+  'fr': french
 }

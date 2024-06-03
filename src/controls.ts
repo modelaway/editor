@@ -9,6 +9,7 @@ import {
   CONTROL_PANEL_SELECTOR,
   CONTROL_BLOCK_SELECTOR
 } from './constants'
+import { createControlLayer } from './block.factory'
 
 export default class Controls {
   readonly flux: Modela
@@ -29,9 +30,12 @@ export default class Controls {
    * Enable control actions' event listeners
    */
   enable(){
-    const self = this
+    // Add editor controls to root container in the DOM
+    this.flux.$modela = $(createControlLayer())
 
-    this.flux.$modela = $(CONTROL_ROOT)
+    // Apply translation to text contents in modela control layer
+    this.flux.$modela = this.flux.i18n.propagate( this.flux.$modela, 'mlang' )
+    $('body').prepend( this.flux.$modela )
 
     this.$globalBlock = $(`${CONTROL_ROOT} [${CONTROL_BLOCK_SELECTOR}="global"]`)
     this.$globalToolbar = $(`${CONTROL_ROOT} [${CONTROL_TOOLBAR_SELECTOR}="global"]`)

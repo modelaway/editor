@@ -9,7 +9,7 @@ import Plugins from './plugins'
 import Controls from './controls'
 import Functions from './functions'
 import { debug } from './utils'
-import { createControlLayer } from './block.factory'
+import I18N from './i18n'
 
 window.$ = jQuery
 
@@ -26,15 +26,23 @@ export default class Modela {
   private enabled = true
 
   /**
-   * Default language
+   * Use browser language as default
    */
-  private lang = 'en'
+  public lang: ModelaLanguage = {
+    internal: 'en-US',
+    default: window.navigator.language
+  }
 
   /**
    * Default editor settings: Crucial in case user
    * want to reset settings to default.
    */
   private defaultSettings: ModelaSettings = {
+    /**
+     * Current display language
+     */
+    lang: undefined,
+
     /**
      * Listen to click event on only element that
      * has `.view` class name.
@@ -64,6 +72,11 @@ export default class Modela {
   public $modela: JQuery<HTMLElement> | null = null
 
   /**
+   * Initialize internationalization handler
+   */
+  public i18n: I18N
+
+  /**
    * Initialize global css
    */
   public css: CSS
@@ -75,7 +88,7 @@ export default class Modela {
    * - templates
    * - etc
    */
-  private store: Store
+  public store: Store
 
   /**
    * Manage store elements
@@ -94,17 +107,17 @@ export default class Modela {
   /**
    * Utility functions
    */
-  private fn: Functions
+  public fn: Functions
 
   /**
    * Manage supported views
    */
-  private views: Views
+  public views: Views
 
   /**
    * Editor history stack manager
    */
-  private history: History
+  public history: History
 
   /**
    * Initialize modela controls
@@ -114,6 +127,10 @@ export default class Modela {
   constructor( settings = {} ){
 
     this.settings = { ...this.defaultSettings, ...settings }
+
+    // Set default language as current language
+    if( !this.settings.lang )
+      this.settings.lang = this.lang.default
 
     /**
      * Initialize history manager
@@ -138,6 +155,11 @@ export default class Modela {
      * Manage global assets manager
      */
     this.assets = new Assets()
+
+    /**
+     * Initialize history manager
+     */
+    this.i18n = new I18N( this )
 
     /**
      * Initialize utility functions
@@ -170,8 +192,6 @@ export default class Modela {
     if( !this.$root.length )
       throw new Error(`Root <${selector}> element not found`)
     
-    // Add editor controls to root container in the DOM
-    $('body').prepend( createControlLayer() )
     // Define initial :root css variables (Custom properties)
     this.css.setVariables()
     // Enable modela controls

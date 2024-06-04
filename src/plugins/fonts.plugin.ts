@@ -38,8 +38,8 @@ export default class Fonts implements Plugin {
     // Auto-load
     config.autoload && this.load()
 
-    // Set font-family as to global custom variables
-    config.fontFamily && factory.flux.css?.setVariables({ fontFamily: config.fontFamily })
+    // Apply defined font css rules to global custom variables
+    typeof config.cssrule == 'object' && factory.flux.css?.setVariables( config.cssrule )
   }
 
   /**

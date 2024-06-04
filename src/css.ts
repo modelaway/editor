@@ -144,6 +144,11 @@ export class Stylesheet {
 
     Array
     .from( document.styleSheets )
+    /**
+     * Allow only same-domain stylesheet to be read
+     * to avoid cross-origin content policy error
+     */
+    .filter( sheet => (!sheet.href || sheet.href.indexOf( window.location.origin ) === 0))
     .forEach( sheet => {
       // Only style rules
       const rules = Array.from( sheet.cssRules || sheet.rules ).filter( ( rule ) => rule.type === 1 ) as CSSStyleRule[]
@@ -225,6 +230,11 @@ export default class CSS {
 
     Array
     .from( document.styleSheets )
+    /**
+     * Allow only same-domain stylesheet to be read
+     * to avoid cross-origin content policy error
+     */
+    .filter( sheet => (!sheet.href || sheet.href.indexOf( window.location.origin ) === 0))
     .forEach( sheet => {
       // Only style rules
       const rules = Array.from( sheet.cssRules || sheet.rules )
@@ -236,19 +246,22 @@ export default class CSS {
             || ['html', 'body'].includes( selectorText ) ) 
           return
 
+        const record: ObjectType<string> = {}
+
+        Array
+        .from( style )
+        .map( prop => record[ prop.trim() ] = style.getPropertyValue( prop ).trim() )
+
+        // Bounce empty rules
+        if( !Object.keys( record ).length ) return
+
         /**
          * Contain properties defined under a css rule
          * 
          * Allow to collect even selector defined
          * multiple times with different properties.
          */
-        if( !selectors[ selectorText ] )
-          selectors[ selectorText ] = {}
-
-        Array
-        .from( style )
-        .filter( prop => (!/^--/.test( prop )) )
-        .map( prop => selectors[ selectorText ][ prop.trim() ] = style.getPropertyValue( prop ).trim() )
+        selectors[ selectorText ] = { ...selectors[ selectorText ], ...record }
       } )
     } )
     

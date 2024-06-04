@@ -4,17 +4,17 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title></title>
+
     <link rel="stylesheet" href="../../src/lib/boxicons-2.0.9.min.css" type="text/css"/>
     <link rel="stylesheet" href="../../src/styles.css" type="text/css"/>
+    <!-- Add bootstrap library to the document -->
+    <link rel="stylesheet" href="./bootstrap-5.3.2.min.css" type="text/css">
     <link rel="stylesheet" href="styles.css" type="text/css"/>
     <style>
       html {
-        --primary-color: #green;
-        --font-size: 14px;
-        --padding: 15px;
-
         font-family: var(--font-family);
-        font-weight: 500;
+        font-weight: var(--font-weight);
+        font-size: var(--font-size);
       }
     </style>
   </head>
@@ -23,9 +23,10 @@
       <span>I'm an inline text</span><br>
       <p class="view" style="position: absolute; top: 45vh; left: 40vw">I'm a paragraph text <span>Hello there</span></p>
       <p class="view" style="position: absolute; top: 95vh; left: 80vw">Check me here</p>
-      <button>Click me</button>
+      <button class="btn btn-primary">Click me</button>
 
-      <block id="box" mv-key="123456789000" mv-name="block" style="display:block;width:100px;height:100px;background-color:aquamarine;"></block>
+      <div class="block" style="display:block;width:100px;height:100px;background-color:aquamarine;"></div>
+      <div id="box" mv-key="123456789000" mv-name="block" style="display:block;width:100px;height:100px;background-color:black;"></div>
       <img src="./images/twins.jpeg">
     </div>
 

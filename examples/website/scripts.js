@@ -8,13 +8,17 @@ import cardView from './card.view.js'
 const fontPluginConfig = {
   autoload: true,
   googlefonts: [
-    { name: 'Urbanist' },
-    { name: 'Legend', weights: [] }
+    { name: 'Lexend' },
+    { name: 'Urbanist', weights: [300, 500, 700] }
   ],
   custom: [
     { name: 'Alata', url: 'https://fonts.googleapis.com/css2?family=Alata:wght@100;200;300;400;500&display=swap' }, 
   ],
-  fontFamily: 'Urbanist, Legend, helvetica, Sans serif'
+  cssrule: {
+    fontFamily: 'Urbanist, Legend, helvetica, Sans serif',
+    fontWeight: 500,
+    fontSize: '90%'
+  } 
 }
 
 const settings = {

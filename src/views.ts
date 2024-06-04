@@ -1,6 +1,6 @@
 
 import type Modela from './modela'
-import type { AddViewTriggerType } from './types/view'
+import type { AddViewTriggerType, ViewComponent } from './types/view'
 
 import View from './view'
 import {
@@ -64,7 +64,7 @@ export default class Views {
       throw new Error(`Unknown <${name}> view`)
 
     this.currentView = new View( this.flux )
-    this.currentView.mount( component, to, triggerType )
+    this.currentView.mount( component as ViewComponent, to, triggerType )
 
     /**
      * Set this view in global namespace
@@ -106,7 +106,7 @@ export default class Views {
     let cname = $currentTarget.attr( VIEW_NAME_SELECTOR )
                 || $currentTarget.prop('nodeName').toLowerCase()
 
-    const component = this.flux.store.getComponent( cname )
+    let component = this.flux.store.getComponent( cname, $currentTarget )
     if( !component || this.currentView?.$ && e.currentTarget == this.currentView.$.get(0) )
       return
     

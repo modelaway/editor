@@ -5,7 +5,7 @@ toolbar: ObjectType<ToolbarOption> = {},
 
 Block: ViewComponent = {
   name: 'block',
-  node: 'block',
+  node: 'div.block',
   category: 'block',
   caption: {
     icon: 'bx bx-rectangle',

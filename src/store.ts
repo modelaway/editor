@@ -32,19 +32,43 @@ export default class Store {
     this.STORE.components[ component.name ] = component
     debug('view component registered - ', component.name )
   }
-  getComponent( name: string ): ViewComponent | null {
+  getComponent( name: string, $node?: JQuery<HTMLElement> ): ViewComponent | null {
     /**
      * Get components component by name or HTML nodeName
-     * 
-     * NOTE: Components are registered with their canonical
-     * name not by nodeName
      * 
      * Always return new instance of a component
      * to keep initial component structure immutable
      */
-    const component = this.STORE.components[ name ] 
-                      || Object.values( this.STORE.components ).filter( each => (each.node == name) )[0]
-    return component ? { ...component } : null
+    if( name in this.STORE.components )
+      return { ...this.STORE.components[ name ] }
+    
+    /**
+     * Components are registered with their canonical
+     * name not by nodeName. So also check registered 
+     * components list by nodeName.
+     */
+    const
+    compArray = Object.values( this.STORE.components ),
+    matches = compArray.filter( each => (each.node == name) )
+
+    if( matches.length ) return { ...matches[0] }
+    
+    /**
+     * Some components with composed node selector wouldn't
+     * much the condition above so use the JQuery node element
+     * to do further selector cross-checking.
+     * 
+     * Useful mostly for custom view lookup
+     */
+    if( $node?.length ){
+      const possibleMatches = compArray.filter( each => (new RegExp(`^${name}.`).test( each.node )) )
+      if( possibleMatches.length )
+        for( const each of possibleMatches )
+          if( $node.is( each.node ) )
+            return { ...each }
+    }
+    
+    return null
   }
   fetchComponents(){
     return this.STORE.components

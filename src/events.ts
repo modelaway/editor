@@ -7,7 +7,8 @@ import {
   CONTROL_TOOLBAR_SELECTOR,
   CONTROL_ADDPOINT_MARGIN,
   CONTROL_PANEL_SELECTOR,
-  CONTROL_EDGE_MARGIN
+  CONTROL_EDGE_MARGIN,
+  CONTROL_FRAME_SELECTOR
 } from './constants'
 import { 
   createFloating,
@@ -135,21 +136,24 @@ export function onShow( $this: JQuery<HTMLElement>, self: Controls ){
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
    */
-  $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}],[${CONTROL_DISCRET_SELECTOR}]`),
-  key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
-        || $trigger.attr( CONTROL_PANEL_SELECTOR )
-        || $trigger.attr( CONTROL_FLOATING_SELECTOR )
-        || $trigger.attr( CONTROL_DISCRET_SELECTOR )
-  if( !key ) return
+  $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}],[${CONTROL_DISCRET_SELECTOR}]`)
+  // key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
+  //       || $trigger.attr( CONTROL_PANEL_SELECTOR )
+  //       || $trigger.attr( CONTROL_FLOATING_SELECTOR )
+  //       || $trigger.attr( CONTROL_DISCRET_SELECTOR )
+  // if( !key ) return
 
   switch( $this.attr('show') ){
     case 'global': {
-      self.$globalToolbar?.hide()
-      self.$globalBlock?.show()
+      self.$toolbar?.hide()
+      self.$global?.show()
 
       // TODO: Open global tabs by `$this.attr('params')` value
 
     } break
+
+    // Show main board
+    case 'board': self.flux.frames.board(); break
 
     // Show extra options
     case 'extra-toolbar': {
@@ -171,7 +175,12 @@ export function onShow( $this: JQuery<HTMLElement>, self: Controls ){
       $trigger.find('[show="extra-toolbar"]').show() // Restore toggle
     } break
 
-    case 'panel': self.flux.views.get( key ).showPanel(); break
+    case 'panel': {
+      const key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
+      if( !key ) return
+
+      self.flux.views.get( key ).showPanel()
+    } break
 
     case 'finder': {
       /**
@@ -179,9 +188,12 @@ export function onShow( $this: JQuery<HTMLElement>, self: Controls ){
        * destination element to the following `add-view`
        * procedure.
        */
+      const key = $trigger.attr( CONTROL_DISCRET_SELECTOR )
+      if( !key ) return
+
       self.clipboard = {
         type: 'finder',
-        value: $trigger.attr( CONTROL_DISCRET_SELECTOR ) ? 'discret' : 'placeholder',
+        value: key ? 'discret' : 'placeholder',
         key
       }
 
@@ -203,8 +215,8 @@ export function onDismiss( $this: JQuery<HTMLElement>, self: Controls ){
   
   switch( $this.attr('dismiss') ){
     case 'global': {
-      self.$globalToolbar?.show()
-      self.$globalBlock?.hide()
+      self.$toolbar?.show()
+      self.$global?.hide()
     } break
 
     // Dismiss extra options
@@ -252,16 +264,24 @@ export function onAction( $this: JQuery<HTMLElement>, self: Controls ){
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
    */
-  const $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}],[${CONTROL_DISCRET_SELECTOR}]`)
+  const $trigger = $this.parents(`[${CONTROL_FRAME_SELECTOR}],[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}],[${CONTROL_DISCRET_SELECTOR}]`)
   
   switch( $this.attr('action') ){
+    /**
+     * -------------- Frame meta self --------------
+     */
+    // Mount a frame for edit on the board
+    case 'frame.edit': self.flux.frames.edit( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
+
+    /**
+     * -------------- General controls --------------
+     */
     // Add new view to the DOM
     case 'add-view': addView( $this, self ); break
 
     /**
      * -------------- View meta self --------------
      */
-
     // Move view up
     case 'view.move-up': self.flux.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'up' ); break
     // Move view down

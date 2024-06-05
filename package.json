@@ -17,7 +17,7 @@
   "private": false,
   "scripts": {
     "dev": "bun compile --watch",
-    "compile": "bun build --entrypoints ./src/modela.ts ./src/natives.loader.ts ./src/plugins/* --entry-naming [name].min.[ext] --minify --root . --outdir ./dist --target browser --format esm --sourcemap=external",
+    "compile": "bun build --entrypoints ./src/modela.ts ./src/natives.loader.ts ./src/lib/* ./src/plugins/* --entry-naming [name].min.[ext] --minify --root . --outdir ./dist --target browser --format esm --sourcemap=external",
     "prepack": "bun compile",
     "test": "Echo 'Error: No test specified' && exit 1",
     "test:view": "yarn build:tsc && jest test/auth.test.js"
@@ -26,6 +26,7 @@
     "boxicons": "^2.1.4",
     "diff-match-patch": "^1.0.5",
     "events": "^3.3.0",
+    "iframe.io": "^1.0.1",
     "jquery": "^3.7.1",
     "sass": "^1.77.2"
   },

@@ -13,8 +13,19 @@ import {
 
   FORM_INPUT_SELECTOR,
   FORM_SEPERATOR_SELECTOR,
+  CONTROL_FRAME_SELECTOR,
 } from './constants'
 import { generateKey } from './utils'
+import { FrameOption } from './types/frame'
+
+export const createModela = () => {
+
+  return `<modela>
+    <mboard></mboard>
+    ${createStoreControlBlock()}
+    ${createGlobalControlBlock()}
+  </modela>`
+}
 
 /**
  * UI blocks factory
@@ -30,14 +41,14 @@ export const createGlobalControlBlock = () => {
 
   </mblock>`
   
-  return `<mblock class="modela-global">
+  return `<mglobal>
     ${createToolbar('global', GLOBAL_CONTROL_OPTIONS )}
     
     <mblock mv-control-block="global">
       ${globalTabs}
       ${globalBody}
     </mblock>
-  </mblock>`
+  </mglobal>`
 }
 export const createStoreControlBlock = () => {
   const
@@ -47,17 +58,30 @@ export const createStoreControlBlock = () => {
     /**
      * 
      */
-    return `<mblock class="modela-store">
+    return `<mstore>
       <minline show="store"><micon class="bx bx-dots-vertical-rounded"></micon></minline>
 
       ${storeBlock}
-    </mblock>`
+    </mstore>`
 }
-export const createControlLayer = () => {
-  return `<div id="modela">
-    ${createStoreControlBlock()}
-    ${createGlobalControlBlock()}
-  </div>`
+
+export const createFrame = ( key: string, options: FrameOption ) => {
+  
+  return `<mframe ${CONTROL_FRAME_SELECTOR}="${key}">
+    <mul>
+      <mli action="frame.edit"><micon class="bx bx-edit-alt"></micon></mli>
+      <mli action="frame.delete"><micon class="bx bx-trash"></micon></mli>
+    </mul>
+
+    <mblock>
+      <iframe src="${options.source}"
+              title="${options.title || `Frame ${key}`}"
+              importance="high"
+              referrerpolicy="origin"
+              allow="geolocation"
+              sandbox="allow-scripts allow-same-origin"></iframe>
+    </mblock>
+  </mframe>`
 }
 
 /**

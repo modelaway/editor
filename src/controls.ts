@@ -9,14 +9,16 @@ import {
   CONTROL_PANEL_SELECTOR,
   CONTROL_BLOCK_SELECTOR
 } from './constants'
-import { createControlLayer } from './block.factory'
+import { createModela } from './block.factory'
 import { PluginConfig, PluginInstance } from './types/plugin'
 
 export default class Controls {
   readonly flux: Modela
 
-  $globalBlock?: JQuery<HTMLElement>
-  $globalToolbar?: JQuery<HTMLElement>
+  $board?: JQuery<HTMLElement>
+  $store?: JQuery<HTMLElement>
+  $global?: JQuery<HTMLElement>
+  $toolbar?: JQuery<HTMLElement>
   
   /**
    * Copy element clipboard
@@ -35,13 +37,15 @@ export default class Controls {
      * Create modela control layer and apply translation 
      * to text contents
      */
-    this.flux.$modela = $(createControlLayer())
+    this.flux.$modela = $(createModela())
 
     this.flux.$modela = this.flux.i18n.propagate( this.flux.$modela, 'mlang' )
     $('body').prepend( this.flux.$modela )
 
-    this.$globalBlock = $(`${CONTROL_ROOT} [${CONTROL_BLOCK_SELECTOR}="global"]`)
-    this.$globalToolbar = $(`${CONTROL_ROOT} [${CONTROL_TOOLBAR_SELECTOR}="global"]`)
+    this.$board = this.flux.$modela.find('> mboard')
+    this.$store = this.flux.$modela.find('> mstore')
+    this.$global = this.flux.$modela.find('> mglobal')
+    this.$toolbar = this.flux.$modela.find(`[${CONTROL_TOOLBAR_SELECTOR}="global"]`)
 
     /**
      * Propagate view control over the existing content

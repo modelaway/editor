@@ -8,11 +8,14 @@
   --me-secondary-color-blur:  hsla(150, 1%, 100%, 0.1);
   --me-primary-color-fade: rgba(0, 0, 45, .09);
   --me-secondary-color-fade: rgba(220, 220, 220, 0.198);
+  
   --me-font-size: 14px;
   --me-icon-size: 1.3rem;
   --me-icon-size-2: 1.6rem;
+
   --me-placeholder-height: 0.8rem;
   --me-placeholder-radius: 3px;
+
   --me-border-radius: 5px;
   --me-border-color: rgba(0, 0, 20, .15);
   --me-trigger-text-color: #fff;
@@ -25,12 +28,85 @@
   --me-input-color: rgba(235, 235, 240, 0.7);
 }
 
-#modela {
-  position: fixed;
-  z-index: 2001;
-  background-color: black;
+modela {
+  display: flex;
+  position: relative;
+  width: auto;
+  height: auto;
+  min-width: 1500vw;
+  min-height: 1500vh;
 }
-#modela,
+modela,
+modela mboard mframe,
+modela mboard mframe mblock {
+  background-color: rgb(240, 240, 250);
+  transition: 600ms;
+}
+modela mboard {
+  display: flex;
+  position: relative;
+  width: auto;
+  height: auto;
+  min-width: 1500vw;
+  min-height: 1500vh;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: flex-start;
+  padding: 5rem;
+}
+modela mboard[active] mframe:not([active]) {
+  display: none;
+}
+modela mboard mframe {
+  position: relative;
+  /* margin: 5rem; */
+  transform: scale(0.5);
+  transform-origin: top center;
+}
+
+modela mboard mframe[active] {
+  position: fixed;
+  z-index: 1;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  bottom: 0;
+  margin: 0;
+  transform: scale(1);
+  transform-origin: top center;
+}
+modela mboard mframe mul {
+  display: none;
+  align-items: center;
+  justify-content: space-around;
+  position: absolute;
+  right: 0;
+  transform: scale(2);
+  transform-origin: 5rem 5rem;
+}
+modela mboard mframe:hover mul {
+  display: flex;
+}
+modela mboard mframe mul mli {
+  padding: 4px;
+  cursor: pointer;
+}
+modela mboard mframe mblock {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+modela mboard mframe mblock > iframe {
+  width:100%;
+  height:100%;
+  border:none;
+  background-color: rgb(255, 255, 255);
+}
+
+modela,
 [mv-panel],
 [mv-toolbar],
 [mv-form-input] * {
@@ -48,22 +124,16 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-#modela,
+modela,
 [mv-panel],
 [mv-toolbar] {
   font-size: var(--me-font-size);
 }
-#modela .modela-button {
-  background-color: var(--me-primary-color);
-  color: #fff;
-  padding: .5rem 1.3rem;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
 
 mul,
-mblock { display: block; }
+mblock,
+mstore,
+mglobal { display: block; }
 micon,
 mlabel,
 minline { display: inline; }
@@ -79,12 +149,12 @@ mli { display: inherit; }
   transition: var(--me-active-transition);
 }
 
-/* .modela-store {
+/* mstore {
   position: fixed;
   z-index: 300;
   left: 0;
 } */
-#modela .modela-store > [show] {
+modela mstore > [show] {
   position: fixed;
   left: 0;
   top: calc(50% - 40px);
@@ -93,10 +163,10 @@ mli { display: inherit; }
   border-radius: 0 100px 100px 0;
   transition: ease-in-out var(--me-active-transition);
 }
-#modela .modela-store > [show]:hover { 
+modela mstore > [show]:hover { 
   background-color: var(--me-primary-color-fade);
 }
-#modela .modela-store > [show] micon {
+modela mstore > [show] micon {
   padding: 5px 0;
   cursor: pointer;
   color: var(--me-trigger-text-color);
@@ -105,14 +175,17 @@ mli { display: inherit; }
   backdrop-filter: var(--me-backdrop-filter);
   font-size: var(--me-icon-size)!important;
 }
-#modela .modela-store:hover > [mv-control-block] { left: 0; }
+modela mstore:hover > [mv-control-block] { left: 0; }
 
-#modela .modela-global {
+modela mglobal {
   position: fixed;
   right: 0;
   bottom: 0;
   margin: .9rem;
 }
+
+modela mstore,
+modela mglobal { z-index: 200; }
 
 /* Editing toolbars */
 [mv-panel],
@@ -122,6 +195,7 @@ mli { display: inherit; }
   user-select: none;
   /* pointer-events: none; */
 }
+modela mframe mul,
 [mv-toolbar] > mblock > mul,
 [mv-control-block] > [options="tabs"] {
   list-style: none;
@@ -147,6 +221,7 @@ mli { display: inherit; }
   margin: 0 6px;
 }
 [mv-toolbar] mli,
+modela mframe mul mli,
 [mv-control-block] > [options="tabs"] > mli {
   padding: 6px;
   margin: 4px;
@@ -157,6 +232,7 @@ mli { display: inherit; }
   transition: var(--me-active-transition);
 }
 [mv-toolbar] mli:not(.label),
+modela mframe mul > mli:not(.label),
 [mv-control-block] > [options="tabs"] > mli:not(.label) {
   cursor: pointer;
 }
@@ -172,11 +248,13 @@ mli { display: inherit; }
 [mv-toolbar] [meta],
 [mv-toolbar] [dismiss],
 [mv-toolbar] mli:not(.label,[disabled]):hover,
+modela mframe mul > mli:not(.label,[disabled]):hover,
 [mv-control-block] > [options="tabs"] > mli:not(.label,[disabled]):hover {
   background-color: var(--me-secondary-color-fade);
 }
 [mv-toolbar] mli.label > micon,
 [mv-toolbar] mli.label > mlabel,
+modela mframe mul mli.label > mlabel,
 [mv-control-block] > [options="tabs"] > mli.label > mlabel {
   cursor: default;
   text-wrap: nowrap;
@@ -186,6 +264,7 @@ mli { display: inherit; }
 }
 [mv-toolbar] mli.label > micon { padding-left: 0; }
 [mv-toolbar] mli micon,
+modela mframe mul mli micon,
 [mv-control-block] > [options="tabs"] > mli micon {
   font-size: var(--me-icon-size)!important;
 }
@@ -518,11 +597,11 @@ mli { display: inherit; }
   cursor: pointer;
 }
 @media (prefers-color-scheme: light) {
-  #modela {
+  modela {
     /* color: #213547;
     background-color: #ffffff; */
   }
-  #modela .modela-button {
+  modela .modela-button {
     background-color: var(--me-primary-color);
     /* color: #fff; */
   }

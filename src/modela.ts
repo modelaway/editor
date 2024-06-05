@@ -3,6 +3,7 @@ import jQuery from 'jquery'
 import CSS from './css'
 import Views from './views'
 import Store from './store'
+import Frames from './frames'
 import Assets from './assets'
 import History from './history'
 import Plugins from './plugins'
@@ -110,6 +111,11 @@ export default class Modela {
   public fn: Functions
 
   /**
+   * Manage frames
+   */
+  public frames: Frames
+
+  /**
    * Manage supported views
    */
   public views: Views
@@ -122,7 +128,11 @@ export default class Modela {
   /**
    * Initialize modela controls
    */
-  private controls: Controls
+  public controls: Controls
+
+  /**
+   * 
+   */
 
   constructor( settings = {} ){
 
@@ -170,6 +180,11 @@ export default class Modela {
      * Initialize plugins support
      */
     this.plugins = new Plugins( this )
+
+    /**
+     * Initialize views manager
+     */
+    this.frames = new Frames( this )
 
     /**
      * Initialize views manager

@@ -1,3 +1,4 @@
+import type { MediaScreen } from './types/frame'
 import french from './languages/fr.json'
 
 export const CONTROL_ROOT = '#modela'
@@ -24,6 +25,7 @@ export const VIEW_TYPES_ALLOWED_SELECTOR = 'mv-types-allowed'
  * 
  * NOTE: Only custom attributes
  */
+export const CONTROL_FRAME_SELECTOR = 'mv-frame'
 export const CONTROL_PANEL_SELECTOR = 'mv-panel'
 export const CONTROL_TOOLBAR_SELECTOR = 'mv-toolbar'
 export const CONTROL_DISCRET_SELECTOR = 'mv-discret'
@@ -141,6 +143,15 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
       shortcut: 'command + y'
     },
     disabled: true
+  },
+  board: { 
+    icon: 'bx bx-grid-alt',
+    title: 'Board',
+    event: {
+      type: 'show',
+      params: 'board',
+      shortcut: 'command + y'
+    }
   },
   'screen-mode': {
     icon: 'bx bx-devices',
@@ -430,7 +441,7 @@ export const CSS_CUSTOM_VARIABLES: ObjectType<CSSRuleOption> = {
  * Cascade Style Sheet properties and their
  * possible value options.
  */
-export const CSS_PROPERTIES = {
+export const CSS_PROPERTIES: ObjectType<string | string[]> = {
   'align-content': [ 'stretch', 'center', 'flex-start', 'flex-end', 'space-between', 'space-around', 'initial', 'inherit' ],
   'align-items': [ 'stretch', 'center', 'flex-start', 'flex-end', 'baseline', 'initial', 'inherit' ],
   'align-self': [ 'auto', 'stretch', 'center', 'flex-start', 'flex-end', 'baseline', 'initial', 'inherit' ],
@@ -690,7 +701,7 @@ export const CSS_PROPERTIES = {
 /**
  * Window action events
  */
-export const ON_ACTION_EVENTS = [ 
+export const ON_ACTION_EVENTS: string[] = [ 
   'abort',
   'animationend',
   'animationiteration',
@@ -805,3 +816,12 @@ export const ON_ACTION_EVENTS = [
   'webkittransitionend',
   'wheel'
 ]
+
+/**
+ * Device media screen resolutions
+ */
+export const MEDIA_SCREENS: ObjectType<MediaScreen> = {
+  'iPhone SE': { type: 'mobile', width: '375px', height: '667px' },
+  'iPad Mini': { type: 'tablet', width: '768px', height: '1024px' },
+  'Desktop': { type: 'desktop', width: '1368px', height: '912px' }
+}

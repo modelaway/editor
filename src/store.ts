@@ -1,4 +1,4 @@
-import type Modela from './modela'
+import type Client from './modela'
 import type { ViewComponent } from './types/view'
 import { debug } from './utils'
 
@@ -13,9 +13,9 @@ export default class Store {
     templates: {}
   }
 
-  constructor({ settings }: Modela ){
+  constructor({ settings }: Client ){
     /**
-     * General settings inherited from Modela
+     * General settings inherited from Client
      */
     // this.settings = settings
   }

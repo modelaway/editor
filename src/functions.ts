@@ -1,4 +1,4 @@
-import type Modela from './modela'
+import type Modela from './client/client'
 import type { ViewBlockProperties } from './types/view'
 
 import { createSelectFileInput } from './block.factory'

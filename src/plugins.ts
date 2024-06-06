@@ -1,4 +1,4 @@
-import type Modela from './modela'
+import type Modela from './client/client'
 import type { Plugin, PluginInstance } from './types/plugin'
 import * as bx from './block.factory'
 

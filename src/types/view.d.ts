@@ -39,9 +39,9 @@ type ViewBlockProperties = {
 
 interface ViewComponentBridge {
   state: State
-  i18n: I18N
+  // i18n: I18N
   fn: Functions
-  assets: Assets
+  // assets: Assets
   events: EventEmitter
   $?: JQuery<HTMLElement>
   css?: Stylesheet

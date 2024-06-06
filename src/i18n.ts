@@ -1,4 +1,4 @@
-import type Modela from './modela'
+import type Modela from './client/client'
 import { LANGUAGE_DICTIONARIES } from './constants'
 
 export default class I18N {

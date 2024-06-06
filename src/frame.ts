@@ -1,17 +1,21 @@
 import type Modela from './modela'
 import type { FrameOption } from './types/frame'
 
-import IOF from './iof'
+import IOF from './lib/custom.iframe.io'
 import { createFrame } from './block.factory'
 import { MEDIA_SCREENS } from './constants'
-import { generateKey } from './utils'
+import { generateKey, obj2Str } from './utils'
+import RJInit from './lib/jquery.remote'
 
 export default class Frame {
-  private $frame: JQuery<HTMLElement>
   private chn?: IOF
   public key: string
+  private flux: Modela
+  private $frame: JQuery<HTMLElement>
 
   constructor( flux: Modela, options: FrameOption ){
+    this.flux = flux
+
     // Generate new key for the new frame
     this.key = generateKey()
 
@@ -41,29 +45,37 @@ export default class Frame {
     this.chn.removeListeners()
 
     this.chn
-    .once('connect', () => {
-      this.chn?.emit('command')
-      
-      // this.chn.emit('auth:info', ( error, merchant ) => {
+    .once('connect', async () => {
+      if( !this.chn ) return
+      this.chn.emit('bind', { key: this.key, settings: this.flux.settings } )
 
-      //   if( error ){
-      //     if( typeof this.errorCallback == 'function' )
-      //       return this.errorCallback( error )
-      //     else throw new Error( error.message )
-      //   }
+      const $$ = RJInit( this.chn )
 
-      //   this.isConnected = true
+      const 
+      $code = $$('<code>ln(x) + 12</code>'),
+      $box = $$('#box')
 
-      //   // Set initial payment payload
-      //   this.payload && this.setPayload( this.payload )
+      // await $$('#box').addClass('rounded')
+      // console.log('-- hasClass: ', await $$('button').hasClass('btn') )
+      const $clone = await $box.clone()
+      ;(await $clone.addClass('rounded')).insertBefore('button')
 
-      //   typeof this.readyCallback == 'function'
-      //   && this.readyCallback( merchant )
-      // })
+      console.log( await $clone.attr('mv-name') )
+      await $clone.attr('mv-key', '123456789999')
+      await $clone.css('height', '400px')
+      await $clone.css({ 'background-color': 'red' })
+
+      console.log( await $clone.css('background-color') )
+
+      ;(await $box.addClass('shadow')).append( $code )
+
+      console.log('-- is box: ', await $clone.is('div#box') )
     } )
-    .on('payment:failed', error => {
+    .on('store.component', ({ name }, fn ) => {
+      // typeof fn == 'function' && fn( false, this.flux.store.getComponent( name ) )
       
-    })
+      console.log( obj2Str( this.flux.store.getComponent( name ) as any ) )
+    } )
   }
 
   resize( device: string ){

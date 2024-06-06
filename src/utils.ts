@@ -57,3 +57,38 @@ export const getTopography = ( $elem: JQuery<HTMLElement>, strict = false ) => {
     height: $elem.height() || 0
   }
 }
+
+/**
+ * Convert integrale object to a string
+ * 
+ * - preserve included functions
+ */
+export const obj2Str = ( obj: ObjectType<any> ): string => {
+  let str = '{'
+
+  for( let key in obj ){
+    let value = obj[ key ]
+
+    if( typeof value === 'function' ){
+      let fn = value.toString()
+      if( new RegExp(`^${key}`).test( fn ) )
+        fn = fn.replace( key, 'function' )
+
+      value = fn
+    }
+    else if( Array.isArray( value ) ) value = JSON.stringify( value )
+    else if( typeof value === 'object' ) value = obj2Str( value )
+    else if( typeof value === 'string' ) value = `"${value.replace(/"/g, '\\"')}"`
+
+    str += `\n  ${key}: ${value},`
+  }
+  
+  return str += '\n}'
+}
+
+/**
+ * Convert back a string object converted with obj2Str
+ */
+export const str2Obj = ( str: string ): ObjectType<any> => {
+  return new Function(`return ${str}`)()
+}

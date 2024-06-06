@@ -1,4 +1,4 @@
-import type Modela from './modela'
+import type Modela from './client/client'
 import { debug } from './utils'
 
 export default class Assets {

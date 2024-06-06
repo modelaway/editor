@@ -149,20 +149,6 @@ export default class Controls {
       e.preventDefault()
     }
 
-    this.flux.$root
-    /**
-     * Show extra and sub toolbar options
-     */
-    .on('click', `[${VIEW_ACTIVE_SELECTOR}]`, handler( Event.onToolbar ) )
-    /**
-     * Show floating triggers on placeholder hover
-     */
-    .on('mouseenter', `[${VIEW_PLACEHOLDER_SELECTOR}]`, handler( Event.onFloating ) )
-
-    .on('input', '[contenteditable]', handler( Event.onContentChange ) )
-    .on('keydown', onUserAction )
-    .on('paste', onUserAction )
-
     /**
      * Declare wild events: Same events available from every
      * layer of the editor.

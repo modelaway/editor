@@ -51,18 +51,18 @@ editor.mount('body')
 
 // Add a desktop frame to the board
 editor.frames.add({
-  source: 'http://127.0.0.1:3000/publications/@modela/bun/examples/wigo/index.html',
+  source: 'http://127.0.0.1:3000/publications/@modela/bun/examples/test/index.html',
   title: 'Frame Test'
 })
 // Add a tablet frame to the board
-editor.frames.add({
-  source: 'http://127.0.0.1:3000/publications/@modela/bun/examples/wigo/index.html',
-  title: 'Frame Test',
-  device: 'tablet'
-})
-// Add a mobile frame to the board
-editor.frames.add({
-  source: 'http://127.0.0.1:3000/publications/@modela/bun/examples/wigo/index.html',
-  title: 'Frame Test',
-  device: 'mobile'
-})
+// editor.frames.add({
+//   source: 'http://127.0.0.1:3000/publications/@modela/bun/examples/wigo/index.html',
+//   title: 'Frame Test',
+//   device: 'tablet'
+// })
+// // Add a mobile frame to the board
+// editor.frames.add({
+//   source: 'http://127.0.0.1:3000/publications/@modela/bun/examples/wigo/index.html',
+//   title: 'Frame Test',
+//   device: 'mobile'
+// })

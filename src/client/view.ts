@@ -1,5 +1,5 @@
-import type Modela from './modela'
-import type { AddViewTriggerType, ViewBlockProperties, ViewComponent, ViewComponentBridge } from './types/view'
+import type Client from './client'
+import type { AddViewTriggerType, ViewBlockProperties, ViewComponent, ViewComponentBridge } from '../types/view'
 
 import EventEmitter from 'events'
 import State from './state'
@@ -19,26 +19,26 @@ import {
   CONTROL_PANEL_MARGIN,
   CONTROL_TOOLBAR_MARGIN,
   VIEW_REF_SELECTOR
-} from './constants'
-import Stylesheet from './stylesheet'
+} from '../constants'
+import Stylesheet from '../stylesheet'
 import {
   createPlaceholder,
   createToolbar,
   createPanel,
   createDiscretAddpoint
-} from './block.factory'
+} from '../block.factory'
 import { 
   debug,
   generateKey,
   getTopography
-} from './utils'
+} from '../utils'
 
 export default class View {
   /**
    * Access to modela's core instance and 
    * relative functional classes.
    */
-  private readonly flux: Modela
+  private readonly flux: Client
 
   /**
    * View's styles application handler
@@ -73,15 +73,15 @@ export default class View {
    */
   public bridge: ViewComponentBridge
 
-  constructor( flux: Modela ){
+  constructor( flux: Client ){
     this.flux = flux
     
     this.bridge = {
       state: new State(),
       events: new EventEmitter(),
-      assets: flux.assets,
+      // assets: flux.assets,
       fn: flux.fn,
-      i18n: flux.i18n,
+      // i18n: flux.i18n,
       css: undefined,
       $: undefined
     }
@@ -123,9 +123,9 @@ export default class View {
          */
         const freePositions = ['fixed', 'absolute', 'sticky']
         
-        freePositions.includes( this.$?.css('position') as string ) ?
-                                      this.$?.prepend( this.flux.i18n.propagate( $(createDiscretAddpoint( this.key as string )) ) )
-                                      : this.$?.after( createPlaceholder( this.key as string ) )
+        // freePositions.includes( this.$?.css('position') as string ) ?
+        //                               this.$?.prepend( this.flux.i18n.propagate( $(createDiscretAddpoint( this.key as string )) ) )
+        //                               : this.$?.after( createPlaceholder( this.key as string ) )
       }
     }
     catch( error: any ){ debug( error.message ) }
@@ -160,7 +160,7 @@ export default class View {
    * context view using native views cognition
    * process.
    */
-  inspect( $this: JQuery<HTMLElement>, name: string, activate = false ){
+  async inspect( $this: JQuery<HTMLElement>, name: string, activate = false ){
     debug('current target - ', $this.get(0) )
 
     this.$ = $this
@@ -185,7 +185,7 @@ export default class View {
 
     if( !this.component ){
       // Set view specifications
-      this.set( this.flux.store.getComponent( name ) )
+      this.set( await this.flux.getComponent( name ) )
       // Initialize view properties
       this.initialize()
     }
@@ -379,129 +379,6 @@ export default class View {
     this.component = undefined
   }
 
-  /**
-   * Show view's editing toolbar
-   */
-  showToolbar(){
-    if( !this.flux.$root || !this.key || !this.$ ) 
-      throw new Error('Invalid method called')
-
-    if( this.flux.$root.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`).length ) 
-      return
-
-    const 
-    { toolbar, panel } = this.get() as ViewComponent,
-    options = typeof toolbar == 'function' ? toolbar( this.bridge ) : {},
-    settings = {
-      editing: true,
-      detached: typeof panel == 'function'
-    }
-    let $toolbar = $(createToolbar( this.key, options, settings ))
-    // Apply translation to text contents in toolbar
-    $toolbar = this.flux.i18n.propagate( $toolbar )
-
-    let { x, y, height } = getTopography( this.$ )
-    debug('show view toolbar: ', x, y )
-
-    // Adjust by left edges
-    if( x < 15 ) x = CONTROL_EDGE_MARGIN
-
-    $toolbar.css({ left: `${x}px`, top: `${y}px` })
-    this.flux.$root.append( $toolbar )
-
-    const
-    tHeight = $toolbar.find('> [container]').height() || 0,
-    dueYPosition = tHeight + (CONTROL_TOOLBAR_MARGIN * 2)
-    
-    const
-    wWidth = $(window).width() || 0,
-    wHeight = $(window).height() || 0
-
-    // Adjust by right edge
-    if( x > (wWidth - tHeight) ) x = wWidth - tHeight - CONTROL_EDGE_MARGIN
-
-    /**
-     * Push slightly on top of element in normal position
-     * but adjust below the element if it's to close to
-     * the top edge.
-     */
-    if( height < (wHeight - tHeight) ){
-      if( ( y - dueYPosition ) < CONTROL_EDGE_MARGIN ) y += height
-      else y -= dueYPosition
-    }
-    // Adjust by the bottom edges
-    if( y > (wHeight - tHeight) ) y = wHeight - tHeight - CONTROL_EDGE_MARGIN
-
-    $toolbar.css({ left: `${x}px`, top: `${y}px` })
-
-    // Fire show toolbar listeners
-    this.bridge.events.emit('show.toolbar')
-  }
-  showPanel(){
-    if( !this.flux.$modela || !this.key || !this.$ ) 
-      throw new Error('Invalid method called')
-
-    if( this.flux.$modela.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}"]`).length ) 
-      return
-
-    const { caption, panel } = this.get() as ViewComponent
-    if( typeof panel !== 'function' ) return
-
-    let $panel = $(createPanel( this.key, caption, panel( this.bridge ) ))
-    // Apply translation to text contents in panel
-    $panel = this.flux.i18n.propagate( $panel )
-
-    let { x, y, width } = getTopography( this.$, true )
-    debug('show view panel: ', x, y )
-
-    this.flux.$modela.append( $panel )
-
-    const
-    pWidth = $panel.find('> [container]').width() || 0,
-    pHeight = $panel.find('> [container]').height() || 0,
-    // Window dimensions
-    wWidth = $(window).width() || 0,
-    wHeight = $(window).height() || 0,
-    
-    dueXPosition = pWidth + CONTROL_PANEL_MARGIN
-    
-    /**
-     * Not enough space at the left, position at the right
-     */
-    if( ( x - dueXPosition ) < CONTROL_EDGE_MARGIN ){
-      /**
-       * Not enough space at the right either, position 
-       * over view.
-       */
-      if( x + width + dueXPosition < wWidth )
-        x += width + CONTROL_PANEL_MARGIN
-    }
-    // Adjust by left edges
-    else x -= dueXPosition
-
-    /**
-     * Display panel in window view when element 
-     * is position to close to the bottom.
-     */
-    if( ( y + pHeight + CONTROL_EDGE_MARGIN ) > wHeight )
-      y -= pHeight
-    
-    // Adjust by the top edges
-    else if( y < CONTROL_EDGE_MARGIN )
-      y = CONTROL_EDGE_MARGIN
-    
-    $panel.css({ left: `${x}px`, top: `${y}px` })
-
-    // Fire show panel listeners
-    this.bridge.events.emit('show.panel')
-  }
-  showMovable(){
-
-
-    // Fire show movable listeners
-    this.bridge.events.emit('show.movable')
-  }
-  
   move( direction?: string ){
     if( !this.$?.length || !this.key ) 
       throw new Error('Invalid method called')
@@ -559,7 +436,7 @@ export default class View {
         $placeholder?.length && this.$.after( $placeholder )
       } break
 
-      default: this.showMovable()
+      // default: this.showMovable()
     }
   }
   dismiss(){
@@ -568,7 +445,7 @@ export default class View {
     // Remove editing toolbar if active
     this.flux.$root?.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`).remove()
     // Remove editing control panel if active
-    this.flux.$modela?.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}"]`).remove()
+    // this.flux.$modela?.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}"]`).remove()
 
     /**
      * Fire dismiss function provided with 

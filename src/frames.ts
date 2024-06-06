@@ -1,4 +1,4 @@
-import type Modela from './modela'
+import type Modela from './client/client'
 import type { FrameOption } from './types/frame'
 import Frame from './frame'
 

@@ -1,4 +1,4 @@
-import type Modela from './modela'
+import type Modela from './client/client'
 import { ViewComponent } from './types/view'
 
 import Text from './natives/Text'

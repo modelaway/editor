@@ -1,8 +1,7 @@
-import Client from '../../dist/modela.client.min.js'
+import { connect } from '../../dist/modela.client.min.js'
 
 try {
-  new Client()
-  // await connect()
+  await connect()
   console.debug('-- connected --')
 }
 catch( error ){

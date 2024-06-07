@@ -1,5 +1,5 @@
-import type Modela from './client/client'
-import type { ViewBlockProperties } from './types/view'
+import type Modela from '../exports/modela'
+import type { ViewBlockProperties } from '../types/view'
 
 import { createSelectFileInput } from './block.factory'
 import { debug, getTopography } from './utils'

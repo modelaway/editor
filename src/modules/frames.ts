@@ -1,5 +1,5 @@
-import type Modela from './client/client'
-import type { FrameOption } from './types/frame'
+import type Modela from '../exports/modela'
+import type { FrameOption } from '../types/frame'
 import Frame from './frame'
 
 export default class Frames {

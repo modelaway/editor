@@ -1,11 +1,11 @@
-import type Modela from './client/client'
-import { ViewComponent } from './types/view'
+import type Modela from './modela'
+import { ViewComponent } from '../types/view'
 
-import Text from './natives/Text'
-import Block from './natives/Block'
-import Image from './natives/Image'
-import Button from './natives/Button'
-import Paragraph from './natives/Paragraph'
+import Text from '../natives/Text'
+import Block from '../natives/Block'
+import Image from '../natives/Image'
+import Button from '../natives/Button'
+import Paragraph from '../natives/Paragraph'
 
 const Native: ViewComponent[] = [
   Text,

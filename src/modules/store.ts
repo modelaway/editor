@@ -1,5 +1,5 @@
-import type Client from './modela'
-import type { ViewComponent } from './types/view'
+import type Modela from '../exports/modela'
+import type { ViewComponent } from '../types/view'
 import { debug } from './utils'
 
 type StoreMemory = {
@@ -13,9 +13,9 @@ export default class Store {
     templates: {}
   }
 
-  constructor({ settings }: Client ){
+  constructor({ settings }: Modela ){
     /**
-     * General settings inherited from Client
+     * General settings inherited from Modela
      */
     // this.settings = settings
   }

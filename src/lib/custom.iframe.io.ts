@@ -1,4 +1,4 @@
-import { obj2Str, str2Obj } from '../utils'
+import { obj2Str, str2Obj } from '../modules/utils'
 
 export type PeerType = 'WINDOW' | 'IFRAME'
 
@@ -162,9 +162,9 @@ export default class IOF {
     else listeners = this.Events[ _event ]
     
     // Convert object payload to
-    if( payload && typeof payload == 'string' )
-      try { payload = str2Obj( payload ) }
-      catch( error ){}
+    // if( payload && typeof payload == 'string' )
+    //   try { payload = str2Obj( payload ) }
+    //   catch( error ){}
 
     // Fire listeners
     listeners.map( fn => payload !== undefined ? fn( payload, callbackFn ) : fn( callbackFn ) )
@@ -188,8 +188,8 @@ export default class IOF {
 		  this.once(`${_event}--${cid}--@callback`, ({ error, args }) => callbackFunction( error, ...args ) )
     }
     
-    if( payload && typeof payload == 'object' && !Array.isArray( payload ) )
-      payload = obj2Str( payload )
+    // if( payload && typeof payload == 'object' && !Array.isArray( payload ) )
+    //   payload = obj2Str( payload )
 
     this.peer.source.postMessage({ _event, payload, cid }, this.peer.origin as string )
 

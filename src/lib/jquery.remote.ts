@@ -1,43 +1,82 @@
-import { generateKey } from '../utils'
 import type IOF from './custom.iframe.io'
 import $ from 'jquery'
+import { generateKey } from '../modules/utils'
+
+export type RJQuery = ( selector: string ) => Promise<Static>
 
 type Packet = {
-  selector?: string
+  index?: string
   fn: string
   arg?: any[]
+  instance?: boolean
   canreturn?: boolean
 }
+type InitialProperties = {
+  index?: string
+  length: number
+}
 type Response = {
-  index: string
+  length: number
   value?: any
 }
-export type RJQuery = ( selector: string ) => Static
+type EventListener = ( e: Static ) => void
 
-const State: { [index: string]: JQuery<HTMLElement> } = {}
+const State: { [index: string]: JQuery<HTMLElement | Event> } = {}
 
 class Static {
-  channel: IOF
-  selector: string
+  private readonly selector: string | null
+  private channel: IOF
+
   /**
    * Store remote state index to be 
    * use as selector when element is
    * remotely mount as JQuery object.
    */
-  index?: string
+  private index?: string
 
-  constructor( channel: IOF, selector: string ){
+  /**
+   * The number of elements in the jQuery object.
+   */
+  public length = 0
+
+  constructor( channel: IOF, selector: string | null, index?: string ){
     this.channel = channel
     this.selector = selector
+
+    /**
+     * Can be specified by instance objects
+     * that don't have selector or cannot rely on
+     * a selector at their operation state.
+     * 
+     * Eg. clone(), find(), first(), ...
+     */
+    if( index ) this.index = index
+  }
+
+  public initialize(): Promise<Static> {
+    return new Promise( ( resolve, reject ) => {
+      this.channel.emit('init', this.selector, ( error: string | boolean, { index, length }: InitialProperties ) => {
+        if( error ) return reject( error )
+
+        // Record remote state index
+        this.index = index
+        this.length = length
+        
+        resolve( this )
+      } )
+    } )
   }
 
   private call( packet: Packet ){
     return new Promise( ( resolve, reject ) => {
-      packet.selector = this.index || this.selector
+      if( !this.index )
+        return reject('Uninitialized element object')
 
-      this.channel.emit('packet', packet, ( error: string | boolean, { index, value }: Response ) => {
-        // Record remote state index
-        this.index = index
+      packet.index = this.index
+
+      this.channel.emit('packet', packet, ( error: string | boolean, { length, value }: Response ) => {
+        // Keep update of the element's length property
+        this.length = length
         
         error ? reject( error ) : resolve( value )
       } )
@@ -45,20 +84,42 @@ class Static {
   }
   
   /**
+   * Determine whether any of the matched elements 
+   * are assigned the given selector.
+   */
+  async is( arg: string ){
+    return await this.call({ fn: 'is', arg: [ arg ], canreturn: true })
+  }
+
+  /**
+   * Remove elements from the set of matched elements.
+   */
+  async not( arg: string ){
+    return await this.call({ fn: 'not', arg: [ arg ], canreturn: true })
+  }
+
+  /**
+   * Retrieve the DOM elements matched by the jQuery object.
+   */
+  // async get( arg: string ){
+  //   return await this.call({ fn: 'get', arg: [ arg ], canreturn: true })
+  // }
+
+  /**
+   * Reduce the set of matched elements to those that have 
+   * a descendant that matches the selector or DOM element.
+   */
+  async has( arg: string ){
+    return await this.call({ fn: 'has', arg: [ arg ], canreturn: true })
+  }
+
+  /**
    * Adds the specified class(es) to each element in 
    * the set of matched elements.
    */
   async addClass( arg: string ){
     await this.call({ fn: 'addClass', arg: [ arg ] })
     return this
-  }
-
-  /**
-   * Determine whether any of the matched elements 
-   * are assigned the given selector.
-   */
-  async is( arg: string ){
-    return await this.call({ fn: 'is', arg: [ arg ], canreturn: true })
   }
 
   /**
@@ -126,6 +187,15 @@ class Static {
   }
 
   /**
+   * Insert content, specified by the parameter, before each 
+   * element in the set of matched elements.
+   */
+  async before( arg: Static | string ){
+    await this.call({ fn: 'before', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
+    return this
+  }
+
+  /**
    * Insert content, specified by the parameter, after each 
    * element in the set of matched elements.
    */
@@ -135,12 +205,168 @@ class Static {
   }
 
   /**
-   * Insert content, specified by the parameter, before each 
-   * element in the set of matched elements.
+   * Get the immediately preceding sibling of each element in 
+   * the set of matched elements. If a selector is provided, it 
+   * retrieves the previous sibling only if it matches that selector.
    */
-  async before( arg: Static | string ){
-    await this.call({ fn: 'before', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
+  async prev( arg: string ){
+    const index = await this.call({ fn: 'prev', arg: [ arg ], canreturn: true, instance: true }) as string
+    if( !index )
+      throw new Error('Unexpected error occured')
+    
+    return new Static( this.channel, null, index )
+  }
+
+  /**
+   * Get the immediately following sibling of each element in the 
+   * set of matched elements. If a selector is provided, it 
+   * retrieves the next sibling only if it matches that selector.
+   */
+  async next( arg: string ){
+    const index = await this.call({ fn: 'next', arg: [ arg ], canreturn: true, instance: true }) as string
+    if( !index )
+      throw new Error('Unexpected error occured')
+    
+    return new Static( this.channel, null, index )
+  }
+
+  /**
+   * Get all following siblings of each element in the set 
+   * of matched elements, optionally filtered by a selector.
+   */
+  async nextAll( arg: string ){
+    const index = await this.call({ fn: 'nextAll', arg: [ arg ], canreturn: true, instance: true }) as string
+    if( !index )
+      throw new Error('Unexpected error occured')
+    
+    return new Static( this.channel, null, index )
+  }
+
+  /**
+   * Get all following siblings of each element up to but 
+   * not including the element matched by the selector, 
+   * DOM node, or jQuery object passed.
+   */
+  async nextUntil( arg: string ){
+    const index = await this.call({ fn: 'nextUntil', arg: [ arg ], canreturn: true, instance: true }) as string
+    if( !index )
+      throw new Error('Unexpected error occured')
+    
+    return new Static( this.channel, null, index )
+  }
+
+  /**
+   * Get the parent of each element in the current set of 
+   * matched elements, optionally filtered by a selector.
+   */
+  async parent( arg?: string ){
+    const index = await this.call({ fn: 'parent', arg: [ arg ], canreturn: true, instance: true }) as string
+    if( !index )
+      throw new Error('Unexpected error occured')
+    
+    return new Static( this.channel, null, index )
+  }
+
+  /**
+   * Get the ancestors of each element in the current 
+   * set of matched elements, optionally filtered by a selector.
+   */
+  async parents( arg?: string ){
+    const index = await this.call({ fn: 'parents', arg: [ arg ], canreturn: true, instance: true }) as string
+    if( !index )
+      throw new Error('Unexpected error occured')
+    
+    return new Static( this.channel, null, index )
+  }
+
+  /**
+   * Get the children of each element in the set of matched 
+   * elements, optionally filtered by a selector.
+   */
+  async children( arg?: string ){
+    const index = await this.call({ fn: 'children', arg: [ arg ], canreturn: true, instance: true }) as string
+    if( !index )
+      throw new Error('Unexpected error occured')
+    
+    return new Static( this.channel, null, index )
+  }
+
+  /**
+   * For each element in the set, get the first element that matches 
+   * the selector by testing the element itself and traversing up 
+   * through its ancestors in the DOM tree.
+   */
+  async closest( arg: string ){
+    const index = await this.call({ fn: 'closest', arg: [ arg ], canreturn: true, instance: true }) as string
+    if( !index )
+      throw new Error('Unexpected error occured')
+    
+    return new Static( this.channel, null, index )
+  }
+
+  /**
+   * Iterate over a jQuery object, executing a function for 
+   * each matched element.
+   */
+  async each( fn: EventListener ){
+    if( typeof fn !== 'function' )
+      throw new Error('Undefined event listener function')
+    
+    // Listen to each matched elements
+    this.channel.on(`@each-${this.index}`, ( targetIndex: string ) => {
+      fn( new Static( this.channel, null, targetIndex ) )
+    } )
+
+    // Loop through
+    this.call({ fn: 'each' })
+    
     return this
+  }
+
+  /**
+   * Reduce the set of matched elements to the one at the specified index.
+   */
+  async eq( arg: number ){
+    const index = await this.call({ fn: 'eq', arg: [ arg ], canreturn: true, instance: true }) as string
+    if( !index )
+      throw new Error('Unexpected error occured')
+    
+    return new Static( this.channel, null, index )
+  }
+
+  /**
+   * Get the descendants of each element in the current set 
+   * of matched elements, filtered by a selector, jQuery 
+   * object, or element.
+   */
+  async find( arg: string ){
+    const index = await this.call({ fn: 'find', arg: [ arg ], canreturn: true, instance: true }) as string
+    if( !index )
+      throw new Error('Unexpected error occured')
+    
+    return new Static( this.channel, null, index )
+  }
+
+  /**
+   * Reduce the set of matched elements to the first in the set.
+   */
+  async first(){
+    const index = await this.call({ fn: 'first', canreturn: true, instance: true }) as string
+    if( !index )
+      throw new Error('Unexpected error occured')
+
+    return new Static( this.channel, null, index )
+  }
+
+  /**
+   * Reduce the set of matched elements to the final one in the set.
+   */
+  async last(){
+    const index = await this.call({ fn: 'last', canreturn: true, instance: true }) as string
+    if( !index )
+      throw new Error('Unexpected error occured')
+    
+    return new Static( this.channel, null, index )
   }
 
   /**
@@ -235,12 +461,32 @@ class Static {
    * Create a deep copy of the set of matched elements.
    */
   async clone(){
-    const cloneIndex = await this.call({ fn: 'clone', canreturn: true }) as string
-    if( !cloneIndex )
+    const index = await this.call({ fn: 'clone', canreturn: true, instance: true }) as string
+    if( !index )
       throw new Error('Unexpected error occured')
     
-    // console.log( typeof html, html )
-    return new Static( this.channel, cloneIndex )
+    return new Static( this.channel, null, index )
+  }
+
+  /**
+   * Store arbitrary data associated with the matched elements or 
+   * return the value at the named data store for the first element 
+   * in the set of matched elements.
+   */
+  async data( arg: string | ObjectType<string>, value?: string ){
+    const
+    params = value !== undefined && typeof arg == 'string' ? [ arg, value ] : [ arg ],
+    canreturn = value === undefined && typeof arg == 'string'
+
+    return await this.call({ fn: 'data', arg: params, canreturn })
+  }
+
+  /**
+   * Remove a previously-stored piece of data.
+   */
+  async removeData( arg: string ){
+    await this.call({ fn: 'removeData', arg: [ arg ] })
+    return this
   }
 
   /**
@@ -463,57 +709,205 @@ class Static {
 
     return await this.call({ fn: 'scrollTop', arg: params, canreturn })
   }
-}
 
-/**
- * Remote JQuery operation event listener
- */
-function receive({ selector, fn, arg, canreturn }: Packet, callback?: ( error: string | boolean, response?: any ) => void ){
-  try {
-    if( !selector )
-      throw new Error('Undefined selector')
-    
-    /**
-     * Use a state element or create new jquery element
-     * 
-     * - state element are usually for cloned elements, ...
-     */
-    let 
-    index = selector,
-    $element = State[ index ] as any
-
-    if( !$element ){
-      /**
-       * Generate an index to hold the element in
-       * state for further operation.
-       */
-      index = `--${generateKey()}--`
-      State[ index ] = $element = $(selector) as any
-    }
-
-    if( !$element.length )
-      throw new Error(`Undefined ${selector} element`)
-    
-    // Invoke JQuery static method ont selected element
-    let value = $element[ fn as any ]( ...(arg || []) )
-
-    // Clone jQuery element procedure
-    if( ['clone'].includes( fn ) ){
-      const cloneIndex = `--${generateKey()}--`
-      State[ cloneIndex ] = value
-
-      value = cloneIndex
-    }
-
-    typeof callback === 'function'
-    && callback( false, { index, value: canreturn ? value : undefined })
+  /**
+   * Hide the matched elements.
+   */
+  async hide( ...arg: any[] ){
+    await this.call({ fn: 'hide', arg })
+    return this
   }
-  catch( error: any ){ typeof callback == 'function' && callback( error.message ) }
+
+  /**
+   * Display the matched elements.
+   */
+  async show( ...arg: any[] ){
+    await this.call({ fn: 'show', arg })
+    return this
+  }
+
+  /**
+   * Attach an event handler function for one or more 
+   * events to the selected elements.
+   */
+  on( _event: string, _selector?: string | EventListener, fn?: EventListener ){
+    if( typeof _selector == 'function' ){
+      fn = _selector
+      _selector = undefined
+    }
+
+    if( typeof fn !== 'function' )
+      throw new Error('Undefined event listener function')
+    
+    this.call({ fn: 'on', arg: [ _event, _selector ] })
+        .then( () => {
+          this.channel.on(`@${_event}-${_selector || this.index}`, ( targetIndex: string ) => {
+            fn( new Static( this.channel, null, targetIndex ) )
+          } )
+        } )
+    
+    return this
+  }
+
+  /**
+   * Attach a handler to an event for the elements. The handler 
+   * is executed at most once per element per event type.
+   */
+  one( _event: string, _selector?: string | EventListener, fn?: EventListener ){
+    if( typeof _selector == 'function' ){
+      fn = _selector
+      _selector = undefined
+    }
+
+    if( typeof fn !== 'function' )
+      throw new Error('Undefined event listener function')
+    
+    this.call({ fn: 'one', arg: [ _event, _selector ] })
+        .then( () => {
+          this.channel.on(`@${_event}-${_selector || this.index}`, ( targetIndex: string ) => {
+            fn( new Static( this.channel, null, targetIndex ) )
+          } )
+        } )
+    
+    return this
+  }
+
+  /**
+   * Execute all handlers and behaviors attached to the matched 
+   * elements for the given event type.
+   */
+  async trigger( arg: string ){
+    await this.call({ fn: 'trigger', arg: [ arg ] })
+    return this
+  }
+
+  /**
+   * Remove an event handler.
+   */
+  async off( _event: string, _selector?: string ){
+    await this.call({ fn: 'off', arg: [ _event ] })
+    this.channel.off(`@${_event}-${_selector || this.index}`)
+
+    return this
+  }
 }
 
 export default function RemoteJQuery( channel: IOF ): RJQuery {
+  /**
+   * Remote JQuery element initialization event listener
+   */
+  function onInit( selector: string, callback?: ( error: string | boolean, props?: InitialProperties ) => void ){
+    try {
+      if( !selector )
+        throw new Error('Undefined selector')
+      
+      let index
+      const $element = $(selector) as any
+      if( $element.length ){
+        /**
+         * Hold initialized JQuery element in momery
+         * for any upcoming operations.
+         * 
+         * - Helps provide initial properties to remote
+         * - Facilitate virtual operation on the matched 
+         *   JQuery element (even before to add to the DOM)
+         */
+        index = `--${generateKey()}--`
+        State[ index ] = $element
+      }
+
+      const props: InitialProperties = {
+        index,
+        length: $element.length,
+      }
+      typeof callback === 'function' && callback( false, props )
+    }
+    catch( error: any ){ typeof callback == 'function' && callback( error.message ) }
+  }
+
+  /**
+   * Remote call operation event listener
+   */
+  function onCall({ index, fn, arg, canreturn, instance }: Packet, callback?: ( error: string | boolean, response?: Response ) => void ){
+    try {
+      if( !index )
+        throw new Error('Undefined selector index')
+      
+      /**
+       * Use a state element or create new jquery element
+       * 
+       * - state element are usually for cloned elements, ...
+       */
+      let $element = State[ index ] as any
+      if( !$element?.length )
+        throw new Error(`Undefined index element`)
+      
+      // Default arg to empty array
+      arg = arg || []
+      let value
+
+      /**
+       * Declare remove event listener
+       */
+      if( ['on', 'one'].includes( fn ) ){
+        const [ _event, _selector ] = arg
+        _selector ?
+            // Event listener with scope selector
+            $element[ fn ]( _event, _selector, function( this: Event ){
+              const targetIndex = `--${generateKey()}--`
+              State[ targetIndex ] = $(this)
+
+              channel.emit(`@${_event}-${_selector}`, targetIndex )
+            })
+            // Event listener without scope selector
+            : $element[ fn ]( _event, function( this: Event ){
+                const targetIndex = `--${generateKey()}--`
+                State[ targetIndex ] = $(this)
+
+                channel.emit(`@${_event}-${index}`, targetIndex )
+              })
+      }
+      /**
+       * Loop through matched elements
+       */
+      else if( ['each', 'filter'].includes( fn ) )
+        $element[ fn ]( function( this: Event ){
+          const targetIndex = `--${generateKey()}--`
+          State[ targetIndex ] = $(this)
+
+          console.log('each --', index, targetIndex )
+
+          channel.emit(`@${fn}-${index}`, targetIndex )
+        })
+      
+      // Invoke JQuery static method on selected element
+      else value = $element[ fn ]( ...arg )
+      
+      // Create new jQuery element instance
+      if( instance ){
+        const instanceIndex = `--${generateKey()}--`
+        State[ instanceIndex ] = value
+
+        value = instanceIndex
+      }
+
+      const response: Response = {
+        length: $element.length,
+        value: canreturn ? value : undefined,
+      }
+      typeof callback === 'function' && callback( false, response )
+    }
+    catch( error: any ){ typeof callback == 'function' && callback( error.message ) }
+  }
+
   // Listen to remote calls
-  channel.on('packet', receive )
+  channel
+  .on('init', onInit )
+  .on('packet', onCall )
+
   // Initialize remove jquery element object
-  return ( selector: string ) => (new Static( channel, selector ))
+  return async ( selector: string ) => {
+    const rjobject = new Static( channel, selector )
+    return await rjobject.initialize()
+  }
 }

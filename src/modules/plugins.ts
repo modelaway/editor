@@ -1,5 +1,5 @@
-import type Modela from './client/client'
-import type { Plugin, PluginInstance } from './types/plugin'
+import type Modela from '../exports/modela'
+import type { Plugin, PluginInstance } from '../types/plugin'
 import * as bx from './block.factory'
 
 export default class Plugins {

@@ -1,4 +1,4 @@
-import type { ViewCaption } from './types/view'
+import type { ViewCaption } from '../types/view'
 import {
   VIEW_REF_SELECTOR,
   VIEW_CONTROL_OPTIONS,
@@ -16,7 +16,7 @@ import {
   CONTROL_FRAME_SELECTOR,
 } from './constants'
 import { generateKey } from './utils'
-import { FrameOption } from './types/frame'
+import { FrameOption } from '../types/frame'
 
 export const createModela = () => {
 

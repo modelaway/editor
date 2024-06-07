@@ -1,15 +1,16 @@
-import type Modela from './modela'
-import type { FrameOption } from './types/frame'
+import type Modela from '../exports/modela'
+import type { FrameOption } from '../types/frame'
 
-import IOF from './lib/custom.iframe.io'
+import IOF from '../lib/custom.iframe.io'
+import { generateKey } from './utils'
 import { createFrame } from './block.factory'
 import { MEDIA_SCREENS } from './constants'
-import { generateKey, obj2Str } from './utils'
-import RJInit from './lib/jquery.remote'
+import RJInit, { RJQuery } from '../lib/jquery.remote'
 
 export default class Frame {
   private chn?: IOF
   public key: string
+  public $$?: RJQuery
   private flux: Modela
   private $frame: JQuery<HTMLElement>
 
@@ -18,7 +19,6 @@ export default class Frame {
 
     // Generate new key for the new frame
     this.key = generateKey()
-
     this.$frame = $(createFrame( this.key, options ))
     
     this.$frame.find('iframe').on('load', ( e: Event ) => {
@@ -47,34 +47,10 @@ export default class Frame {
     this.chn
     .once('connect', async () => {
       if( !this.chn ) return
+
+      // Initialize remote JQuery connection & controls
+      this.$$ = RJInit( this.chn )
       this.chn.emit('bind', { key: this.key, settings: this.flux.settings } )
-
-      const $$ = RJInit( this.chn )
-
-      const 
-      $code = $$('<code>ln(x) + 12</code>'),
-      $box = $$('#box')
-
-      // await $$('#box').addClass('rounded')
-      // console.log('-- hasClass: ', await $$('button').hasClass('btn') )
-      const $clone = await $box.clone()
-      ;(await $clone.addClass('rounded')).insertBefore('button')
-
-      console.log( await $clone.attr('mv-name') )
-      await $clone.attr('mv-key', '123456789999')
-      await $clone.css('height', '400px')
-      await $clone.css({ 'background-color': 'red' })
-
-      console.log( await $clone.css('background-color') )
-
-      ;(await $box.addClass('shadow')).append( $code )
-
-      console.log('-- is box: ', await $clone.is('div#box') )
-    } )
-    .on('store.component', ({ name }, fn ) => {
-      // typeof fn == 'function' && fn( false, this.flux.store.getComponent( name ) )
-      
-      console.log( obj2Str( this.flux.store.getComponent( name ) as any ) )
     } )
   }
 

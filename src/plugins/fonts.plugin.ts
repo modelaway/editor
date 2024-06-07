@@ -1,4 +1,4 @@
-import type { Stylesheet } from '../css'
+import type { Stylesheet } from '../modules/css'
 import type { Plugin, PluginConfig, PluginFactory } from '../types/plugin'
 
 type Font = {

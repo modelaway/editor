@@ -1,5 +1,5 @@
-import type { MediaScreen } from './types/frame'
-import french from './languages/fr.json'
+import type { MediaScreen } from '../types/frame'
+import french from '../languages/fr.json'
 
 export const CONTROL_ROOT = '#modela'
 

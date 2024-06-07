@@ -1,6 +1,6 @@
 
-import type Modela from './modela'
-import type { AddViewTriggerType, ViewComponent } from './types/view'
+import type Modela from '../exports/modela'
+import type { AddViewTriggerType, ViewComponent } from '../types/view'
 
 import View from './view'
 import {

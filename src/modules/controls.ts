@@ -1,4 +1,4 @@
-import type Modela from './modela'
+import type Modela from '../exports/modela'
 import * as Event from './events'
 import {
   CONTROL_ROOT,
@@ -10,7 +10,7 @@ import {
   CONTROL_BLOCK_SELECTOR
 } from './constants'
 import { createModela } from './block.factory'
-import { PluginConfig, PluginInstance } from './types/plugin'
+import { PluginConfig, PluginInstance } from '../types/plugin'
 
 export default class Controls {
   readonly flux: Modela

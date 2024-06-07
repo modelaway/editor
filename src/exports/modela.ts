@@ -1,16 +1,16 @@
 
 import jQuery from 'jquery'
-import CSS from './css'
-import Views from './views'
-import Store from './store'
-import Frames from './frames'
-import Assets from './assets'
-import History from './history'
-import Plugins from './plugins'
-import Controls from './controls'
-import Functions from './functions'
-import { debug } from './utils'
-import I18N from './i18n'
+import CSS from '../modules/css'
+import Views from '../modules/views'
+import Store from '../modules/store'
+import Frames from '../modules/frames'
+import Assets from '../modules/assets'
+import History from '../modules/history'
+import Plugins from '../modules/plugins'
+import Controls from '../modules/controls'
+import Functions from '../modules/functions'
+import { debug } from '../modules/utils'
+import I18N from '../modules/i18n'
 
 window.$ = jQuery
 

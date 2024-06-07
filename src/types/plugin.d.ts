@@ -1,4 +1,4 @@
-import * as bx from '../block.factory'
+import * as bx from '../modules/block.factory'
 
 export interface PluginFactory {
   flux: Modela

@@ -17,7 +17,7 @@
   "private": false,
   "scripts": {
     "dev": "bun compile --watch",
-    "compile": "bun build --entrypoints ./src/modela.ts ./src/natives.loader.ts ./src/lib/modela.client.ts ./src/plugins/* --entry-naming [name].min.[ext] --minify --root . --outdir ./dist --target browser --format esm --sourcemap=external",
+    "compile": "bun build --entrypoints ./src/exports/* ./src/plugins/* --entry-naming [name].min.[ext] --minify --root . --outdir ./dist --target browser --format esm --sourcemap=external",
     "prepack": "bun compile",
     "test": "Echo 'Error: No test specified' && exit 1",
     "test:view": "yarn build:tsc && jest test/auth.test.js"

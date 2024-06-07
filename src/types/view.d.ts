@@ -1,9 +1,9 @@
 import type { EventEmitter } from 'events'
-import type I18N from '../i18n'
-import type Assets from '../assets'
-import type Controls from '../controls'
-import type { Stylesheet } from '../css'
-import type Functions from '../functions'
+import type I18N from '../modules/i18n'
+import type Assets from '../modules/assets'
+import type Controls from '../modules/controls'
+import type { Stylesheet } from '../modules/css'
+import type Functions from '../modules/functions'
 
 type ViewCaptionPoster = { 
   type: 'image' | 'video'
@@ -39,9 +39,9 @@ type ViewBlockProperties = {
 
 interface ViewComponentBridge {
   state: State
-  // i18n: I18N
+  i18n: I18N
   fn: Functions
-  // assets: Assets
+  assets: Assets
   events: EventEmitter
   $?: JQuery<HTMLElement>
   css?: Stylesheet

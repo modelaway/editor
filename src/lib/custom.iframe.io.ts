@@ -66,37 +66,36 @@ export default class IOF {
 
     this.peer.source = contentWindow as Window
     this.peer.origin = iframeOrigin
-    
-    window.addEventListener('message', ({ origin, data, source }) => {
+
+    window.self.addEventListener('message', ({ origin, data, source, target }) => {
       // Check valid message
       if( origin !== this.peer.origin
           || !source
+          || source !== this.peer.source
           || typeof data !== 'object'
           || !data.hasOwnProperty('_event') ) return
-          
+      
       const { _event, payload, cid } = data as Message['data']
       // this.debug( `[${this.peer.type}] Message: ${_event}`, payload || '' )
 
       // Handshake or availability check events
-      if( _event == 'pong' ){
+      if( _event === 'handshake' ){
         // Content Window is connected to iframe
         this.fire('connect')
-        return this.debug(`[${this.peer.type}] connected`)
+        this.debug(`[${this.peer.type}] connected`)
       }
-
       // Fire available event listeners
-      this.fire( _event, payload, cid )
+      else this.fire( _event, payload, cid )
     }, false )
 
     this.debug(`[${this.peer.type}] Initiate connection: IFrame origin <${iframeOrigin}>`)
-    this.emit('ping')
+    this.emit('handshake')
 
     return this
   }
 
   listen( hostOrigin?: string ){
     // Listening to connection from the content window
-    
     this.peer.type = 'IFRAME' // iframe.io connection listener is automatically set as IFRAME
     this.debug(`[${this.peer.type}] Listening to connect${hostOrigin ? `: Host <${hostOrigin}>` : ''}`)
 
@@ -104,7 +103,7 @@ export default class IOF {
       // Check host origin where event must only come from.
       if( hostOrigin && hostOrigin !== origin )
         throw new Error('Invalid Event Origin')
-        
+
       // Check valid message
       if( !source
           || typeof data !== 'object'
@@ -124,16 +123,14 @@ export default class IOF {
       // this.debug( `[${this.peer.type}] Message: ${_event}`, payload || '' )
 
       // Handshake or availability check events
-      if( _event == 'ping' ){
-        this.emit('pong')
-
+      if( _event === 'handshake' ){
+        this.emit('handshake')
         // Iframe is connected to content window
         this.fire('connect')
-        return this.debug(`[${this.peer.type}] connected`)
+        this.debug(`[${this.peer.type}] connected`)
       }
-
       // Fire available event listeners
-      this.fire( _event, payload, cid )
+      else this.fire( _event, payload, cid )
     }, false )
 
     return this
@@ -145,14 +142,20 @@ export default class IOF {
         && !this.Events[ _event +'--@once'] )
       return this.debug(`[${this.peer.type}] No <${_event}> listener defined`)
 
-    const callbackFn = cid ? 
-                  ( error: boolean | string, ...args: any[] ): void => {
-                    this.emit(`${_event}--${cid}--@callback`, { error: error || false, args } )
-                    return
-                  } : undefined
-    let listeners: Listener[] = []
+    let callbackFn: ( error: boolean | string, ...args: any[] ) => void
+    if( cid )
+      callbackFn = ( error, ...args ) => {
+        let [_ev, once] = _event.split('--@once')
+        _ev = once !== undefined ? 
+            `${_ev}--${cid}--@callback--@once`
+            : `${_ev}--${cid}--@callback` 
 
-    if( this.Events[ _event +'--@once'] ){
+        this.emit( _ev, { error: error || false, args } )
+        return
+      }
+
+    let listeners: Listener[] = []
+    if( this.Events[`${_event}--@once`] ){
       // Once triggable event
       _event += '--@once'
       listeners = this.Events[ _event ]
@@ -176,7 +179,7 @@ export default class IOF {
 
 		if( typeof payload == 'function' ){
 			fn = payload
-			payload = null
+			payload = undefined
 		}
 
     // Acknowledge/callback event listener
@@ -190,7 +193,7 @@ export default class IOF {
     
     // if( payload && typeof payload == 'object' && !Array.isArray( payload ) )
     //   payload = obj2Str( payload )
-
+    
     this.peer.source.postMessage({ _event, payload, cid }, this.peer.origin as string )
 
 		return this
@@ -198,7 +201,7 @@ export default class IOF {
   
   on( _event: string, fn: Listener ){
 		// Add Event listener
-		if( !this.Events[ _event ] ) this.Events[ _event ] = []
+		if( !(_event in this.Events) ) this.Events[ _event ] = []
 		this.Events[ _event ].push( fn )
     
     this.debug(`[${this.peer.type}] New <${_event}> listener on`)
@@ -209,7 +212,7 @@ export default class IOF {
 		// Add Once Event listener
     _event += '--@once'
 
-		if( !this.Events[ _event ] ) this.Events[ _event ] = []
+		if( !(_event in this.Events) ) this.Events[ _event ] = []
 		this.Events[ _event ].push( fn )
     
     this.debug(`[${this.peer.type}] New <${_event} once> listener on`)

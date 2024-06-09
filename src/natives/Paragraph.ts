@@ -173,15 +173,18 @@ Paragraph: ViewComponent = {
   render( view ){
     return `<p lang>Loren upsum</p>`
   },
-  takeover( view ){
+  async takeover( view ){
     view.events
     .on('show.toolbar', () => {})
     .on('show.panel', () => {})
 
-    .on('view.styles', data => view.$?.css( data ) )
-    .on('global.styles', data => view.$?.css( data ) )
+    .on('view.styles', async data => await view.$?.css( data ) )
+    .on('global.styles', async data => await view.$?.css( data ) )
 
-    .on('activate', data => view.$?.attr('contenteditable', 'true') )
+    .on('activate', async data => await view.$?.attr('contenteditable', 'true') )
+
+    console.log( await view.css?.custom() )
+    console.log( await view.css?.style() )
   },
   dismiss( view ){
     view.$?.removeAttr('contenteditable')
@@ -197,9 +200,9 @@ Paragraph: ViewComponent = {
         color: var(--primary-color);
 
         &[mv-active="true"]:not([mv-placeholder]) {
-          background: var(--me-primary-color-fade);
-          border-radius: var(--me-placeholder-radius);
-          transition: var(--me-active-transition);
+          border-radius: 3px;
+          background: rgba(100, 100, 100, 0.2);
+          transition: 200ms;
         }
         &[contenteditable] { outline: none; }
       `,

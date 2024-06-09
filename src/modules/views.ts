@@ -1,5 +1,6 @@
 
-import type Modela from '../exports/modela'
+import type Frame from './frame'
+import type { FrameQuery } from '../lib/frame.window'
 import type { AddViewTriggerType, ViewComponent } from '../types/view'
 
 import View from './view'
@@ -9,7 +10,7 @@ import {
 } from './constants'
 
 export default class Views {
-  private flux: Modela
+  private frame: Frame
 
   /**
    * List of actively mapped views
@@ -21,8 +22,8 @@ export default class Views {
    */
   private currentView?: View
 
-  constructor( flux: Modela ){
-    this.flux = flux
+  constructor( frame: Frame ){
+    this.frame = frame
   }
 
   /**
@@ -30,7 +31,7 @@ export default class Views {
    * editor context.
    */
   has( key: string ){
-    return this.list[ key ] && this.list[ key ].key === key
+    return key in this.list && this.list[ key ].key === key
   }
 
   /**
@@ -49,6 +50,16 @@ export default class Views {
   }
 
   /**
+   * Loop operation on all active views
+   */
+  each( fn: ( view: View ) => void ){
+    if( typeof fn !== 'function' )
+      throw new Error('Expected each callback function')
+
+    Object.values( this.list ).map( fn )
+  }
+
+  /**
    * Clear all views mounted in the editor context
    */
   clear(){
@@ -58,13 +69,13 @@ export default class Views {
   /**
    * Add view component via editor contxt to the DOM
    */
-  add( name: string, to: string, triggerType?: AddViewTriggerType ){
-    const component = this.flux.store.getComponent( name )
+  async add( name: string, to: string, triggerType?: AddViewTriggerType ){
+    const component = await this.frame.flux.store.getComponent( name )
     if( !component )
       throw new Error(`Unknown <${name}> view`)
 
-    this.currentView = new View( this.flux )
-    this.currentView.mount( component as ViewComponent, to, triggerType )
+    this.currentView = new View( this.frame )
+    await this.currentView.mount( component as ViewComponent, to, triggerType )
 
     /**
      * Set this view in global namespace
@@ -79,35 +90,25 @@ export default class Views {
    * 
    * Target: Native HTML tags or custom views
    */
-  lookup( e: Event ){
-    if( this.currentView?.$ && e.target == this.currentView.$.get(0) ){
-      /**
-       * Identify parent of target by `e.currentTarget`
-       * that are different from `e.target`: Upward cascade
-       * triggered elements
-       * 
-       * Retain the last triggered parent for top view
-       * highlighting reference.
-       */
-      if( e.target == e.currentTarget ) return
-      this.currentView.setParent( e.currentTarget as HTMLElement )
-
+  async lookup( $$currentTarget: FrameQuery ){
+    /**
+     * Inspect view
+     */
+    const key = await $$currentTarget.attr( VIEW_KEY_SELECTOR )
+    if( this.has( key ) ){
+      // Dismiss all active views
+      this.each( view => view.dismiss() )
+      this.get( key ).trigger()
       return
     }
 
-    if( !e.currentTarget ) return
-
-    /**
-     * Mount current view with only known tags or 
-     * components
-     */
-    const $currentTarget = $(e.currentTarget) as JQuery<HTMLElement>
     // Identify component name or its HTML nodeName
-    let cname = $currentTarget.attr( VIEW_NAME_SELECTOR )
-                || $currentTarget.prop('nodeName').toLowerCase()
+    let cname = await $$currentTarget.attr( VIEW_NAME_SELECTOR )
+                || (await $$currentTarget.prop('nodeName')).toLowerCase()
 
-    let component = this.flux.store.getComponent( cname, $currentTarget )
-    if( !component || this.currentView?.$ && e.currentTarget == this.currentView.$.get(0) )
+    let component = await this.frame.flux.store.getComponent( cname, $$currentTarget )
+    if( !component )
+    // if( !component || this.currentView?.$ && e.currentTarget == this.currentView.$.get(0) )
       return
     
     /**
@@ -124,18 +125,13 @@ export default class Views {
     cname = component.name
     
     // Dismiss all active views
-    Object
-    .values( this.list )
-    .map( view => view.dismiss() )
-
-    /**
-     * Inspect view
-     */
-    const key = $currentTarget.attr( VIEW_KEY_SELECTOR )
+    this.each( view => view.dismiss() )
 
     // Create new view instance or use existing.
-    this.currentView = key && this.get( key ) || new View( this.flux )
-    this.currentView.inspect( $currentTarget, cname, true )
+    this.currentView = new View( this.frame )
+    if( !this.currentView ) return
+
+    await this.currentView.inspect( $$currentTarget, cname, true )
 
     /**
      * Set this view in global namespace
@@ -149,14 +145,14 @@ export default class Views {
    * 
    * Target: Native HTML tags or custom views
    */
-  propagate( $node: JQuery<HTMLElement> ){
-    if( !$node.length ) return
+  async propagate( $$node: FrameQuery ){
+    if( !$$node.length ) return
 
     // Identify component name or its HTML nodeName
-    let cname = $node.attr( VIEW_NAME_SELECTOR )
-                || $node.prop('nodeName').toLowerCase()
+    let cname = await $$node.attr( VIEW_NAME_SELECTOR )
+                || (await $$node.prop('nodeName')).toLowerCase()
 
-    const component = this.flux.store.getComponent( cname )
+    const component = await this.frame.flux.store.getComponent( cname )
     if( component?.name ){
       /**
        * Component's name can be the same as its HTML 
@@ -175,13 +171,13 @@ export default class Views {
        * Check whether the view is not yet mounted in 
        * the editor context
        */
-      const key = $node.attr( VIEW_KEY_SELECTOR )
-      if( !key || !this.get( key ) ){
+      const key = await $$node.attr( VIEW_KEY_SELECTOR )
+      if( !key || !this.has( key ) ){
         /**
          * Inspect view
          */
-        const view = new View( this.flux )
-        view.inspect( $node, cname )
+        const view = new View( this.frame )
+        await view.inspect( $$node, cname )
 
         /**
          * Set this view in global namespace
@@ -191,9 +187,11 @@ export default class Views {
     }
 
     // Proceed to root node's nexted children -> children and on.
-    const self = this
-    $node.children().length
-    && $node.children().each( function(){ self.propagate.bind(self)( $(this) ) } )
+    const 
+    self = this,
+    $$children = await $$node.children()
+    
+    $$children.length && await $$children.each( async $$this => await self.propagate.bind(self)( $$this ) )
   }
 
   /**
@@ -210,11 +208,11 @@ export default class Views {
   /**
    * Duplicate a view
    */
-  duplicate( key: string, $nextTo?: JQuery<HTMLElement> ){
+  async duplicate( key: string, $$nextTo?: FrameQuery ){
     if( !this.has( key ) ) return
 
-    const duplicateView = new View( this.flux )
-    duplicateView.mirror( this.get( key ), $nextTo )
+    const duplicateView = new View( this.frame )
+    await duplicateView.mirror( this.get( key ), $$nextTo )
 
     /**
      * Set this view in global namespace

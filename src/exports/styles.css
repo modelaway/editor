@@ -83,7 +83,7 @@ modela mboard mframe mul {
   position: absolute;
   right: 0;
   transform: scale(2);
-  transform-origin: 5rem 5rem;
+  transform-origin: 5.5rem 5rem;
 }
 modela mboard mframe:hover mul {
   display: flex;

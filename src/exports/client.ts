@@ -1,5 +1,5 @@
 import IOF from '../lib/custom.iframe.io'
-import RJQueryInit from '../lib/jquery.remote'
+import FrameWindow from '../lib/frame.window'
 
 type BindingConfig = {
   key: string
@@ -8,21 +8,27 @@ type BindingConfig = {
 
 export const connect = async (): Promise<void> => {
   return new Promise( ( resolve, reject ) => {
-    const chn = new IOF({ type: 'IFRAME' })
+    const chn = new IOF({})
     let timeout: any
 
     chn
     .listen()
-    .once('bind', ({ key, settings }: BindingConfig, callback ) => {
+    .on('bind', ({ key, settings }: BindingConfig, callback ) => {
       clearTimeout( timeout )
+      
       if( !key || !settings ){
         const errmess = 'Invalid binding settings'
 
         typeof callback == 'function' && callback( true, errmess )
-        return resolve()
+        return reject( errmess )
       }
 
-      RJQueryInit( chn )
+      /**
+       * Initialize frame's window controls
+       */
+      FrameWindow( chn )
+      
+      typeof callback == 'function' && callback( false )
       resolve()
     } )
     .once('dismiss', () => {

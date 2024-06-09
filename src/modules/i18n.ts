@@ -48,12 +48,6 @@ export default class I18N {
   }
 
   propagate( $node: JQuery<HTMLElement>, attribute: 'mlang' | 'lang' = 'mlang' ){
-    if( !this.flux.$modela?.length ) 
-      throw new Error('Undefined editor controls element')
-
-    if( !this.flux.$root?.length )
-      throw new Error('Undefined editor context root element')
-
     const self = this
     function apply( this: HTMLElement ){
       const

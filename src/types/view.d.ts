@@ -4,6 +4,7 @@ import type Assets from '../modules/assets'
 import type Controls from '../modules/controls'
 import type { Stylesheet } from '../modules/css'
 import type Functions from '../modules/functions'
+import type { RJQuery, RJQueryStatic } from '../lib/frame.window'
 
 type ViewCaptionPoster = { 
   type: 'image' | 'video'
@@ -43,7 +44,7 @@ interface ViewComponentBridge {
   fn: Functions
   assets: Assets
   events: EventEmitter
-  $?: JQuery<HTMLElement>
+  $?: RJQueryStatic
   css?: Stylesheet
 }
 interface ViewComponent {

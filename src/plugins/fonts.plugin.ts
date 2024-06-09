@@ -1,4 +1,4 @@
-import type { Stylesheet } from '../modules/css'
+import type Stylesheet from '../modules/stylesheet'
 import type { Plugin, PluginConfig, PluginFactory } from '../types/plugin'
 
 type Font = {
@@ -14,10 +14,18 @@ export default class Fonts implements Plugin {
 
   private readonly defaultWeights = [ 100, 200, 300, 400, 500, 600, 700, 800, 900 ]
   private readonly fonts: ObjectType<string> = {}
-  private sheet: Stylesheet
+  private sheets: Stylesheet[] = []
 
   constructor( factory: PluginFactory, config?: PluginConfig ){
-    this.sheet = factory.flux.css.declare('fonts')
+    /**
+     * Declare font css handler on all frames
+     */
+    factory.flux.frames.each( frame => {
+      const sheet = frame.css.declare('fonts')
+      if( !sheet ) return
+
+      this.sheets.push( sheet )
+    } )
 
     if( typeof config !== 'object' ) return
 
@@ -39,7 +47,8 @@ export default class Fonts implements Plugin {
     config.autoload && this.load()
 
     // Apply defined font css rules to global custom variables
-    typeof config.cssrule == 'object' && factory.flux.css?.setVariables( config.cssrule )
+    typeof config.cssrule == 'object'
+    && factory.flux.frames.each( frame => frame.css?.setVariables( config.cssrule ))
   }
 
   /**
@@ -69,8 +78,15 @@ export default class Fonts implements Plugin {
   /**
    * Load fonts into the DOM
    */
-  load(){
-    this.sheet.load({ css: Object.values( this.fonts ).join('\n'), meta: true })
+  async load(){
+    await Promise.all( this.sheets.map( async each => {
+      const settings = {
+        css: Object.values( this.fonts ).join('\n'),
+        meta: true
+      }
+
+      await each.load( settings )
+    } ) )
   }
   list(){
     return Object.keys( this.fonts )

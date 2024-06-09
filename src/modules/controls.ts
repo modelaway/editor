@@ -47,13 +47,6 @@ export default class Controls {
     this.$global = this.flux.$modela.find('> mglobal')
     this.$toolbar = this.flux.$modela.find(`[${CONTROL_TOOLBAR_SELECTOR}="global"]`)
 
-    /**
-     * Propagate view control over the existing content
-     */
-    this.flux.$root && this.flux.views.propagate( this.flux.$root )
-
-    // Activate all inert add-view placeholders
-    this.setPlaceholders('active')
     // Initialize event listeners
     this.events()
   }
@@ -62,16 +55,7 @@ export default class Controls {
     if( !this.flux.$modela
         || !this.flux.$root
         || !this.flux.$root.length
-        || !this.flux.$modela.length
-        || !this.flux.views ) return
-
-    /**
-     * Listen to View components or any editable tag
-     */
-    const selectors = `${this.flux.settings.viewOnly ? VIEW_IDENTIFIER : ''}:not([${VIEW_PLACEHOLDER_SELECTOR}],[${CONTROL_PANEL_SELECTOR}] *)`
-    this.flux.settings.hoverSelect ?
-              this.flux.$root.on('mouseover', selectors, this.flux.views.lookup.bind( this.flux.views ) )
-              : this.flux.$root.on('click', selectors, this.flux.views.lookup.bind( this.flux.views ) )
+        || !this.flux.$modela.length ) return
 
     const self = this
     function handler( fn: Function ){
@@ -120,9 +104,9 @@ export default class Controls {
         // case 'ArrowRight': break
         // case 'Escape': break
 
-        case 'Enter': await self.flux.history.record( $(e).html() ); break
-        case 'Tab': await self.flux.history.record( $(e).html() ); break
-        case ' ': await self.flux.history.record( $(e).html() ); break
+        // case 'Enter': await self.flux.history.record( $(e).html() ); break
+        // case 'Tab': await self.flux.history.record( $(e).html() ); break
+        // case ' ': await self.flux.history.record( $(e).html() ); break
 
         // case 'Backspace': break
         // case 'Clear': break
@@ -161,23 +145,9 @@ export default class Controls {
   }
 
   destroy(){
-    // Disable add-view placeholders
-    this.setPlaceholders('inert')
-
     this.flux.$modela?.off()
     this.flux.$modela?.remove()
 
     this.flux.$root?.off()
-  }
-
-  /**
-   * Set general state of placeholders
-   * 
-   * - active: Enable add-view placeholders highlighting during editing
-   * - inert: Disable add-view placeholders
-   */
-  setPlaceholders( status = 'active' ){
-    if( !this.flux.settings.enablePlaceholders ) return
-    $(`[${VIEW_PLACEHOLDER_SELECTOR}]`).attr('status', status )
   }
 }

@@ -1,18 +1,42 @@
 import type Modela from '../exports/modela'
 import type { FrameOption } from '../types/frame'
 
+import CSS from './css'
+import Views from './views'
+import History from './history'
 import IOF from '../lib/custom.iframe.io'
 import { generateKey } from './utils'
 import { createFrame } from './block.factory'
-import { MEDIA_SCREENS } from './constants'
-import RJInit, { RJQuery } from '../lib/jquery.remote'
+import { CONTROL_PANEL_SELECTOR, MEDIA_SCREENS, VIEW_IDENTIFIER, VIEW_PLACEHOLDER_SELECTOR } from './constants'
+import FrameWindow, { FrameWindowRemote, FrameWindowDOM, FrameQuery } from '../lib/frame.window'
 
 export default class Frame {
   private chn?: IOF
   public key: string
-  public $$?: RJQuery
-  private flux: Modela
+  public flux: Modela
   private $frame: JQuery<HTMLElement>
+
+  public remote?: FrameWindowRemote
+  public $$?: FrameWindowDOM
+
+  public $$root?: FrameQuery
+  public $$head?: FrameQuery
+  public $$body?: FrameQuery
+
+  /**
+   * Editor history stack manager
+   */
+  public history: History
+
+  /**
+   * Initialize global css
+   */
+  public css: CSS
+
+  /**
+   * Manage supported views
+   */
+  public views: Views
 
   constructor( flux: Modela, options: FrameOption ){
     this.flux = flux
@@ -29,29 +53,89 @@ export default class Frame {
       this.chn = new IOF({ type: 'WINDOW' })
       this.chn.initiate( target.contentWindow as Window, new URL( options.source ).origin )
 
-      this.events()
+      // Remove all existings listeners when iframe get reloaded
+      this.chn.removeListeners()
+      // Synchronize once iof connection established
+      this.chn.once('connect', this.sync.bind(this) )
     })
 
     // Use default frame screen resolution
     this.resize( options.device || 'default')
     // Add frame to the board
     flux.controls.$board?.append( this.$frame )
+
+    /**
+     * Initialize history manager
+     */
+    this.history = new History()
+
+    /**
+     * Initialize global css manager
+     */
+    this.css = new CSS( this )
+
+    /**
+     * Initialize views manager
+     */
+    this.views = new Views( this )
+  }
+
+  private sync(){
+    if( !this.chn ) return
+    /**
+     * Initialize access to remote frame window & document
+     * functionalities.
+     */
+    const { DOM, remote } = FrameWindow( this.chn )
+    
+    this.$$ = DOM
+    this.remote = remote
+
+    // Bind with remove client and initialize controls
+    this.chn.emit('bind', { key: this.key, settings: this.flux.settings }, this.controls.bind(this) )
+  }
+
+  private async controls(){
+    if( !this.$$ ) return
+
+    // Defined main document layout
+    this.$$root = await this.$$('html')
+    this.$$head = await this.$$('head')
+    this.$$body = await this.$$('body')
+
+    // Define initial :root css variables (Custom properties)
+    this.css.setVariables()
+
+    /**
+     * Propagate view control over the existing content
+     */
+    this.$$body
+    && this.flux.settings.autoPropagate
+    && await this.views.propagate( this.$$body )
+
+    // Activate all inert add-view placeholders
+    this.setPlaceholders('active')
+    
+    // Process initial content
+    const initialContent = await this.$$root.html()
+    if( initialContent ){
+      // Set initial content as first history stack
+      this.history.initialize( initialContent )
+    }
+
+    this.events()
   }
 
   events(){
-    if( !this.chn ) return
+    if( !this.chn || !this.$$body ) return
 
-    // Remove all previous listeners when iframe reloaded
-    this.chn.removeListeners()
-
-    this.chn
-    .once('connect', async () => {
-      if( !this.chn ) return
-
-      // Initialize remote JQuery connection & controls
-      this.$$ = RJInit( this.chn )
-      this.chn.emit('bind', { key: this.key, settings: this.flux.settings } )
-    } )
+    /**
+     * Listen to View components or any editable tag
+     */
+    const selectors = `${this.flux.settings.viewOnly ? VIEW_IDENTIFIER : ''}:not([${VIEW_PLACEHOLDER_SELECTOR}],[${CONTROL_PANEL_SELECTOR}] *)`
+    this.flux.settings.hoverSelect ?
+              this.$$body.on('mouseover', selectors, this.views.lookup.bind( this.views ) )
+              : this.$$body.on('click', selectors, this.views.lookup.bind( this.views ) )
   }
 
   resize( device: string ){
@@ -71,6 +155,12 @@ export default class Frame {
     this.$frame.find('iframe').css({ width, height })
   }
   delete(){
+    // Disable add-view placeholders
+    this.setPlaceholders('inert')
+
+    // Clear views meta data
+    this.views?.clear()
+    // Remove frame element from the DOM
     this.$frame.remove()
   }
   edit(){
@@ -80,5 +170,16 @@ export default class Frame {
   dismiss(){
     this.$frame.removeAttr('active')
     this.$frame.parent().removeAttr('active')
+  }
+
+  /**
+   * Set general state of placeholders
+   * 
+   * - active: Enable add-view placeholders highlighting during editing
+   * - inert: Disable add-view placeholders
+   */
+  setPlaceholders( status = 'active' ){
+    if( !this.flux.settings.enablePlaceholders ) return
+    $(`[${VIEW_PLACEHOLDER_SELECTOR}]`).attr('status', status )
   }
 }

@@ -3,7 +3,9 @@
     "files": true
   },
   "files": [
-    "src/index.ts",
+    "src/exports/modela.ts",
+    "src/exports/client.ts",
+    "src/exports/natives.loader.ts",
     "src/types/index.d.ts"
   ],
   "compilerOptions": {
@@ -21,6 +23,6 @@
     "declaration": true,
     "sourceMap": true
   },
-  "include": ["./src/**/*", "examples/website/i18n.plugin.js"],
+  "include": ["./src/**/*"],
   "exclude": ["./dist"]
 }

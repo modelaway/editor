@@ -1,5 +1,6 @@
 import type Modela from '../exports/modela'
 import type { ViewComponent } from '../types/view'
+import type { RJQueryStatic } from '../lib/frame.window'
 import { debug } from './utils'
 
 type StoreMemory = {
@@ -32,7 +33,7 @@ export default class Store {
     this.STORE.components[ component.name ] = component
     debug('view component registered - ', component.name )
   }
-  getComponent( name: string, $node?: JQuery<HTMLElement> ): ViewComponent | null {
+  async getComponent( name: string, $$node?: RJQueryStatic ): Promise<ViewComponent | null> {
     /**
      * Get components component by name or HTML nodeName
      * 
@@ -60,11 +61,11 @@ export default class Store {
      * 
      * Useful mostly for custom view lookup
      */
-    if( $node?.length ){
+    if( $$node?.length ){
       const possibleMatches = compArray.filter( each => (new RegExp(`^${name}.`).test( each.node )) )
       if( possibleMatches.length )
         for( const each of possibleMatches )
-          if( $node.is( each.node ) )
+          if( await $$node.is( each.node ) )
             return { ...each }
     }
     

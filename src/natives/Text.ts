@@ -179,13 +179,13 @@ Text: ViewComponent = {
     .on('show.toolbar', () => {})
     .on('show.panel', () => {})
 
-    .on('view.styles', data => view.$?.css( data ) )
-    .on('global.styles', data => view.$?.css( data ) )
+    .on('view.styles', async data => await view.$?.css( data ) )
+    .on('global.styles', async data => await view.$?.css( data ) )
 
-    .on('activate', data => view.$?.attr('contenteditable', 'true') )
+    .on('activate', async data => await view.$?.attr('contenteditable', 'true') )
 
-    console.log( view.css?.custom() )
-    console.log( view.css?.style() )
+    console.log( await view.css?.custom() )
+    console.log( await view.css?.style() )
   },
   dismiss( view ){
     view.$?.removeAttr('contenteditable')
@@ -201,9 +201,9 @@ Text: ViewComponent = {
         content: "Loren upsum";
         
         &[mv-active="true"]:not([mv-placeholder]) {
-          border-radius: var(--me-placeholder-radius);
-          background: var(--me-primary-color-fade);
-          transition: var(--me-active-transition);
+          border-radius: 3px;
+          background: rgba(100, 100, 100, 0.2);
+          transition: 200ms;
         }
         &[contenteditable] { outline: none; }
 

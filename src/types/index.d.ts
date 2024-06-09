@@ -141,6 +141,7 @@ type ModelaSettings = {
   viewOnly?: boolean
   hoverSelect?: boolean
   enablePlaceholders?: boolean
+  autoPropagate?: boolean
   plugins?: (string | ModelaPluginOption)[]
 }
 type ModelaLanguageDictionary = ObjectType<ObjectType<string> | string>

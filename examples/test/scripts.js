@@ -1,4 +1,4 @@
-import { connect } from '../../dist/modela.client.min.js'
+import { connect } from '../../dist/client.min.js'
 
 try {
   await connect()

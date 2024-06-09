@@ -1,4 +1,5 @@
 import type Modela from '../exports/modela'
+import type { FrameQuery } from '../lib/frame.window'
 import type { ViewBlockProperties } from '../types/view'
 
 import { createSelectFileInput } from './block.factory'
@@ -82,13 +83,13 @@ export default class Functions {
    * Extract an element style attribute value
    * into an object.
    */
-  extractStyle( $this: JQuery<HTMLElement> ){
-    const styleStr = $this.attr('style')
+  async extractStyle( $$this: FrameQuery ){
+    const styleStr = await $$this.attr('style')
     if( !styleStr ) return {}
 
     const styles: ObjectType<string> = {}
     
-    styleStr.split(/;/).forEach( each => {
+    styleStr.split(/;/).forEach( ( each: string ) => {
       const [name, value] = each.split(':')
       styles[ name.trim() ] = value.trim()
     } )

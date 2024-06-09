@@ -265,10 +265,10 @@ export const CSS_CUSTOM_VARIABLES: ObjectType<CSSRuleOption> = {
     display: 'inline',
     customizable: true
   },
-  ambiantColor: {
+  ambientColor: {
     group: 'palette',
     label: 'Ambiant Color',
-    name: '--ambiant-color',
+    name: '--ambient-color',
     value: '#696969',
     display: 'inline',
     customizable: true
@@ -422,7 +422,7 @@ export const CSS_CUSTOM_VARIABLES: ObjectType<CSSRuleOption> = {
     group: 'border',
     label: 'Rounded Corner (Border Radius)',
     name: '--border-radius',
-    value: 0,
+    value: '5px',
     // options: [
     //   { value: 'none', hint: 'None' },
     //   { value: 'circle', hint: '50%' },

@@ -2,7 +2,10 @@ import type IOF from './custom.iframe.io'
 import $ from 'jquery'
 import { generateKey } from '../modules/utils'
 
-export type RJQuery = ( selector: string ) => Promise<Static>
+export type FrameWindowDOM = ( selector: string ) => Promise<FrameQuery>
+export type FrameWindowRemote = {
+  customCSSProps: () => Promise<ObjectType<string>>
+}
 
 type Packet = {
   index?: string
@@ -11,7 +14,7 @@ type Packet = {
   instance?: boolean
   canreturn?: boolean
 }
-type InitialProperties = {
+type FrameQueryProps = {
   index?: string
   length: number
 }
@@ -19,11 +22,11 @@ type Response = {
   length: number
   value?: any
 }
-type EventListener = ( e: Static ) => void
+type EventListener = ( e: FrameQuery ) => void
 
 const State: { [index: string]: JQuery<HTMLElement | Event> } = {}
 
-class Static {
+export class FrameQuery {
   private readonly selector: string | null
   private channel: IOF
 
@@ -39,7 +42,7 @@ class Static {
    */
   public length = 0
 
-  constructor( channel: IOF, selector: string | null, index?: string ){
+  constructor( channel: IOF, selector: string | null, props?: FrameQueryProps ){
     this.channel = channel
     this.selector = selector
 
@@ -50,12 +53,13 @@ class Static {
      * 
      * Eg. clone(), find(), first(), ...
      */
-    if( index ) this.index = index
+    if( props?.index ) this.index = props.index
+    if( props?.length ) this.length = props.length
   }
 
-  public initialize(): Promise<Static> {
+  public initialize(): Promise<FrameQuery> {
     return new Promise( ( resolve, reject ) => {
-      this.channel.emit('init', this.selector, ( error: string | boolean, { index, length }: InitialProperties ) => {
+      this.channel.emit('init', this.index || this.selector, ( error: string | boolean, { index, length }: FrameQueryProps ) => {
         if( error ) return reject( error )
 
         // Record remote state index
@@ -75,7 +79,7 @@ class Static {
       packet.index = this.index
 
       this.channel.emit('packet', packet, ( error: string | boolean, { length, value }: Response ) => {
-        // Keep update of the element's length property
+        // Keep element length property updated
         this.length = length
         
         error ? reject( error ) : resolve( value )
@@ -154,7 +158,7 @@ class Static {
    * Insert content, specified by the parameter, to the 
    * end of each element in the set of matched elements.
    */
-  async append( arg: Static | string ){
+  async append( arg: FrameQuery | string ){
     await this.call({ fn: 'append', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
     return this
   }
@@ -163,7 +167,7 @@ class Static {
    * Insert every element in the set of matched elements to 
    * the end of the target.
    */
-  async appendTo( arg: Static | string ){
+  async appendTo( arg: FrameQuery | string ){
     await this.call({ fn: 'appendTo', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
     return this
   }
@@ -172,7 +176,7 @@ class Static {
    * Insert content, specified by the parameter, to the 
    * beginning of each element in the set of matched elements.
    */
-  async prepend( arg: Static | string ){
+  async prepend( arg: FrameQuery | string ){
     await this.call({ fn: 'prepend', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
     return this
   }
@@ -181,7 +185,7 @@ class Static {
    * Insert every element in the set of matched elements to 
    * the beginning of the target.
    */
-  async prependTo( arg: Static | string ){
+  async prependTo( arg: FrameQuery | string ){
     await this.call({ fn: 'prependTo', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
     return this
   }
@@ -190,7 +194,7 @@ class Static {
    * Insert content, specified by the parameter, before each 
    * element in the set of matched elements.
    */
-  async before( arg: Static | string ){
+  async before( arg: FrameQuery | string ){
     await this.call({ fn: 'before', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
     return this
   }
@@ -199,7 +203,7 @@ class Static {
    * Insert content, specified by the parameter, after each 
    * element in the set of matched elements.
    */
-  async after( arg: Static | string ){
+  async after( arg: FrameQuery | string ){
     await this.call({ fn: 'after', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
     return this
   }
@@ -209,12 +213,12 @@ class Static {
    * the set of matched elements. If a selector is provided, it 
    * retrieves the previous sibling only if it matches that selector.
    */
-  async prev( arg: string ){
-    const index = await this.call({ fn: 'prev', arg: [ arg ], canreturn: true, instance: true }) as string
-    if( !index )
+  async prev( arg?: string ){
+    const props = await this.call({ fn: 'prev', arg: [ arg ], canreturn: true, instance: true }) as FrameQueryProps
+    if( !props )
       throw new Error('Unexpected error occured')
     
-    return new Static( this.channel, null, index )
+    return new FrameQuery( this.channel, null, props )
   }
 
   /**
@@ -222,24 +226,24 @@ class Static {
    * set of matched elements. If a selector is provided, it 
    * retrieves the next sibling only if it matches that selector.
    */
-  async next( arg: string ){
-    const index = await this.call({ fn: 'next', arg: [ arg ], canreturn: true, instance: true }) as string
-    if( !index )
+  async next( arg?: string ){
+    const props = await this.call({ fn: 'next', arg: [ arg ], canreturn: true, instance: true }) as FrameQueryProps
+    if( !props )
       throw new Error('Unexpected error occured')
     
-    return new Static( this.channel, null, index )
+    return new FrameQuery( this.channel, null, props )
   }
 
   /**
    * Get all following siblings of each element in the set 
    * of matched elements, optionally filtered by a selector.
    */
-  async nextAll( arg: string ){
-    const index = await this.call({ fn: 'nextAll', arg: [ arg ], canreturn: true, instance: true }) as string
-    if( !index )
+  async nextAll( arg?: string ){
+    const props = await this.call({ fn: 'nextAll', arg: [ arg ], canreturn: true, instance: true }) as FrameQueryProps
+    if( !props )
       throw new Error('Unexpected error occured')
     
-    return new Static( this.channel, null, index )
+    return new FrameQuery( this.channel, null, props )
   }
 
   /**
@@ -247,12 +251,12 @@ class Static {
    * not including the element matched by the selector, 
    * DOM node, or jQuery object passed.
    */
-  async nextUntil( arg: string ){
-    const index = await this.call({ fn: 'nextUntil', arg: [ arg ], canreturn: true, instance: true }) as string
-    if( !index )
+  async nextUntil( arg?: string ){
+    const props = await this.call({ fn: 'nextUntil', arg: [ arg ], canreturn: true, instance: true }) as FrameQueryProps
+    if( !props )
       throw new Error('Unexpected error occured')
     
-    return new Static( this.channel, null, index )
+    return new FrameQuery( this.channel, null, props )
   }
 
   /**
@@ -260,11 +264,11 @@ class Static {
    * matched elements, optionally filtered by a selector.
    */
   async parent( arg?: string ){
-    const index = await this.call({ fn: 'parent', arg: [ arg ], canreturn: true, instance: true }) as string
-    if( !index )
+    const props = await this.call({ fn: 'parent', arg: [ arg ], canreturn: true, instance: true }) as FrameQueryProps
+    if( !props )
       throw new Error('Unexpected error occured')
     
-    return new Static( this.channel, null, index )
+    return new FrameQuery( this.channel, null, props )
   }
 
   /**
@@ -272,11 +276,11 @@ class Static {
    * set of matched elements, optionally filtered by a selector.
    */
   async parents( arg?: string ){
-    const index = await this.call({ fn: 'parents', arg: [ arg ], canreturn: true, instance: true }) as string
-    if( !index )
+    const props = await this.call({ fn: 'parents', arg: [ arg ], canreturn: true, instance: true }) as FrameQueryProps
+    if( !props )
       throw new Error('Unexpected error occured')
     
-    return new Static( this.channel, null, index )
+    return new FrameQuery( this.channel, null, props )
   }
 
   /**
@@ -284,11 +288,11 @@ class Static {
    * elements, optionally filtered by a selector.
    */
   async children( arg?: string ){
-    const index = await this.call({ fn: 'children', arg: [ arg ], canreturn: true, instance: true }) as string
-    if( !index )
+    const props = await this.call({ fn: 'children', arg: [ arg ], canreturn: true, instance: true }) as FrameQueryProps
+    if( !props )
       throw new Error('Unexpected error occured')
     
-    return new Static( this.channel, null, index )
+    return new FrameQuery( this.channel, null, props )
   }
 
   /**
@@ -297,11 +301,11 @@ class Static {
    * through its ancestors in the DOM tree.
    */
   async closest( arg: string ){
-    const index = await this.call({ fn: 'closest', arg: [ arg ], canreturn: true, instance: true }) as string
-    if( !index )
+    const props = await this.call({ fn: 'closest', arg: [ arg ], canreturn: true, instance: true }) as FrameQueryProps
+    if( !props )
       throw new Error('Unexpected error occured')
     
-    return new Static( this.channel, null, index )
+    return new FrameQuery( this.channel, null, props )
   }
 
   /**
@@ -313,12 +317,12 @@ class Static {
       throw new Error('Undefined event listener function')
     
     // Listen to each matched elements
-    this.channel.on(`@each-${this.index}`, ( targetIndex: string ) => {
-      fn( new Static( this.channel, null, targetIndex ) )
+    this.channel.on(`@each-${this.index}`, ( targetProps: FrameQueryProps ) => {
+      fn( new FrameQuery( this.channel, null, targetProps ) )
     } )
 
     // Loop through
-    this.call({ fn: 'each' })
+    await this.call({ fn: 'each' })
     
     return this
   }
@@ -327,11 +331,11 @@ class Static {
    * Reduce the set of matched elements to the one at the specified index.
    */
   async eq( arg: number ){
-    const index = await this.call({ fn: 'eq', arg: [ arg ], canreturn: true, instance: true }) as string
-    if( !index )
+    const props = await this.call({ fn: 'eq', arg: [ arg ], canreturn: true, instance: true }) as FrameQueryProps
+    if( !props )
       throw new Error('Unexpected error occured')
     
-    return new Static( this.channel, null, index )
+    return new FrameQuery( this.channel, null, props )
   }
 
   /**
@@ -340,40 +344,40 @@ class Static {
    * object, or element.
    */
   async find( arg: string ){
-    const index = await this.call({ fn: 'find', arg: [ arg ], canreturn: true, instance: true }) as string
-    if( !index )
+    const props = await this.call({ fn: 'find', arg: [ arg ], canreturn: true, instance: true }) as FrameQueryProps
+    if( !props )
       throw new Error('Unexpected error occured')
     
-    return new Static( this.channel, null, index )
+    return new FrameQuery( this.channel, null, props )
   }
 
   /**
    * Reduce the set of matched elements to the first in the set.
    */
   async first(){
-    const index = await this.call({ fn: 'first', canreturn: true, instance: true }) as string
-    if( !index )
+    const props = await this.call({ fn: 'first', canreturn: true, instance: true }) as FrameQueryProps
+    if( !props )
       throw new Error('Unexpected error occured')
 
-    return new Static( this.channel, null, index )
+    return new FrameQuery( this.channel, null, props )
   }
 
   /**
    * Reduce the set of matched elements to the final one in the set.
    */
   async last(){
-    const index = await this.call({ fn: 'last', canreturn: true, instance: true }) as string
-    if( !index )
+    const props = await this.call({ fn: 'last', canreturn: true, instance: true }) as FrameQueryProps
+    if( !props )
       throw new Error('Unexpected error occured')
     
-    return new Static( this.channel, null, index )
+    return new FrameQuery( this.channel, null, props )
   }
 
   /**
    * Insert every element in the set of matched elements 
    * after the target.
    */
-  async insertAfter( arg: Static | string ){
+  async insertAfter( arg: FrameQuery | string ){
     await this.call({ fn: 'insertAfter', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
     return this
   }
@@ -382,7 +386,7 @@ class Static {
    * Insert every element in the set of matched elements 
    * before the target.
    */
-  async insertBefore( arg: Static | string ){
+  async insertBefore( arg: FrameQuery | string ){
     await this.call({ fn: 'insertBefore', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
     return this
   }
@@ -391,7 +395,7 @@ class Static {
    * Replace each target element with the set of matched 
    * elements.
    */
-  async replaceAll( arg: Static | string ){
+  async replaceAll( arg: FrameQuery | string ){
     await this.call({ fn: 'replaceAll', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
     return this
   }
@@ -401,7 +405,7 @@ class Static {
    * the provided new content and return the set of elements 
    * that was removed.
    */
-  async replaceWith( arg: Static | string ){
+  async replaceWith( arg: FrameQuery | string ){
     await this.call({ fn: 'replaceWith', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
     return this
   }
@@ -410,7 +414,7 @@ class Static {
    * Wrap an HTML structure around each element in the set 
    * of matched elements.
    */
-  async wrap( arg: Static | string ){
+  async wrap( arg: FrameQuery | string ){
     await this.call({ fn: 'wrap', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
     return this
   }
@@ -419,7 +423,7 @@ class Static {
    * Wrap an HTML structure around all elements in the set 
    * of matched elements.
    */
-  async wrapAll( arg: Static | string ){
+  async wrapAll( arg: FrameQuery | string ){
     await this.call({ fn: 'wrapAll', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
     return this
   }
@@ -428,7 +432,7 @@ class Static {
    * Wrap an HTML structure around the content of each element 
    * in the set of matched elements.
    */
-  async wrapInner( arg: Static | string ){
+  async wrapInner( arg: FrameQuery | string ){
     await this.call({ fn: 'wrapInner', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
     return this
   }
@@ -437,7 +441,7 @@ class Static {
    * Remove the parents of the set of matched elements from the 
    * DOM, leaving the matched elements in their place.
    */
-  async unwrap( arg: Static | string ){
+  async unwrap( arg: FrameQuery | string ){
     await this.call({ fn: 'unwrap', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
     return this
   }
@@ -461,11 +465,11 @@ class Static {
    * Create a deep copy of the set of matched elements.
    */
   async clone(){
-    const index = await this.call({ fn: 'clone', canreturn: true, instance: true }) as string
-    if( !index )
+    const props = await this.call({ fn: 'clone', canreturn: true, instance: true }) as FrameQueryProps
+    if( !props )
       throw new Error('Unexpected error occured')
     
-    return new Static( this.channel, null, index )
+    return new FrameQuery( this.channel, null, props )
   }
 
   /**
@@ -473,7 +477,7 @@ class Static {
    * return the value at the named data store for the first element 
    * in the set of matched elements.
    */
-  async data( arg: string | ObjectType<string>, value?: string ){
+  async data( arg: string | ObjectType<string>, value?: any ): Promise<any> {
     const
     params = value !== undefined && typeof arg == 'string' ? [ arg, value ] : [ arg ],
     canreturn = value === undefined && typeof arg == 'string'
@@ -494,7 +498,7 @@ class Static {
    * the set of matched elements or set one or more 
    * properties for every matched element.
    */
-  async prop( arg: string | ObjectType<string>, value?: string ){
+  async prop( arg: string | ObjectType<string>, value?: string ): Promise<any> {
     const 
     params = value !== undefined && typeof arg == 'string' ? [ arg, value ] : [ arg ],
     canreturn = value === undefined && typeof arg == 'string'
@@ -507,12 +511,12 @@ class Static {
    * set of matched elements or set one or more attributes for 
    * every matched element.
    */
-  async attr( arg: string | ObjectType<string>, value?: string ){
+  async attr( arg: string | ObjectType<string>, value?: string ): Promise<string> {
     const
     params = value !== undefined && typeof arg == 'string' ? [ arg, value ] : [ arg ],
     canreturn = value === undefined && typeof arg == 'string'
 
-    return await this.call({ fn: 'attr', arg: params, canreturn })
+    return await this.call({ fn: 'attr', arg: params, canreturn }) as string
   }
   
   /**
@@ -529,7 +533,7 @@ class Static {
    * element in the set of matched elements or set one or more 
    * CSS properties for every matched element.
    */
-  async css( arg: string | ObjectType<string>, value?: string ){
+  async css( arg: string | ObjectType<string>, value?: string ): Promise<any> {
     const 
     params = value !== undefined && typeof arg == 'string' ? [ arg, value ] : [ arg ],
     canreturn = value === undefined && typeof arg == 'string'
@@ -550,12 +554,12 @@ class Static {
    * of matched elements or set the HTML contents of every 
    * matched element.
    */
-  async html( arg?: string ){
+  async html( arg?: string ): Promise<string> {
     const
     params = arg !== undefined ? [ arg ] : [],
     canreturn = arg === undefined
 
-    return await this.call({ fn: 'html', arg: params, canreturn })
+    return await this.call({ fn: 'html', arg: params, canreturn }) as string
   }
 
   /**
@@ -563,12 +567,12 @@ class Static {
    * of matched elements, including their descendants, or set 
    * the text contents of the matched elements.
    */
-  async text( arg?: string ){
+  async text( arg?: string ): Promise<string> {
     const
     params = arg !== undefined ? [ arg ] : [],
     canreturn = arg === undefined
 
-    return await this.call({ fn: 'text', arg: params, canreturn })
+    return await this.call({ fn: 'text', arg: params, canreturn }) as string
   }
   
   /**
@@ -741,8 +745,8 @@ class Static {
     
     this.call({ fn: 'on', arg: [ _event, _selector ] })
         .then( () => {
-          this.channel.on(`@${_event}-${_selector || this.index}`, ( targetIndex: string ) => {
-            fn( new Static( this.channel, null, targetIndex ) )
+          this.channel.on(`@${_event}-${_selector || this.index}`, ( targetProps: FrameQueryProps ) => {
+            fn( new FrameQuery( this.channel, null, targetProps ) )
           } )
         } )
     
@@ -764,8 +768,8 @@ class Static {
     
     this.call({ fn: 'one', arg: [ _event, _selector ] })
         .then( () => {
-          this.channel.on(`@${_event}-${_selector || this.index}`, ( targetIndex: string ) => {
-            fn( new Static( this.channel, null, targetIndex ) )
+          this.channel.on(`@${_event}-${_selector || this.index}`, ( targetProps: string ) => {
+            fn( new FrameQuery( this.channel, null, targetProps ) )
           } )
         } )
     
@@ -792,11 +796,11 @@ class Static {
   }
 }
 
-export default function RemoteJQuery( channel: IOF ): RJQuery {
+export default ( channel: IOF ) => {
   /**
-   * Remote JQuery element initialization event listener
+   * Frame JQuery element initialization event listener
    */
-  function onInit( selector: string, callback?: ( error: string | boolean, props?: InitialProperties ) => void ){
+  function onInit( selector: string, callback?: ( error: string | boolean, props?: FrameQueryProps ) => void ){
     try {
       if( !selector )
         throw new Error('Undefined selector')
@@ -816,7 +820,7 @@ export default function RemoteJQuery( channel: IOF ): RJQuery {
         State[ index ] = $element
       }
 
-      const props: InitialProperties = {
+      const props: FrameQueryProps = {
         index,
         length: $element.length,
       }
@@ -826,7 +830,7 @@ export default function RemoteJQuery( channel: IOF ): RJQuery {
   }
 
   /**
-   * Remote call operation event listener
+   * Frame call operation event listener
    */
   function onCall({ index, fn, arg, canreturn, instance }: Packet, callback?: ( error: string | boolean, response?: Response ) => void ){
     try {
@@ -854,17 +858,21 @@ export default function RemoteJQuery( channel: IOF ): RJQuery {
         _selector ?
             // Event listener with scope selector
             $element[ fn ]( _event, _selector, function( this: Event ){
-              const targetIndex = `--${generateKey()}--`
-              State[ targetIndex ] = $(this)
+              const
+              $this = $(this),
+              targetIndex = `--${generateKey()}--`
 
-              channel.emit(`@${_event}-${_selector}`, targetIndex )
+              State[ targetIndex ] = $this
+              channel.emit(`@${_event}-${_selector}`, { index: targetIndex, length: $this.length })
             })
             // Event listener without scope selector
             : $element[ fn ]( _event, function( this: Event ){
-                const targetIndex = `--${generateKey()}--`
-                State[ targetIndex ] = $(this)
+                const
+                $this = $(this),
+                targetIndex = `--${generateKey()}--`
 
-                channel.emit(`@${_event}-${index}`, targetIndex )
+                State[ targetIndex ] = $this
+                channel.emit(`@${_event}-${index}`, { index: targetIndex, length: $this.length })
               })
       }
       /**
@@ -872,12 +880,12 @@ export default function RemoteJQuery( channel: IOF ): RJQuery {
        */
       else if( ['each', 'filter'].includes( fn ) )
         $element[ fn ]( function( this: Event ){
-          const targetIndex = `--${generateKey()}--`
-          State[ targetIndex ] = $(this)
+          const
+          $this = $(this),
+          targetIndex = `--${generateKey()}--`
 
-          console.log('each --', index, targetIndex )
-
-          channel.emit(`@${fn}-${index}`, targetIndex )
+          State[ targetIndex ] = $this
+          channel.emit(`@${fn}-${index}`, { index: targetIndex, length: $this.length })
         })
       
       // Invoke JQuery static method on selected element
@@ -886,9 +894,14 @@ export default function RemoteJQuery( channel: IOF ): RJQuery {
       // Create new jQuery element instance
       if( instance ){
         const instanceIndex = `--${generateKey()}--`
-        State[ instanceIndex ] = value
+        if( value.length )
+          State[ instanceIndex ] = value
 
-        value = instanceIndex
+        value = {
+          index: instanceIndex,
+          // Value here is a new/cloned element
+          length: value.length
+        } as FrameQueryProps
       }
 
       const response: Response = {
@@ -900,14 +913,62 @@ export default function RemoteJQuery( channel: IOF ): RJQuery {
     catch( error: any ){ typeof callback == 'function' && callback( error.message ) }
   }
 
-  // Listen to remote calls
+  function onCustomCSSProps( callback?: ( error: string | boolean, props?: ObjectType<string> ) => void ){
+    try {
+      const props: ObjectType<string> = {}
+
+      Array
+      .from( document.styleSheets )
+      /**
+       * Allow only same-domain stylesheet to be read
+       * to avoid cross-origin content policy error
+       */
+      .filter( sheet => (!sheet.href || sheet.href.indexOf( window.location.origin ) === 0))
+      .forEach( sheet => {
+        // Only style rules
+        const rules = Array.from( sheet.cssRules || sheet.rules ).filter( ( rule ) => rule.type === 1 ) as CSSStyleRule[]
+
+        rules.forEach( rule => {
+          Array
+          .from( rule.style )
+          .filter( prop => (/^--/.test( prop )) )
+          // Ignore modela UI custom CSS properties
+          // .filter( prop => (!/^--me-/.test( prop )) )
+          .map( prop => props[ prop.trim() ] = rule.style.getPropertyValue( prop ).trim() )
+        } )
+      } )
+
+      typeof callback === 'function' && callback( false, props )
+    }
+    catch( error: any ){ typeof callback == 'function' && callback( error.message ) }
+  }
+
+  // Listen to remote DOM Query calls
   channel
   .on('init', onInit )
   .on('packet', onCall )
 
-  // Initialize remove jquery element object
-  return async ( selector: string ) => {
-    const rjobject = new Static( channel, selector )
+  // Listen to custom operation calls
+  .on('custom-css-props', onCustomCSSProps )
+
+  // Initialize Frame DOM query element object
+  const DOM: FrameWindowDOM = async selector => {
+    const rjobject = new FrameQuery( channel, selector )
     return await rjobject.initialize()
   }
+
+  const remote: FrameWindowRemote = {
+    /**
+     * Return css custom properties
+     */
+    customCSSProps(){
+      return new Promise( ( resolve, reject ) => {
+        channel.emit('custom-css-props', ( error: string | boolean, props: ObjectType<string> ) => {
+          error ? reject( error ) : resolve( props )
+        })
+      } )
+    }
+  }
+
+  return { DOM, remote }
 }

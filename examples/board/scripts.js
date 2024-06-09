@@ -29,7 +29,8 @@ const settings = {
     'Live',
     // Active in-build `Fonts` plugin
     { name: 'Fonts', config: fontPluginConfig }
-  ]
+  ],
+  // autoPropagate: true
 },
 editor = new Modela( settings )
 

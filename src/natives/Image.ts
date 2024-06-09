@@ -42,7 +42,7 @@ const Image: ViewComponent = {
       const files = await view.fn.selectFile({ id: '1234' })
       view.fn.debug('-- async: ', files )
 
-      view.$?.attr('src', files[0].src )
+      await view.$?.attr('src', files[0].src )
     })
   },
   dismiss( view ){},

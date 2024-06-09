@@ -1,11 +1,9 @@
 
 import jQuery from 'jquery'
 import CSS from '../modules/css'
-import Views from '../modules/views'
 import Store from '../modules/store'
 import Frames from '../modules/frames'
 import Assets from '../modules/assets'
-import History from '../modules/history'
 import Plugins from '../modules/plugins'
 import Controls from '../modules/controls'
 import Functions from '../modules/functions'
@@ -65,7 +63,13 @@ export default class Modela {
      * Allow placeholder to indicate where to add
      * new views.
      */
-    enablePlaceholders: true
+    enablePlaceholders: true,
+
+    /**
+     * Automatically lookup and apply view rules
+     * across the document elements on document load
+     */
+    autoPropagate: false
   }
   public settings: ModelaSettings = {}
 
@@ -76,11 +80,6 @@ export default class Modela {
    * Initialize internationalization handler
    */
   public i18n: I18N
-
-  /**
-   * Initialize global css
-   */
-  public css: CSS
 
   /**
    * Manage store elements
@@ -116,23 +115,9 @@ export default class Modela {
   public frames: Frames
 
   /**
-   * Manage supported views
-   */
-  public views: Views
-
-  /**
-   * Editor history stack manager
-   */
-  public history: History
-
-  /**
    * Initialize modela controls
    */
   public controls: Controls
-
-  /**
-   * 
-   */
 
   constructor( settings = {} ){
 
@@ -143,11 +128,6 @@ export default class Modela {
       this.settings.lang = this.lang.default
 
     /**
-     * Initialize history manager
-     */
-    this.history = new History()
-
-    /**
      * Manage store manager
      * 
      * - view components
@@ -155,11 +135,6 @@ export default class Modela {
      * - etc
      */
     this.store = new Store( this )
-
-    /**
-     * Initialize global css manager
-     */
-    this.css = new CSS()
 
     /**
      * Manage global assets manager
@@ -187,11 +162,6 @@ export default class Modela {
     this.frames = new Frames( this )
 
     /**
-     * Initialize views manager
-     */
-    this.views = new Views( this )
-
-    /**
      * Initialize modela controls
      */
     this.controls = new Controls( this )
@@ -207,17 +177,8 @@ export default class Modela {
     if( !this.$root.length )
       throw new Error(`Root <${selector}> element not found`)
     
-    // Define initial :root css variables (Custom properties)
-    this.css.setVariables()
     // Enable modela controls
     this.controls.enable()
-
-    // Process initial content
-    const initialContent = this.$root.html()
-    if( initialContent ){
-      // Set initial content as first history stack
-      this.history.initialize( initialContent )
-    }
   }
 
   dismiss(){
@@ -226,23 +187,11 @@ export default class Modela {
       return
     }
 
-    // Clear views meta data
-    this.views?.clear()
     // Remove controls
     this.controls?.destroy()
     // Drop store functions
     this.store?.drop()
-
-    /**
-     * Return global definitions and variables
-     * to their initial states
-     */
-    // const initials = initialState()
-
-    // STORE = initials.STORE
-    // STYLES = initials.STYLES
-    // ASSETS = initials.ASSETS
-
+    
     /**
      * Prevent any other functions still available
      * via API to respond to calls.

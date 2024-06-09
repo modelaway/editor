@@ -1,16 +1,30 @@
+import type Frame from './frame'
 import Stylesheet from './stylesheet'
 import {
   CSS_CUSTOM_VARIABLES
 } from './constants'
 
 export default class CSS {
+  /**
+   * Access to frame's instance and 
+   * relative functional classes.
+   */
+  private readonly frame: Frame
+
   private variables?: Stylesheet
 
+  constructor( frame: Frame ){
+    this.frame = frame
+  }
+
   declare( nsp: string, settings?: StyleSettings ){
-    return new Stylesheet( nsp, settings )
+    if( !this.frame.$$head?.length ) return
+    return new Stylesheet( nsp, this.frame.$$head, settings )
   }
 
   setVariables( updates?: ObjectType<string | ObjectType<string>> ){
+    if( !this.frame.$$head?.length ) return
+
     /**
      * Apply properties updates to the variables
      */
@@ -42,7 +56,7 @@ export default class CSS {
 
     this.variables ?
             this.variables.load( settings )
-            : this.variables = new Stylesheet('variables', settings )
+            : this.variables = new Stylesheet('variables', this.frame.$$head, settings )
 
     return this.variables
   }

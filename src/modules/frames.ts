@@ -35,6 +35,16 @@ export default class Frames {
     this.list[ frame.key ] = frame
   }
 
+  /**
+   * Loop operation on all active frames
+   */
+  each( fn: ( frame: Frame ) => void ){
+    if( typeof fn !== 'function' )
+      throw new Error('Expected each callback function')
+
+    Object.values( this.list ).map( fn )
+  }
+
   add( options: FrameOption ){
     this.currentFrame = new Frame( this.flux, options )
     // this.currentView.mount( component as ViewComponent, to, triggerType )

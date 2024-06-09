@@ -1,3 +1,4 @@
+import Modela from '../exports/modela'
 import * as bx from '../modules/block.factory'
 
 export interface PluginFactory {

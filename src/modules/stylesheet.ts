@@ -1,3 +1,5 @@
+
+import type { FrameQuery } from '../lib/frame.window'
 // import * as Sass from 'sass'
 import { CompileResult } from 'sass'
 import {
@@ -10,8 +12,9 @@ let Sass: any
 export default class Stylesheet {
   private nsp: string
   private settings: StyleSettings
+  private $head: JQuery<HTMLElement> | FrameQuery
 
-  constructor( nsp: string, settings?: StyleSettings ){
+  constructor( nsp: string, $head: JQuery<HTMLElement> | FrameQuery, settings?: StyleSettings ){
     if( typeof nsp !== 'string' ) 
       throw new Error('Undefined or invalid styles attachement element(s) namespace')
     
@@ -23,6 +26,15 @@ export default class Stylesheet {
      * views/elements
      */
     this.nsp = nsp
+
+    /**
+     * Head element of the DOM from where CSS
+     * operation will be done.
+     * 
+     * - Remote Frame DOM
+     * - Modela Control DOM
+     */
+    this.$head = $head
 
     /**
      * Styles settings
@@ -101,23 +113,24 @@ export default class Stylesheet {
     const result = await this.compile( str )
     if( !result?.css )
       throw new Error(`<view:${id}> css injection failed`)
-
-    $(`head style[${selector}]`).length ?
-                    // Replace existing content
-                    $(`head style[${selector}]`).html( result.css )
-                    // Inject new style
-                    : $('head')[ this.settings.meta ? 'prepend' : 'append' ](`<style ${selector}>${result.css}</style>`)
+    
+    const $existStyle = await this.$head.find(`style[${selector}]`)
+    $existStyle.length ?
+          // Replace existing content
+          await $existStyle.html( result.css )
+          // Inject new style
+          : await (this.$head as any)[ this.settings.meta ? 'prepend' : 'append' ](`<style ${selector}>${result.css}</style>`)
   }
 
   /**
    * Load/inject predefined CSS to the document
    */
-  load( settings: StyleSettings ){
+  async load( settings: StyleSettings ){
     this.settings = settings
     if( typeof this.settings !== 'object' )
       throw new Error('Undefined styles settings')
     
-    this.settings.css && this.inject( this.nsp, this.settings.css )
+    this.settings.css && await this.inject( this.nsp, this.settings.css )
   }
 
   /**
@@ -131,38 +144,39 @@ export default class Stylesheet {
   /**
    * Remove all injected styles from the DOM
    */
-  clear(){
-    $(`head style[${VIEW_STYLE_SELECTOR}="${this.nsp}"]`).remove()
+  async clear(){
+    (await this.$head.find(`style[${VIEW_STYLE_SELECTOR}="${this.nsp}"]`)).remove()
   }
 
   /**
    * Return css custom properties
    */
   custom(){
-    const props: ObjectType<string> = {}
+    // const props: ObjectType<string> = {}
 
-    Array
-    .from( document.styleSheets )
-    /**
-     * Allow only same-domain stylesheet to be read
-     * to avoid cross-origin content policy error
-     */
-    .filter( sheet => (!sheet.href || sheet.href.indexOf( window.location.origin ) === 0))
-    .forEach( sheet => {
-      // Only style rules
-      const rules = Array.from( sheet.cssRules || sheet.rules ).filter( ( rule ) => rule.type === 1 ) as CSSStyleRule[]
+    // Array
+    // .from( document.styleSheets )
+    // /**
+    //  * Allow only same-domain stylesheet to be read
+    //  * to avoid cross-origin content policy error
+    //  */
+    // .filter( sheet => (!sheet.href || sheet.href.indexOf( window.location.origin ) === 0))
+    // .forEach( sheet => {
+    //   // Only style rules
+    //   const rules = Array.from( sheet.cssRules || sheet.rules ).filter( ( rule ) => rule.type === 1 ) as CSSStyleRule[]
 
-      rules.forEach( rule => {
-        Array
-        .from( rule.style )
-        .filter( prop => (/^--/.test( prop )) )
-        // Ignore modela UI custom CSS properties
-        .filter( prop => (!/^--me-/.test( prop )) )
-        .map( prop => props[ prop.trim() ] = rule.style.getPropertyValue( prop ).trim() )
-      } )
-    } )
+    //   rules.forEach( rule => {
+    //     Array
+    //     .from( rule.style )
+    //     .filter( prop => (/^--/.test( prop )) )
+    //     // Ignore modela UI custom CSS properties
+    //     .filter( prop => (!/^--me-/.test( prop )) )
+    //     .map( prop => props[ prop.trim() ] = rule.style.getPropertyValue( prop ).trim() )
+    //   } )
+    // } )
     
-    return props
+    // return props
+    console.log('-- old custom')
   }
 
   /**

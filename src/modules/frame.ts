@@ -1,16 +1,18 @@
 import type Modela from '../exports/modela'
 import type { FrameOption } from '../types/frame'
 
+import EventEmitter from 'events'
 import CSS from './css'
 import Views from './views'
 import History from './history'
+import * as Event from './events'
 import IOF from '../lib/custom.iframe.io'
 import { generateKey } from './utils'
 import { createFrame } from './block.factory'
 import { CONTROL_PANEL_SELECTOR, MEDIA_SCREENS, VIEW_IDENTIFIER, VIEW_PLACEHOLDER_SELECTOR } from './constants'
 import FrameWindow, { FrameWindowRemote, FrameWindowDOM, FrameQuery } from '../lib/frame.window'
 
-export default class Frame {
+export default class Frame extends EventEmitter {
   private chn?: IOF
   public key: string
   public flux: Modela
@@ -22,23 +24,24 @@ export default class Frame {
   public $$root?: FrameQuery
   public $$head?: FrameQuery
   public $$body?: FrameQuery
+  
+  /**
+   * Initialize history manager
+   */
+  public history = new History()
 
   /**
-   * Editor history stack manager
+   * Initialize global css manager
    */
-  public history: History
+  public css = new CSS( this )
 
   /**
-   * Initialize global css
+   * Initialize views manager
    */
-  public css: CSS
-
-  /**
-   * Manage supported views
-   */
-  public views: Views
+  public views = new Views( this )
 
   constructor( flux: Modela, options: FrameOption ){
+    super()
     this.flux = flux
 
     // Generate new key for the new frame
@@ -63,21 +66,6 @@ export default class Frame {
     this.resize( options.device || 'default')
     // Add frame to the board
     flux.controls.$board?.append( this.$frame )
-
-    /**
-     * Initialize history manager
-     */
-    this.history = new History()
-
-    /**
-     * Initialize global css manager
-     */
-    this.css = new CSS( this )
-
-    /**
-     * Initialize views manager
-     */
-    this.views = new Views( this )
   }
 
   private sync(){
@@ -123,11 +111,14 @@ export default class Frame {
       this.history.initialize( initialContent )
     }
 
+    // Initialize control events
     this.events()
+
+    this.emit('load')
   }
 
   events(){
-    if( !this.chn || !this.$$body ) return
+    if( !this.$$body?.length ) return
 
     /**
      * Listen to View components or any editable tag
@@ -136,6 +127,40 @@ export default class Frame {
     this.flux.settings.hoverSelect ?
               this.$$body.on('mouseover', selectors, this.views.lookup.bind( this.views ) )
               : this.$$body.on('click', selectors, this.views.lookup.bind( this.views ) )
+
+    const self = this
+    function handler( fn: Function ){
+      return function( this: Event ){
+        console.log('-- event call')
+        // typeof fn === 'function' && fn( $(this), self )
+      }
+    }
+
+    this.$$body
+    /**
+     * Tab event trigger
+     */
+    .on('click', '[tab]', handler( Event.onTab ) )
+    /**
+     * Show event trigger
+     */
+    .on('click', '[show]', handler( Event.onShow ) )
+    /**
+     * Apply event trigger
+     */
+    .on('click', '[apply]', handler( Event.onApply ) )
+    /**
+     * Action event trigger
+     */
+    .on('click', '[action]', handler( Event.onAction ) )
+    /**
+     * Dismiss event trigger
+     */
+    .on('click', '[dismiss]', handler( Event.onDismiss ) )
+    /**
+     * Custom `on-*` event trigger
+     */
+    .on('click', '[on]', handler( Event.onCustomListener ) )
   }
 
   resize( device: string ){

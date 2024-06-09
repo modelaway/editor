@@ -15,6 +15,7 @@ export const VIEW_KEY_SELECTOR = 'mv-key'
 export const VIEW_REF_SELECTOR = 'mv-ref'
 export const VIEW_NAME_SELECTOR = 'mv-name'
 export const VIEW_STYLE_SELECTOR = 'mv-style'
+export const VIEW_EMPTY_SELECTOR = 'mv-empty'
 export const VIEW_ACTIVE_SELECTOR = 'mv-active'
 export const VIEW_CAPTION_SELECTOR = 'mv-caption'
 export const VIEW_PLACEHOLDER_SELECTOR = 'mv-placeholder'
@@ -25,6 +26,7 @@ export const VIEW_TYPES_ALLOWED_SELECTOR = 'mv-types-allowed'
  * 
  * NOTE: Only custom attributes
  */
+export const CONTROL_LANG_SELECTOR = 'mlang'
 export const CONTROL_FRAME_SELECTOR = 'mv-frame'
 export const CONTROL_PANEL_SELECTOR = 'mv-panel'
 export const CONTROL_TOOLBAR_SELECTOR = 'mv-toolbar'

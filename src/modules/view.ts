@@ -91,7 +91,7 @@ export default class View {
    * Run initial 
    */
   private async initialize(){
-    if( !this.$$ ) return
+    if( !this.$$ || !this.frame.$$ ) return
 
     try {
       /**
@@ -131,10 +131,10 @@ export default class View {
          * elements around static or relative position elements.
          */
         const freePositions = ['fixed', 'absolute', 'sticky']
-        
-        // freePositions.includes( await this.$$.css('position') as string ) ?
-        //                               await this.$.prepend( this.frame.flux.i18n.propagate( $(createDiscretAddpoint( this.key as string )) ) )
-        //                               : await this.$$.after( createPlaceholder( this.key as string ) )
+
+        freePositions.includes( await this.$$.css('position') as string ) ?
+                                      await this.$$.prepend( createDiscretAddpoint( this.key as string ) )
+                                      : await this.$$.after( createPlaceholder( this.key as string ) )
       }
     }
     catch( error: any ){ debug( error.message ) }
@@ -146,6 +146,7 @@ export default class View {
     const takeover = this.get('takeover')
     typeof takeover == 'function' && takeover( this.bridge )
 
+    this.bridge.events.emit('mounted')
     debug('view initialized')
   }
 
@@ -393,61 +394,62 @@ export default class View {
   /**
    * Show view's editing toolbar
    */
-  // showToolbar(){
-  //   if( !this.flux.$root || !this.key || !this.$ ) 
-  //     throw new Error('Invalid method called')
+  async showToolbar(){
+    if( !this.frame.flux.$modela || !this.key || !this.$$ ) 
+      throw new Error('Invalid method called')
 
-  //   if( this.flux.$root.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`).length ) 
-  //     return
+    if( this.frame.flux.$modela.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`).length ) 
+      return
 
-  //   const 
-  //   { toolbar, panel } = this.get() as ViewComponent,
-  //   options = typeof toolbar == 'function' ? toolbar( this.bridge ) : {},
-  //   settings = {
-  //     editing: true,
-  //     detached: typeof panel == 'function'
-  //   }
-  //   let $toolbar = $(createToolbar( this.key, options, settings ))
-  //   // Apply translation to text contents in toolbar
-  //   $toolbar = this.flux.i18n.propagate( $toolbar )
+    const
+    { toolbar, panel } = this.get() as ViewComponent,
+    options = typeof toolbar == 'function' ? toolbar( this.bridge ) : {},
+    settings = {
+      editing: true,
+      detached: typeof panel == 'function'
+    }
+    let $toolbar = $(createToolbar( this.key, options, settings ))
+    // Apply translation to text contents in toolbar
+    $toolbar = this.frame.flux.i18n.propagate( $toolbar )
 
-  //   let { x, y, height } = getTopography( this.$ )
-  //   debug('show view toolbar: ', x, y )
+    let { x, y, height } = await getTopography( this.$$ )
+    debug('show view toolbar: ', x, y )
 
-  //   // Adjust by left edges
-  //   if( x < 15 ) x = CONTROL_EDGE_MARGIN
+    // Adjust by left edges
+    if( x < 15 ) x = CONTROL_EDGE_MARGIN
 
-  //   $toolbar.css({ left: `${x}px`, top: `${y}px` })
-  //   this.flux.$root.append( $toolbar )
+    $toolbar.css({ left: `${x}px`, top: `${y}px` })
+    this.frame.flux.$modela.append( $toolbar )
 
-  //   const
-  //   tHeight = $toolbar.find('> [container]').height() || 0,
-  //   dueYPosition = tHeight + (CONTROL_TOOLBAR_MARGIN * 2)
+    const
+    tHeight = $toolbar.find('> [container]').height() || 0,
+    dueYPosition = tHeight + (CONTROL_TOOLBAR_MARGIN * 2)
     
-  //   const
-  //   wWidth = $(window).width() || 0,
-  //   wHeight = $(window).height() || 0
+    const
+    wWidth = $(window).width() || 0,
+    wHeight = $(window).height() || 0
 
-  //   // Adjust by right edge
-  //   if( x > (wWidth - tHeight) ) x = wWidth - tHeight - CONTROL_EDGE_MARGIN
+    // Adjust by right edge
+    if( x > (wWidth - tHeight) ) x = wWidth - tHeight - CONTROL_EDGE_MARGIN
 
-  //   /**
-  //    * Push slightly on top of element in normal position
-  //    * but adjust below the element if it's to close to
-  //    * the top edge.
-  //    */
-  //   if( height < (wHeight - tHeight) ){
-  //     if( ( y - dueYPosition ) < CONTROL_EDGE_MARGIN ) y += height
-  //     else y -= dueYPosition
-  //   }
-  //   // Adjust by the bottom edges
-  //   if( y > (wHeight - tHeight) ) y = wHeight - tHeight - CONTROL_EDGE_MARGIN
+    /**
+     * Push slightly on top of element in normal position
+     * but adjust below the element if it's to close to
+     * the top edge.
+     */
+    if( height < (wHeight - tHeight) ){
+      if( ( y - dueYPosition ) < CONTROL_EDGE_MARGIN ) y += height
+      else y -= dueYPosition
+    }
+    // Adjust by the bottom edges
+    if( y > (wHeight - tHeight) ) y = wHeight - tHeight - CONTROL_EDGE_MARGIN
 
-  //   $toolbar.css({ left: `${x}px`, top: `${y}px` })
+    console.log({ left: `${x}px`, top: `${y}px` })
+    $toolbar.css({ left: `${x}px`, top: `${y}px` })
 
-  //   // Fire show toolbar listeners
-  //   this.bridge.events.emit('show.toolbar')
-  // }
+    // Fire show toolbar listeners
+    this.bridge.events.emit('show.toolbar')
+  }
   // showPanel(){
   //   if( !this.flux.$modela || !this.key || !this.$ ) 
   //     throw new Error('Invalid method called')

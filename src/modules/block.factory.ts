@@ -4,6 +4,7 @@ import {
   VIEW_CONTROL_OPTIONS,
   VIEW_PLACEHOLDER_SELECTOR,
 
+  CONTROL_LANG_SELECTOR,
   CONTROL_PANEL_SELECTOR,
   CONTROL_TOOLBAR_SELECTOR,
   CONTROL_DISCRET_SELECTOR,
@@ -14,6 +15,7 @@ import {
   FORM_INPUT_SELECTOR,
   FORM_SEPERATOR_SELECTOR,
   CONTROL_FRAME_SELECTOR,
+  VIEW_EMPTY_SELECTOR,
 } from './constants'
 import { generateKey } from './utils'
 import { FrameOption } from '../types/frame'
@@ -32,10 +34,10 @@ export const createModela = () => {
  */
 export const createGlobalControlBlock = () => {
   const globalTabs = `<mul options="tabs">
-    <mli show="global" target="settings" title="Settings" mlang><micon class="bx bx-cog"></micon></mli>
-    <mli show="global" target="styles" title="Styles" mlang><micon class="bx bxs-brush"></micon></mli>
-    <mli show="global" target="assets" title="Assets" mlang><micon class="bx bx-landscape"></micon></mli>
-    <mli dismiss="global" title="Dismiss" mlang><micon class="bx bx-x"></micon></mli>
+    <mli show="global" target="settings" title="Settings" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-cog"></micon></mli>
+    <mli show="global" target="styles" title="Styles" ${CONTROL_LANG_SELECTOR}><micon class="bx bxs-brush"></micon></mli>
+    <mli show="global" target="assets" title="Assets" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-landscape"></micon></mli>
+    <mli dismiss="global" title="Dismiss" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-x"></micon></mli>
   </mul>`,
   globalBody = `<mblock>
 
@@ -119,7 +121,7 @@ export const createToolbar = ( key: string, options: ObjectType<ToolbarOption> =
       if( disabled ) attrs += ` disabled`
       if( title ) attrs += ` title="${title}"`
 
-      return `<mli ${attrs} title="${title}" mlang><micon class="${icon}"></micon></mli>`
+      return `<mli ${attrs} title="${title}" ${CONTROL_LANG_SELECTOR}><micon class="${icon}"></micon></mli>`
     }
   },
   composeLi = ([ attr, { icon, label, title, event, disabled, active, extra, sub, meta }]: [ attr: string, tset: ToolbarOption ]) => {
@@ -131,8 +133,8 @@ export const createToolbar = ( key: string, options: ObjectType<ToolbarOption> =
 
       // Create a sub options
       subOptions.push(`<mblock options="sub" extends="${attr}">
-                        <mli dismiss="sub-toolbar" title="Back" mlang><micon class="bx bx-chevron-left"></micon></mli>
-                        <mli class="label"><micon class="${icon}"></micon><mlabel mlang>${label || title}</mlabel></mli>
+                        <mli dismiss="sub-toolbar" title="Back" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-chevron-left"></micon></mli>
+                        <mli class="label"><micon class="${icon}"></micon><mlabel ${CONTROL_LANG_SELECTOR}>${label || title}</mlabel></mli>
                         ${Object.entries( sub ).map( composeSubLi( attr ) ).join('')}
                       </mblock>`)
     }
@@ -150,7 +152,7 @@ export const createToolbar = ( key: string, options: ObjectType<ToolbarOption> =
     if( label ) attrs += ` class="label"`
     if( title ) attrs += ` title="${title}"`
 
-    const optionLi = `<mli ${attrs} mlang><micon class="${icon}"></micon>${label ? `<mlabel mlang>${label}</mlabel>` : ''}</mli>`
+    const optionLi = `<mli ${attrs} ${CONTROL_LANG_SELECTOR}><micon class="${icon}"></micon>${label ? `<mlabel ${CONTROL_LANG_SELECTOR}>${label}</mlabel>` : ''}</mli>`
     extra ?
       extraOptions += optionLi
       : mainOptions += optionLi
@@ -182,13 +184,13 @@ export const createToolbar = ( key: string, options: ObjectType<ToolbarOption> =
       <mul>
         <mblock options="main">
           ${mainOptions}
-          ${extraOptions ? `<mli show="extra-toolbar" title="Extra options" mlang><micon class="bx bx-dots-horizontal-rounded"></micon></mli>` : ''}
+          ${extraOptions ? `<mli show="extra-toolbar" title="Extra options" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-dots-horizontal-rounded"></micon></mli>` : ''}
         </mblock>
 
         ${extraOptions ?
               `<mblock options="extra">
                 ${extraOptions}
-                <mli dismiss="extra-toolbar" title="Back" mlang><micon class="bx bx-chevron-left"></micon></mli>
+                <mli dismiss="extra-toolbar" title="Back" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-chevron-left"></micon></mli>
               </mblock>` : ''}
 
         ${subOptions.length ? subOptions.join('') : ''}
@@ -216,7 +218,7 @@ export const createPanel = ( key: string, caption: ViewCaption, options: PanelSe
     /**
      * List of tabs
      */
-    sectionTabs += `<mli tab="${name}" ${isActive ? 'class="active"' : ''} ${title ? `title="${title}" mlang` : ''}><micon class="${icon}"></micon></mli>`
+    sectionTabs += `<mli tab="${name}" ${isActive ? 'class="active"' : ''} ${title ? `title="${title}" ${CONTROL_LANG_SELECTOR}` : ''}><micon class="${icon}"></micon></mli>`
 
     let fieldsetHTML = ''
     fieldsets?.map( ({ label, fields, seperate }) => {
@@ -225,7 +227,7 @@ export const createPanel = ( key: string, caption: ViewCaption, options: PanelSe
         return
       
       fieldsetHTML += `<fieldset>
-        ${label ? `<mlabel mlang>${label}</mlabel>` : ''}
+        ${label ? `<mlabel ${CONTROL_LANG_SELECTOR}>${label}</mlabel>` : ''}
         ${fields.map( each => (createInput( each )) ).join('')}
       </fieldset>`
 
@@ -241,7 +243,7 @@ export const createPanel = ( key: string, caption: ViewCaption, options: PanelSe
         return
       
       listsetHTML += `<mblock class="listset">
-        ${label ? `<mlabel mlang>${label}</mlabel>` : ''}
+        ${label ? `<mlabel ${CONTROL_LANG_SELECTOR}>${label}</mlabel>` : ''}
         <mul>${items.map( each => (createListItem( each )) ).join('')}</mul>
       </mblock>`
 
@@ -267,10 +269,10 @@ export const createPanel = ( key: string, caption: ViewCaption, options: PanelSe
       <mblock class="header">
         <mblock>
           <micon class="${caption.icon}"></micon>
-          <mlabel mlang>${caption.title}</mlabel>
+          <mlabel ${CONTROL_LANG_SELECTOR}>${caption.title}</mlabel>
 
           <!-- Dismiss control panel -->
-          <span dismiss="panel" title="Dismiss" mlang><micon class="bx bx-x"></micon></span>
+          <span dismiss="panel" title="Dismiss" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-x"></micon></span>
         </mblock>
 
         <mul options="tabs">${sectionTabs}</mul>
@@ -288,8 +290,8 @@ export const createFloating = ( key: string, type: 'view' | 'layout', triggers: 
   let list = ''
   triggers.map( each => {
     switch( each ){
-      case 'addpoint': list += `<mli show="finder" params="${type}" title="Add view" mlang><micon class="bx bx-plus"></micon></mli>`; break
-      case 'paste': list += `<mli action="paste" params="${type}" title="Paste view" mlang><micon class="bx bx-paste"></micon></mli>`; break
+      case 'addpoint': list += `<mli show="finder" params="${type}" title="Add view" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-plus"></micon></mli>`; break
+      case 'paste': list += `<mli action="paste" params="${type}" title="Paste view" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-paste"></micon></mli>`; break
     }
   } )
 
@@ -299,7 +301,7 @@ export const createFloating = ( key: string, type: 'view' | 'layout', triggers: 
 export const createDiscretAddpoint = ( key: string ) => {
   return `<mblock ${CONTROL_DISCRET_SELECTOR}="${key}">
     <mblock></mblock>
-    <micon show="finder" params="view" class="bx bx-plus" title="Add view" mlang></micon>
+    <micon show="finder" params="view" class="bx bx-plus" title="Add view" ${CONTROL_LANG_SELECTOR}></micon>
   </mblock>`
 }
 
@@ -319,7 +321,7 @@ export const createInput = ({ type, label, name, value, pattern, placeholder, au
     case 'search': {
       return `<mblock ${FORM_INPUT_SELECTOR}="${type}">
         <!--<mlabel for="${id}">${label}</mlabel>-->
-        <input mlang
+        <input ${CONTROL_LANG_SELECTOR}
                 id="${id}"
                 type="${type}"
                 name="${name}"
@@ -339,7 +341,7 @@ export const createInput = ({ type, label, name, value, pattern, placeholder, au
                 name="${name}"
                 ${disabled ? `disabled="true"`: ''}
                 ${value ? `checked="true"`: ''}>
-        <label for="${id}" mlang>${label}</label>
+        <label for="${id}" ${CONTROL_LANG_SELECTOR}>${label}</label>
       </mblock>`
     }
   }
@@ -369,8 +371,8 @@ export const createListItem = ({ icon, title, value, event, sub, disabled }: Lis
 
   return `<mli ${attrs}>
     <micon class="${icon}"></micon>
-    <minline mlang>${title}</minline>
-    ${value ? `<minline class="value" mlang>${value}</minline>` : ''}
+    <minline ${CONTROL_LANG_SELECTOR}>${title}</minline>
+    ${value ? `<minline class="value" ${CONTROL_LANG_SELECTOR}>${value}</minline>` : ''}
 
     ${sub ? `<minline class="sub-arrow"><micon class="bx bx-chevron-right"></micon></minline>` : ''}
   </mli>`
@@ -388,7 +390,7 @@ export const createSearchResult = ( list: ObjectType<Listset> ) => {
       return
     
     listsetHTML += `<mblock class="listset">
-      ${label ? `<mlabel mlang>${label.replace(/-/g, ' ').toCapitalCase()}</mlabel>` : ''}
+      ${label ? `<mlabel ${CONTROL_LANG_SELECTOR}>${label.replace(/-/g, ' ').toCapitalCase()}</mlabel>` : ''}
       <mul>${items.map( each => (createListItem( each )) ).join('')}</mul>
     </mblock>`
 
@@ -397,7 +399,7 @@ export const createSearchResult = ( list: ObjectType<Listset> ) => {
       listsetHTML += createFormSeperator()
   } )
 
-  return listsetHTML || '<mblock mv-empty mlang>No result</mblock>'
+  return listsetHTML || `<mblock ${VIEW_EMPTY_SELECTOR} ${CONTROL_LANG_SELECTOR}>No result</mblock>`
 }
 
 export const createFinderPanel = ( key: string, list: ObjectType<Listset> ) => {
@@ -409,10 +411,10 @@ export const createFinderPanel = ( key: string, list: ObjectType<Listset> ) => {
     <mblock container>
       <mblock class="header">
         <mblock>
-          <minline mlang>Add view</minline>
+          <minline ${CONTROL_LANG_SELECTOR}>Add view</minline>
 
           <!-- Dismiss control panel -->
-          <minline dismiss="panel" title="Dismiss" mlang><micon class="bx bx-x"></micon></minline>
+          <minline dismiss="panel" title="Dismiss" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-x"></micon></minline>
         </mblock>
 
         ${createInput({

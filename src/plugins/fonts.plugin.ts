@@ -1,3 +1,4 @@
+import type Frame from '../modules/frame'
 import type Stylesheet from '../modules/stylesheet'
 import type { Plugin, PluginConfig, PluginFactory } from '../types/plugin'
 
@@ -14,41 +15,56 @@ export default class Fonts implements Plugin {
 
   private readonly defaultWeights = [ 100, 200, 300, 400, 500, 600, 700, 800, 900 ]
   private readonly fonts: ObjectType<string> = {}
+
+  private config: PluginConfig
+  private factory: PluginFactory
   private sheets: Stylesheet[] = []
 
   constructor( factory: PluginFactory, config?: PluginConfig ){
-    /**
-     * Declare font css handler on all frames
-     */
-    factory.flux.frames.each( frame => {
-      const sheet = frame.css.declare('fonts')
-      if( !sheet ) return
+    if( typeof config !== 'object' )
+      throw new Error('Undefined Fonts plugin configuration')
 
-      this.sheets.push( sheet )
-    } )
-
-    if( typeof config !== 'object' ) return
+    this.config = config
+    this.factory = factory
 
     /**
      * Register google fonts
      */
-    Array.isArray( config.googlefonts )
-    && config.googlefonts.length
-    && config.googlefonts.forEach( this.addGoogleFont.bind(this) )
+    Array.isArray( this.config.googlefonts )
+    && this.config.googlefonts.length
+    && this.config.googlefonts.forEach( this.addGoogleFont.bind(this) )
     
     /**
      * Register custom fonts
      */
-    Array.isArray( config.custom )
-    && config.custom.length
-    && config.custom.forEach( this.addCustomFont.bind(this) )
+    Array.isArray( this.config.custom )
+    && this.config.custom.length
+    && this.config.custom.forEach( this.addCustomFont.bind(this) )
+
+    /**
+     * Apply fonts to each frame once loaded
+     */
+    factory.flux.frames.on('frame.load', this.apply.bind(this) )
+  }
+
+  private async apply( frame: Frame ){
+    /**
+     * Declare font css handler on all frames
+     */
+    const sheet = await frame.css.declare('fonts')
+    if( !sheet ) return
+    
+    this.sheets.push( sheet )
 
     // Auto-load
-    config.autoload && this.load()
+    this.config.autoload && await sheet.load({
+      css: Object.values( this.fonts ).join('\n'),
+      meta: true
+    })
 
     // Apply defined font css rules to global custom variables
-    typeof config.cssrule == 'object'
-    && factory.flux.frames.each( frame => frame.css?.setVariables( config.cssrule ))
+    typeof this.config.cssrule == 'object'
+    && frame.css?.setVariables( this.config.cssrule )
   }
 
   /**

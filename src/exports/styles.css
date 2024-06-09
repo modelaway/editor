@@ -13,9 +13,6 @@
   --me-icon-size: 1.3rem;
   --me-icon-size-2: 1.6rem;
 
-  --me-placeholder-height: 0.8rem;
-  --me-placeholder-radius: 3px;
-
   --me-border-radius: 5px;
   --me-border-color: rgba(0, 0, 20, .15);
   --me-trigger-text-color: #fff;
@@ -138,16 +135,6 @@ micon,
 mlabel,
 minline { display: inline; }
 mli { display: inherit; }
-
-[mv-placeholder] {
-  width: 100%;
-  height: var(--me-placeholder-height);
-}
-[mv-placeholder][status="active"]:hover {
-  background: var(--me-primary-color-fade);
-  border-radius: var(--me-placeholder-radius);
-  transition: var(--me-active-transition);
-}
 
 /* mstore {
   position: fixed;

@@ -1,15 +1,18 @@
 import type Modela from '../exports/modela'
 import type { FrameOption } from '../types/frame'
-import Frame from './frame'
 
-export default class Frames {
+import Frame from './frame'
+import EventEmitter from 'events'
+
+export default class Frames extends EventEmitter {
   private flux: Modela
   private list: ObjectType<Frame> = {}
   private currentFrame?: Frame
-
+  
   constructor( flux: Modela ){
-    this.flux = flux
+    super()
 
+    this.flux = flux
   }
 
   /**
@@ -32,6 +35,14 @@ export default class Frames {
    */
   set( frame: Frame ){
     if( !frame.key ) return
+
+    /**
+     * Attach frame event listeners
+     */
+    frame
+    .on('load', () => this.emit('frame.load', this.currentFrame ) )
+    .on('dismiss', () => this.emit('frame.dismiss', this.currentFrame ) )
+
     this.list[ frame.key ] = frame
   }
 
@@ -47,7 +58,6 @@ export default class Frames {
 
   add( options: FrameOption ){
     this.currentFrame = new Frame( this.flux, options )
-    // this.currentView.mount( component as ViewComponent, to, triggerType )
 
     /**
      * Record new frame

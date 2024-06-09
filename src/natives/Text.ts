@@ -195,18 +195,35 @@ Text: ViewComponent = {
 
     return {
       css: `
+        --active-bg-color: rgba(100, 100, 100, 0.2);
+        --active-border-radius: 3px;
+        --active-transition: 200ms;
+        --placeholder-height: 0.8rem;
+
         min-width: 1.3rem;
         font-size: inherit;
         display: inline-block;
         content: "Loren upsum";
         
         &[mv-active="true"]:not([mv-placeholder]) {
-          border-radius: 3px;
-          background: rgba(100, 100, 100, 0.2);
-          transition: 200ms;
+          border-radius: var(--active-border-radius);
+          background: var(--active-bg-color);
+          transition: var(--active-transition);
         }
-        &[contenteditable] { outline: none; }
+        + [mv-placeholder] {
+          display: inline-block;
+          width: 100%;
+          height: var(--placeholder-height);
 
+          &[status="active"]:hover {
+            outline: 0;
+            background: var(--active-bg-color);
+            border-radius: var(--active-border-radius);
+            transition: var(--active-transition);
+          }
+        }
+
+        &[contenteditable] { outline: none; }
         &:active { color: var(--primary-color); }
       `,
       custom: {

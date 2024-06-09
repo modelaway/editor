@@ -152,14 +152,14 @@ export default class Modela {
     this.fn = new Functions( this )
 
     /**
-     * Initialize plugins support
-     */
-    this.plugins = new Plugins( this )
-
-    /**
      * Initialize views manager
      */
     this.frames = new Frames( this )
+
+    /**
+     * Initialize plugins support
+     */
+    this.plugins = new Plugins( this )
 
     /**
      * Initialize modela controls

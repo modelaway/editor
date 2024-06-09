@@ -15,7 +15,7 @@ const fontPluginConfig = {
     { name: 'Alata', url: 'https://fonts.googleapis.com/css2?family=Alata:wght@100;200;300;400;500&display=swap' }, 
   ],
   cssrule: {
-    fontFamily: 'Urbanist, Legend, helvetica, Sans serif',
+    fontFamily: 'Urbanist, Lexend, helvetica, Sans serif',
     fontWeight: 500,
     fontSize: '90%'
   } 

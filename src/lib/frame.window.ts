@@ -579,7 +579,7 @@ export class FrameQuery {
    * Get the current value of the first element in the set of 
    * matched elements or set the value of every matched element.
    */
-  async val( arg?: string ){
+  async val( arg?: string ): Promise<any> {
     const
     params = arg !== undefined ? [ arg ] : [],
     canreturn = arg === undefined
@@ -600,24 +600,24 @@ export class FrameQuery {
    * the set of matched elements or set the width of every 
    * matched element.
    */
-  async width( arg?: string ){
+  async width( arg?: string ): Promise<number> {
     const
     params = arg !== undefined ? [ arg ] : [],
     canreturn = arg === undefined
 
-    return await this.call({ fn: 'width', arg: params, canreturn })
+    return await this.call({ fn: 'width', arg: params, canreturn }) as number
   }
 
   /**
    * Get the current computed height for the first element in the 
    * set of matched elements or set the height of every matched element.
    */
-  async height( arg?: string ){
+  async height( arg?: string ): Promise<number> {
     const
     params = arg !== undefined ? [ arg ] : [],
     canreturn = arg === undefined
 
-    return await this.call({ fn: 'height', arg: params, canreturn })
+    return await this.call({ fn: 'height', arg: params, canreturn }) as number
   }
 
   /**
@@ -625,12 +625,12 @@ export class FrameQuery {
    * for the first element in the set of matched elements or set the 
    * inner width of every matched element.
    */
-  async innerWidth( arg?: string ){
+  async innerWidth( arg?: string ): Promise<number> {
     const
     params = arg !== undefined ? [ arg ] : [],
     canreturn = arg === undefined
 
-    return await this.call({ fn: 'innerWidth', arg: params, canreturn })
+    return await this.call({ fn: 'innerWidth', arg: params, canreturn }) as number
   }
 
   /**
@@ -638,12 +638,12 @@ export class FrameQuery {
    * for the first element in the set of matched elements or set the 
    * inner height of every matched element.
    */
-  async innerHeight( arg?: string ){
+  async innerHeight( arg?: string ): Promise<number> {
     const
     params = arg !== undefined ? [ arg ] : [],
     canreturn = arg === undefined
 
-    return await this.call({ fn: 'innerHeight', arg: params, canreturn })
+    return await this.call({ fn: 'innerHeight', arg: params, canreturn }) as number
   }
 
   /**
@@ -651,12 +651,12 @@ export class FrameQuery {
    * optionally margin) for the first element in the set of matched 
    * elements or set the outer width of every matched element.
    */
-  async outerWidth( arg?: string ){
+  async outerWidth( arg?: string ): Promise<number> {
     const
     params = arg !== undefined ? [ arg ] : [],
     canreturn = arg === undefined
 
-    return await this.call({ fn: 'outerWidth', arg: params, canreturn })
+    return await this.call({ fn: 'outerWidth', arg: params, canreturn }) as number
   }
 
   /**
@@ -664,28 +664,28 @@ export class FrameQuery {
    * optionally margin) for the first element in the set of matched elements 
    * or set the outer height of every matched element.
    */
-  async outerHeight( arg?: string ){
+  async outerHeight( arg?: string ): Promise<number> {
     const
     params = arg !== undefined ? [ arg ] : [],
     canreturn = arg === undefined
 
-    return await this.call({ fn: 'outerHeight', arg: params, canreturn })
+    return await this.call({ fn: 'outerHeight', arg: params, canreturn }) as number
   }
 
   /**
    * Get the current coordinates of the first element, or set the coordinates 
    * of every element, in the set of matched elements, relative to the document.
    */
-  async offset(){
-    return await this.call({ fn: 'offset', canreturn: true })
+  async offset(): Promise<{ left: number, top: number }> {
+    return await this.call({ fn: 'offset', canreturn: true }) as { left: number, top: number }
   }
 
   /**
    * Get the current coordinates of the first element in the set of 
    * matched elements, relative to the offset parent.
    */
-  async position(){
-    return await this.call({ fn: 'position', canreturn: true })
+  async position(): Promise<{ left: number, top: number }> {
+    return await this.call({ fn: 'position', canreturn: true }) as { left: number, top: number }
   }
 
   /**
@@ -693,12 +693,12 @@ export class FrameQuery {
    * element in the set of matched elements or set the horizontal 
    * position of the scroll bar for every matched element.
    */
-  async scrollLeft( arg?: string ){
+  async scrollLeft( arg?: string ): Promise<number | void> {
     const
     params = arg !== undefined ? [ arg ] : [],
     canreturn = arg === undefined
 
-    return await this.call({ fn: 'scrollLeft', arg: params, canreturn })
+    return await this.call({ fn: 'scrollLeft', arg: params, canreturn }) as number
   }
 
   /**
@@ -706,12 +706,12 @@ export class FrameQuery {
    * in the set of matched elements or set the vertical position of the 
    * scroll bar for every matched element.
    */
-  async scrollTop( arg?: string ){
+  async scrollTop( arg?: string ): Promise<number | void> {
     const
     params = arg !== undefined ? [ arg ] : [],
     canreturn = arg === undefined
 
-    return await this.call({ fn: 'scrollTop', arg: params, canreturn })
+    return await this.call({ fn: 'scrollTop', arg: params, canreturn }) as number
   }
 
   /**

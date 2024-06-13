@@ -204,12 +204,6 @@ Text: ViewComponent = {
         display: inline-block;
         content: "Loren upsum";
         
-        &[mv-active="true"]:not([mv-placeholder]) {
-          border-radius: var(--active-border-radius);
-          background: var(--active-bg-color);
-          transition: var(--active-transition);
-        }
-
         &[contenteditable] { outline: none; }
         &:active { color: var(--primary-color); }
       `,

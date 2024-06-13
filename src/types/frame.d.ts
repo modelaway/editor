@@ -16,7 +16,12 @@ export interface FrameFlux {
   $$?: RJQuery
 }
 export type MediaScreen = {
-  type: string
+  device: string
+  type: {
+    id: 'ss' | 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'sl'
+    label: string
+  }
   width: string
   height: string
+  rotate?: boolean
 }

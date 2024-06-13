@@ -6,9 +6,9 @@ import State from './state'
 import {
   VIEW_KEY_SELECTOR,
   VIEW_NAME_SELECTOR,
+  VIEW_ALLEY_SELECTOR,
   VIEW_ACTIVE_SELECTOR,
   VIEW_CAPTION_SELECTOR,
-  VIEW_PLACEHOLDER_SELECTOR,
   VIEW_TYPES_ALLOWED_SELECTOR,
   
   CONTROL_PANEL_SELECTOR,
@@ -23,7 +23,7 @@ import {
 } from './constants'
 import Stylesheet from './stylesheet'
 import {
-  createPlaceholder,
+  createAlley,
   createToolbar,
   createPanel,
   createFloating,
@@ -122,22 +122,22 @@ export default class View {
     catch( error: any ){ debug( error.message ) }
 
     /**
-     * Attach a next placeholder to the new view element
+     * Attach a next alley to the new view element
      */
     try {
-      if( this.frame.flux.settings.enablePlaceholders
-          && !(await this.$$.next(`[${VIEW_PLACEHOLDER_SELECTOR}="${this.key}"]`)).length ){
+      if( this.frame.flux.settings.enableAlleys
+          && !(await this.$$.next(`[${VIEW_ALLEY_SELECTOR}="${this.key}"]`)).length ){
         
         /**
          * Use discret placehlder to no `absolute`, `fixed` or `sticky`
-         * position elements to void unnecessary stack of relative placeholder
+         * position elements to void unnecessary stack of relative alley
          * elements around static or relative position elements.
          */
         const freePositions = ['fixed', 'absolute', 'sticky']
 
         freePositions.includes( await this.$$.css('position') as string ) ?
-                                      await this.$$.prepend( createPlaceholder( this.key as string, true ) )
-                                      : await this.$$.after( createPlaceholder( this.key as string ) )
+                                      await this.$$.prepend( createAlley( this.key as string, true ) )
+                                      : await this.$$.after( createAlley( this.key as string ) )
       }
     }
     catch( error: any ){ debug( error.message ) }
@@ -217,7 +217,7 @@ export default class View {
      * sure the destination view is within editor control
      * scope.
      */
-    const $$to = await this.frame.$$(`[${triggerType == 'placeholder' ? VIEW_REF_SELECTOR : VIEW_KEY_SELECTOR}="${to}"]`)
+    const $$to = await this.frame.$$(`[${triggerType == 'alley' ? VIEW_REF_SELECTOR : VIEW_KEY_SELECTOR}="${to}"]`)
     if( !$$to.length )
       throw new Error(`Invalid destination view - <key:${to}>`)
     
@@ -235,7 +235,7 @@ export default class View {
     this.$$ = await this.frame.$$(element)
 
     switch( triggerType ){
-      case 'placeholder':
+      case 'alley':
       case 'discret': await $$to.after( this.$$ ); break
       case 'self':
       default: await $$to.append( this.$$ )
@@ -292,10 +292,10 @@ export default class View {
      */
     if( $$nextTo?.length ){
       /**
-       * Add next to the view's attached placeholder 
-       * or the view itself if no placeholder.
+       * Add next to the view's attached alley 
+       * or the view itself if no alley.
        */
-      if( await (await $$nextTo.next()).is(`[${VIEW_PLACEHOLDER_SELECTOR}]`) )
+      if( await (await $$nextTo.next()).is(`[${VIEW_ALLEY_SELECTOR}]`) )
         $$nextTo = await $$nextTo.next()
       
       await $$nextTo.after( this.$$ )
@@ -340,8 +340,8 @@ export default class View {
         each.caption && await this.$$.data( VIEW_CAPTION_SELECTOR, each.caption )
         each.allowedViewTypes && this.$$.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
         each.addView
-        && this.frame.flux.settings.enablePlaceholders
-        && await this.$$.append( createPlaceholder() )
+        && this.frame.flux.settings.enableAlleys
+        && await this.$$.append( createAlley() )
 
         return
       }
@@ -354,8 +354,8 @@ export default class View {
       each.caption && await $block.data( VIEW_CAPTION_SELECTOR, each.caption )
       each.allowedViewTypes && await $block.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
       each.addView
-      && this.frame.flux.settings.enablePlaceholders
-      && await $block.append( createPlaceholder() )
+      && this.frame.flux.settings.enableAlleys
+      && await $block.append( createAlley() )
     } )
   }
   async destroy(){
@@ -366,8 +366,8 @@ export default class View {
     await this.dismiss()
 
     try {
-      // Remove placeholder attached to the view
-      await (await this.$$.next(`[${VIEW_PLACEHOLDER_SELECTOR}]`)).remove()
+      // Remove alley attached to the view
+      await (await this.$$.next(`[${VIEW_ALLEY_SELECTOR}]`)).remove()
       // Remove visible floating active
       await (await this.frame.$$body?.find(`[${CONTROL_FLOATING_SELECTOR}="${this.key}"]`))?.remove()
     }
@@ -546,11 +546,11 @@ export default class View {
     }
     
     const
-    $$discret = await this.$$.find(`[${VIEW_PLACEHOLDER_SELECTOR}][discret]`),
-    $$placeholder = $$discret.length ? $$discret : await this.$$.next(`[${VIEW_PLACEHOLDER_SELECTOR}]`)
-    if( !$$placeholder.length ) return
+    $$discret = await this.$$.find(`[${VIEW_ALLEY_SELECTOR}][discret]`),
+    $$alley = $$discret.length ? $$discret : await this.$$.next(`[${VIEW_ALLEY_SELECTOR}]`)
+    if( !$$alley.length ) return
 
-    let { x, y } = await this.frame.getTopography( $$placeholder )
+    let { x, y } = await this.frame.getTopography( $$alley )
     const
     tWidth = !$$discret.length && $floating.find('> mul').width() || 0,
     dueXPosition = tWidth + CONTROL_FLOATING_MARGIN
@@ -645,13 +645,13 @@ export default class View {
 
     switch( direction ){
       case 'up': {
-        const $placeholder = await this.$$.next(`[${VIEW_PLACEHOLDER_SELECTOR}]`)
+        const $alley = await this.$$.next(`[${VIEW_ALLEY_SELECTOR}]`)
         /**
-         * Check whether previous view above has placeholder then
-         * point moving anchor to after the placeholder (view itself).
+         * Check whether previous view above has alley then
+         * point moving anchor to after the alley (view itself).
          */
-        let $anchor = (await this.$$.prev(`[${VIEW_PLACEHOLDER_SELECTOR}]`)).length ?
-                                    await (await this.$$.prev(`[${VIEW_PLACEHOLDER_SELECTOR}]`)).prev()
+        let $anchor = (await this.$$.prev(`[${VIEW_ALLEY_SELECTOR}]`)).length ?
+                                    await (await this.$$.prev(`[${VIEW_ALLEY_SELECTOR}]`)).prev()
                                     : await this.$$.prev()
                                        
         /**
@@ -661,18 +661,18 @@ export default class View {
         if( !$anchor.length ) return
         
         /**
-         * Move this view and its placeholder to the view 
+         * Move this view and its alley to the view 
          * right above it in the same container
          */
         await $anchor.before( this.$$ )
-        $placeholder?.length && await this.$$.after( $placeholder )
+        $alley?.length && await this.$$.after( $alley )
       } break
       
       case 'down': {
-        const $placeholder = await this.$$.next(`[${VIEW_PLACEHOLDER_SELECTOR}]`)
+        const $alley = await this.$$.next(`[${VIEW_ALLEY_SELECTOR}]`)
 
-        let $anchor = $placeholder?.length ?
-                          await $placeholder.next() // View right below the placeholder
+        let $anchor = $alley?.length ?
+                          await $alley.next() // View right below the alley
                           : await this.$$.next()  
         /**
          * In case this view is the last bottom element in its 
@@ -681,18 +681,18 @@ export default class View {
         if( !$anchor.length ) return
 
         /**
-         * Check whether next view below has placeholder then
-         * point moving anchor to the placeholder.
+         * Check whether next view below has alley then
+         * point moving anchor to the alley.
          */
-        if( ( await $anchor.next(`[${VIEW_PLACEHOLDER_SELECTOR}]`)).length )
-          $anchor = await $anchor.next(`[${VIEW_PLACEHOLDER_SELECTOR}]`)
+        if( ( await $anchor.next(`[${VIEW_ALLEY_SELECTOR}]`)).length )
+          $anchor = await $anchor.next(`[${VIEW_ALLEY_SELECTOR}]`)
         
         /**
-         * Move this view and its placeholder to the view 
+         * Move this view and its alley to the view 
          * right below it in the same container
          */
         await $anchor.after( this.$$ )
-        $placeholder?.length && this.$$.after( $placeholder )
+        $alley?.length && this.$$.after( $alley )
       } break
 
       default: this.showMovable()

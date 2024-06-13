@@ -91,6 +91,8 @@ export default class Functions {
     
     styleStr.split(/;/).forEach( ( each: string ) => {
       const [name, value] = each.split(':')
+      if( !name || !value ) return
+      
       styles[ name.trim() ] = value.trim()
     } )
 

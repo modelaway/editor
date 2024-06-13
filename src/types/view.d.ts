@@ -63,4 +63,4 @@ interface ViewComponent {
   panel?: ( view: ViewComponentBridge ) => PanelSections
 }
 
-type AddViewTriggerType = 'placeholder' | 'discret' | 'self'
+type AddViewTriggerType = 'alley' | 'discret' | 'self'

@@ -198,12 +198,7 @@ Paragraph: ViewComponent = {
         font-size: inherit;
         content: "Loren upsum";
         color: var(--primary-color);
-
-        &[mv-active="true"]:not([mv-placeholder]) {
-          border-radius: 3px;
-          background: rgba(100, 100, 100, 0.2);
-          transition: 200ms;
-        }
+        
         &[contenteditable] { outline: none; }
       `,
       custom: {

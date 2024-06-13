@@ -103,6 +103,7 @@ modela mboard mframe mblock > iframe {
   height:100%;
   border:none;
   background-color: rgb(255, 255, 255);
+  transition: 300ms;
 }
 
 modela,

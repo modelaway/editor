@@ -18,7 +18,7 @@ import {
   VIEW_KEY_SELECTOR,
   PATCH_CSS_SETTINGS,
   VIEW_ACTIVE_SELECTOR,
-  VIEW_PLACEHOLDER_SELECTOR } from './constants'
+  VIEW_ALLEY_SELECTOR } from './constants'
 import FrameWindow, { FrameWindowRemote, FrameWindowDOM, FrameQuery } from '../lib/frame.window'
 
 export default class Frame extends EventEmitter {
@@ -112,8 +112,8 @@ export default class Frame extends EventEmitter {
     && this.flux.settings.autoPropagate
     && await this.views.propagate( this.$$body )
 
-    // Activate all inert add-view placeholders
-    this.setPlaceholders('active')
+    // Activate all inert add-view alleys
+    this.setAlleys('active')
     
     // Process initial content
     const initialContent = await this.$$root.html()
@@ -134,7 +134,7 @@ export default class Frame extends EventEmitter {
     /**
      * Listen to View components or any editable tag
      */
-    const selectors = `${this.flux.settings.viewOnly ? VIEW_IDENTIFIER : ''}:not([${VIEW_PLACEHOLDER_SELECTOR}],[${CONTROL_PANEL_SELECTOR}] *)`
+    const selectors = `${this.flux.settings.viewOnly ? VIEW_IDENTIFIER : ''}:not([${VIEW_ALLEY_SELECTOR}],[${CONTROL_PANEL_SELECTOR}] *)`
     this.flux.settings.hoverSelect ?
               this.$$body.on('mouseover', selectors, this.views.lookup.bind( this.views ) )
               : this.$$body.on('click', selectors, this.views.lookup.bind( this.views ) )
@@ -157,9 +157,9 @@ export default class Frame extends EventEmitter {
     } )
 
     /**
-     * Show floating triggers on placeholder hover
+     * Show floating triggers on alley hover
      */
-    .on('mouseover', `[${VIEW_PLACEHOLDER_SELECTOR}]`, async ( $$this: FrameQuery ) => {
+    .on('mouseover', `[${VIEW_ALLEY_SELECTOR}]`, async ( $$this: FrameQuery ) => {
       if( !this.active ) return
       
       const key = await $$this.attr( VIEW_REF_SELECTOR )
@@ -179,23 +179,29 @@ export default class Frame extends EventEmitter {
       screenHeight = $(window).height()
       
       this.$frame.find('iframe').css({ width: `${screenWidth}px`, height: `${screenHeight}px` })
+
+      this.emit('screen-mode.change', device )
       return
     }
 
-    const mediaScrean = MEDIA_SCREENS[ device ] || Object.values( MEDIA_SCREENS ).filter( each => (each.type == device) )[0]
-    if( !mediaScrean ) return 
+    const mediaScrean = MEDIA_SCREENS[ device ] || Object.values( MEDIA_SCREENS ).filter( each => (each.device == device || each.type.id == device) )[0]
+    if( !mediaScrean ) return
 
     const { width, height } = mediaScrean
     this.$frame.find('iframe').css({ width, height })
+
+    this.emit('screen-mode.change', device )
   }
   delete(){
-    // Disable add-view placeholders
-    this.setPlaceholders('inert')
+    // Disable add-view alleys
+    this.setAlleys('inert')
 
     // Clear views meta data
     this.views?.clear()
     // Remove frame element from the DOM
     this.$frame.remove()
+
+    this.emit('frame.delete')
   }
   edit(){
     this.active = true
@@ -208,17 +214,19 @@ export default class Frame extends EventEmitter {
 
     this.$frame.removeAttr('active')
     this.$frame.parent().removeAttr('active')
+    
+    this.emit('frame.dismiss')
   }
 
   /**
-   * Set general state of placeholders
+   * Set general state of alleys
    * 
-   * - active: Enable add-view placeholders highlighting during editing
-   * - inert: Disable add-view placeholders
+   * - active: Enable add-view alleys highlighting during editing
+   * - inert: Disable add-view alleys
    */
-  setPlaceholders( status = 'active' ){
-    if( !this.flux.settings.enablePlaceholders ) return
-    $(`[${VIEW_PLACEHOLDER_SELECTOR}]`).attr('status', status )
+  setAlleys( status = 'active' ){
+    if( !this.flux.settings.enableAlleys ) return
+    $(`[${VIEW_ALLEY_SELECTOR}]`).attr('status', status )
   }
 
   /**

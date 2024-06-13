@@ -99,7 +99,7 @@ export function onShow( $this: JQuery<HTMLElement>, self: Controls ){
       
       self.flux.controls.clipboard = {
         type: 'finder',
-        value: key ? 'discret' : 'placeholder',
+        value: key ? 'discret' : 'alley',
         key
       }
 
@@ -153,6 +153,21 @@ export function onAction( $this: JQuery<HTMLElement>, self: Controls ){
     case 'frame.edit': self.flux.frames.edit( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
     // Delete a frame on the board
     case 'frame.delete': self.flux.frames.remove( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
+
+    /**
+     * -------------- Media screen switch --------------
+     */
+    case 'screen-mode.tv':
+    case 'screen-mode.tablet':
+    case 'screen-mode.mobile':
+    case 'screen-mode.desktop':
+    case 'screen-mode.default': {
+      const frame = self.flux.frames.active()
+      if( !frame ) return
+
+      const [ _, device ] = $this.attr('action')?.split('.') || []
+      frame.resize( device )
+    } break
 
     /**
      * -------------- View meta self --------------

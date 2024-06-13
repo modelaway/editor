@@ -60,10 +60,10 @@ export default class Modela {
     hoverSelect: false,
 
     /**
-     * Allow placeholder to indicate where to add
+     * Allow alley to indicate where to add
      * new views.
      */
-    enablePlaceholders: true,
+    enableAlleys: true,
 
     /**
      * Automatically lookup and apply view rules

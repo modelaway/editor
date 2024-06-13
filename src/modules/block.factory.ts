@@ -1,8 +1,8 @@
 import type { ViewCaption } from '../types/view'
 import {
   VIEW_REF_SELECTOR,
+  VIEW_ALLEY_SELECTOR,
   VIEW_CONTROL_OPTIONS,
-  VIEW_PLACEHOLDER_SELECTOR,
 
   CONTROL_LANG_SELECTOR,
   CONTROL_PANEL_SELECTOR,
@@ -276,10 +276,10 @@ export const createFloating = ( key: string, type: 'view' | 'layout', triggers: 
 }
 
 /**
- * Create common placeholder block
+ * Create common alley block
  */
-export const createPlaceholder = ( key?: string, discret?: boolean ) => {
-  return `<mblock ${VIEW_PLACEHOLDER_SELECTOR}="${generateKey()}" ${VIEW_REF_SELECTOR}="${key}" status="active" ${discret ? 'discret' : ''}></mblock>`
+export const createAlley = ( key?: string, discret?: boolean ) => {
+  return `<mblock ${VIEW_ALLEY_SELECTOR}="${generateKey()}" ${VIEW_REF_SELECTOR}="${key}" status="active" ${discret ? 'discret' : ''}></mblock>`
 }
 
 export const createInput = ({ type, label, name, value, pattern, placeholder, autofocus, options, range, disabled }: InputOptions ) => {

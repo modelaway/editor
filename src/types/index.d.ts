@@ -140,7 +140,7 @@ type ModelaSettings = {
   lang?: string
   viewOnly?: boolean
   hoverSelect?: boolean
-  enablePlaceholders?: boolean
+  enableAlleys?: boolean
   autoPropagate?: boolean
   plugins?: (string | ModelaPluginOption)[]
 }

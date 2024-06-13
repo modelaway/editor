@@ -18,7 +18,7 @@ export const VIEW_STYLE_SELECTOR = 'mv-style'
 export const VIEW_EMPTY_SELECTOR = 'mv-empty'
 export const VIEW_ACTIVE_SELECTOR = 'mv-active'
 export const VIEW_CAPTION_SELECTOR = 'mv-caption'
-export const VIEW_PLACEHOLDER_SELECTOR = 'mv-placeholder'
+export const VIEW_ALLEY_SELECTOR = 'mv-alley'
 export const VIEW_TYPES_ALLOWED_SELECTOR = 'mv-types-allowed'
 
 /**
@@ -160,6 +160,16 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
     title: 'Device Screens',
     disabled: false,
     sub: {
+      default: { 
+        icon: 'bx bx-expand',
+        title: 'Current Screen',
+        event: {
+          type: 'action',
+          params: true
+        },
+        active: true,
+        disabled: false
+      },
       mobile: { 
         icon: 'bx bx-mobile-alt',
         title: 'Mobile',
@@ -823,9 +833,44 @@ export const ON_ACTION_EVENTS: string[] = [
  * Device media screen resolutions
  */
 export const MEDIA_SCREENS: ObjectType<MediaScreen> = {
-  'iPhone SE': { type: 'mobile', width: '375px', height: '667px' },
-  'iPad Mini': { type: 'tablet', width: '768px', height: '1024px' },
-  'Desktop': { type: 'desktop', width: '1368px', height: '912px' }
+  'iPhone SE': { 
+    device: 'mobile',
+    type: { id: 'xs', label: 'Extra Small' }, 
+    width: '375px',
+    height: '667px',
+    rotate: true
+  },
+  'iPad Mini': { 
+    device: 'tablet',
+    type: { id: 'sm', label: 'Small' }, 
+    width: '768px',
+    height: '1024px',
+    rotate: true
+  },
+  'Dell': { 
+    device: 'desktop',
+    type: { id: 'md', label: 'Medium' }, 
+    width: '1024px',
+    height: '768px'
+  },
+  'HP Desktop': {
+    device: 'desktop',
+    type: { id: 'lg', label: 'Large' }, 
+    width: '1368px',
+    height: '912px'
+  },
+  'Android TV': { 
+    device: 'tv',
+    type: { id: 'xl', label: 'Extra Large' }, 
+    width: '2648px',
+    height: '1368px'
+  },
+  'LG 55"': { 
+    device: 'tv',
+    type: { id: 'sl', label: 'Super Large' }, 
+    width: '4048px',
+    height: '3368px'
+  }
 }
 
 export const PATCH_CSS_SETTINGS: StyleSettings = {
@@ -835,15 +880,15 @@ export const PATCH_CSS_SETTINGS: StyleSettings = {
       --me-active-bg-color: rgba(200, 200, 200, .4);
       --me-active-border-radius: 3px;
       --me-active-transition: 250ms;
-      --me-placeholder-height: 0.8rem;
+      --me-alley-height: 0.8rem;
       --me-box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, 0.4);
       --me-icon-size: 1.3rem;
     }
 
-    [mv-placeholder] {
+    [mv-alley] {
       display: inline-block;
       width: 100%;
-      height: var(--me-placeholder-height);
+      height: var(--me-alley-height);
 
       &[status="active"]:hover {
         outline: 0;

@@ -23,8 +23,10 @@ type Response = {
   value?: any
 }
 type EventListener = ( e: FrameQuery ) => void
-
-const State: { [index: string]: JQuery<HTMLElement | Event> } = {}
+type QueryState = {
+  selector?: string
+  $element: JQuery<HTMLElement | Event> 
+}
 
 export class FrameQuery {
   private readonly selector: string | null
@@ -59,12 +61,12 @@ export class FrameQuery {
 
   public initialize(): Promise<FrameQuery> {
     return new Promise( ( resolve, reject ) => {
-      this.channel.emit('init', this.index || this.selector, ( error: string | boolean, { index, length }: FrameQueryProps ) => {
+      this.channel.emit('init', this.index || this.selector, ( error: string | boolean, props: FrameQueryProps ) => {
         if( error ) return reject( error )
 
         // Record remote state index
-        this.index = index
-        this.length = length
+        this.index = props.index
+        this.length = props.length
         
         resolve( this )
       } )
@@ -78,11 +80,13 @@ export class FrameQuery {
 
       packet.index = this.index
 
-      this.channel.emit('packet', packet, ( error: string | boolean, { length, value }: Response ) => {
+      this.channel.emit('packet', packet, ( error: string | boolean, response: Response ) => {
+        if( error ) return reject( error )
+
         // Keep element length property updated
-        this.length = length
-        
-        error ? reject( error ) : resolve( value )
+        this.length = response.length
+
+        error ? reject( error ) : resolve( response.value )
       } )
     } )
   }
@@ -159,7 +163,7 @@ export class FrameQuery {
    * end of each element in the set of matched elements.
    */
   async append( arg: FrameQuery | string ){
-    await this.call({ fn: 'append', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
+    await this.call({ fn: 'append', arg: [ typeof arg == 'object' ? arg.index : arg ] })
     return this
   }
 
@@ -168,7 +172,7 @@ export class FrameQuery {
    * the end of the target.
    */
   async appendTo( arg: FrameQuery | string ){
-    await this.call({ fn: 'appendTo', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
+    await this.call({ fn: 'appendTo', arg: [ typeof arg == 'object' ? arg.index : arg ] })
     return this
   }
 
@@ -177,7 +181,7 @@ export class FrameQuery {
    * beginning of each element in the set of matched elements.
    */
   async prepend( arg: FrameQuery | string ){
-    await this.call({ fn: 'prepend', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
+    await this.call({ fn: 'prepend', arg: [ typeof arg == 'object' ? arg.index : arg ] })
     return this
   }
 
@@ -186,7 +190,7 @@ export class FrameQuery {
    * the beginning of the target.
    */
   async prependTo( arg: FrameQuery | string ){
-    await this.call({ fn: 'prependTo', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
+    await this.call({ fn: 'prependTo', arg: [ typeof arg == 'object' ? arg.index : arg ] })
     return this
   }
 
@@ -195,7 +199,7 @@ export class FrameQuery {
    * element in the set of matched elements.
    */
   async before( arg: FrameQuery | string ){
-    await this.call({ fn: 'before', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
+    await this.call({ fn: 'before', arg: [ typeof arg == 'object' ? arg.index : arg ] })
     return this
   }
 
@@ -204,7 +208,7 @@ export class FrameQuery {
    * element in the set of matched elements.
    */
   async after( arg: FrameQuery | string ){
-    await this.call({ fn: 'after', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
+    await this.call({ fn: 'after', arg: [ typeof arg == 'object' ? arg.index : arg ] })
     return this
   }
 
@@ -378,7 +382,7 @@ export class FrameQuery {
    * after the target.
    */
   async insertAfter( arg: FrameQuery | string ){
-    await this.call({ fn: 'insertAfter', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
+    await this.call({ fn: 'insertAfter', arg: [ typeof arg == 'object' ? arg.index : arg ] })
     return this
   }
 
@@ -387,7 +391,7 @@ export class FrameQuery {
    * before the target.
    */
   async insertBefore( arg: FrameQuery | string ){
-    await this.call({ fn: 'insertBefore', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
+    await this.call({ fn: 'insertBefore', arg: [ typeof arg == 'object' ? arg.index : arg ] })
     return this
   }
 
@@ -396,7 +400,7 @@ export class FrameQuery {
    * elements.
    */
   async replaceAll( arg: FrameQuery | string ){
-    await this.call({ fn: 'replaceAll', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
+    await this.call({ fn: 'replaceAll', arg: [ typeof arg == 'object' ? arg.index : arg ] })
     return this
   }
 
@@ -406,7 +410,7 @@ export class FrameQuery {
    * that was removed.
    */
   async replaceWith( arg: FrameQuery | string ){
-    await this.call({ fn: 'replaceWith', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
+    await this.call({ fn: 'replaceWith', arg: [ typeof arg == 'object' ? arg.index : arg ] })
     return this
   }
 
@@ -415,7 +419,7 @@ export class FrameQuery {
    * of matched elements.
    */
   async wrap( arg: FrameQuery | string ){
-    await this.call({ fn: 'wrap', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
+    await this.call({ fn: 'wrap', arg: [ typeof arg == 'object' ? arg.index : arg ] })
     return this
   }
 
@@ -424,7 +428,7 @@ export class FrameQuery {
    * of matched elements.
    */
   async wrapAll( arg: FrameQuery | string ){
-    await this.call({ fn: 'wrapAll', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
+    await this.call({ fn: 'wrapAll', arg: [ typeof arg == 'object' ? arg.index : arg ] })
     return this
   }
 
@@ -433,7 +437,7 @@ export class FrameQuery {
    * in the set of matched elements.
    */
   async wrapInner( arg: FrameQuery | string ){
-    await this.call({ fn: 'wrapInner', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
+    await this.call({ fn: 'wrapInner', arg: [ typeof arg == 'object' ? arg.index : arg ] })
     return this
   }
 
@@ -442,7 +446,7 @@ export class FrameQuery {
    * DOM, leaving the matched elements in their place.
    */
   async unwrap( arg: FrameQuery | string ){
-    await this.call({ fn: 'unwrap', arg: [ typeof arg == 'object' ? arg.selector : arg ] })
+    await this.call({ fn: 'unwrap', arg: [ typeof arg == 'object' ? arg.index : arg ] })
     return this
   }
 
@@ -796,6 +800,8 @@ export class FrameQuery {
   }
 }
 
+const State: { [index: string]: QueryState } = {}
+
 export default ( channel: IOF ) => {
   /**
    * Frame JQuery element initialization event listener
@@ -804,9 +810,16 @@ export default ( channel: IOF ) => {
     try {
       if( !selector )
         throw new Error('Undefined selector')
-      
+
+      let $element
+      switch( selector ){
+        case 'window': $element = $(window); break
+        case 'document': $element = $(document); break
+        default: $element = $(selector) as any
+      }
+
+      const staticElements = ['window', 'document']
       let index
-      const $element = $(selector) as any
       if( $element.length ){
         /**
          * Hold initialized JQuery element in momery
@@ -815,9 +828,12 @@ export default ( channel: IOF ) => {
          * - Helps provide initial properties to remote
          * - Facilitate virtual operation on the matched 
          *   JQuery element (even before to add to the DOM)
+         * 
+         * NOTE: Keep static index for static elements like: 
+         *       `window`, `document`, `body`, ...
          */
-        index = `--${generateKey()}--`
-        State[ index ] = $element
+        index = staticElements.includes( selector ) ? selector : String( generateKey() )
+        State[ index ] = { selector, $element }
       }
 
       const props: FrameQueryProps = {
@@ -836,13 +852,13 @@ export default ( channel: IOF ) => {
     try {
       if( !index )
         throw new Error('Undefined selector index')
-      
+
       /**
        * Use a state element or create new jquery element
        * 
        * - state element are usually for cloned elements, ...
        */
-      let $element = State[ index ] as any
+      let $element = State[ index ] && State[ index ].$element as any
       if( !$element?.length )
         throw new Error(`Undefined index element`)
       
@@ -857,21 +873,24 @@ export default ( channel: IOF ) => {
         const [ _event, _selector ] = arg
         _selector ?
             // Event listener with scope selector
-            $element[ fn ]( _event, _selector, function( this: Event ){
+            $element[ fn ]( _event, _selector, function( e: any ){
+              if( !e.currentTarget || e.target !== e.currentTarget ) 
+                return
+              
               const
-              $this = $(this),
-              targetIndex = `--${generateKey()}--`
+              $this = $(e.currentTarget),
+              targetIndex = String( generateKey() )
 
-              State[ targetIndex ] = $this
+              State[ targetIndex ] = { $element: $this }
               channel.emit(`@${_event}-${_selector}`, { index: targetIndex, length: $this.length })
             })
             // Event listener without scope selector
             : $element[ fn ]( _event, function( this: Event ){
                 const
                 $this = $(this),
-                targetIndex = `--${generateKey()}--`
+                targetIndex = String( generateKey() )
 
-                State[ targetIndex ] = $this
+                State[ targetIndex ] = { $element: $this }
                 channel.emit(`@${_event}-${index}`, { index: targetIndex, length: $this.length })
               })
       }
@@ -882,20 +901,31 @@ export default ( channel: IOF ) => {
         $element[ fn ]( function( this: Event ){
           const
           $this = $(this),
-          targetIndex = `--${generateKey()}--`
+          targetIndex = String( generateKey() )
 
-          State[ targetIndex ] = $this
+          State[ targetIndex ] = { $element: $this }
           channel.emit(`@${fn}-${index}`, { index: targetIndex, length: $this.length })
         })
+
+      /**
+       * Invoke JQuery static method on provided element 
+       * index as argument.
+       */
+      else if( arg && /^[0-9]+$/.test( arg[0] ) ){
+        if( !State[ arg[0] ] )
+          throw new Error('Invalid element index')
+
+        value = $element[ fn ]( State[ arg[0] ].$element )
+      }
       
       // Invoke JQuery static method on selected element
       else value = $element[ fn ]( ...arg )
-      
+
       // Create new jQuery element instance
       if( instance ){
-        const instanceIndex = `--${generateKey()}--`
+        const instanceIndex = String( generateKey() )
         if( value.length )
-          State[ instanceIndex ] = value
+          State[ instanceIndex ] = { $element: value }
 
         value = {
           index: instanceIndex,
@@ -903,6 +933,10 @@ export default ( channel: IOF ) => {
           length: value.length
         } as FrameQueryProps
       }
+
+      // Clean up stored element state
+      if( fn == 'remove' )
+        delete State[ index ]
 
       const response: Response = {
         length: $element.length,

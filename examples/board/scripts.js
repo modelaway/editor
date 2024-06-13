@@ -61,9 +61,9 @@ editor.frames.add({
 //   title: 'Frame Test',
 //   device: 'tablet'
 // })
-// // Add a mobile frame to the board
-// editor.frames.add({
-//   source: 'http://127.0.0.1:3000/publications/@modela/bun/examples/wigo/index.html',
-//   title: 'Frame Test',
-//   device: 'mobile'
-// })
+// Add a mobile frame to the board
+editor.frames.add({
+  source: 'http://127.0.0.1:3000/publications/@modela/bun/examples/wigo/index.html',
+  title: 'Frame Test',
+  device: 'mobile'
+})

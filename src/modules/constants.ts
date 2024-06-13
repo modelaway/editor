@@ -37,7 +37,7 @@ export const CONTROL_BLOCK_SELECTOR = 'mv-control-block'
 export const CONTROL_EDGE_MARGIN = 15
 export const CONTROL_PANEL_MARGIN = 20
 export const CONTROL_TOOLBAR_MARGIN = 6
-export const CONTROL_ADDPOINT_MARGIN = 10
+export const CONTROL_FLOATING_MARGIN = 10
 
 export const FORM_INPUT_SELECTOR = 'mv-form-input'
 export const FORM_SEPERATOR_SELECTOR = 'mv-form-seperator'
@@ -826,4 +826,48 @@ export const MEDIA_SCREENS: ObjectType<MediaScreen> = {
   'iPhone SE': { type: 'mobile', width: '375px', height: '667px' },
   'iPad Mini': { type: 'tablet', width: '768px', height: '1024px' },
   'Desktop': { type: 'desktop', width: '1368px', height: '912px' }
+}
+
+export const PATCH_CSS_SETTINGS: StyleSettings = {
+  css: ` 
+    :root {
+      --me-bg-color: rgba(100, 100, 102, 0.9);
+      --me-active-bg-color: rgba(200, 200, 200, .4);
+      --me-active-border-radius: 3px;
+      --me-active-transition: 250ms;
+      --me-placeholder-height: 0.8rem;
+      --me-box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, 0.4);
+      --me-icon-size: 1.3rem;
+    }
+
+    [mv-placeholder] {
+      display: inline-block;
+      width: 100%;
+      height: var(--me-placeholder-height);
+
+      &[status="active"]:hover {
+        outline: 0;
+        background: var(--me-active-bg-color);
+        border-radius: var(--me-active-border-radius);
+        transition: var(--me-active-transition);
+      }
+
+      &[discret] {
+        --radius: .3rem;
+        position: absolute;
+        display: block;
+        z-index: 50;
+        left: calc(50% - 0.15rem);
+        top: 100%;
+        width: var(--radius);
+        height: var(--radius);
+        cursor: pointer;
+        margin-top: -0.15rem;
+        border-radius: 50%;
+        background-color: var(--me-bg-color);
+        box-shadow: var(--me-box-shadow);
+      }
+    }
+  `,
+  meta: true
 }

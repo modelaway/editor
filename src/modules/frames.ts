@@ -46,6 +46,10 @@ export default class Frames extends EventEmitter {
     this.list[ frame.key ] = frame
   }
 
+  active(){
+    return this.currentFrame?.active ? this.currentFrame : null
+  }
+
   /**
    * Loop operation on all active frames
    */

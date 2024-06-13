@@ -43,7 +43,7 @@ export default class Plugins {
         const plugin = (await import( this.getInbuildPath( name ) )).default as PluginInstance
         this.register( plugin, config )
       }
-      catch( error ){ console.log(error); throw new Error(`<${name}> plugin not found`)}
+      catch( error ){ throw new Error(`<${name}> plugin not found`) }
     }
 
     // By string definition
@@ -121,6 +121,7 @@ export default class Plugins {
         // Discard the plugin
         this.list[ name ][ registered[0] ].discard()
         delete this.list[ name ]
+        
         return
       }
 

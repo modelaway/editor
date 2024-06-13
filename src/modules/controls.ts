@@ -1,22 +1,12 @@
 import type Modela from '../exports/modela'
 import * as Event from './events'
-import {
-  CONTROL_ROOT,
-  VIEW_IDENTIFIER,
-  VIEW_ACTIVE_SELECTOR,
-  VIEW_PLACEHOLDER_SELECTOR,
-  CONTROL_TOOLBAR_SELECTOR,
-  CONTROL_PANEL_SELECTOR,
-  CONTROL_BLOCK_SELECTOR
-} from './constants'
+import { CONTROL_TOOLBAR_SELECTOR } from './constants'
 import { createModela } from './block.factory'
-import { PluginConfig, PluginInstance } from '../types/plugin'
 
 export default class Controls {
   readonly flux: Modela
 
   $board?: JQuery<HTMLElement>
-  $store?: JQuery<HTMLElement>
   $global?: JQuery<HTMLElement>
   $toolbar?: JQuery<HTMLElement>
   
@@ -43,7 +33,6 @@ export default class Controls {
     $('body').prepend( this.flux.$modela )
 
     this.$board = this.flux.$modela.find('> mboard')
-    this.$store = this.flux.$modela.find('> mstore')
     this.$global = this.flux.$modela.find('> mglobal')
     this.$toolbar = this.flux.$modela.find(`[${CONTROL_TOOLBAR_SELECTOR}="global"]`)
 
@@ -52,10 +41,7 @@ export default class Controls {
   }
 
   events(){
-    if( !this.flux.$modela
-        || !this.flux.$root
-        || !this.flux.$root.length
-        || !this.flux.$modela.length ) return
+    if( !this.flux.$modela?.length ) return
 
     const self = this
     function handler( fn: Function ){
@@ -63,85 +49,36 @@ export default class Controls {
         typeof fn === 'function' && fn( $(this), self )
       }
     }
-
-    function wildEvents( $layer: JQuery<HTMLElement> ){
-      if( !$layer.length ) return
-
-      $layer
-      /**
-       * Tab event trigger
-       */
-      .on('click', '[tab]', handler( Event.onTab ) )
-      /**
-       * Show event trigger
-       */
-      .on('click', '[show]', handler( Event.onShow ) )
-      /**
-       * Apply event trigger
-       */
-      .on('click', '[apply]', handler( Event.onApply ) )
-      /**
-       * Action event trigger
-       */
-      .on('click', '[action]', handler( Event.onAction ) )
-      /**
-       * Dismiss event trigger
-       */
-      .on('click', '[dismiss]', handler( Event.onDismiss ) )
-      /**
-       * Custom `on-*` event trigger
-       */
-      .on('click', '[on]', handler( Event.onCustomListener ) )
-    }
-
-    async function onUserAction( e: any ){
-      if( e.defaultPrevented ) return
-
-      switch( e.type || e.key ){
-        // case 'ArrowDown': break
-        // case 'ArrowUp': break
-        // case 'ArrowLeft': break
-        // case 'ArrowRight': break
-        // case 'Escape': break
-
-        // case 'Enter': await self.flux.history.record( $(e).html() ); break
-        // case 'Tab': await self.flux.history.record( $(e).html() ); break
-        // case ' ': await self.flux.history.record( $(e).html() ); break
-
-        // case 'Backspace': break
-        // case 'Clear': break
-        // case 'Copy': break
-        // case 'CrSel': break
-        // case 'Cut': break
-        // case 'Delete': break
-        // case 'EraseEof': break
-        // case 'ExSel': break
-        // case 'Insert': break
-        // case 'Paste': await self.flux.history.record( $(e).html() ); break
-        // case 'Redo': break
-        // case 'Undo': break
-
-        // More key event values
-        // https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_key_values
-
-        // case 'paste': await self.flux.history.record( $(e).html() ); break
-
-        // Key event can't be handled
-        default: return
-      }
-
-      e.preventDefault()
-    }
-
+    
+    this.flux.$modela
     /**
-     * Declare wild events: Same events available from every
-     * layer of the editor.
-     * 
-     * - editing context root
-     * - editor controls layer
+     * Tab event trigger
      */
-    wildEvents( this.flux.$root )
-    wildEvents( this.flux.$modela )
+    .on('click', '[tab]', handler( Event.onTab ) )
+    /**
+     * Show event trigger
+     */
+    .on('click', '[show]', handler( Event.onShow ) )
+    /**
+     * Apply event trigger
+     */
+    .on('click', '[apply]', handler( Event.onApply ) )
+    /**
+     * Action event trigger
+     */
+    .on('click', '[action]', handler( Event.onAction ) )
+    /**
+     * Dismiss event trigger
+     */
+    .on('click', '[dismiss]', handler( Event.onDismiss ) )
+    /**
+     * Custom `on-*` event trigger
+     */
+    .on('click', '[on]', handler( Event.onCustomListener ) )
+
+    // .on('input', '[contenteditable]', handler( Event.onContentChange ) )
+    // .on('keydown', onUserAction )
+    // .on('paste', onUserAction )
   }
 
   destroy(){

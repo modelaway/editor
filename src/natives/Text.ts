@@ -198,7 +198,6 @@ Text: ViewComponent = {
         --active-bg-color: rgba(100, 100, 100, 0.2);
         --active-border-radius: 3px;
         --active-transition: 200ms;
-        --placeholder-height: 0.8rem;
 
         min-width: 1.3rem;
         font-size: inherit;
@@ -209,18 +208,6 @@ Text: ViewComponent = {
           border-radius: var(--active-border-radius);
           background: var(--active-bg-color);
           transition: var(--active-transition);
-        }
-        + [mv-placeholder] {
-          display: inline-block;
-          width: 100%;
-          height: var(--placeholder-height);
-
-          &[status="active"]:hover {
-            outline: 0;
-            background: var(--active-bg-color);
-            border-radius: var(--active-border-radius);
-            transition: var(--active-transition);
-          }
         }
 
         &[contenteditable] { outline: none; }

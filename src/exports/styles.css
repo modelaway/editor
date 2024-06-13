@@ -13,6 +13,8 @@
   --me-icon-size: 1.3rem;
   --me-icon-size-2: 1.6rem;
 
+  --me-edge-padding: .9rem;
+
   --me-border-radius: 5px;
   --me-border-color: rgba(0, 0, 20, .15);
   --me-trigger-text-color: #fff;
@@ -129,20 +131,23 @@ modela,
 
 mul,
 mblock,
-mstore,
 mglobal { display: block; }
 micon,
 mlabel,
 minline { display: inline; }
 mli { display: inherit; }
 
-/* mstore {
+modela mglobal,
+modela mglobal > [show],
+modela mglobal > [backdrop],
+modela mglobal > [container] {
   position: fixed;
-  z-index: 300;
-  left: 0;
-} */
-modela mstore > [show] {
-  position: fixed;
+  z-index: 201;
+}
+modela mglobal {
+  z-index: 201;
+}
+modela mglobal > [show] {
   left: 0;
   top: calc(50% - 40px);
   margin: 2px;
@@ -150,10 +155,10 @@ modela mstore > [show] {
   border-radius: 0 100px 100px 0;
   transition: ease-in-out var(--me-active-transition);
 }
-modela mstore > [show]:hover { 
+modela mglobal > [show]:hover { 
   background-color: var(--me-primary-color-fade);
 }
-modela mstore > [show] micon {
+modela mglobal > [show] micon {
   padding: 5px 0;
   cursor: pointer;
   color: var(--me-trigger-text-color);
@@ -162,110 +167,14 @@ modela mstore > [show] micon {
   backdrop-filter: var(--me-backdrop-filter);
   font-size: var(--me-icon-size)!important;
 }
-modela mstore:hover > [mv-control-block] { left: 0; }
-
-modela mglobal {
-  position: fixed;
-  right: 0;
-  bottom: 0;
-  margin: .9rem;
-}
-
-modela mstore,
-modela mglobal { z-index: 200; }
-
-/* Editing toolbars */
-[mv-panel],
-[mv-toolbar].editing {
-  position: absolute;
-  width: 0px;
-  user-select: none;
-  /* pointer-events: none; */
-}
-modela mframe mul,
-[mv-toolbar] > mblock > mul,
-[mv-control-block] > [options="tabs"] {
-  list-style: none;
-  margin: 0;
-  padding: 1px;
-  border-radius: var(--me-border-radius);
-  background-color: var(--me-secondary-color-transparent);
-  backdrop-filter: var(--me-backdrop-filter);
-  transition: var(--me-active-transition);
-}
-[mv-toolbar],
-[mv-toolbar] > mblock,
-[mv-toolbar] > mblock > mul,
-[mv-toolbar] > mblock > mul > mblock,
-[mv-control-block] > [options="tabs"] {
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-}
-
-[mv-toolbar] > mblock { padding: 6px 0; }
-[mv-toolbar] > mblock > mul:not(:first-child) {
-  margin: 0 6px;
-}
-[mv-toolbar] mli,
-modela mframe mul mli,
-[mv-control-block] > [options="tabs"] > mli {
-  padding: 6px;
-  margin: 4px;
-  display: inline-flex;
-  align-items: center;
-  color: var(--me-trigger-text-color);
-  border-radius: var(--me-border-radius);
-  transition: var(--me-active-transition);
-}
-[mv-toolbar] mli:not(.label),
-modela mframe mul > mli:not(.label),
-[mv-control-block] > [options="tabs"] > mli:not(.label) {
-  cursor: pointer;
-}
-[mv-toolbar] mli[active],
-[mv-control-block] > [options="tabs"] > mli[active] {
-  color: var(--me-active-text-color);
-}
-[mv-toolbar] mli[disabled],
-[mv-control-block] > [options="tabs"] > mli[disabled] {
-  color: var(--me-disabled-text-color);
-  cursor: not-allowed;
-}
-[mv-toolbar] [meta],
-[mv-toolbar] [dismiss],
-[mv-toolbar] mli:not(.label,[disabled]):hover,
-modela mframe mul > mli:not(.label,[disabled]):hover,
-[mv-control-block] > [options="tabs"] > mli:not(.label,[disabled]):hover {
-  background-color: var(--me-secondary-color-fade);
-}
-[mv-toolbar] mli.label > micon,
-[mv-toolbar] mli.label > mlabel,
-modela mframe mul mli.label > mlabel,
-[mv-control-block] > [options="tabs"] > mli.label > mlabel {
-  cursor: default;
-  text-wrap: nowrap;
-  padding-left: 10px;
-  font-size: var(--me-font-size);
-  color: var(--me-disabled-text-color);
-}
-[mv-toolbar] mli.label > micon { padding-left: 0; }
-[mv-toolbar] mli micon,
-modela mframe mul mli micon,
-[mv-control-block] > [options="tabs"] > mli micon {
-  font-size: var(--me-icon-size)!important;
-}
-[mv-toolbar] [options="sub"],
-[mv-toolbar] [options="extra"] {
+modela mglobal > [backdrop] {
   display: none;
+  width: 100vw;
+  height: 100vh;
+  left: 0;
+  top: 0;
 }
-[mv-toolbar] [options="sub"].active,
-[mv-toolbar] [options="extra"].active {
-  display: inherit;
-}
-
-[mv-control-block="store"] {
-  position: fixed;
+modela mglobal > [container] {
   left: -100%;
   min-width: 25vw;
   margin: 15px;
@@ -277,23 +186,95 @@ modela mframe mul mli micon,
   background-color: rgba(225, 225, 225, .6);
   box-shadow: var(--me-box-shadow);
 }
-[mv-control-block="store"].active { left: 0; }
-[mv-control-block="global"] {
+modela mglobal.active > [backdrop] { display: block; }
+modela mglobal:hover > [container],
+modela mglobal.active > [container] { left: 0; }
+
+
+/* Editing toolbars */
+[mv-panel],
+[mv-toolbar] {
   position: fixed;
-  display: none;
-  right: 0;
-  bottom: 0;
-  min-width: 20vw;
-  min-height: 75vh;
-  max-height: 90vh;
-  overflow: hidden;
-  margin: 15px;
-  color: var(--me-trigger-text-color);
-  border-radius: 20px;
-  transition: var(--me-active-transition);
+  z-index: 200;
+  width: 0px;
+  user-select: none;
+  /* pointer-events: none; */
+}
+[mv-toolbar="global"] {
+  left: var(--me-edge-padding);
+  bottom: var(--me-edge-padding);
+}
+modela mframe mul,
+[mv-toolbar] > mblock > mul {
+  list-style: none;
+  margin: 0;
+  padding: 1px;
+  border-radius: var(--me-border-radius);
+  background-color: var(--me-secondary-color-transparent);
   backdrop-filter: var(--me-backdrop-filter);
-  background-color: var(--me-primary-color-fade);
-  box-shadow: var(--me-box-shadow);
+  transition: var(--me-active-transition);
+}
+[mv-toolbar],
+[mv-toolbar] > mblock,
+[mv-toolbar] > mblock > mul,
+[mv-toolbar] > mblock > mul > mblock {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+}
+
+[mv-toolbar] > mblock { padding: 6px 0; }
+[mv-toolbar] > mblock > mul:not(:first-child) {
+  margin: 0 6px;
+}
+[mv-toolbar] mli,
+modela mframe mul mli {
+  padding: 6px;
+  margin: 4px;
+  display: inline-flex;
+  align-items: center;
+  color: var(--me-trigger-text-color);
+  border-radius: var(--me-border-radius);
+  transition: var(--me-active-transition);
+}
+[mv-toolbar] mli:not(.label),
+modela mframe mul > mli:not(.label) {
+  cursor: pointer;
+}
+[mv-toolbar] mli[active] {
+  color: var(--me-active-text-color);
+}
+[mv-toolbar] mli[disabled] {
+  color: var(--me-disabled-text-color);
+  cursor: not-allowed;
+}
+[mv-toolbar] [meta],
+[mv-toolbar] [dismiss],
+[mv-toolbar] mli:not(.label,[disabled]):hover,
+modela mframe mul > mli:not(.label,[disabled]):hover {
+  background-color: var(--me-secondary-color-fade);
+}
+[mv-toolbar] mli.label > micon,
+[mv-toolbar] mli.label > mlabel,
+modela mframe mul mli.label > mlabel {
+  cursor: default;
+  text-wrap: nowrap;
+  padding-left: 10px;
+  font-size: var(--me-font-size);
+  color: var(--me-disabled-text-color);
+}
+[mv-toolbar] mli.label > micon { padding-left: 0; }
+[mv-toolbar] mli micon,
+modela mframe mul mli micon {
+  font-size: var(--me-icon-size)!important;
+}
+[mv-toolbar] [options="sub"],
+[mv-toolbar] [options="extra"] {
+  display: none;
+}
+[mv-toolbar] [options="sub"].active,
+[mv-toolbar] [options="extra"].active {
+  display: inherit;
 }
 
 /* Empty view block */
@@ -434,7 +415,8 @@ modela mframe mul mli micon,
 }
 
 [mv-floating] {
-  position: absolute;
+  position: fixed;
+  z-index: 200;
   display: block;
   margin-top: -0.6rem;
   user-select: none;
@@ -461,39 +443,6 @@ modela mframe mul mli micon,
 }
 [mv-floating] > mul > mli:hover { transform:scale(1.08); }
 [mv-floating] > mul > mli:active { transform:scale(1.1); }
-
-[mv-discret] {
-  position: absolute;
-  display: block;
-  z-index: 50;
-  left: calc(50% - 1.1rem);
-  top: 100%;
-  cursor: pointer;
-  margin-top: -1.1rem;
-  border-radius: 50%;
-  background-color: var(--me-secondary-color-transparent);
-  box-shadow: var(--me-box-shadow);
-  transition: var(--me-active-transition);
-  transform: scale(0.1);
-}
-[mv-discret] mblock { 
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  transform: scale(4);
-  transition: 500ms;
-}
-[mv-discret] micon {
-  position: relative;
-  visibility: hidden;
-  padding: 0.6rem;
-  color: #fff;
-  font-size: var(--me-icon-size);
-}
-[mv-discret]:hover,
-[mv-discret]:hover mblock { transform: scale(1); }
-[mv-discret]:hover micon { visibility: visible; }
 
 /* 
 [mv-form-input="radio"],

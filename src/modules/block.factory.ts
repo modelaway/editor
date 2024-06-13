@@ -15,7 +15,7 @@ import {
   FORM_INPUT_SELECTOR,
   FORM_SEPERATOR_SELECTOR,
   CONTROL_FRAME_SELECTOR,
-  VIEW_EMPTY_SELECTOR,
+  VIEW_EMPTY_SELECTOR
 } from './constants'
 import { generateKey } from './utils'
 import { FrameOption } from '../types/frame'
@@ -24,47 +24,24 @@ export const createModela = () => {
 
   return `<modela>
     <mboard></mboard>
-    ${createStoreControlBlock()}
-    ${createGlobalControlBlock()}
+    ${createGlobal()}
+    ${createToolbar('global', GLOBAL_CONTROL_OPTIONS )}
   </modela>`
 }
 
-/**
- * UI blocks factory
- */
-export const createGlobalControlBlock = () => {
-  const globalTabs = `<mul options="tabs">
-    <mli show="global" target="settings" title="Settings" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-cog"></micon></mli>
-    <mli show="global" target="styles" title="Styles" ${CONTROL_LANG_SELECTOR}><micon class="bx bxs-brush"></micon></mli>
-    <mli show="global" target="assets" title="Assets" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-landscape"></micon></mli>
-    <mli dismiss="global" title="Dismiss" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-x"></micon></mli>
-  </mul>`,
-  globalBody = `<mblock>
-
+export const createGlobal = () => {
+  const globalBlock = `<mblock container>
   </mblock>`
   
+  /**
+   * 
+   */
   return `<mglobal>
-    ${createToolbar('global', GLOBAL_CONTROL_OPTIONS )}
-    
-    <mblock mv-control-block="global">
-      ${globalTabs}
-      ${globalBody}
-    </mblock>
-  </mglobal>`
-}
-export const createStoreControlBlock = () => {
-  const
-    storeBlock = `<mblock mv-control-block="store">
-    </mblock>`
-    
-    /**
-     * 
-     */
-    return `<mstore>
-      <minline show="store"><micon class="bx bx-dots-vertical-rounded"></micon></minline>
+    <minline show="global"><micon class="bx bx-dots-vertical-rounded"></micon></minline>
 
-      ${storeBlock}
-    </mstore>`
+    <mblock dismiss="global" backdrop></mblock>
+    ${globalBlock}
+  </mglobal>`
 }
 
 export const createFrame = ( key: string, options: FrameOption ) => {
@@ -298,18 +275,11 @@ export const createFloating = ( key: string, type: 'view' | 'layout', triggers: 
   return update ? `<mul>${list}</mul>` : `<mblock ${CONTROL_FLOATING_SELECTOR}="${key}"><mul>${list}</mul></mblock>`
 }
 
-export const createDiscretAddpoint = ( key: string ) => {
-  return `<mblock ${CONTROL_DISCRET_SELECTOR}="${key}">
-    <mblock></mblock>
-    <micon show="finder" params="view" class="bx bx-plus" title="Add view" ${CONTROL_LANG_SELECTOR}></micon>
-  </mblock>`
-}
-
 /**
  * Create common placeholder block
  */
-export const createPlaceholder = ( key?: string ) => {
-  return `<mblock ${VIEW_PLACEHOLDER_SELECTOR}="${generateKey()}" ${VIEW_REF_SELECTOR}="${key}" status="active"></mblock>`
+export const createPlaceholder = ( key?: string, discret?: boolean ) => {
+  return `<mblock ${VIEW_PLACEHOLDER_SELECTOR}="${generateKey()}" ${VIEW_REF_SELECTOR}="${key}" status="active" ${discret ? 'discret' : ''}></mblock>`
 }
 
 export const createInput = ({ type, label, name, value, pattern, placeholder, autofocus, options, range, disabled }: InputOptions ) => {

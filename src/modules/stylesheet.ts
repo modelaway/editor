@@ -90,7 +90,7 @@ export default class Stylesheet {
     if( !id || !str )
       throw new Error('Invalid injection arguments')
 
-    const selector = `${VIEW_STYLE_SELECTOR}="${id}"`
+    const selector = `${VIEW_STYLE_SELECTOR}="${this.settings.meta ? '@' : ''}${id}"`
     /**
      * Defined meta css properties or css by view 
      * elements by wrapping in a closure using the 
@@ -145,7 +145,7 @@ export default class Stylesheet {
    * Remove all injected styles from the DOM
    */
   async clear(){
-    (await this.$head.find(`style[${VIEW_STYLE_SELECTOR}="${this.nsp}"]`)).remove()
+    (await this.$head.find(`style[${VIEW_STYLE_SELECTOR}="${this.settings.meta ? '@' : ''}${this.nsp}"]`)).remove()
   }
 
   /**
@@ -176,7 +176,6 @@ export default class Stylesheet {
     // } )
     
     // return props
-    console.log('-- old custom')
   }
 
   /**

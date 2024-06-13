@@ -18,19 +18,22 @@ import {
   CONTROL_EDGE_MARGIN,
   CONTROL_PANEL_MARGIN,
   CONTROL_TOOLBAR_MARGIN,
-  VIEW_REF_SELECTOR
+  VIEW_REF_SELECTOR,
+  CONTROL_FLOATING_MARGIN
 } from './constants'
 import Stylesheet from './stylesheet'
 import {
   createPlaceholder,
   createToolbar,
   createPanel,
-  createDiscretAddpoint
+  createFloating,
+  createFinderPanel,
+  createSearchResult
 } from './block.factory'
 import { 
+  autoDismiss,
   debug,
-  generateKey,
-  getTopography
+  generateKey
 } from './utils'
 import { FrameQuery } from '../lib/frame.window'
 
@@ -133,7 +136,7 @@ export default class View {
         const freePositions = ['fixed', 'absolute', 'sticky']
 
         freePositions.includes( await this.$$.css('position') as string ) ?
-                                      await this.$$.prepend( createDiscretAddpoint( this.key as string ) )
+                                      await this.$$.prepend( createPlaceholder( this.key as string, true ) )
                                       : await this.$$.after( createPlaceholder( this.key as string ) )
       }
     }
@@ -355,23 +358,20 @@ export default class View {
       && await $block.append( createPlaceholder() )
     } )
   }
-  update( type: string, dataset: any ){
-    if( !this.component ) 
-      throw new Error('Invalid method called')
-
-    this.bridge.events.emit('apply', type, dataset )
-  }
   async destroy(){
     if( !this.$$?.length ) 
       throw new Error('Invalid method called')
     
     // Dismiss controls related to the view
-    this.dismiss()
+    await this.dismiss()
 
-    // Remove placeholder attached to the view
-    await (await this.$$.next(`[${VIEW_PLACEHOLDER_SELECTOR}]`)).remove()
-    // Remove visible floating active
-    await (await this.frame.$$body?.find(`[${CONTROL_FLOATING_SELECTOR}="${this.key}"]`))?.remove()
+    try {
+      // Remove placeholder attached to the view
+      await (await this.$$.next(`[${VIEW_PLACEHOLDER_SELECTOR}]`)).remove()
+      // Remove visible floating active
+      await (await this.frame.$$body?.find(`[${CONTROL_FLOATING_SELECTOR}="${this.key}"]`))?.remove()
+    }
+    catch( error ){}
 
     // Remove element from the DOM
     await this.$$.remove()
@@ -381,8 +381,7 @@ export default class View {
      * viwe element if there are no other instances of 
      * this view in the DOM.
      */
-    !(await this.frame.$$body?.find(`[${VIEW_NAME_SELECTOR}="${this.get('name')}"]`))?.length 
-    && this.styles?.clear()
+    this.styles?.clear()
 
     this.$$ = undefined
     this.key = undefined
@@ -395,7 +394,7 @@ export default class View {
    * Show view's editing toolbar
    */
   async showToolbar(){
-    if( !this.frame.flux.$modela || !this.key || !this.$$ ) 
+    if( !this.frame.flux.$modela || !this.key || !this.$$ )
       throw new Error('Invalid method called')
 
     if( this.frame.flux.$modela.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`).length ) 
@@ -412,7 +411,7 @@ export default class View {
     // Apply translation to text contents in toolbar
     $toolbar = this.frame.flux.i18n.propagate( $toolbar )
 
-    let { x, y, height } = await getTopography( this.$$ )
+    let { x, y, height } = await this.frame.getTopography( this.$$ )
     debug('show view toolbar: ', x, y )
 
     // Adjust by left edges
@@ -444,76 +443,201 @@ export default class View {
     // Adjust by the bottom edges
     if( y > (wHeight - tHeight) ) y = wHeight - tHeight - CONTROL_EDGE_MARGIN
 
-    console.log({ left: `${x}px`, top: `${y}px` })
     $toolbar.css({ left: `${x}px`, top: `${y}px` })
 
     // Fire show toolbar listeners
     this.bridge.events.emit('show.toolbar')
   }
-  // showPanel(){
-  //   if( !this.flux.$modela || !this.key || !this.$ ) 
-  //     throw new Error('Invalid method called')
+  async showPanel(){
+    if( !this.frame.flux.$modela || !this.key || !this.$$ ) 
+      throw new Error('Invalid method called')
 
-  //   if( this.flux.$modela.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}"]`).length ) 
-  //     return
+    if( this.frame.flux.$modela.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}"]`).length ) 
+      return
 
-  //   const { caption, panel } = this.get() as ViewComponent
-  //   if( typeof panel !== 'function' ) return
+    const { caption, panel } = this.get() as ViewComponent
+    if( typeof panel !== 'function' ) return
 
-  //   let $panel = $(createPanel( this.key, caption, panel( this.bridge ) ))
-  //   // Apply translation to text contents in panel
-  //   $panel = this.flux.i18n.propagate( $panel )
+    let $panel = $(createPanel( this.key, caption, panel( this.bridge ) ))
+    // Apply translation to text contents in panel
+    $panel = this.frame.flux.i18n.propagate( $panel )
 
-  //   let { x, y, width } = getTopography( this.$, true )
-  //   debug('show view panel: ', x, y )
+    let { x, y, width } = await this.frame.getTopography( this.$$ )
+    debug('show view panel: ', x, y )
 
-  //   this.flux.$modela.append( $panel )
+    this.frame.flux.$modela.append( $panel )
 
-  //   const
-  //   pWidth = $panel.find('> [container]').width() || 0,
-  //   pHeight = $panel.find('> [container]').height() || 0,
-  //   // Window dimensions
-  //   wWidth = $(window).width() || 0,
-  //   wHeight = $(window).height() || 0,
+    const
+    pWidth = $panel.find('> [container]').width() || 0,
+    pHeight = $panel.find('> [container]').height() || 0,
+    // Window dimensions
+    wWidth = $(window).width() || 0,
+    wHeight = $(window).height() || 0,
     
-  //   dueXPosition = pWidth + CONTROL_PANEL_MARGIN
+    dueXPosition = pWidth + CONTROL_PANEL_MARGIN
     
-  //   /**
-  //    * Not enough space at the left, position at the right
-  //    */
-  //   if( ( x - dueXPosition ) < CONTROL_EDGE_MARGIN ){
-  //     /**
-  //      * Not enough space at the right either, position 
-  //      * over view.
-  //      */
-  //     if( x + width + dueXPosition < wWidth )
-  //       x += width + CONTROL_PANEL_MARGIN
-  //   }
-  //   // Adjust by left edges
-  //   else x -= dueXPosition
+    /**
+     * Not enough space at the left, position at the right
+     */
+    if( ( x - dueXPosition ) < CONTROL_EDGE_MARGIN ){
+      /**
+       * Not enough space at the right either, position 
+       * over view.
+       */
+      if( x + width + dueXPosition < wWidth )
+        x += width + CONTROL_PANEL_MARGIN
+    }
+    // Adjust by left edges
+    else x -= dueXPosition
 
-  //   /**
-  //    * Display panel in window view when element 
-  //    * is position to close to the bottom.
-  //    */
-  //   if( ( y + pHeight + CONTROL_EDGE_MARGIN ) > wHeight )
-  //     y -= pHeight
+    /**
+     * Display panel in window view when element 
+     * is position to close to the bottom.
+     */
+    if( ( y + pHeight + CONTROL_EDGE_MARGIN ) > wHeight )
+      y -= pHeight
     
-  //   // Adjust by the top edges
-  //   else if( y < CONTROL_EDGE_MARGIN )
-  //     y = CONTROL_EDGE_MARGIN
+    // Adjust by the top edges
+    else if( y < CONTROL_EDGE_MARGIN )
+      y = CONTROL_EDGE_MARGIN
     
-  //   $panel.css({ left: `${x}px`, top: `${y}px` })
+    $panel.css({ left: `${x}px`, top: `${y}px` })
 
-  //   // Fire show panel listeners
-  //   this.bridge.events.emit('show.panel')
-  // }
-  // showMovable(){
+    // Fire show panel listeners
+    this.bridge.events.emit('show.panel')
+  }
+  async showFloating(){
+    if( !this.frame.flux.$modela || !this.key || !this.$$ )
+      throw new Error('Invalid method called')
+
+    if( this.frame.flux.$modela.find(`[${CONTROL_FLOATING_SELECTOR}="${this.key}"]`).length ) 
+      return
+    
+    const triggers = ['addpoint']
+    /**
+     * Show paste-view trigger point when a pending
+     * copy of view is in the clipboard.
+     */
+    if( this.frame.flux.controls.clipboard?.type == 'view' )
+      triggers.push('paste')
+
+    let $floating = this.frame.flux.$modela?.find(`[${CONTROL_FLOATING_SELECTOR}]`)
+
+    // Insert new floating point to the DOM
+    if( !$floating?.length ){
+      let $floating = $(createFloating( this.key, 'view', triggers ))
+
+      // Apply translation to text content on floating element
+      $floating = this.frame.flux.i18n.propagate( $floating )
+      this.frame.flux.$modela?.append( $floating )
+
+      $floating = this.frame.flux.$modela?.find(`[${CONTROL_FLOATING_SELECTOR}="${this.key}"]`)
+      if( !$floating?.length ) return
+
+      // autoDismiss('floating', $floating )
+    }
+
+    // Change key of currently floating point to new trigger's key
+    else if( !$floating.is(`[${CONTROL_FLOATING_SELECTOR}="${this.key}"]`) ){
+      $floating.attr( CONTROL_FLOATING_SELECTOR, this.key )
+                .html( createFloating( this.key, 'view', triggers, true ) )
+
+      // autoDismiss('floating', $floating )
+    }
+    
+    const
+    $$discret = await this.$$.find(`[${VIEW_PLACEHOLDER_SELECTOR}][discret]`),
+    $$placeholder = $$discret.length ? $$discret : await this.$$.next(`[${VIEW_PLACEHOLDER_SELECTOR}]`)
+    if( !$$placeholder.length ) return
+
+    let { x, y } = await this.frame.getTopography( $$placeholder )
+    const
+    tWidth = !$$discret.length && $floating.find('> mul').width() || 0,
+    dueXPosition = tWidth + CONTROL_FLOATING_MARGIN
+
+    /**
+     * Not enough space at the left, position at the right
+     */
+    if( ( x - dueXPosition ) >= 15 )
+      x -= dueXPosition
+    
+    $floating.css({ left: `${x}px`, top: `${y}px` })
+  }
+  async showViewFinder( $trigger: JQuery<HTMLElement> ){
+    if( !this.frame.flux.$modela || !this.key || !this.$$ )
+      throw new Error('Invalid method called')
+
+    let $finder = $(createFinderPanel( this.key as string, this.frame.flux.store.searchComponent() ))
+
+    // Apply translation to text content in finder panel
+    $finder = this.frame.flux.i18n.propagate( $finder )
+
+    /**
+     * Put finder panel in position
+     */
+    let { x, y } = await this.frame.getTopography( $trigger )
+
+    this.frame.flux.$modela?.append( $finder )
+
+    const
+    pWidth = $finder.find('> [container]').width() || 0,
+    pHeight = $finder.find('> [container]').height() || 0,
+    // Window dimensions
+    wWidth = $(window).width() || 0,
+    wHeight = $(window).height() || 0
+    
+    /**
+     * Not enough space at the left, position at the right
+     */
+    if( x < CONTROL_EDGE_MARGIN )
+      x = CONTROL_EDGE_MARGIN
+
+    /**
+     * Not enough space at the right either, position 
+     * over view.
+     */
+    if( ( x + pWidth + CONTROL_EDGE_MARGIN ) > wWidth )
+      x -= pWidth + CONTROL_EDGE_MARGIN
+
+    /**
+     * Display panel in window view when element 
+     * is position to close to the bottom.
+     */
+    if( ( y + pHeight + CONTROL_EDGE_MARGIN ) > wHeight )
+      y -= pHeight
+
+    $finder.css({ left: `${x}px`, top: `${y}px` })
+
+    /**
+     * Search input event listener
+     */
+    const self = this
+    $finder
+    .find('input[type="search"]')
+    .on('input', function( this: Event ){
+      const query = String( $(this).val() )
+      /**
+       * Trigger search with minimum 2 character input value
+       * but also allow empty input to redisplay default
+       * result list.
+       */
+      if( query.length == 1 ) return
+
+      const 
+      results = self.frame.flux.store.searchComponent( query ),
+      $results = $finder.find('.results')
+
+      $results.html( createSearchResult( results ) )
+      // Apply translation to results text contents
+      self.frame.flux.i18n.propagate( $results )
+    })
+  }
+  async showMovable(){
 
 
-  //   // Fire show movable listeners
-  //   this.bridge.events.emit('show.movable')
-  // }
+    // Fire show movable listeners
+    this.bridge.events.emit('show.movable')
+  }
   
   async move( direction?: string ){
     if( !this.$$?.length || !this.key ) 
@@ -529,7 +653,7 @@ export default class View {
         let $anchor = (await this.$$.prev(`[${VIEW_PLACEHOLDER_SELECTOR}]`)).length ?
                                     await (await this.$$.prev(`[${VIEW_PLACEHOLDER_SELECTOR}]`)).prev()
                                     : await this.$$.prev()
-                                    
+                                       
         /**
          * In case this view is the last top element in its 
          * container.
@@ -543,14 +667,13 @@ export default class View {
         await $anchor.before( this.$$ )
         $placeholder?.length && await this.$$.after( $placeholder )
       } break
-
+      
       case 'down': {
         const $placeholder = await this.$$.next(`[${VIEW_PLACEHOLDER_SELECTOR}]`)
 
         let $anchor = $placeholder?.length ?
                           await $placeholder.next() // View right below the placeholder
-                          : await this.$$.next()
-
+                          : await this.$$.next()  
         /**
          * In case this view is the last bottom element in its 
          * container.
@@ -572,16 +695,16 @@ export default class View {
         $placeholder?.length && this.$$.after( $placeholder )
       } break
 
-      // default: this.showMovable()
+      default: this.showMovable()
     }
   }
   async dismiss(){
     // Unhighlight triggered views
     await this.$$?.removeAttr( VIEW_ACTIVE_SELECTOR )
     // Remove editing toolbar if active
-    // await (await this.frame.$$body?.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`))?.remove()
+    this.frame.flux.$modela?.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`).remove()
     // Remove editing control panel if active
-    // this.frame.flux.$modela?.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}"]`).remove()
+    this.frame.flux.$modela?.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}"]`).remove()
 
     /**
      * Fire dismiss function provided with 
@@ -606,6 +729,7 @@ export default class View {
      */
     this.bridge.events.emit('activate')
   }
+
   triggerParent(){
     if( !this.key ) return
     debug('trigger parent view')

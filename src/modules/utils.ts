@@ -93,3 +93,17 @@ export const obj2Str = ( obj: ObjectType<any> ): string => {
 export const str2Obj = ( str: string ): ObjectType<any> => {
   return new Function(`return ${str}`)()
 }
+
+/**
+ * Auto-dismiss an element block at a 
+ * time (in Seconds)
+ * 
+ * Default delay: 8 seconds
+ */
+let AUTO_DISMISS_TRACKERS: ObjectType<any> = {}
+
+export const autoDismiss = ( id: string, $this: JQuery<HTMLElement>, delay?: number ) => {
+  // Cancel previous auto-dismiss-delay
+  clearTimeout( AUTO_DISMISS_TRACKERS[ id ] )
+  AUTO_DISMISS_TRACKERS[ id ] = setTimeout( () => $this.remove(), (delay || 5) * 1000 )
+}

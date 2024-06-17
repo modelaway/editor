@@ -1,4 +1,5 @@
 import type { MediaScreen } from '../types/frame'
+import english from '../languages/en.json'
 import french from '../languages/fr.json'
 
 export const CONTROL_ROOT = '#modela'
@@ -16,10 +17,29 @@ export const VIEW_REF_SELECTOR = 'mv-ref'
 export const VIEW_NAME_SELECTOR = 'mv-name'
 export const VIEW_STYLE_SELECTOR = 'mv-style'
 export const VIEW_EMPTY_SELECTOR = 'mv-empty'
+export const VIEW_ALLEY_SELECTOR = 'mv-alley'
 export const VIEW_ACTIVE_SELECTOR = 'mv-active'
 export const VIEW_CAPTION_SELECTOR = 'mv-caption'
-export const VIEW_ALLEY_SELECTOR = 'mv-alley'
 export const VIEW_TYPES_ALLOWED_SELECTOR = 'mv-types-allowed'
+
+/**
+ * Frames related
+ */
+export const FRAME_BLANK_DOCUMENT = `<!DOCTYPE html>
+  <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta name="description" content="Blank Modela Frame Document">
+      <title>Blank Frame</title>
+      <script type="module">
+        import { connect } from './client.min.js'
+        try { await connect() }
+        catch( error ){ console.debug('Failed to connect to modela:', error ) }
+      </script>
+    </head>
+    <body></body>
+  </html>`
 
 /**
  * Control layer element selector
@@ -126,7 +146,7 @@ export const VIEW_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
  * Global control options
  */
 export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
-  undo: { 
+  undo: {
     icon: 'bx bx-undo',
     title: 'Undo',
     event: {
@@ -134,9 +154,10 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
       params: true,
       shortcut: 'command + z'
     },
+    hidden: true,
     disabled: true
   },
-  redo: { 
+  redo: {
     icon: 'bx bx-redo',
     title: 'Redo',
     event: {
@@ -144,21 +165,34 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
       params: true,
       shortcut: 'command + y'
     },
+    hidden: true,
     disabled: true
   },
-  board: { 
+  'add-frame': {
+    icon: 'bx bx-plus',
+    title: 'Add New Frame',
+    event: {
+      type: 'action',
+      params: true,
+      shortcut: 'command + f'
+    },
+    hidden: true,
+  },
+  board: {
     icon: 'bx bx-grid-alt',
     title: 'Board',
     event: {
       type: 'show',
       params: 'board',
       shortcut: 'command + y'
-    }
+    },
+    hidden: true,
   },
   'screen-mode': {
     icon: 'bx bx-devices',
     title: 'Device Screens',
     disabled: false,
+    hidden: true,
     sub: {
       default: { 
         icon: 'bx bx-expand',
@@ -218,7 +252,7 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
     },
     disabled: false
   },
-  styles: { 
+  styles: {
     icon: 'bx bxs-brush',
     title: 'Styles',
     event: {
@@ -226,10 +260,9 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
       params: 'global',
       shortcut: 'command + shift + c'
     },
-    disabled: false,
-    extra: true
+    disabled: false
   },
-  assets: { 
+  assets: {
     icon: 'bx bx-landscape',
     title: 'Assets',
     event: {
@@ -237,8 +270,7 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
       params: 'global',
       shortcut: 'command + shift + a'
     },
-    disabled: false,
-    extra: true
+    disabled: false
   }
 }
 
@@ -246,6 +278,7 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
  * Support languages translation dictionaries
  */
 export const LANGUAGE_DICTIONARIES: ObjectType<ModelaLanguageDictionary> = {
+  'en': english,
   'fr': french
 }
 

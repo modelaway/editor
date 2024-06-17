@@ -26,7 +26,7 @@ export default class Fonts implements Plugin {
 
     this.config = config
     this.factory = factory
-
+    
     /**
      * Register google fonts
      */

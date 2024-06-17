@@ -1,5 +1,5 @@
 import type Frame from './frame'
-import type { AddViewTriggerType, ViewBlockProperties, ViewComponent, ViewComponentBridge } from '../types/view'
+import type { AddViewTriggerType, ViewBlockProperties, ViewComponent, ViewBridge } from '../types/view'
 
 import EventEmitter from 'events'
 import State from './state'
@@ -22,16 +22,21 @@ import {
   CONTROL_FLOATING_MARGIN
 } from './constants'
 import Stylesheet from './stylesheet'
+import Component from './block.component'
 import {
-  createAlley,
-  createToolbar,
-  createPanel,
-  createFloating,
-  createFinderPanel,
-  createSearchResult
+  Alley,
+  Panel,
+  Toolbar,
+  Floating,
+  FinderPanel,
+  SearchResult,
+  ToolbarInput,
+  PanelInput,
+  FloatingInput,
+  FinderPanelInput,
+  SearchResultInput
 } from './block.factory'
-import { 
-  autoDismiss,
+import {
   debug,
   generateKey
 } from './utils'
@@ -63,7 +68,7 @@ export default class View {
   /**
    * View component as original define.
    */
-  private component?: ViewComponent
+  private vc?: ViewComponent
   
   /**
    * Closes parent of this view that is also in
@@ -74,7 +79,20 @@ export default class View {
   /**
    * Between View & Component interaction bridge
    */
-  public bridge: ViewComponentBridge
+  public bridge: ViewBridge
+
+  /**
+   * Toolbar block component
+   */
+  private Toolbar?: Component<ToolbarInput>
+  /**
+   * Toolbar block component
+   */
+  private Panel?: Component<PanelInput>
+  /**
+   * Finder panel block component
+   */
+  private FinderPanel?: Component<FinderPanelInput>
 
   constructor( frame: Frame ){
     this.frame = frame
@@ -136,8 +154,8 @@ export default class View {
         const freePositions = ['fixed', 'absolute', 'sticky']
 
         freePositions.includes( await this.$$.css('position') as string ) ?
-                                      await this.$$.prepend( createAlley( this.key as string, true ) )
-                                      : await this.$$.after( createAlley( this.key as string ) )
+                                      await this.$$.prepend( Alley({ key: this.key, discret: true }).template )
+                                      : await this.$$.after( Alley({ key: this.key }).template )
       }
     }
     catch( error: any ){ debug( error.message ) }
@@ -158,14 +176,14 @@ export default class View {
         || !Object.keys( values ).length )
       throw new Error('Invalid method argument')
 
-    this.component = this.component ? { ...this.component, ...values } : values
-    debug('component - ', this.component )
+    this.vc = this.vc ? { ...this.vc, ...values } : values
+    debug('view component - ', this.vc )
   }
   get( type?: keyof ViewComponent ): any {
-    if( !this.component )
+    if( !this.vc )
       throw new Error('Invalid method called')
 
-    return type ? this.component[ type ] : this.component
+    return type ? this.vc[ type ] : this.vc
   }
 
   /**
@@ -196,9 +214,9 @@ export default class View {
       })
     }
 
-    if( !this.component ){
+    if( !this.vc ){
       // Set view specifications
-      this.set( await this.frame.flux.store.getComponent( name ) )
+      this.set( await this.frame.flux.store.getView( name ) )
       // Initialize view properties
       this.initialize()
     }
@@ -209,7 +227,7 @@ export default class View {
   /**
    * Mount new view comopnent into the DOM
    */
-  async mount( component: ViewComponent, to: string, triggerType: AddViewTriggerType = 'self' ){
+  async mount( vc: ViewComponent, to: string, triggerType: AddViewTriggerType = 'self' ){
     if( !this.frame.$$ ) return
 
     /**
@@ -221,14 +239,14 @@ export default class View {
     if( !$$to.length )
       throw new Error(`Invalid destination view - <key:${to}>`)
     
-    if( typeof component.render !== 'function' )
-      throw new Error(`<${component.name}> render function not specified`)
+    if( typeof vc.render !== 'function' )
+      throw new Error(`<${vc.name}> render function not specified`)
     
     /**
      * Render new element with default component and 
      * defined global settings
      */
-    const element = component.render( this.bridge )
+    const element = vc.render( this.bridge )
     debug('mount view - ', element )
 
     // Add view to the DOM
@@ -249,7 +267,7 @@ export default class View {
 
     await this.$$.attr({
       [VIEW_KEY_SELECTOR]: this.key, // Set view key
-      [VIEW_NAME_SELECTOR]: component.name // Set view node name identify
+      [VIEW_NAME_SELECTOR]: vc.name // Set view node name identify
     })
 
     /**
@@ -259,7 +277,7 @@ export default class View {
     this.inject( renderingProps )
 
     // Set view specifications
-    this.set( component )
+    this.set( vc )
     // Initialize view properties
     this.initialize()
     // Auto-trigger current view
@@ -341,7 +359,7 @@ export default class View {
         each.allowedViewTypes && this.$$.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
         each.addView
         && this.frame.flux.settings.enableAlleys
-        && await this.$$.append( createAlley() )
+        && await this.$$.append( Alley().template )
 
         return
       }
@@ -355,7 +373,7 @@ export default class View {
       each.allowedViewTypes && await $block.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
       each.addView
       && this.frame.flux.settings.enableAlleys
-      && await $block.append( createAlley() )
+      && await $block.append( Alley().template )
     } )
   }
   async destroy(){
@@ -384,10 +402,10 @@ export default class View {
     this.styles?.clear()
 
     this.$$ = undefined
+    this.vc = undefined
     this.key = undefined
     this.styles = undefined
     this.$parent = undefined
-    this.component = undefined
   }
 
   /**
@@ -407,18 +425,16 @@ export default class View {
       editing: true,
       detached: typeof panel == 'function'
     }
-    let $toolbar = $(createToolbar( this.key, options, settings ))
-    // Apply translation to text contents in toolbar
-    $toolbar = this.frame.flux.i18n.propagate( $toolbar )
 
+    // Calculate toolbar position
     let { x, y, height } = await this.frame.getTopography( this.$$ )
     debug('show view toolbar: ', x, y )
 
     // Adjust by left edges
     if( x < 15 ) x = CONTROL_EDGE_MARGIN
 
-    $toolbar.css({ left: `${x}px`, top: `${y}px` })
-    this.frame.flux.$modela.append( $toolbar )
+    this.Toolbar = Toolbar({ key: this.key, options, settings })
+    let $toolbar = this.Toolbar.render('append', this.frame.flux.$modela, { left: `${x}px`, top: `${y}px` } )
 
     const
     tHeight = $toolbar.find('> [container]').height() || 0,
@@ -458,14 +474,12 @@ export default class View {
     const { caption, panel } = this.get() as ViewComponent
     if( typeof panel !== 'function' ) return
 
-    let $panel = $(createPanel( this.key, caption, panel( this.bridge ) ))
-    // Apply translation to text contents in panel
-    $panel = this.frame.flux.i18n.propagate( $panel )
-
+    // Calculate panel position
     let { x, y, width } = await this.frame.getTopography( this.$$ )
     debug('show view panel: ', x, y )
 
-    this.frame.flux.$modela.append( $panel )
+    this.Panel = Panel({ key: this.key, caption, options: panel( this.bridge ) })
+    let $panel = this.Panel.render('append', this.frame.flux.$modela )
 
     const
     pWidth = $panel.find('> [container]').width() || 0,
@@ -521,36 +535,23 @@ export default class View {
     if( this.frame.flux.controls.clipboard?.type == 'view' )
       triggers.push('paste')
 
-    let $floating = this.frame.flux.$modela?.find(`[${CONTROL_FLOATING_SELECTOR}]`)
-
-    // Insert new floating point to the DOM
-    if( !$floating?.length ){
-      let $floating = $(createFloating( this.key, 'view', triggers ))
-
-      // Apply translation to text content on floating element
-      $floating = this.frame.flux.i18n.propagate( $floating )
-      this.frame.flux.$modela?.append( $floating )
-
-      $floating = this.frame.flux.$modela?.find(`[${CONTROL_FLOATING_SELECTOR}="${this.key}"]`)
-      if( !$floating?.length ) return
-
-      // autoDismiss('floating', $floating )
-    }
-
-    // Change key of currently floating point to new trigger's key
-    else if( !$floating.is(`[${CONTROL_FLOATING_SELECTOR}="${this.key}"]`) ){
-      $floating.attr( CONTROL_FLOATING_SELECTOR, this.key )
-                .html( createFloating( this.key, 'view', triggers, true ) )
-
-      // autoDismiss('floating', $floating )
-    }
-    
     const
     $$discret = await this.$$.find(`[${VIEW_ALLEY_SELECTOR}][discret]`),
     $$alley = $$discret.length ? $$discret : await this.$$.next(`[${VIEW_ALLEY_SELECTOR}]`)
     if( !$$alley.length ) return
 
+    // Calculate floating position
     let { x, y } = await this.frame.getTopography( $$alley )
+
+    let $floating: JQuery<HTMLElement>
+    // Insert new floating point to the DOM
+    if( !this.frame.flux.Floating ){
+      this.frame.flux.Floating = Floating({ key: this.key, type: 'view', triggers })
+      $floating = this.frame.flux.Floating.render('append', this.frame.flux.$modela )
+    }
+    // Change key of currently floating point to new trigger's key
+    else $floating = this.frame.flux.Floating?.update({ key: this.key, type: 'view', triggers })
+
     const
     tWidth = !$$discret.length && $floating.find('> mul').width() || 0,
     dueXPosition = tWidth + CONTROL_FLOATING_MARGIN
@@ -567,17 +568,13 @@ export default class View {
     if( !this.frame.flux.$modela || !this.key || !this.$$ )
       throw new Error('Invalid method called')
 
-    let $finder = $(createFinderPanel( this.key as string, this.frame.flux.store.searchComponent() ))
-
-    // Apply translation to text content in finder panel
-    $finder = this.frame.flux.i18n.propagate( $finder )
-
     /**
      * Put finder panel in position
      */
     let { x, y } = await this.frame.getTopography( $trigger )
 
-    this.frame.flux.$modela?.append( $finder )
+    this.FinderPanel = FinderPanel({ key: this.key as string, list: this.frame.flux.store.searchView() })
+    let $finder = this.FinderPanel.render('append', this.frame.flux.$modela )
 
     const
     pWidth = $finder.find('> [container]').width() || 0,
@@ -612,6 +609,8 @@ export default class View {
      * Search input event listener
      */
     const self = this
+    let _searchResults: Component<SearchResultInput>
+
     $finder
     .find('input[type="search"]')
     .on('input', function( this: Event ){
@@ -623,13 +622,16 @@ export default class View {
        */
       if( query.length == 1 ) return
 
-      const 
-      results = self.frame.flux.store.searchComponent( query ),
-      $results = $finder.find('.results')
+      const list = self.frame.flux.store.searchView( query )
+      if( !_searchResults ){
+        _searchResults = SearchResult({ list })
 
-      $results.html( createSearchResult( results ) )
-      // Apply translation to results text contents
-      self.frame.flux.i18n.propagate( $results )
+        const $results = $finder.find('.results')
+        if( !$results.length ) return
+
+        _searchResults.render('append', $results.empty() )
+      }
+      else _searchResults.update({ list })
     })
   }
   async showMovable(){
@@ -645,12 +647,12 @@ export default class View {
 
     switch( direction ){
       case 'up': {
-        const $alley = await this.$$.next(`[${VIEW_ALLEY_SELECTOR}]`)
+        const $$alley = await this.$$.next(`[${VIEW_ALLEY_SELECTOR}]`)
         /**
          * Check whether previous view above has alley then
          * point moving anchor to after the alley (view itself).
          */
-        let $anchor = (await this.$$.prev(`[${VIEW_ALLEY_SELECTOR}]`)).length ?
+        let $$anchor = (await this.$$.prev(`[${VIEW_ALLEY_SELECTOR}]`)).length ?
                                     await (await this.$$.prev(`[${VIEW_ALLEY_SELECTOR}]`)).prev()
                                     : await this.$$.prev()
                                        
@@ -658,41 +660,41 @@ export default class View {
          * In case this view is the last top element in its 
          * container.
          */
-        if( !$anchor.length ) return
+        if( !$$anchor.length ) return
         
         /**
          * Move this view and its alley to the view 
          * right above it in the same container
          */
-        await $anchor.before( this.$$ )
-        $alley?.length && await this.$$.after( $alley )
+        await $$anchor.before( this.$$ )
+        $$alley?.length && await this.$$.after( $$alley )
       } break
       
       case 'down': {
-        const $alley = await this.$$.next(`[${VIEW_ALLEY_SELECTOR}]`)
+        const $$alley = await this.$$.next(`[${VIEW_ALLEY_SELECTOR}]`)
 
-        let $anchor = $alley?.length ?
-                          await $alley.next() // View right below the alley
+        let $$anchor = $$alley?.length ?
+                          await $$alley.next() // View right below the alley
                           : await this.$$.next()  
         /**
          * In case this view is the last bottom element in its 
          * container.
          */
-        if( !$anchor.length ) return
+        if( !$$anchor.length ) return
 
         /**
          * Check whether next view below has alley then
          * point moving anchor to the alley.
          */
-        if( ( await $anchor.next(`[${VIEW_ALLEY_SELECTOR}]`)).length )
-          $anchor = await $anchor.next(`[${VIEW_ALLEY_SELECTOR}]`)
+        if( ( await $$anchor.next(`[${VIEW_ALLEY_SELECTOR}]`)).length )
+          $$anchor = await $$anchor.next(`[${VIEW_ALLEY_SELECTOR}]`)
         
         /**
          * Move this view and its alley to the view 
          * right below it in the same container
          */
-        await $anchor.after( this.$$ )
-        $alley?.length && this.$$.after( $alley )
+        await $$anchor.after( this.$$ )
+        $$alley?.length && this.$$.after( $$alley )
       } break
 
       default: this.showMovable()
@@ -702,9 +704,11 @@ export default class View {
     // Unhighlight triggered views
     await this.$$?.removeAttr( VIEW_ACTIVE_SELECTOR )
     // Remove editing toolbar if active
-    this.frame.flux.$modela?.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`).remove()
+    this.Toolbar?.destroy()
     // Remove editing control panel if active
-    this.frame.flux.$modela?.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}"]`).remove()
+    this.Panel?.destroy()
+    // Remove editing finder panel if active
+    this.FinderPanel?.destroy()
 
     /**
      * Fire dismiss function provided with 

@@ -1,16 +1,18 @@
 import type Modela from '../exports/modela'
-import type { Plugin, PluginInstance } from '../types/plugin'
+import type { Plugin, PluginFactory, PluginInstance } from '../types/plugin'
 import * as bx from './block.factory'
+import * as constants from './constants'
 
 export default class Plugins {
-  private factory: { 
-    flux: Modela
-    bx: typeof bx
-  }
+  private factory: PluginFactory
   private list: ObjectType<ObjectType<Plugin>> = {}
 
   constructor( flux: Modela ){
     this.factory = {
+      /**
+       * Initialize internationalization handler
+       */
+      constants,
       flux,
       bx
     }

@@ -1,16 +1,16 @@
 import type Modela from '../exports/modela'
 import type { ViewComponent } from '../types/view'
-import type { RJQueryStatic } from '../lib/frame.window'
+import type { FrameQuery } from '../lib/frame.window'
 import { debug } from './utils'
 
 type StoreMemory = {
-  components: ObjectType<ViewComponent>,
+  views: ObjectType<ViewComponent>,
   templates: {}
 }
 
 export default class Store {
   private STORE: StoreMemory = {
-    components: {},
+    views: {},
     templates: {}
   }
 
@@ -21,41 +21,41 @@ export default class Store {
     // this.settings = settings
   }
 
-  addComponent( component: ViewComponent ){
-    if( !component )
+  addView( view: ViewComponent ){
+    if( !view )
       throw new Error('Undefined view component')
 
     // TODO: Check all other mandatory view component params
 
-    if( this.STORE.components[ component.name ] )
-      throw new Error(`<${component.name}> view component already exists`)
+    if( this.STORE.views[ view.name ] )
+      throw new Error(`<${view.name}> view component already exists`)
 
-    this.STORE.components[ component.name ] = component
-    debug('view component registered - ', component.name )
+    this.STORE.views[ view.name ] = view
+    debug('view component registered - ', view.name )
   }
-  async getComponent( name: string, $$node?: RJQueryStatic ): Promise<ViewComponent | null> {
+  async getView( name: string, $$node?: FrameQuery ): Promise<ViewComponent | null> {
     /**
-     * Get components component by name or HTML nodeName
+     * Get view component by name or HTML nodeName
      * 
-     * Always return new instance of a component
-     * to keep initial component structure immutable
+     * Always return new instance of a view
+     * to keep initial view structure immutable
      */
-    if( name in this.STORE.components )
-      return { ...this.STORE.components[ name ] }
+    if( name in this.STORE.views )
+      return { ...this.STORE.views[ name ] }
     
     /**
-     * Components are registered with their canonical
+     * Views are registered with their canonical
      * name not by nodeName. So also check registered 
-     * components list by nodeName.
+     * views list by nodeName.
      */
     const
-    compArray = Object.values( this.STORE.components ),
+    compArray = Object.values( this.STORE.views ),
     matches = compArray.filter( each => (each.node == name) )
 
     if( matches.length ) return { ...matches[0] }
     
     /**
-     * Some components with composed node selector wouldn't
+     * Some views with composed node selector wouldn't
      * much the condition above so use the JQuery node element
      * to do further selector cross-checking.
      * 
@@ -71,21 +71,21 @@ export default class Store {
     
     return null
   }
-  fetchComponents(){
-    return this.STORE.components
+  fetchViews(){
+    return this.STORE.views
   }
-  removeComponent( name: string ){
-    if( this.STORE.components[ name ] )
+  removeView( name: string ){
+    if( this.STORE.views[ name ] )
       throw new Error(`<${name}> view component already exists`)
 
-    delete this.STORE.components[ name ]
+    delete this.STORE.views[ name ]
     debug('view component unregistered - ', name )
   }
-  searchComponent( query?: string ){
+  searchView( query?: string ){
     const results: ObjectType<Listset> = {}
 
     Object
-    .entries( this.STORE.components )
+    .entries( this.STORE.views )
     .map( ([name, { node, category, caption }]) => {
       if( !category ) return
 
@@ -124,7 +124,7 @@ export default class Store {
 
   drop(){
     // Reset store to initial state
-    this.STORE.components = {}
+    this.STORE.views = {}
     this.STORE.templates = {}
   }
 }

@@ -1,19 +1,12 @@
-import type Modela from '../exports/modela'
 import { LANGUAGE_DICTIONARIES } from './constants'
 
 export default class I18N {
-  private refLang: string
   private defaultLang: string
   private currentLang: string
 
-  public flux: Modela
-  
-  constructor( flux: Modela ){
-    this.flux = flux
-
-    this.refLang = flux.lang.internal
-    this.defaultLang = flux.lang.default
-    this.currentLang = flux.settings.lang || flux.lang.default
+  constructor(){
+    this.defaultLang = window.mlang.default
+    this.currentLang = window.mlang.current
   }
 
   /**

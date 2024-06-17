@@ -1,4 +1,3 @@
-
 import type Frame from './frame'
 import type { FrameQuery } from '../lib/frame.window'
 import type { AddViewTriggerType, ViewComponent } from '../types/view'
@@ -70,12 +69,12 @@ export default class Views {
    * Add view component via editor contxt to the DOM
    */
   async add( name: string, to: string, triggerType?: AddViewTriggerType ){
-    const component = await this.frame.flux.store.getComponent( name )
-    if( !component )
+    const vc = await this.frame.flux.store.getView( name )
+    if( !vc )
       throw new Error(`Unknown <${name}> view`)
 
     this.currentView = new View( this.frame )
-    await this.currentView.mount( component as ViewComponent, to, triggerType )
+    await this.currentView.mount( vc as ViewComponent, to, triggerType )
 
     /**
      * Set this view in global namespace
@@ -102,27 +101,25 @@ export default class Views {
       return
     }
 
-    // Identify component name or its HTML nodeName
+    // Identify view component name or its HTML nodeName
     let cname = await $$currentTarget.attr( VIEW_NAME_SELECTOR )
                 || (await $$currentTarget.prop('nodeName')).toLowerCase()
 
-    let component = await this.frame.flux.store.getComponent( cname, $$currentTarget )
-    if( !component )
-    // if( !component || this.currentView?.$ && e.currentTarget == this.currentView.$.get(0) )
-      return
+    let vc = await this.frame.flux.store.getView( cname, $$currentTarget )
+    if( !vc ) return
     
     /**
-     * Component's name can be the same as its HTML
+     * View component's name can be the same as its HTML
      * nodeName identifier.
      * 
      * Eg. `fieldset` name for <fieldset> tag/nodeName
      * 
-     * If not, then preempt to the component's actual name
+     * If not, then preempt to the view component's actual name
      * instead of the HTML nodeName.
      * 
      * Eg. `text` for <span> tag/nodeName
      */
-    cname = component.name
+    cname = vc.name
     
     // Dismiss all active views
     this.each( view => view.dismiss() )
@@ -148,24 +145,24 @@ export default class Views {
   async propagate( $$node: FrameQuery ){
     if( !$$node.length ) return
 
-    // Identify component name or its HTML nodeName
+    // Identify view component name or its HTML nodeName
     let cname = await $$node.attr( VIEW_NAME_SELECTOR )
                 || (await $$node.prop('nodeName')).toLowerCase()
 
-    const component = await this.frame.flux.store.getComponent( cname )
-    if( component?.name ){
+    const vc = await this.frame.flux.store.getView( cname )
+    if( vc?.name ){
       /**
-       * Component's name can be the same as its HTML 
+       * View component's name can be the same as its HTML 
        * nodeName identifier.
        * 
        * Eg. `fieldset` name for <fieldset> tag/nodeName
        * 
-       * If not, then preempt to the component's actual name 
+       * If not, then preempt to the view component's actual name 
        * instead of the HTML nodeName.
        * 
        * Eg. `text` for <span> tag/nodeName
        */
-      cname = component.name
+      cname = vc.name
       
       /**
        * Check whether the view is not yet mounted in 

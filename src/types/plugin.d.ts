@@ -1,7 +1,9 @@
 import Modela from '../exports/modela'
 import * as bx from '../modules/block.factory'
+import * as constants from '../modules/constants'
 
 export interface PluginFactory {
+  constants: typeof constants
   flux: Modela
   bx: typeof bx
 }

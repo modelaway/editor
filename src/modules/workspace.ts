@@ -1,10 +1,20 @@
 import type Modela from '../exports/modela'
-import * as Event from './events'
-import { CONTROL_TOOLBAR_SELECTOR } from './constants'
-import { createModela } from './block.factory'
+import type Component from './block.component'
 
-export default class Controls {
+import * as Event from './events'
+import {
+  Toolbar,
+  ToolbarInput,
+  WorkspaceLayer,
+  WorkspaceLayerInput
+} from './block.factory'
+import { GLOBAL_CONTROL_OPTIONS } from './constants'
+
+export default class Workspace {
   readonly flux: Modela
+
+  WS?: Component<WorkspaceLayerInput>
+  Toolbar?: Component<ToolbarInput>
 
   $board?: JQuery<HTMLElement>
   $global?: JQuery<HTMLElement>
@@ -24,17 +34,19 @@ export default class Controls {
    */
   enable(){
     /**
-     * Create modela control layer and apply translation 
+     * Create modela workspace layer and apply translation 
      * to text contents
      */
-    this.flux.$modela = $(createModela())
+    this.WS = WorkspaceLayer({})
+    this.flux.$modela = this.WS.render('prepend', $('body') )
+    if( !this.flux.$modela?.length )
+      throw new Error('Unexpected error occured')
 
-    this.flux.$modela = this.flux.i18n.propagate( this.flux.$modela, 'mlang' )
-    $('body').prepend( this.flux.$modela )
+    this.Toolbar = Toolbar({ key: 'global', options: GLOBAL_CONTROL_OPTIONS })
+    this.Toolbar.render('append', this.flux.$modela )
 
-    this.$board = this.flux.$modela.find('> mboard')
-    this.$global = this.flux.$modela.find('> mglobal')
-    this.$toolbar = this.flux.$modela.find(`[${CONTROL_TOOLBAR_SELECTOR}="global"]`)
+    this.$board = this.WS.find('> mboard')
+    this.$global = this.WS.find('> mglobal')
 
     // Initialize event listeners
     this.events()

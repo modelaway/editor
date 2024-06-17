@@ -1,16 +1,21 @@
 
 import jQuery from 'jquery'
-import CSS from '../modules/css'
 import Store from '../modules/store'
 import Frames from '../modules/frames'
 import Assets from '../modules/assets'
 import Plugins from '../modules/plugins'
-import Controls from '../modules/controls'
+import Workspace from '../modules/workspace'
 import Functions from '../modules/functions'
 import { debug } from '../modules/utils'
 import I18N from '../modules/i18n'
+import Component from '../modules/block.component'
+import { FloatingInput } from '../modules/block.factory'
 
 window.$ = jQuery
+window.mlang = {
+  default: 'en-US',
+  current: window.navigator.language
+}
 
 export default class Modela {
   /**
@@ -25,12 +30,9 @@ export default class Modela {
   private enabled = true
 
   /**
-   * Use browser language as default
+   * Defined modela UI display language
    */
-  public lang: ModelaLanguage = {
-    internal: 'en-US',
-    default: window.navigator.language
-  }
+  public lang: ModelaLanguage = window.mlang
 
   /**
    * Default editor settings: Crucial in case user
@@ -115,17 +117,21 @@ export default class Modela {
   public frames: Frames
 
   /**
-   * Initialize modela controls
+   * Initialize modela workspace
    */
-  public controls: Controls
+  public workspace: Workspace
+  /**
+   * Floating block component
+   */
+  public Floating?: Component<FloatingInput>
 
   constructor( settings = {} ){
 
     this.settings = { ...this.defaultSettings, ...settings }
 
     // Set default language as current language
-    if( !this.settings.lang )
-      this.settings.lang = this.lang.default
+    if( this.settings.lang )
+      window.mlang.current = this.settings.lang
 
     /**
      * Manage store manager
@@ -144,7 +150,7 @@ export default class Modela {
     /**
      * Initialize history manager
      */
-    this.i18n = new I18N( this )
+    this.i18n = new I18N()
 
     /**
      * Initialize utility functions
@@ -162,9 +168,9 @@ export default class Modela {
     this.plugins = new Plugins( this )
 
     /**
-     * Initialize modela controls
+     * Initialize modela workspace
      */
-    this.controls = new Controls( this )
+    this.workspace = new Workspace( this )
   }
 
   mount( selector: string ){
@@ -177,8 +183,8 @@ export default class Modela {
     if( !this.$root.length )
       throw new Error(`Root <${selector}> element not found`)
     
-    // Enable modela controls
-    this.controls.enable()
+    // Enable modela workspace
+    this.workspace.enable()
   }
 
   dismiss(){
@@ -187,8 +193,8 @@ export default class Modela {
       return
     }
 
-    // Remove controls
-    this.controls?.destroy()
+    // Remove workspace
+    this.workspace?.destroy()
     // Drop store functions
     this.store?.drop()
     

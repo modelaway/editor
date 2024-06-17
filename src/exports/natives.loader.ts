@@ -16,7 +16,7 @@ const Native: ViewComponent[] = [
 ]
 
 type NativeOptions = {
-  components?: string[]
+  views?: string[]
 }
 
 export default function ModelaNativesLoader( modela: Modela, options?: NativeOptions ){
@@ -26,21 +26,21 @@ export default function ModelaNativesLoader( modela: Modela, options?: NativeOpt
    */
   if( !modela
       || !modela.store 
-      || typeof modela.store.addComponent !== 'function' )
+      || typeof modela.store.addView !== 'function' )
     return
 
   return {
     load: () => {
       /**
-       * Load in-build native components into modela editor
+       * Load in-build native views into modela editor
        */
-      Native.map( component => {
-        // Load only defined components
-        if( Array.isArray( options?.components )
-            && options.components.length
-            && !options.components.includes( component.name ) ) return
+      Native.map( view => {
+        // Load only defined views
+        if( Array.isArray( options?.views )
+            && options.views.length
+            && !options.views.includes( view.name ) ) return
           
-        modela.store.addComponent( component )
+        modela.store.addView( view )
       } )
 
       /**
@@ -50,15 +50,15 @@ export default function ModelaNativesLoader( modela: Modela, options?: NativeOpt
     
     unload: () => {
       /**
-       * Remove in-build native components from modela editor
+       * Remove in-build native views from modela editor
        */
-      Native.map( component => {
-        // Load only defined components
-        if( Array.isArray( options?.components )
-            && options.components.length
-            && !options.components.includes( component.name ) ) return
+      Native.map( view => {
+        // Load only defined views
+        if( Array.isArray( options?.views )
+            && options.views.length
+            && !options.views.includes( view.name ) ) return
           
-        modela.store.removeComponent( component.name )
+        modela.store.removeView( view.name )
       } )
 
       /**

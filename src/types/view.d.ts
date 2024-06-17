@@ -1,7 +1,7 @@
 import type { EventEmitter } from 'events'
 import type I18N from '../modules/i18n'
 import type Assets from '../modules/assets'
-import type Controls from '../modules/controls'
+import type Controls from '../modules/workspace'
 import type { Stylesheet } from '../modules/css'
 import type Functions from '../modules/functions'
 import type { RJQuery, RJQueryStatic } from '../lib/frame.window'
@@ -38,7 +38,7 @@ type ViewBlockProperties = {
   allowedViewTypes?: string[]
 }
 
-interface ViewComponentBridge {
+interface ViewBridge {
   state: State
   i18n: I18N
   fn: Functions
@@ -54,13 +54,13 @@ interface ViewComponent {
   caption: ViewCaption
   attributes: ObjectType<any>
 
-  render: ( view: ViewComponentBridge ) => string
-  takeover: ( view: ViewComponentBridge ) => void
-  dismiss: ( view: ViewComponentBridge ) => void
+  render: ( view: ViewBridge ) => string
+  takeover: ( view: ViewBridge ) => void
+  dismiss: ( view: ViewBridge ) => void
 
-  styles?: ( view: ViewComponentBridge ) => StyleSettings
-  toolbar?: ( view: ViewComponentBridge ) => ObjectType<ToolbarSet>
-  panel?: ( view: ViewComponentBridge ) => PanelSections
+  styles?: ( view: ViewBridge ) => StyleSettings
+  toolbar?: ( view: ViewBridge ) => ObjectType<ToolbarSet>
+  panel?: ( view: ViewBridge ) => PanelSections
 }
 
 type AddViewTriggerType = 'alley' | 'discret' | 'self'

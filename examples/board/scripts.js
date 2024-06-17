@@ -39,7 +39,7 @@ const natives = ModelaNativesLoader( editor )
 natives.load()
 
 // Register custom view component
-editor.store.addComponent( cardView )
+editor.store.addView( cardView )
 
 // Register custom plugin
 const i18nConfig = {
@@ -67,3 +67,9 @@ editor.frames.add({
   title: 'Frame Test',
   device: 'mobile'
 })
+// Add empty tablet frame to the board
+// editor.frames.add({
+//   // source: 'http://127.0.0.1:3000/publications/@modela/bun/examples/wigo/index.html',
+//   title: 'Empty Frame Test',
+//   device: 'tablet'
+// })

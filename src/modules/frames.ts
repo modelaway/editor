@@ -40,8 +40,14 @@ export default class Frames extends EventEmitter {
      * Attach frame event listeners
      */
     frame
+    .on('add', () => this.emit('frame.add', this.currentFrame ) )
     .on('load', () => this.emit('frame.load', this.currentFrame ) )
     .on('dismiss', () => this.emit('frame.dismiss', this.currentFrame ) )
+
+    frame.history
+    .on('history.init', () => {
+
+    })
 
     this.list[ frame.key ] = frame
   }
@@ -67,6 +73,8 @@ export default class Frames extends EventEmitter {
      * Record new frame
      */
     this.set( this.currentFrame )
+
+    return this.currentFrame
   }
 
   board(){

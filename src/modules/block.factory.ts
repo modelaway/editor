@@ -15,18 +15,26 @@ import {
   FORM_INPUT_SELECTOR,
   FORM_SEPERATOR_SELECTOR,
   CONTROL_FRAME_SELECTOR,
-  VIEW_EMPTY_SELECTOR
+  VIEW_EMPTY_SELECTOR,
+  FRAME_BLANK_DOCUMENT
 } from './constants'
 import { generateKey } from './utils'
 import { FrameOption } from '../types/frame'
+import Component, { ComponentFactory } from './block.component'
 
-export const createModela = () => {
+export type WorkspaceLayerInput = {
 
-  return `<modela>
-    <mboard></mboard>
-    ${createGlobal()}
-    ${createToolbar('global', GLOBAL_CONTROL_OPTIONS )}
-  </modela>`
+}
+export const WorkspaceLayer = ( input: WorkspaceLayerInput ) => {
+
+  const factory: ComponentFactory<WorkspaceLayerInput> = () => {
+    return `<modela>
+      <mboard></mboard>
+      ${createGlobal()}
+    </modela>`
+  }
+
+  return new Component<WorkspaceLayerInput>( factory, input )
 }
 
 export const createGlobal = () => {
@@ -45,6 +53,13 @@ export const createGlobal = () => {
 }
 
 export const createFrame = ( key: string, options: FrameOption ) => {
+  /**
+   * User `srcdoc` to inject default HTML skeleton
+   * into the iframe if `option.source` isn't provided.
+   */
+  const source = options.source ?
+                      `src="${options.source}"` // Source URL provided
+                      : `src="data:text/html;charset=utf-8,${encodeURI( FRAME_BLANK_DOCUMENT )}"` // Default HTML Document skeleton
   
   return `<mframe ${CONTROL_FRAME_SELECTOR}="${key}">
     <mul>
@@ -53,7 +68,7 @@ export const createFrame = ( key: string, options: FrameOption ) => {
     </mul>
 
     <mblock>
-      <iframe src="${options.source}"
+      <iframe ${source}
               title="${options.title || `Frame ${key}`}"
               importance="high"
               referrerpolicy="origin"
@@ -66,220 +81,263 @@ export const createFrame = ( key: string, options: FrameOption ) => {
 /**
  * Process toolbar options into HTML content
  */
-export const createToolbar = ( key: string, options: ObjectType<ToolbarOption> = {}, settings?: ToolbarSettings ) => {
-  if( typeof options !== 'object' )
-    throw new Error('Invalid createToolbar Arguments')
-  
-  // Apply settings
-  settings = {
-    editing: false,
-    detached: false,
-    ...settings
-  }
+export type ToolbarInput = {
+  key: string
+  options: ObjectType<ToolbarOption>
+  settings?: ToolbarSettings
+}
+export const Toolbar = ( input: ToolbarInput ) => {
+  const factory: ComponentFactory<ToolbarInput> = ({ key, options, settings }) => {
+    if( typeof options !== 'object' )
+      throw new Error('Invalid Toolbar Arguments')
+    
+    // Apply settings
+    settings = {
+      editing: false,
+      detached: false,
+      ...settings
+    }
 
-  let 
-  mainOptions = '',
-  extraOptions = '',
-  subOptions: string[] = []
+    let 
+    mainOptions = '',
+    extraOptions = '',
+    subOptions: string[] = []
 
-  const
-  composeSubLi = ( parentAttr?: string ) => {
-    return ([ attr, { icon, title, event, disabled, active }]: [ attr: string, tset: ToolbarOption ] ) => {
+    const
+    composeSubLi = ( parentAttr?: string ) => {
+      return ([ attr, { icon, title, event, disabled, active }]: [ attr: string, tset: ToolbarOption ] ) => {
+        let attrs = ''
+        
+        // Trigger event type & params attributes
+        if( event ){
+          if( event.type && attr ) attrs += ` ${event.type}="${parentAttr ? `${parentAttr}.` : ''}${attr}"`
+          if( event.params ) attrs += ` params="${event.params}"`
+        }
+
+        // Add title attributes
+        if( active ) attrs += ` active`
+        if( disabled ) attrs += ` disabled`
+        if( title ) attrs += ` title="${title}"`
+
+        return `<mli ${attrs} title="${title}" ${CONTROL_LANG_SELECTOR}><micon class="${icon}"></micon></mli>`
+      }
+    },
+    composeLi = ([ attr, { icon, label, title, event, disabled, active, extra, sub, meta }]: [ attr: string, tset: ToolbarOption ]) => {
       let attrs = ''
       
+      // Option has sub options
+      if( sub && Object.keys( sub ).length ){
+        attrs += ` show="sub-toolbar" params="${attr}"`
+
+        // Create a sub options
+        subOptions.push(`<mblock options="sub" extends="${attr}">
+                          <mli dismiss="sub-toolbar" title="Back" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-chevron-left"></micon></mli>
+                          <mli class="label"><micon class="${icon}"></micon><mlabel ${CONTROL_LANG_SELECTOR}>${label || title}</mlabel></mli>
+                          ${Object.entries( sub ).map( composeSubLi( attr ) ).join('')}
+                        </mblock>`)
+      }
+
       // Trigger event type & params attributes
-      if( event ){
-        if( event.type && attr ) attrs += ` ${event.type}="${parentAttr ? `${parentAttr}.` : ''}${attr}"`
+      else if( event ){
+        if( event.type && attr ) attrs += ` ${event.type}="${attr}"`
         if( event.params ) attrs += ` params="${event.params}"`
       }
 
       // Add title attributes
+      if( meta ) attrs += ` meta`
       if( active ) attrs += ` active`
       if( disabled ) attrs += ` disabled`
+      if( label ) attrs += ` class="label"`
       if( title ) attrs += ` title="${title}"`
 
-      return `<mli ${attrs} title="${title}" ${CONTROL_LANG_SELECTOR}><micon class="${icon}"></micon></mli>`
+      const optionLi = `<mli ${attrs} ${CONTROL_LANG_SELECTOR}><micon class="${icon}"></micon>${label ? `<mlabel ${CONTROL_LANG_SELECTOR}>${label}</mlabel>` : ''}</mli>`
+      extra ?
+        extraOptions += optionLi
+        : mainOptions += optionLi
     }
-  },
-  composeLi = ([ attr, { icon, label, title, event, disabled, active, extra, sub, meta }]: [ attr: string, tset: ToolbarOption ]) => {
-    let attrs = ''
     
-    // Option has sub options
-    if( sub && Object.keys( sub ).length ){
-      attrs += ` show="sub-toolbar" params="${attr}"`
-
-      // Create a sub options
-      subOptions.push(`<mblock options="sub" extends="${attr}">
-                        <mli dismiss="sub-toolbar" title="Back" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-chevron-left"></micon></mli>
-                        <mli class="label"><micon class="${icon}"></micon><mlabel ${CONTROL_LANG_SELECTOR}>${label || title}</mlabel></mli>
-                        ${Object.entries( sub ).map( composeSubLi( attr ) ).join('')}
-                      </mblock>`)
-    }
-
-    // Trigger event type & params attributes
-    else if( event ){
-      if( event.type && attr ) attrs += ` ${event.type}="${attr}"`
-      if( event.params ) attrs += ` params="${event.params}"`
-    }
-
-    // Add title attributes
-    if( meta ) attrs += ` meta`
-    if( active ) attrs += ` active`
-    if( disabled ) attrs += ` disabled`
-    if( label ) attrs += ` class="label"`
-    if( title ) attrs += ` title="${title}"`
-
-    const optionLi = `<mli ${attrs} ${CONTROL_LANG_SELECTOR}><micon class="${icon}"></micon>${label ? `<mlabel ${CONTROL_LANG_SELECTOR}>${label}</mlabel>` : ''}</mli>`
-    extra ?
-      extraOptions += optionLi
-      : mainOptions += optionLi
-  }
-  
-  /**
-   * Attach meta options to every editable view.
-   */
-  const 
-  metaOptions: ObjectType<ToolbarOption> = {},
-  detachedOptions: ObjectType<ToolbarOption> = {}
-
-  Object.entries( VIEW_CONTROL_OPTIONS ).map( ([attr, option]) => {
-    if( option.meta ) metaOptions[ attr ] = option
-    if( settings.detached && option.detached ) detachedOptions[ attr ] = option
-  } )
-
-  if( settings.editing && Object.keys( metaOptions ).length )
-    options = { ...options, ...metaOptions }
-
-  // Generate HTML menu
-  Object.entries( options ).map( composeLi )
-
-  if( !mainOptions )
-    throw new Error('Undefined main options')
-
-  return `<mblock ${CONTROL_TOOLBAR_SELECTOR}="${key}" ${settings.editing ? 'class="editing"' : ''}>
-    <mblock container>
-      <mul>
-        <mblock options="main">
-          ${mainOptions}
-          ${extraOptions ? `<mli show="extra-toolbar" title="Extra options" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-dots-horizontal-rounded"></micon></mli>` : ''}
-        </mblock>
-
-        ${extraOptions ?
-              `<mblock options="extra">
-                ${extraOptions}
-                <mli dismiss="extra-toolbar" title="Back" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-chevron-left"></micon></mli>
-              </mblock>` : ''}
-
-        ${subOptions.length ? subOptions.join('') : ''}
-      </mul>
-
-      ${Object.keys( detachedOptions ).length ? 
-            `<mul>
-              <mblock options="control">
-                ${Object.entries( detachedOptions ).map( composeSubLi() ).join('')}
-              </mblock>
-            </mul>`: ''}
-    </mblock>
-  </mblock>`
-}
-
-export const createPanel = ( key: string, caption: ViewCaption, options: PanelSections, active?: string ) => {
-  if( typeof options !== 'object' )
-    throw new Error('Invalid createPanel options')
-
-  let
-  sectionTabs = '',
-  sectionBodies = ''
-
-  const composeSection = ( name: string, { icon, title, fieldsets, listsets }: PanelSection, isActive: boolean ) => {
     /**
-     * List of tabs
+     * Attach meta options to every editable view.
      */
-    sectionTabs += `<mli tab="${name}" ${isActive ? 'class="active"' : ''} ${title ? `title="${title}" ${CONTROL_LANG_SELECTOR}` : ''}><micon class="${icon}"></micon></mli>`
+    const 
+    metaOptions: ObjectType<ToolbarOption> = {},
+    detachedOptions: ObjectType<ToolbarOption> = {},
+    isVisible = ([ key, option ]: [string, ToolbarOption]) => (!option.hidden)
 
-    let fieldsetHTML = ''
-    fieldsets?.map( ({ label, fields, seperate }) => {
-      // Do not render empty fieldset
-      if( !Array.isArray( fields ) || !fields.length )
-        return
-      
-      fieldsetHTML += `<fieldset>
-        ${label ? `<mlabel ${CONTROL_LANG_SELECTOR}>${label}</mlabel>` : ''}
-        ${fields.map( each => (createInput( each )) ).join('')}
-      </fieldset>`
-
-      // Add seperator to this block
-      if( seperate )
-        fieldsetHTML += createFormSeperator()
+    Object
+    .entries( VIEW_CONTROL_OPTIONS )
+    .filter( isVisible )
+    .map( ([attr, option]) => {
+      if( option.meta ) metaOptions[ attr ] = option
+      if( settings?.detached && option.detached ) detachedOptions[ attr ] = option
     } )
 
-    let listsetHTML = ''
-    listsets?.map( ({ label, items, seperate }) => {
-      // Do not render empty list
-      if( !Array.isArray( items ) || !items.length )
-        return
-      
-      listsetHTML += `<mblock class="listset">
-        ${label ? `<mlabel ${CONTROL_LANG_SELECTOR}>${label}</mlabel>` : ''}
-        <mul>${items.map( each => (createListItem( each )) ).join('')}</mul>
-      </mblock>`
+    if( settings.editing && Object.keys( metaOptions ).length )
+      options = { ...options, ...metaOptions }
 
-      // Add seperator to this block
-      if( seperate )
-        listsetHTML += createFormSeperator()
-    } )
+    // Generate HTML menu
+    Object
+    .entries( options )
+    .filter( isVisible )
+    .map( composeLi )
 
-    sectionBodies += `<mblock section="attributes" class="active">
-      <mblock>${fieldsetHTML}</mblock>
-      <mblock>${listsetHTML}</mblock>
+    if( !mainOptions )
+      throw new Error('Undefined main options')
+
+    return `<mblock ${CONTROL_TOOLBAR_SELECTOR}="${key}" ${settings.editing ? 'class="editing"' : ''}>
+      <mblock container>
+        <mul>
+          <mblock options="main">
+            ${mainOptions}
+            ${extraOptions ? `<mli show="extra-toolbar" title="Extra options" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-dots-horizontal-rounded"></micon></mli>` : ''}
+          </mblock>
+
+          ${extraOptions ?
+                `<mblock options="extra">
+                  ${extraOptions}
+                  <mli dismiss="extra-toolbar" title="Back" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-chevron-left"></micon></mli>
+                </mblock>` : ''}
+
+          ${subOptions.length ? subOptions.join('') : ''}
+        </mul>
+
+        ${Object.keys( detachedOptions ).length ? 
+              `<mul>
+                <mblock options="control">
+                  ${Object.entries( detachedOptions ).map( composeSubLi() ).join('')}
+                </mblock>
+              </mul>`: ''}
+      </mblock>
     </mblock>`
   }
 
-  /**
-   * Generate HTML content of panel sections
-   */
-  Object.entries( options ).map( ( [name, section], index ) => composeSection( name, section, active == name || index === 0) )
-
-  return `<mblock ${CONTROL_PANEL_SELECTOR}="${key}">
-    <mblock dismiss="panel" backdrop></mblock>
-    <mblock container>
-      <mblock class="header">
-        <mblock>
-          <micon class="${caption.icon}"></micon>
-          <mlabel ${CONTROL_LANG_SELECTOR}>${caption.title}</mlabel>
-
-          <!-- Dismiss control panel -->
-          <span dismiss="panel" title="Dismiss" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-x"></micon></span>
-        </mblock>
-
-        <mul options="tabs">${sectionTabs}</mul>
-      </mblock>
-
-      <mblock class="body">${sectionBodies}</mblock>
-    </mblock>
-  </mblock>`
+  return new Component<ToolbarInput>( factory, input )
 }
 
-export const createFloating = ( key: string, type: 'view' | 'layout', triggers: string[], update = false ) => {
-  if( !Array.isArray( triggers ) || !triggers.length )
-    throw new Error('Undefined triggers list')
+export type PanelInput = {
+  key: string
+  caption: ViewCaption
+  options: PanelSections
+  active?: string 
+}
+export const Panel = ( input: PanelInput ) => {
+  const factory: ComponentFactory<PanelInput> = ({ key, caption, options, active }) => {
+    if( typeof options !== 'object' )
+      throw new Error('Invalid createPanel options')
 
-  let list = ''
-  triggers.map( each => {
-    switch( each ){
-      case 'addpoint': list += `<mli show="finder" params="${type}" title="Add view" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-plus"></micon></mli>`; break
-      case 'paste': list += `<mli action="paste" params="${type}" title="Paste view" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-paste"></micon></mli>`; break
+    let
+    sectionTabs = '',
+    sectionBodies = ''
+
+    const composeSection = ( name: string, { icon, title, fieldsets, listsets }: PanelSection, isActive: boolean ) => {
+      /**
+       * List of tabs
+       */
+      sectionTabs += `<mli tab="${name}" ${isActive ? 'class="active"' : ''} ${title ? `title="${title}" ${CONTROL_LANG_SELECTOR}` : ''}><micon class="${icon}"></micon></mli>`
+
+      let fieldsetHTML = ''
+      fieldsets?.map( ({ label, fields, seperate }) => {
+        // Do not render empty fieldset
+        if( !Array.isArray( fields ) || !fields.length )
+          return
+        
+        fieldsetHTML += `<fieldset>
+          ${label ? `<mlabel ${CONTROL_LANG_SELECTOR}>${label}</mlabel>` : ''}
+          ${fields.map( each => (createInput( each )) ).join('')}
+        </fieldset>`
+
+        // Add seperator to this block
+        if( seperate )
+          fieldsetHTML += createFormSeperator()
+      } )
+
+      let listsetHTML = ''
+      listsets?.map( ({ label, items, seperate }) => {
+        // Do not render empty list
+        if( !Array.isArray( items ) || !items.length )
+          return
+        
+        listsetHTML += `<mblock class="listset">
+          ${label ? `<mlabel ${CONTROL_LANG_SELECTOR}>${label}</mlabel>` : ''}
+          <mul>${items.map( each => (createListItem( each )) ).join('')}</mul>
+        </mblock>`
+
+        // Add seperator to this block
+        if( seperate )
+          listsetHTML += createFormSeperator()
+      } )
+
+      sectionBodies += `<mblock section="attributes" class="active">
+        <mblock>${fieldsetHTML}</mblock>
+        <mblock>${listsetHTML}</mblock>
+      </mblock>`
     }
-  } )
 
-  return update ? `<mul>${list}</mul>` : `<mblock ${CONTROL_FLOATING_SELECTOR}="${key}"><mul>${list}</mul></mblock>`
+    /**
+     * Generate HTML content of panel sections
+     */
+    Object.entries( options ).map( ( [name, section], index ) => composeSection( name, section, active == name || index === 0) )
+
+    return `<mblock ${CONTROL_PANEL_SELECTOR}="${key}">
+      <mblock dismiss="panel" backdrop></mblock>
+      <mblock container>
+        <mblock class="header">
+          <mblock>
+            <micon class="${caption.icon}"></micon>
+            <mlabel ${CONTROL_LANG_SELECTOR}>${caption.title}</mlabel>
+
+            <!-- Dismiss control panel -->
+            <span dismiss="panel" title="Dismiss" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-x"></micon></span>
+          </mblock>
+
+          <mul options="tabs">${sectionTabs}</mul>
+        </mblock>
+
+        <mblock class="body">${sectionBodies}</mblock>
+      </mblock>
+    </mblock>`
+  }
+
+  return new Component<PanelInput>( factory, input )
+}
+
+export type FloatingInput = {
+  key: string
+  type: 'view' | 'layout'
+  triggers: string[]
+}
+export const Floating = ( input: FloatingInput ) => {
+  const factory: ComponentFactory<FloatingInput> = ({ key, type, triggers }) => {
+    if( !Array.isArray( triggers ) || !triggers.length )
+      throw new Error('Undefined triggers list')
+
+    let list = ''
+    triggers.map( each => {
+      switch( each ){
+        case 'addpoint': list += `<mli show="finder" params="${type}" title="Add view" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-plus"></micon></mli>`; break
+        case 'paste': list += `<mli action="paste" params="${type}" title="Paste view" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-paste"></micon></mli>`; break
+      }
+    } )
+
+    return `<mblock ${CONTROL_FLOATING_SELECTOR}="${key}"><mul>${list}</mul></mblock>`
+  }
+
+  return new Component( factory, input )
 }
 
 /**
  * Create common alley block
  */
-export const createAlley = ( key?: string, discret?: boolean ) => {
-  return `<mblock ${VIEW_ALLEY_SELECTOR}="${generateKey()}" ${VIEW_REF_SELECTOR}="${key}" status="active" ${discret ? 'discret' : ''}></mblock>`
+export type AlleyInput = {
+  key?: string
+  discret?: boolean
+}
+export const Alley = ( input: AlleyInput = {} ) => {
+  const factory: ComponentFactory<AlleyInput> = ({ key, discret }) => {
+    return `<mblock ${VIEW_ALLEY_SELECTOR}="${generateKey()}" ${VIEW_REF_SELECTOR}="${key}" status="active" ${discret ? 'discret' : ''}></mblock>`
+  }
+
+  return new Component<AlleyInput>( factory, input )
 }
 
 export const createInput = ({ type, label, name, value, pattern, placeholder, autofocus, options, range, disabled }: InputOptions ) => {
@@ -348,55 +406,70 @@ export const createListItem = ({ icon, title, value, event, sub, disabled }: Lis
   </mli>`
 }
 
-export const createSearchResult = ( list: ObjectType<Listset> ) => {
-  let listsetHTML = ''
-  
-  /**
-   * Generate HTML content of panel sections
-   */
-  Object.values( list ).map( ({ label, items, seperate }: Listset ) => {
-    // Do not render empty list
-    if( !Array.isArray( items ) || !items.length )
-      return
+export type SearchResultInput = {
+  list: ObjectType<Listset>
+}
+export const SearchResult = ( input: SearchResultInput ) => {
+  const factory: ComponentFactory<SearchResultInput> = ({ list }) => {
+    let listsetHTML = ''
     
-    listsetHTML += `<mblock class="listset">
-      ${label ? `<mlabel ${CONTROL_LANG_SELECTOR}>${label.replace(/-/g, ' ').toCapitalCase()}</mlabel>` : ''}
-      <mul>${items.map( each => (createListItem( each )) ).join('')}</mul>
-    </mblock>`
+    /**
+     * Generate HTML content of panel sections
+     */
+    Object.values( list ).map( ({ label, items, seperate }: Listset, index: number ) => {
+      // Do not render empty list
+      if( !Array.isArray( items ) || !items.length )
+        return
 
-    // Add seperator to this block
-    if( seperate )
-      listsetHTML += createFormSeperator()
-  } )
+      // Insert seperator between group blocks
+      if( seperate && index > 0 )
+        listsetHTML += createFormSeperator()
+      
+      listsetHTML += `<mblock class="listset">
+        ${label ? `<mlabel ${CONTROL_LANG_SELECTOR}>${label.replace(/-/g, ' ').toCapitalCase()}</mlabel>` : ''}
+        <mul>${items.map( each => (createListItem( each )) ).join('')}</mul>
+      </mblock>`
+    } )
 
-  return listsetHTML || `<mblock ${VIEW_EMPTY_SELECTOR} ${CONTROL_LANG_SELECTOR}>No result</mblock>`
+    return listsetHTML || `<mblock ${VIEW_EMPTY_SELECTOR} ${CONTROL_LANG_SELECTOR}>No result</mblock>`
+  }
+
+  return new Component<SearchResultInput>( factory, input )
 }
 
-export const createFinderPanel = ( key: string, list: ObjectType<Listset> ) => {
-  if( !key || !list )
-    throw new Error('Invalid createAddViewBlock options')
+export type FinderPanelInput = {
+  key: string
+  list: ObjectType<Listset> 
+}
+export const FinderPanel = ( input: FinderPanelInput ) => {
+  const factory: ComponentFactory<FinderPanelInput> = ({ key, list }) => {
+    if( !key || !list )
+      throw new Error('Invalid createAddViewBlock options')
 
-  return `<mblock ${CONTROL_PANEL_SELECTOR}="${key}">
-    <mblock dismiss="panel" backdrop></mblock>
-    <mblock container>
-      <mblock class="header">
-        <mblock>
-          <minline ${CONTROL_LANG_SELECTOR}>Add view</minline>
+    return `<mblock ${CONTROL_PANEL_SELECTOR}="${key}">
+      <mblock dismiss="panel" backdrop></mblock>
+      <mblock container>
+        <mblock class="header">
+          <mblock>
+            <minline ${CONTROL_LANG_SELECTOR}>Add view</minline>
 
-          <!-- Dismiss control panel -->
-          <minline dismiss="panel" title="Dismiss" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-x"></micon></minline>
+            <!-- Dismiss control panel -->
+            <minline dismiss="panel" title="Dismiss" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-x"></micon></minline>
+          </mblock>
+
+          ${createInput({
+            type: 'search',
+            name: 'search',
+            placeholder: 'Search view'
+          })}
         </mblock>
 
-        ${createInput({
-          type: 'search',
-          name: 'search',
-          placeholder: 'Search view'
-        })}
+        <mblock class="results">
+          ${SearchResult({ list }).template}
+        </mblock>
       </mblock>
+    </mblock>`
+  }
 
-      <mblock class="results">
-        ${createSearchResult( list )}
-      </mblock>
-    </mblock>
-  </mblock>`
+  return new Component<FinderPanelInput>( factory, input )
 }

@@ -94,6 +94,7 @@ type ToolbarOption = {
   extra?: boolean
   detached?: boolean
   disabled?: boolean
+  hidden?: boolean
   active?: boolean
 }
 type ToolbarSettings = {
@@ -129,9 +130,15 @@ interface GlobalSet {
 }
 
 type ModelaLanguage = {
-  internal: string
   default: string
+  current: string
 }
+type ModelaLanguageDictionary = ObjectType<ObjectType<string> | string>
+declare interface Window {
+  mlang: ModelaLanguage
+}
+
+
 type ModelaPluginOption = { 
   name: string,
   config: ObjectType<any>
@@ -144,4 +151,3 @@ type ModelaSettings = {
   autoPropagate?: boolean
   plugins?: (string | ModelaPluginOption)[]
 }
-type ModelaLanguageDictionary = ObjectType<ObjectType<string> | string>

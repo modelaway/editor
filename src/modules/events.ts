@@ -1,4 +1,4 @@
-import type Controls from './controls'
+import type Workspace from './workspace'
 import {
   CONTROL_FLOATING_SELECTOR,
   CONTROL_DISCRET_SELECTOR,
@@ -8,15 +8,14 @@ import {
 } from './constants'
 import { debug } from './utils'
 
-export function onTab( $this: JQuery<HTMLElement>, self: Controls ){
+export function onTab( $this: JQuery<HTMLElement>, ws: Workspace ){
   debug('tab event --', $this.attr('tab'), $this.attr('params') )
 
-  const
   /**
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
    */
-  $block = $this.parents(`[${CONTROL_PANEL_SELECTOR}]`)
+  const $block = $this.parents(`[${CONTROL_PANEL_SELECTOR}]`)
 
   // Disable currently active tab & section
   $block.find('.active').removeClass('active')
@@ -26,7 +25,7 @@ export function onTab( $this: JQuery<HTMLElement>, self: Controls ){
   // Show active section
   $block.find(`[section="${$this.attr('tab')}"]`).addClass('active')
 }
-export function onShow( $this: JQuery<HTMLElement>, self: Controls ){
+export function onShow( $this: JQuery<HTMLElement>, ws: Workspace ){
   debug('show event --', $this.attr('show'), $this.attr('params') )
 
   const
@@ -40,14 +39,14 @@ export function onShow( $this: JQuery<HTMLElement>, self: Controls ){
     case 'styles':
     case 'assets':
     case 'settings': {
-      self.$global?.addClass('active')
+      ws.$global?.addClass('active')
 
       // TODO: Open global tabs by `$this.attr('params')` value
 
     } break
 
     // Show main board
-    case 'board': self.flux.frames.board(); break
+    case 'board': ws.flux.frames.board(); break
 
     // Show extra options
     case 'extra-toolbar': {
@@ -70,7 +69,7 @@ export function onShow( $this: JQuery<HTMLElement>, self: Controls ){
     } break 
 
     case 'panel': {
-      const frame = self.flux.frames.active()
+      const frame = ws.flux.frames.active()
       if( !frame ) return
 
       const key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
@@ -83,7 +82,7 @@ export function onShow( $this: JQuery<HTMLElement>, self: Controls ){
     } break
 
     case 'finder': {
-      const frame = self.flux.frames.active()
+      const frame = ws.flux.frames.active()
       if( !frame ) return
 
       /**
@@ -97,7 +96,7 @@ export function onShow( $this: JQuery<HTMLElement>, self: Controls ){
       const view = frame.views.get( key )
       if( !view ) return
       
-      self.flux.controls.clipboard = {
+      ws.clipboard = {
         type: 'finder',
         value: key ? 'discret' : 'alley',
         key
@@ -105,12 +104,12 @@ export function onShow( $this: JQuery<HTMLElement>, self: Controls ){
 
       switch( $this.attr('params') ){
         case 'view': view.showViewFinder( $trigger ); break
-        // case 'layout': showLayoutFinder( $trigger, self ); break
+        // case 'layout': showLayoutFinder( $trigger, ws ); break
       }
     } break
   }
 }
-export function onApply( $this: JQuery<HTMLElement>, self: Controls ){
+export function onApply( $this: JQuery<HTMLElement>, ws: Workspace ){
   debug('apply event --', $this.attr('apply'), $this.attr('params') )
 
   const
@@ -119,7 +118,7 @@ export function onApply( $this: JQuery<HTMLElement>, self: Controls ){
    * make it easier to find different options blocks
    */
   $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}],[${CONTROL_DISCRET_SELECTOR}]`),
-  frame = self.flux.frames.active()
+  frame = ws.flux.frames.active()
   if( !frame ) return
 
   const key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
@@ -137,7 +136,7 @@ export function onApply( $this: JQuery<HTMLElement>, self: Controls ){
 
   view.bridge.events.emit('apply', _attr, _params )
 }
-export function onAction( $this: JQuery<HTMLElement>, self: Controls ){
+export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
   debug('action event --', $this.attr('action'), $this.attr('params') )
   /**
    * Lookup the DOM from the main parent perspective
@@ -147,12 +146,26 @@ export function onAction( $this: JQuery<HTMLElement>, self: Controls ){
   
   switch( $this.attr('action') ){
     /**
-     * -------------- Frame meta self --------------
+     * -------------- Frame controls --------------
      */
+    // Add new view to the DOM
+    case 'add-frame': {
+      const 
+      options = {
+        source: '/',
+        title: 'New Frame',
+        device: 'default'
+      },
+      frame = ws.flux.frames.add( options )
+      if( !frame ) return
+      
+      // Scroll new frame into visible area.
+      frame.$frame.animate({ scrollLeft: '5rem' }, 600 )
+    } break
     // Mount a frame for edit on the board
-    case 'frame.edit': self.flux.frames.edit( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
+    case 'frame.edit': ws.flux.frames.edit( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
     // Delete a frame on the board
-    case 'frame.delete': self.flux.frames.remove( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
+    case 'frame.delete': ws.flux.frames.remove( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
 
     /**
      * -------------- Media screen switch --------------
@@ -162,7 +175,7 @@ export function onAction( $this: JQuery<HTMLElement>, self: Controls ){
     case 'screen-mode.mobile':
     case 'screen-mode.desktop':
     case 'screen-mode.default': {
-      const frame = self.flux.frames.active()
+      const frame = ws.flux.frames.active()
       if( !frame ) return
 
       const [ _, device ] = $this.attr('action')?.split('.') || []
@@ -170,77 +183,73 @@ export function onAction( $this: JQuery<HTMLElement>, self: Controls ){
     } break
 
     /**
-     * -------------- View meta self --------------
+     * -------------- View controls --------------
      */
     // Add new view to the DOM
     case 'add-view': {
       const name = $this.attr('params')
       if( !name 
-          || self.flux.controls.clipboard?.type !== 'finder'
-          || !self.flux.controls.clipboard.key ) return
+          || ws.clipboard?.type !== 'finder'
+          || !ws.clipboard.key ) return
 
-      const frame = self.flux.frames.active()
+      const frame = ws.flux.frames.active()
       if( !frame ) return
       
       // Use finder initiation trigger key as destination
-      frame.views.add( name, self.flux.controls.clipboard.key, self.flux.controls.clipboard.value )
+      frame.views.add( name, ws.clipboard.key, ws.clipboard.value )
       // Clear clipboard
-      self.flux.controls.clipboard = null
+      ws.clipboard = null
 
-      onDismiss( $this, self )
+      onDismiss( $this, ws )
     } break
-
-    /**
-     * -------------- View meta self --------------
-     */
     // Move view up
     case 'view.move-up': {
-      const frame = self.flux.frames.active()
+      const frame = ws.flux.frames.active()
       if( !frame ) return
       
       frame.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'up' )
     } break
     // Move view down
     case 'view.move-down': {
-      const frame = self.flux.frames.active()
+      const frame = ws.flux.frames.active()
       if( !frame ) return
       
       frame.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'down' )
     } break
     // Move view
     case 'view.move': {
-      const frame = self.flux.frames.active()
+      const frame = ws.flux.frames.active()
       if( !frame ) return
       
       frame.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'any' )
     } break
     // Duplicate view
     case 'view.duplicate': {
-      const frame = self.flux.frames.active()
+      const frame = ws.flux.frames.active()
       if( !frame ) return
       
       frame.views.duplicate( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string )
     } break
     // Delete view
     case 'view.delete': {
-      const frame = self.flux.frames.active()
+      const frame = ws.flux.frames.active()
       if( !frame ) return
       
       frame.views.remove( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string )
     } break
     // Copy to clipboard
     case 'view.copy': {
-      self.clipboard = {
+      ws.clipboard = {
         type: $this.attr('params') as ClipBoard['type'],
         key: $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
       }
     } break
     // Paste clipboard content
     case 'view.paste': {
-      if( !self.clipboard?.key || self.clipboard.type !== 'view' )
+      if( !ws.clipboard?.key || ws.clipboard.type !== 'view' )
         return
 
-      const frame = self.flux.frames.active()
+      const frame = ws.flux.frames.active()
       if( !frame ) return
 
       // Paste view
@@ -249,15 +258,15 @@ export function onAction( $this: JQuery<HTMLElement>, self: Controls ){
       nextToView = frame.views.get( nextViewKey as string )
 
       // Duplicated view next to specified pasting view position
-      nextToView && frame.views.duplicate( self.clipboard.key as string, nextToView.$$ )
+      nextToView && frame.views.duplicate( ws.clipboard.key as string, nextToView.$$ )
       // Remove visible floating active
-      // self.flux.$root?.find(`[${CONTROL_FLOATING_SELECTOR}]`).remove()
+      // ws.flux.$root?.find(`[${CONTROL_FLOATING_SELECTOR}]`).remove()
 
-      self.clipboard = null
+      ws.clipboard = null
     } break
   }
 }
-export function onDismiss( $this: JQuery<HTMLElement>, self: Controls ){
+export function onDismiss( $this: JQuery<HTMLElement>, ws: Workspace ){
   debug('dismiss event --', $this.attr('dismiss') )
 
   /**
@@ -267,7 +276,7 @@ export function onDismiss( $this: JQuery<HTMLElement>, self: Controls ){
   const $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}],[${CONTROL_DISCRET_SELECTOR}]`)
   
   switch( $this.attr('dismiss') ){
-    case 'global': self.$global?.removeClass('active'); break
+    case 'global': ws.$global?.removeClass('active'); break
     
     // Dismiss extra options
     case 'extra-toolbar': {
@@ -287,7 +296,7 @@ export function onDismiss( $this: JQuery<HTMLElement>, self: Controls ){
     default: $trigger.remove(); break
   }
 }
-export function onCustomListener( $this: JQuery<HTMLElement>, self: Controls ){
+export function onCustomListener( $this: JQuery<HTMLElement>, ws: Workspace ){
   debug('custom on-* event --', $this.attr('on'), $this.attr('params') )
 
   const
@@ -296,7 +305,7 @@ export function onCustomListener( $this: JQuery<HTMLElement>, self: Controls ){
    * make it easier to find different options blocks
    */
   $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}],[${CONTROL_DISCRET_SELECTOR}]`),
-  frame = self.flux.frames.active()
+  frame = ws.flux.frames.active()
   if( !frame ) return
 
   const key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
@@ -315,6 +324,6 @@ export function onCustomListener( $this: JQuery<HTMLElement>, self: Controls ){
   view.bridge.events.emit( _event, _params )
 }
 
-// export function onContentChange( $this: JQuery<HTMLElement>, self: Controls ){
-//   self.history.lateRecord( $this.html() )
+// export function onContentChange( $this: JQuery<HTMLElement>, ws: Workspace ){
+//   ws.history.lateRecord( $this.html() )
 // }

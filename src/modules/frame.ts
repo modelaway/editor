@@ -5,7 +5,6 @@ import EventEmitter from 'events'
 import CSS from './css'
 import Views from './views'
 import History from './history'
-// import * as Event from './frame.events'
 import IOF from '../lib/custom.iframe.io'
 import { debug, generateKey } from './utils'
 import { createFrame } from './block.factory'
@@ -26,7 +25,7 @@ export default class Frame extends EventEmitter {
   public key: string
   public flux: Modela
   public active = false
-  private $frame: JQuery<HTMLElement>
+  public $frame: JQuery<HTMLElement>
 
   public remote?: FrameWindowRemote
   public $$?: FrameWindowDOM
@@ -57,7 +56,7 @@ export default class Frame extends EventEmitter {
     // Generate new key for the new frame
     this.key = generateKey()
     this.$frame = $(createFrame( this.key, options ))
-    
+
     this.$frame.find('iframe').on('load', ( e: Event ) => {
       const target = e.target as HTMLIFrameElement
       if( !target )
@@ -75,7 +74,16 @@ export default class Frame extends EventEmitter {
     // Use default frame screen resolution
     this.resize( options.device || 'default')
     // Add frame to the board
-    flux.controls.$board?.append( this.$frame )
+    flux.workspace.$board?.append( this.$frame )
+    
+    /**
+     * Emit new frame added to the board
+     * 
+     * Caution: `add` event doesn't mean the frame is loaded
+     *          To perform operation on a loaded frame, listen
+     *          to `load` event instead.
+     */
+    this.emit('add')
   }
 
   private sync(){

@@ -1,3 +1,4 @@
+import EventEmitter from 'events'
 import DMP, { Diff } from 'diff-match-patch'
 
 /**
@@ -57,7 +58,7 @@ type HistoryOptions = {
   debounceWait: number
 }
 
-export default class History {
+export default class History extends EventEmitter {
   private dmp: DMP
   private options: HistoryOptions
 
@@ -67,6 +68,8 @@ export default class History {
   public lateRecord: ( content: string ) => void
 
   constructor( options?: HistoryOptions ){
+    super()
+
     this.dmp = new DMP()
     this.options = {
       throttleLimit: 300,
@@ -97,6 +100,7 @@ export default class History {
    */
   initialize( content: string ){
     this.stacks.push({ content, diff: null }) 
+    this.emit('history.init')
   }
 
   /**
@@ -147,6 +151,8 @@ export default class History {
      * Clear the redo stack whenever a new change is made
      */
     this.redoStack = []
+
+    this.emit('history.record')
   }
 
   /**
@@ -161,6 +167,8 @@ export default class History {
     this.redoStack.push( lastState )
 
     const prevState = this.stacks[ this.stacks.length - 1 ]
+    this.emit('history.undo', this.stacks.length )
+    
     return prevState.content
   }
 
@@ -174,6 +182,7 @@ export default class History {
     if( !nextState ) return
 
     this.stacks.push( nextState )
+    this.emit('history.redo', this.redoStack.length )
 
     return nextState.content 
   }

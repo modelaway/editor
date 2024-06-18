@@ -3,7 +3,7 @@ import type { FrameQuery } from '../lib/frame.window'
 import type { ViewBlockProperties } from '../types/view'
 
 import { createSelectFileInput } from './block.factory'
-import { debug, getTopography } from './utils'
+import { debug, getTopography, obj2Str, str2Obj } from './utils'
 
 export default class Functions {
   private readonly flux: Modela

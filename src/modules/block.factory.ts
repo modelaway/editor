@@ -90,7 +90,7 @@ export const Toolbar = ( input: ToolbarInput ) => {
   const factory: ComponentFactory<ToolbarInput> = ({ key, options, settings }) => {
     if( typeof options !== 'object' )
       throw new Error('Invalid Toolbar Arguments')
-    
+
     // Apply settings
     settings = {
       editing: false,

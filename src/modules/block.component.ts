@@ -1,4 +1,5 @@
 import I18N from './i18n'
+import { deepAssign } from './utils'
 
 export type ComponentFactory<T> = ( input: T ) => string
 
@@ -92,8 +93,14 @@ export default class Component<T> {
     return this.getEl()
   }
   update( input: T ){
-    if( !this.$element?.length
-        || inputEquals( this.input as ObjectType<any>, input as ObjectType<any> ) ) 
+    if( !this.$element?.length )
+      return this.getEl()
+    
+    /**
+     * Apply update only when new input is different 
+     * from the incoming input
+     */
+    if( inputEquals( this.input as ObjectType<any>, input as ObjectType<any> ) )
       return this.getEl()
     
     // Merge with initial/active input.
@@ -112,6 +119,17 @@ export default class Component<T> {
     this.i18n.propagate( this.$element )
 
     return this.getEl()
+  }
+
+  /**
+   * Apply grain/partial update to current input 
+   * instead of sending a whole updated input for update
+   */
+  grainUpdate( data: ObjectType<any> ){
+    if( typeof data !== 'object' ) 
+      return this.getEl()
+
+    this.update( deepAssign( this.input as ObjectType<any>, data ) )
   }
   destroy(){
     this.$element?.off().remove()

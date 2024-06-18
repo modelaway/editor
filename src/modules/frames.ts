@@ -3,6 +3,7 @@ import type { FrameOption } from '../types/frame'
 
 import Frame from './frame'
 import EventEmitter from 'events'
+import { GLOBAL_CONTROL_OPTIONS } from './constants'
 
 export default class Frames extends EventEmitter {
   private flux: Modela
@@ -45,15 +46,24 @@ export default class Frames extends EventEmitter {
     .on('dismiss', () => this.emit('frame.dismiss', this.currentFrame ) )
 
     frame.history
-    .on('history.init', () => {
-
+    .on('history.record', () => {
+      const updates = { 'options.undo.disabled': false }
+      this.flux.workspace.Toolbar?.grainUpdate( updates )
+    })
+    .on('history.undo', stackCount => {
+      const updates = { 'options.undo.disabled': stackCount > 0 }
+      this.flux.workspace.Toolbar?.grainUpdate( updates )
+    })
+    .on('history.redo', stackCount => {
+      const updates = { 'options.redo.disabled': stackCount > 0 }
+      this.flux.workspace.Toolbar?.grainUpdate( updates )
     })
 
     this.list[ frame.key ] = frame
   }
 
   active(){
-    return this.currentFrame?.active ? this.currentFrame : null
+    return this.currentFrame?.active && this.currentFrame
   }
 
   /**
@@ -79,14 +89,19 @@ export default class Frames extends EventEmitter {
 
   board(){
     this.currentFrame?.dismiss()
+
+    // Restore global toolbar without frame control
+    this.flux.workspace.switch( false )
   }
   edit( key: string ){
     if( !this.has( key ) ) return
-    
     const frame = this.get( key )
 
     frame.edit()
     this.currentFrame = frame
+    
+    // Show frame controls on global toolbar
+    this.flux.workspace.switch( true )
   }
 
   remove( index: string ){

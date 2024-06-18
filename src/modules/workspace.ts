@@ -93,6 +93,19 @@ export default class Workspace {
     // .on('paste', onUserAction )
   }
 
+  switch( target: boolean = false ){
+    const updates = {
+      'options.undo.hidden': !target,
+      'options.redo.hidden': !target,
+      'options.board.hidden': !target,
+      'options.add-frame.hidden': target,
+      'options.styles.extra': target,
+      'options.assets.extra': target
+    }
+    
+    this.Toolbar?.grainUpdate( updates )
+  }
+
   destroy(){
     this.flux.$modela?.off()
     this.flux.$modela?.remove()

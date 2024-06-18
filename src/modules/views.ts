@@ -80,6 +80,9 @@ export default class Views {
      * Set this view in global namespace
      */
     this.set( this.currentView )
+
+    // Record history
+    this.frame.history.record('new view added')
   }
 
   /**
@@ -134,6 +137,9 @@ export default class Views {
      * Set this view in global namespace
      */
     this.set( this.currentView )
+
+    // Record history
+    this.frame.history.record('new view lookup')
   }
 
   /**

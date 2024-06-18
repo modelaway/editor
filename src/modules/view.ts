@@ -532,7 +532,7 @@ export default class View {
      * Show paste-view trigger point when a pending
      * copy of view is in the clipboard.
      */
-    if( this.frame.flux.controls.clipboard?.type == 'view' )
+    if( this.frame.flux.workspace.clipboard?.type == 'view' )
       triggers.push('paste')
 
     const

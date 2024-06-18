@@ -175,8 +175,7 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
       type: 'action',
       params: true,
       shortcut: 'command + f'
-    },
-    hidden: true,
+    }
   },
   board: {
     icon: 'bx bx-grid-alt',

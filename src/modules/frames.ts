@@ -45,19 +45,18 @@ export default class Frames extends EventEmitter {
     .on('load', () => this.emit('frame.load', this.currentFrame ) )
     .on('dismiss', () => this.emit('frame.dismiss', this.currentFrame ) )
 
+    const historyNavigator = ( undoCount: number, redoCount: number ) => {
+      const updates = { 
+        'options.undo.disabled': undoCount < 1,
+        'options.redo.disabled': redoCount < 1
+      }
+      this.flux.workspace.Toolbar?.grainUpdate( updates )
+    }
+
     frame.history
-    .on('history.record', () => {
-      const updates = { 'options.undo.disabled': false }
-      this.flux.workspace.Toolbar?.grainUpdate( updates )
-    })
-    .on('history.undo', stackCount => {
-      const updates = { 'options.undo.disabled': stackCount > 0 }
-      this.flux.workspace.Toolbar?.grainUpdate( updates )
-    })
-    .on('history.redo', stackCount => {
-      const updates = { 'options.redo.disabled': stackCount > 0 }
-      this.flux.workspace.Toolbar?.grainUpdate( updates )
-    })
+    .on('history.record', historyNavigator.bind(this) )
+    .on('history.undo', historyNavigator.bind(this) )
+    .on('history.redo', historyNavigator.bind(this) )
 
     this.list[ frame.key ] = frame
   }

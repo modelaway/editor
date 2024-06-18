@@ -123,12 +123,9 @@ export default class Frame extends EventEmitter {
     // Activate all inert add-view alleys
     this.setAlleys('active')
     
-    // Process initial content
+    // Set initial content as first history stack
     const initialContent = await this.$$root.html()
-    if( initialContent ){
-      // Set initial content as first history stack
-      this.history.initialize( initialContent )
-    }
+    initialContent && this.history.initialize( initialContent )
 
     // Initialize control events
     this.events()
@@ -273,5 +270,21 @@ export default class Frame extends EventEmitter {
       width: await $elem.width() || 0,
       height: await $elem.height() || 0
     }
+  }
+
+  /**
+   * Record current frame window content as
+   * latest history stack.
+   */
+  async recordHistoryStack(){
+    const currentContent = await this.$$body?.html()
+    currentContent && this.history.record( currentContent )
+  }
+  /**
+   * Revert frame frame window content to history
+   * stack content.
+   */
+  async revertHistoryStack( content: string ){
+    await this.$$body?.html( content )
   }
 }

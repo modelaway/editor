@@ -80,9 +80,9 @@ export default class Views {
      * Set this view in global namespace
      */
     this.set( this.currentView )
-
-    // Record history
-    this.frame.history.record('new view added')
+    
+    // Record history stack
+    this.frame.recordHistoryStack()
   }
 
   /**
@@ -138,8 +138,8 @@ export default class Views {
      */
     this.set( this.currentView )
 
-    // Record history
-    this.frame.history.record('new view lookup')
+    // Record history stack
+    this.frame.recordHistoryStack()
   }
 
   /**
@@ -206,6 +206,9 @@ export default class Views {
     
     this.get( key ).destroy()
     delete this.list[ key ]
+
+    // Record history stack
+    this.frame.recordHistoryStack()
   }
 
   /**
@@ -221,6 +224,9 @@ export default class Views {
      * Set this view in global namespace
      */
     this.set( duplicateView )
+
+    // Record history stack
+    this.frame.recordHistoryStack()
   }
 
   /**
@@ -232,5 +238,8 @@ export default class Views {
     if( !this.has( key ) ) return
     
     this.get( key ).move( direction )
+
+    // Record history stack
+    this.frame.recordHistoryStack()
   }
 }

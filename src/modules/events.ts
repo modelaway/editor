@@ -168,6 +168,27 @@ export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
     case 'frame.delete': ws.flux.frames.remove( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
 
     /**
+     * -------------- History navigation controls --------------
+     */
+    // Undo history
+    case 'undo': {
+      const frame = ws.flux.frames.active()
+      if( !frame ) return
+
+      // Revert last history stack
+      const content = frame.history.undo()
+      content !== undefined && frame.revertHistoryStack( content )
+    } break
+    // Redo history
+    case 'redo': {
+      const frame = ws.flux.frames.active()
+      if( !frame ) return
+      
+      const content = frame.history.redo()
+      content !== undefined && frame.revertHistoryStack( content )
+    } break
+
+    /**
      * -------------- Media screen switch --------------
      */
     case 'screen-mode.tv':

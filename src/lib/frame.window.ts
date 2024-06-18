@@ -5,6 +5,7 @@ import { generateKey } from '../modules/utils'
 export type FrameWindowDOM = ( selector: string ) => Promise<FrameQuery>
 export type FrameWindowRemote = {
   customCSSProps: () => Promise<ObjectType<string>>
+  documentWrite: ( content: string ) => Promise<void>
 }
 
 type Packet = {
@@ -977,11 +978,24 @@ export default ( channel: IOF ) => {
     catch( error: any ){ typeof callback == 'function' && callback( error.message ) }
   }
 
+  function onDocumentWrite( content: string, callback?: ( error: string | boolean ) => void ){
+    try {
+      document.open()
+      document.write( content )
+      document.close()
+
+      typeof callback === 'function' && callback( false )
+    }
+    catch( error: any ){ typeof callback == 'function' && callback( error.message ) }
+  }
+
   // Listen to remote DOM Query calls
   channel
   .on('init', onInit )
   .on('packet', onCall )
 
+  // Listen to document.write operation calls
+  .on('document-write', onDocumentWrite )
   // Listen to custom operation calls
   .on('custom-css-props', onCustomCSSProps )
 
@@ -999,6 +1013,17 @@ export default ( channel: IOF ) => {
       return new Promise( ( resolve, reject ) => {
         channel.emit('custom-css-props', ( error: string | boolean, props: ObjectType<string> ) => {
           error ? reject( error ) : resolve( props )
+        })
+      } )
+    },
+
+    /**
+     * Write new content in document
+     */
+    documentWrite( content ){
+      return new Promise( ( resolve, reject ) => {
+        channel.emit('document-write', content, ( error: string | boolean ) => {
+          error ? reject( error ) : resolve()
         })
       } )
     }

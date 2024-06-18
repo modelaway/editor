@@ -63,7 +63,7 @@ export default class History extends EventEmitter {
   private options: HistoryOptions
 
   private stacks: Stack[] = []
-  private redoStack: Stack[] = []
+  private redoStacks: Stack[] = []
 
   public lateRecord: ( content: string ) => void
 
@@ -103,6 +103,11 @@ export default class History extends EventEmitter {
     this.emit('history.init')
   }
 
+  can( action: 'undo' | 'redo' ){
+    const count = ( action == 'redo' ? this.redoStacks.length : this.stacks.length )
+    return count > 0
+  }
+
   /**
    * Calculate the diff between two states asynchronously
    */
@@ -135,9 +140,20 @@ export default class History extends EventEmitter {
    * Record the current state with delta encoding
    */
   async record( content: string ){
-    const
-    lastState = this.stacks[ this.stacks.length - 1 ],
-    diff = await this.calculateDiff( lastState.content, content )
+    /**
+     * Retrieve lastest stack record on which diff 
+     * will be calculated on.
+     * 
+     * No last state, consider this record as
+     * initial stack.
+     */
+    const lastState = this.stacks[ this.stacks.length - 1 ]
+    if( !lastState ){
+      this.initialize( content )
+      return
+    }
+
+    const diff = await this.calculateDiff( lastState.content, content )
 
     // Remove the oldest entry to maintain max history size
     this.options.maxHistorySize 
@@ -150,9 +166,9 @@ export default class History extends EventEmitter {
     /**
      * Clear the redo stack whenever a new change is made
      */
-    this.redoStack = []
+    this.redoStacks = []
 
-    this.emit('history.record')
+    this.emit('history.record', this.stacks.length, this.redoStacks.length )
   }
 
   /**
@@ -164,10 +180,13 @@ export default class History extends EventEmitter {
     const lastState = this.stacks.pop()
     if( !lastState ) return
 
-    this.redoStack.push( lastState )
+    this.redoStacks.push( lastState )
 
-    const prevState = this.stacks[ this.stacks.length - 1 ]
-    this.emit('history.undo', this.stacks.length )
+    const
+    stackIndex = this.stacks.length - 1,
+    prevState = this.stacks[ stackIndex ]
+
+    this.emit('history.undo', stackIndex, this.redoStacks.length )
     
     return prevState.content
   }
@@ -176,14 +195,20 @@ export default class History extends EventEmitter {
    * Redo
    */
   redo(){
-    if( this.redoStack.length <= 0 ) return
+    if( this.redoStacks.length < 1 ) return
     
-    const nextState = this.redoStack.pop()
+    const nextState = this.redoStacks.pop()
     if( !nextState ) return
 
     this.stacks.push( nextState )
-    this.emit('history.redo', this.redoStack.length )
+    
+    // Get the state before the current one to apply diff
+    const 
+    lastState = this.stacks[ this.stacks.length - 2 ],
+    content = this.applyDiff( lastState.content, nextState.diff )
 
-    return nextState.content 
+    this.emit('history.redo', this.stacks.length, this.redoStacks.length )
+
+    return content
   }
 }

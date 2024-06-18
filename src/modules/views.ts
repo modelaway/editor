@@ -80,9 +80,6 @@ export default class Views {
      * Set this view in global namespace
      */
     this.set( this.currentView )
-    
-    // Record history stack
-    this.frame.recordHistoryStack()
   }
 
   /**
@@ -94,52 +91,56 @@ export default class Views {
    */
   async lookup( $$currentTarget: FrameQuery ){
     /**
-     * Inspect view
+     * Inspect inert view
      */
     const key = await $$currentTarget.attr( VIEW_KEY_SELECTOR )
     if( this.has( key ) ){
       // Dismiss all active views
       this.each( view => view.dismiss() )
-      this.get( key ).trigger()
-      return
+      
+      // Create new view instance or use existing.
+      this.currentView = this.get( key )
+      if( !this.currentView ) return
+
+      await this.currentView.inspect( $$currentTarget, this.currentView.get('name'), true )
     }
 
-    // Identify view component name or its HTML nodeName
-    let cname = await $$currentTarget.attr( VIEW_NAME_SELECTOR )
-                || (await $$currentTarget.prop('nodeName')).toLowerCase()
+    // Inspect new view
+    else {
+      // Identify view component name or its HTML nodeName
+      let cname = await $$currentTarget.attr( VIEW_NAME_SELECTOR )
+                  || (await $$currentTarget.prop('nodeName')).toLowerCase()
 
-    let vc = await this.frame.flux.store.getView( cname, $$currentTarget )
-    if( !vc ) return
-    
-    /**
-     * View component's name can be the same as its HTML
-     * nodeName identifier.
-     * 
-     * Eg. `fieldset` name for <fieldset> tag/nodeName
-     * 
-     * If not, then preempt to the view component's actual name
-     * instead of the HTML nodeName.
-     * 
-     * Eg. `text` for <span> tag/nodeName
-     */
-    cname = vc.name
-    
-    // Dismiss all active views
-    this.each( view => view.dismiss() )
+      let vc = await this.frame.flux.store.getView( cname, $$currentTarget )
+      if( !vc ) return
+      
+      /**
+       * View component's name can be the same as its HTML
+       * nodeName identifier.
+       * 
+       * Eg. `fieldset` name for <fieldset> tag/nodeName
+       * 
+       * If not, then preempt to the view component's actual name
+       * instead of the HTML nodeName.
+       * 
+       * Eg. `text` for <span> tag/nodeName
+       */
+      cname = vc.name
+      
+      // Dismiss all active views
+      this.each( view => view.dismiss() )
 
-    // Create new view instance or use existing.
-    this.currentView = new View( this.frame )
-    if( !this.currentView ) return
+      // Create new view instance or use existing.
+      this.currentView = new View( this.frame )
+      if( !this.currentView ) return
 
-    await this.currentView.inspect( $$currentTarget, cname, true )
+      await this.currentView.inspect( $$currentTarget, cname, true )
 
-    /**
-     * Set this view in global namespace
-     */
-    this.set( this.currentView )
-
-    // Record history stack
-    this.frame.recordHistoryStack()
+      /**
+       * Set this view in global namespace
+       */
+      this.set( this.currentView )
+    }
   }
 
   /**
@@ -206,9 +207,6 @@ export default class Views {
     
     this.get( key ).destroy()
     delete this.list[ key ]
-
-    // Record history stack
-    this.frame.recordHistoryStack()
   }
 
   /**
@@ -224,9 +222,6 @@ export default class Views {
      * Set this view in global namespace
      */
     this.set( duplicateView )
-
-    // Record history stack
-    this.frame.recordHistoryStack()
   }
 
   /**
@@ -238,8 +233,5 @@ export default class Views {
     if( !this.has( key ) ) return
     
     this.get( key ).move( direction )
-
-    // Record history stack
-    this.frame.recordHistoryStack()
   }
 }

@@ -87,10 +87,6 @@ export default class Workspace {
      * Custom `on-*` event trigger
      */
     .on('click', '[on]', handler( Event.onCustomListener ) )
-
-    // .on('input', '[contenteditable]', handler( Event.onContentChange ) )
-    // .on('keydown', onUserAction )
-    // .on('paste', onUserAction )
   }
 
   switch( target: boolean = false ){

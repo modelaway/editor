@@ -3,7 +3,6 @@ import type { FrameOption } from '../types/frame'
 
 import Frame from './frame'
 import EventEmitter from 'events'
-import { GLOBAL_CONTROL_OPTIONS } from './constants'
 
 export default class Frames extends EventEmitter {
   private flux: Modela
@@ -45,12 +44,22 @@ export default class Frames extends EventEmitter {
     .on('load', () => this.emit('frame.load', this.currentFrame ) )
     .on('dismiss', () => this.emit('frame.dismiss', this.currentFrame ) )
 
+    /**
+     * Listen to each frames' history navigation events
+     */
     const historyNavigator = ( undoCount: number, redoCount: number ) => {
       const updates = { 
         'options.undo.disabled': undoCount < 1,
         'options.redo.disabled': redoCount < 1
       }
+
       this.flux.workspace.Toolbar?.grainUpdate( updates )
+
+      /**
+       * Send content change signal for every history
+       * navigation action.
+       */
+      frame.emit('content.change')
     }
 
     frame.history

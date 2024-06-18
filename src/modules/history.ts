@@ -74,7 +74,7 @@ export default class History extends EventEmitter {
     this.options = {
       throttleLimit: 300,
       debounceWait: 500,
-      maxHistorySize: 100,
+      maxHistorySize: 500,
 
       // Custom options 
       ...options

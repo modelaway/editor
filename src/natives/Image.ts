@@ -43,6 +43,7 @@ const Image: ViewComponent = {
       view.fn.debug('-- async: ', files )
 
       await view.$?.attr('src', files[0].src )
+      view.fn.pushHistoryStack()
     })
   },
   dismiss( view ){},

@@ -3,7 +3,7 @@ import type { FrameQuery } from '../lib/frame.window'
 import type { ViewBlockProperties } from '../types/view'
 
 import { createSelectFileInput } from './block.factory'
-import { debug, getTopography, obj2Str, str2Obj } from './utils'
+import { debug } from './utils'
 
 export default class Functions {
   private readonly flux: Modela
@@ -15,8 +15,10 @@ export default class Functions {
   }
 
   debug = debug
-  getTopography = getTopography
 
+  /**
+   * Select file(s) from local computer
+   */
   selectFile( options: SelectFileOptions ): Promise<InputFiles[]> {
     return new Promise( resolve => {
       const $input = $(createSelectFileInput( options ))
@@ -97,5 +99,12 @@ export default class Functions {
     } )
 
     return styles
+  }
+
+  /**
+   * 
+   */
+  pushHistoryStack(){
+    throw new Error('Method not overridden')
   }
 }

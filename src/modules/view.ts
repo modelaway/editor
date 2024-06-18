@@ -169,6 +169,15 @@ export default class View {
 
     this.bridge.events.emit('mounted')
     debug('view initialized')
+
+    // Record history stack
+    this.frame.pushHistoryStack()
+    /**
+     * Override bridge primary fn interface methods
+     */
+    if( this.bridge.fn ){
+      this.bridge.fn.pushHistoryStack = async () => this.frame.pushHistoryStack()
+    }
   }
 
   set( values: any ){
@@ -406,6 +415,9 @@ export default class View {
     this.key = undefined
     this.styles = undefined
     this.$parent = undefined
+
+    // Record history stack
+    this.frame.pushHistoryStack()
   }
 
   /**
@@ -699,6 +711,9 @@ export default class View {
 
       default: this.showMovable()
     }
+
+    // Record history stack
+    this.frame.pushHistoryStack()
   }
   async dismiss(){
     // Unhighlight triggered views

@@ -17,7 +17,8 @@ import {
   VIEW_KEY_SELECTOR,
   PATCH_CSS_SETTINGS,
   VIEW_ACTIVE_SELECTOR,
-  VIEW_ALLEY_SELECTOR } from './constants'
+  VIEW_ALLEY_SELECTOR
+} from './constants'
 import FrameWindow, { FrameWindowRemote, FrameWindowDOM, FrameQuery } from '../lib/frame.window'
 
 export default class Frame extends EventEmitter {
@@ -121,7 +122,7 @@ export default class Frame extends EventEmitter {
     && await this.views.propagate( this.$$body )
 
     // Activate all inert add-view alleys
-    this.setAlleys('active')
+    this.enableAlleys('active')
     
     // Set initial content as first history stack
     const initialContent = await this.$$root.html()
@@ -176,6 +177,10 @@ export default class Frame extends EventEmitter {
       const view = this.views.get( key )
       view?.showFloating()
     } )
+
+    .on('input', '[contenteditable]', async () => await this.pushHistoryStack( true ) )
+    // .on('keydown', onUserAction )
+    // .on('paste', onUserAction )
   }
   resize( device: string ){
     if( device === 'default' ){
@@ -199,7 +204,7 @@ export default class Frame extends EventEmitter {
   }
   delete(){
     // Disable add-view alleys
-    this.setAlleys('inert')
+    this.enableAlleys('inert')
 
     // Clear views meta data
     this.views?.clear()
@@ -229,7 +234,7 @@ export default class Frame extends EventEmitter {
    * - active: Enable add-view alleys highlighting during editing
    * - inert: Disable add-view alleys
    */
-  setAlleys( status = 'active' ){
+  enableAlleys( status = 'active' ){
     if( !this.flux.settings.enableAlleys ) return
     $(`[${VIEW_ALLEY_SELECTOR}]`).attr('status', status )
   }
@@ -273,18 +278,30 @@ export default class Frame extends EventEmitter {
   }
 
   /**
-   * Record current frame window content as
-   * latest history stack.
+   * Retrieve frame's body content.
    */
-  async recordHistoryStack(){
-    const currentContent = await this.$$body?.html()
-    currentContent && this.history.record( currentContent )
+  async getContent( root = false ){
+    return await (root ? this.$$root : this.$$body)?.html() || ''
   }
   /**
-   * Revert frame frame window content to history
-   * stack content.
+   * Set frame's body content
    */
-  async revertHistoryStack( content: string ){
-    await this.$$body?.html( content )
+  async setContent( content: string, root = false ){
+    await (root ? this.$$root : this.$$body)?.html( content )
+  }
+
+  /**
+   * Record/push current frame window content as
+   * latest history stack.
+   */
+  async pushHistoryStack( TDR = false ){
+    const currentContent = await this.getContent()
+    if( currentContent === undefined ) return 
+    
+    TDR ? 
+      // Throttling & Deboucing Recording
+      this.history.lateRecord( currentContent )
+      // No delay recording
+      : this.history.record( currentContent )
   }
 }

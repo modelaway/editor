@@ -34,7 +34,7 @@ export default class CSS {
               .map( ([ prop, value ]) => {
                 if( !CSS_CUSTOM_VARIABLES[ prop ] ) return
                 CSS_CUSTOM_VARIABLES[ prop ].value = value
-              } )
+              })
 
     /**
      * Generate CSS rule string

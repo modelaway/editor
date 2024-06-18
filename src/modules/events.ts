@@ -1,7 +1,6 @@
 import type Workspace from './workspace'
 import {
   CONTROL_FLOATING_SELECTOR,
-  CONTROL_DISCRET_SELECTOR,
   CONTROL_TOOLBAR_SELECTOR,
   CONTROL_PANEL_SELECTOR,
   CONTROL_FRAME_SELECTOR
@@ -33,7 +32,7 @@ export function onShow( $this: JQuery<HTMLElement>, ws: Workspace ){
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
    */
-  $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}],[${CONTROL_DISCRET_SELECTOR}]`)
+  $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`)
 
   switch( $this.attr('show') ){
     case 'styles':
@@ -90,7 +89,7 @@ export function onShow( $this: JQuery<HTMLElement>, ws: Workspace ){
        * destination element to the following `add-view`
        * procedure.
        */
-      const key = $trigger.attr( CONTROL_FLOATING_SELECTOR ) || $trigger.attr( CONTROL_DISCRET_SELECTOR )
+      const key = $trigger.attr( CONTROL_FLOATING_SELECTOR )
       if( !key ) return
       
       const view = frame.views.get( key )
@@ -117,14 +116,13 @@ export function onApply( $this: JQuery<HTMLElement>, ws: Workspace ){
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
    */
-  $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}],[${CONTROL_DISCRET_SELECTOR}]`),
+  $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`),
   frame = ws.flux.frames.active()
   if( !frame ) return
 
   const key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
         || $trigger.attr( CONTROL_PANEL_SELECTOR )
         || $trigger.attr( CONTROL_FLOATING_SELECTOR )
-        || $trigger.attr( CONTROL_DISCRET_SELECTOR )
   if( !key ) return
 
   const view = frame.views.get( key )
@@ -142,7 +140,7 @@ export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
    */
-  const $trigger = $this.parents(`[${CONTROL_FRAME_SELECTOR}],[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}],[${CONTROL_DISCRET_SELECTOR}]`)
+  const $trigger = $this.parents(`[${CONTROL_FRAME_SELECTOR}],[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`)
   
   switch( $this.attr('action') ){
     /**
@@ -175,17 +173,18 @@ export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
       const frame = ws.flux.frames.active()
       if( !frame ) return
 
-      // Revert last history stack
+      // Revert to last history stack
       const content = frame.history.undo()
-      content !== undefined && frame.revertHistoryStack( content )
+      content !== undefined && frame.setContent( content )
     } break
     // Redo history
     case 'redo': {
       const frame = ws.flux.frames.active()
       if( !frame ) return
       
+      // Restore a reverted history stack
       const content = frame.history.redo()
-      content !== undefined && frame.revertHistoryStack( content )
+      content !== undefined && frame.setContent( content )
     } break
 
     /**
@@ -294,7 +293,7 @@ export function onDismiss( $this: JQuery<HTMLElement>, ws: Workspace ){
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
    */
-  const $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}],[${CONTROL_DISCRET_SELECTOR}]`)
+  const $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`)
   
   switch( $this.attr('dismiss') ){
     case 'global': ws.$global?.removeClass('active'); break
@@ -325,14 +324,13 @@ export function onCustomListener( $this: JQuery<HTMLElement>, ws: Workspace ){
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
    */
-  $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}],[${CONTROL_DISCRET_SELECTOR}]`),
+  $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`),
   frame = ws.flux.frames.active()
   if( !frame ) return
 
   const key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
         || $trigger.attr( CONTROL_PANEL_SELECTOR )
         || $trigger.attr( CONTROL_FLOATING_SELECTOR )
-        || $trigger.attr( CONTROL_DISCRET_SELECTOR )
   if( !key ) return
 
   const view = frame.views.get( key )
@@ -344,7 +342,3 @@ export function onCustomListener( $this: JQuery<HTMLElement>, ws: Workspace ){
 
   view.bridge.events.emit( _event, _params )
 }
-
-// export function onContentChange( $this: JQuery<HTMLElement>, ws: Workspace ){
-//   ws.history.lateRecord( $this.html() )
-// }

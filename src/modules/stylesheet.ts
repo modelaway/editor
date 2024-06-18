@@ -152,30 +152,7 @@ export default class Stylesheet {
    * Return css custom properties
    */
   custom(){
-    // const props: ObjectType<string> = {}
-
-    // Array
-    // .from( document.styleSheets )
-    // /**
-    //  * Allow only same-domain stylesheet to be read
-    //  * to avoid cross-origin content policy error
-    //  */
-    // .filter( sheet => (!sheet.href || sheet.href.indexOf( window.location.origin ) === 0))
-    // .forEach( sheet => {
-    //   // Only style rules
-    //   const rules = Array.from( sheet.cssRules || sheet.rules ).filter( ( rule ) => rule.type === 1 ) as CSSStyleRule[]
-
-    //   rules.forEach( rule => {
-    //     Array
-    //     .from( rule.style )
-    //     .filter( prop => (/^--/.test( prop )) )
-    //     // Ignore modela UI custom CSS properties
-    //     .filter( prop => (!/^--me-/.test( prop )) )
-    //     .map( prop => props[ prop.trim() ] = rule.style.getPropertyValue( prop ).trim() )
-    //   } )
-    // } )
-    
-    // return props
+    return {}
   }
 
   /**

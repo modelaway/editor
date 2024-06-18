@@ -36,10 +36,7 @@ import {
   FinderPanelInput,
   SearchResultInput
 } from './block.factory'
-import {
-  debug,
-  generateKey
-} from './utils'
+import { debug, generateKey } from './utils'
 import { FrameQuery } from '../lib/frame.window'
 
 export default class View {
@@ -583,7 +580,7 @@ export default class View {
     /**
      * Put finder panel in position
      */
-    let { x, y } = await this.frame.getTopography( $trigger )
+    let { x, y } = this.frame.flux.workspace.getTopography( $trigger )
 
     this.FinderPanel = FinderPanel({ key: this.key as string, list: this.frame.flux.store.searchView() })
     let $finder = this.FinderPanel.render('append', this.frame.flux.$modela )

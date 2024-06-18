@@ -83,6 +83,13 @@ export default class Views {
   }
 
   /**
+   * Dismiss all/any active views
+   */
+  dismissAll(){
+    this.each( view => view.dismiss() )
+  }
+
+  /**
    * Lookup existing HTML elements in the DOM to identify
    * and mount any view that can be edited via the editor
    * context
@@ -96,7 +103,7 @@ export default class Views {
     const key = await $$currentTarget.attr( VIEW_KEY_SELECTOR )
     if( this.has( key ) ){
       // Dismiss all active views
-      this.each( view => view.dismiss() )
+      this.dismissAll()
       
       // Create new view instance or use existing.
       this.currentView = this.get( key )
@@ -128,7 +135,7 @@ export default class Views {
       cname = vc.name
       
       // Dismiss all active views
-      this.each( view => view.dismiss() )
+      this.dismissAll()
 
       // Create new view instance or use existing.
       this.currentView = new View( this.frame )

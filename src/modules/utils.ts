@@ -32,34 +32,6 @@ export const generateKey = () => {
 }
 
 /**
- * Return an element dimension and position 
- * situation in the DOM
- */
-export const getTopography = async ( $elem: JQuery<HTMLElement> | FrameQuery, strict = false ) => {
-  if( !$elem.length )
-    throw new Error('Invalid method call. Expected a valid element')
-  
-  /**
-   * View position coordinates in the DOM base on
-   * which related triggers will be positionned.
-   */
-  let { left, top } = await $elem.offset() || { left: CONTROL_EDGE_MARGIN, top: CONTROL_EDGE_MARGIN }
-
-  // Determite position of element relative to window only
-  if( strict ){
-    top -= $(window).scrollTop() || 0
-    left -= $(window).scrollLeft() || 0
-  }
-
-  return { 
-    x: left,
-    y: top,
-    width: await $elem.width() || 0,
-    height: await $elem.height() || 0
-  }
-}
-
-/**
  * Convert integrale object to a string
  * 
  * - preserve included functions

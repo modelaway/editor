@@ -8,7 +8,7 @@ import {
   WorkspaceLayer,
   WorkspaceLayerInput
 } from './block.factory'
-import { GLOBAL_CONTROL_OPTIONS } from './constants'
+import { CONTROL_EDGE_MARGIN, GLOBAL_CONTROL_OPTIONS } from './constants'
 
 export default class Workspace {
   readonly flux: Modela
@@ -107,5 +107,31 @@ export default class Workspace {
     this.flux.$modela?.remove()
 
     this.flux.$root?.off()
+  }
+
+  /**
+   * Return an element dimension and position 
+   * situation in the DOM
+   */
+  getTopography( $elem: JQuery<HTMLElement> ){
+    if( !$elem.length )
+      throw new Error('Invalid method call. Expected a valid element')
+    
+    /**
+     * View position coordinates in the DOM base on
+     * which related triggers will be positionned.
+     */
+    let { left, top } = $elem.offset() || { left: CONTROL_EDGE_MARGIN, top: CONTROL_EDGE_MARGIN }
+
+    // Determite position of element relative to window only
+    top -= $(window).scrollTop() || 0
+    left -= $(window).scrollLeft() || 0
+      
+    return { 
+      x: left,
+      y: top,
+      width: $elem.width() || 0,
+      height: $elem.height() || 0
+    }
   }
 }

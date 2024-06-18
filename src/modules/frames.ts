@@ -71,7 +71,7 @@ export default class Frames extends EventEmitter {
   }
 
   active(){
-    return this.currentFrame?.active && this.currentFrame
+    return this.currentFrame?.active ? this.currentFrame : undefined
   }
 
   /**
@@ -96,6 +96,13 @@ export default class Frames extends EventEmitter {
   }
 
   board(){
+    // Remove active floating
+    this.flux.Floating?.destroy()
+    this.flux.Floating = undefined
+
+    // Dismiss any active view in current active frame
+    this.active()?.views.dismissAll()
+    // Dismiss current active frame
     this.currentFrame?.dismiss()
 
     // Restore global toolbar without frame control

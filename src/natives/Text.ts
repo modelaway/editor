@@ -1,4 +1,4 @@
-import type { ViewComponent } from '../types/view'
+import type { ViewComponent, ViewBridge } from '../types/view'
 
 const
 toolbarOptions: ObjectType<ToolbarOption> = {
@@ -29,7 +29,7 @@ toolbarOptions: ObjectType<ToolbarOption> = {
       shortcut: 'command + alt + u'
     }
   },
-  strikethrough: {
+  'line-through': {
     icon: 'bx bx-strikethrough',
     title: 'Stike',
     event: {
@@ -158,9 +158,94 @@ panelOptions: PanelSections = {
     fieldsets: [],
     more: true
   }
-},
+}
 
-Text: ViewComponent = {
+function activate( view: ViewBridge ){
+  return async () => {
+    await view.$?.attr('contenteditable', 'true')
+  }
+}
+function apply( view: ViewBridge ){
+  return async ( attr: string, value: any ) => {
+    const viewStyle = await view.css?.style()
+
+    switch( attr ){
+      // Font weight style
+      case 'bold': {
+        if( value === 'BINARY_SWITCH' ){
+          if( !viewStyle ) return
+          const isBold = viewStyle['font-weight'] === 'bold'
+
+          view.$.css({ 'font-weight': !isBold ? 'bold' : 'normal' })
+          // Update toolbar options
+          view.fn.updateToolbar({ 'bold.active': !isBold })
+        }
+        else {
+          view.$.css({ 'font-weight': 'bold' })
+          // Update toolbar options
+          view.fn.updateToolbar({ 'bold.active': true })
+        }
+      } break
+
+      // Font style
+      case 'italic': {
+        if( value === 'BINARY_SWITCH' ){
+          if( !viewStyle ) return
+          const isItalic = viewStyle['font-style'] === 'italic'
+
+          view.$.css({ 'font-style': !isItalic ? 'italic' : 'normal' })
+          // Update toolbar options
+          view.fn.updateToolbar({ 'italic.active': !isItalic })
+        }
+        else {
+          view.$.css({ 'font-style': 'italic' })
+          // Update toolbar options
+          view.fn.updateToolbar({ 'italic.active': true })
+        }
+      } break
+
+      // Text decoration style
+      case 'underline': 
+      case 'line-through': {
+        if( value === 'BINARY_SWITCH' ){
+          if( !viewStyle ) return
+          const isApplied = viewStyle['text-decoration'] === attr
+
+          view.$.css({ 'text-decoration': !isApplied ? attr : 'none' })
+          // Update toolbar options
+          view.fn.updateToolbar({
+            'underline.active': attr == 'underline' && !isApplied,
+            'line-through.active': attr == 'line-through' && !isApplied
+          })
+        }
+        else {
+          view.$.css({ 'text-decoration': attr })
+          // Update toolbar options
+          view.fn.updateToolbar({
+            'underline.active': attr == 'underline',
+            'line-through.active': attr == 'line-through'
+          })
+        }
+      } break
+
+      case 'alignment.top':
+      case 'alignment.left':
+      case 'alignment.center':
+      case 'alignment.justify': {
+        view.$.css({ 'text-align': attr.split('.')[1] })
+        // Update toolbar options
+        view.fn.updateToolbar({
+          'alignment.top.active': attr == 'alignment.top',
+          'alignment.left.active': attr == 'alignment.left',
+          'alignment.center.active': attr == 'alignment.center',
+          'alignment.justify.active': attr == 'alignment.justify',
+        })
+      } break
+    }
+  }
+}
+
+const Text: ViewComponent = {
   name: 'text',
   node: 'span',
   category: 'text',
@@ -175,6 +260,11 @@ Text: ViewComponent = {
     return `<span lang>Loren upsum</span>`
   },
   async takeover( view ){
+    // Access to style data
+    console.log( await view.css?.custom() )
+    console.log( await view.css?.style() )
+
+    // Interaction events
     view.events
     .on('show.toolbar', () => {})
     .on('show.panel', () => {})
@@ -182,30 +272,23 @@ Text: ViewComponent = {
     .on('view.styles', async data => await view.$?.css( data ) )
     .on('global.styles', async data => await view.$?.css( data ) )
 
-    .on('activate', async data => await view.$?.attr('contenteditable', 'true') )
-
-    console.log( await view.css?.custom() )
-    console.log( await view.css?.style() )
+    .on('activate', activate( view ) )
+    .on('apply', apply( view ) )
   },
   dismiss( view ){
     view.$?.removeAttr('contenteditable')
   },
   
   styles( view ){
-
     return {
       css: `
-        --active-bg-color: rgba(100, 100, 100, 0.2);
-        --active-border-radius: 3px;
-        --active-transition: 200ms;
-
         min-width: 1.3rem;
         font-size: inherit;
         display: inline-block;
         content: "Loren upsum";
         
         &[contenteditable] { outline: none; }
-        &:active { color: var(--primary-color); }
+        /* &:active { color: var(--primary-color); } */
       `,
       custom: {
         enabled: true,
@@ -215,11 +298,9 @@ Text: ViewComponent = {
     }
   },
   toolbar( view ){
-
     return toolbarOptions
   },
   panel( view ){
-
     return panelOptions
   }
 }

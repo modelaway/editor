@@ -151,7 +151,7 @@ export default class Stylesheet {
   /**
    * Return css custom properties
    */
-  custom(){
+  async custom(): Promise<ObjectType<string>> {
     return {}
   }
 
@@ -159,7 +159,7 @@ export default class Stylesheet {
    * Overridable function to return an element 
    * style attribute value as JSON object.
    */
-  style(){
+  async style(): Promise<ObjectType<string>> {
     return {}
   }
 }

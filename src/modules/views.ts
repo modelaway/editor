@@ -1,5 +1,5 @@
 import type Frame from './frame'
-import type { FrameQuery } from '../lib/frame.window'
+import type { FrameQuery, FrameQueryEvent } from '../lib/frame.window'
 import type { AddViewTriggerType, ViewComponent } from '../types/view'
 
 import View from './view'
@@ -96,12 +96,15 @@ export default class Views {
    * 
    * Target: Native HTML tags or custom views
    */
-  async lookup( $$currentTarget: FrameQuery ){
+  async lookup( $$currentTarget: FrameQuery, e?: FrameQueryEvent ){
     /**
      * Inspect inert view
      */
     const key = await $$currentTarget.attr( VIEW_KEY_SELECTOR )
     if( this.has( key ) ){
+      // Stop event propagation when there's a view match
+      e?.stopPropagation()
+
       // Dismiss all active views
       this.dismissAll()
       
@@ -120,6 +123,9 @@ export default class Views {
 
       let vc = await this.frame.flux.store.getView( cname, $$currentTarget )
       if( !vc ) return
+
+      // Stop event propagation when there's a view match
+      e?.stopPropagation()
       
       /**
        * View component's name can be the same as its HTML

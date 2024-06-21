@@ -7,6 +7,11 @@ export type FrameWindowRemote = {
   customCSSProps: () => Promise<ObjectType<string>>
   documentWrite: ( content: string ) => Promise<void>
 }
+export type FrameQueryEvent = {
+  propagate: boolean
+  preventDefault: () => void
+  stopPropagation: () => void
+}
 
 type Packet = {
   index?: string
@@ -23,7 +28,7 @@ type Response = {
   length: number
   value?: any
 }
-type EventListener = ( e: FrameQuery ) => void
+type EventListener = ( $this: FrameQuery, e?: FrameQueryEvent ) => void
 type QueryState = {
   selector?: string
   $element: JQuery<HTMLElement | Event> 
@@ -750,8 +755,23 @@ export class FrameQuery {
     
     this.call({ fn: 'on', arg: [ _event, _selector ] })
         .then( () => {
-          this.channel.on(`@${_event}-${_selector || this.index}`, ( targetProps: FrameQueryProps ) => {
-            fn( new FrameQuery( this.channel, null, targetProps ) )
+          const
+          eventIdx = `@${_event}-${_selector || this.index}`,
+          e: FrameQueryEvent = {
+            propagate: true,
+            preventDefault(){
+              // TODO: Prevent default event behaviour logic
+            },
+            stopPropagation(){
+              this.propagate = false
+              
+              // Re-activate propagation for next upcoming events
+              setTimeout( () => e.propagate = true, 100 )
+            }
+          }
+          
+          this.channel.on( eventIdx, async ( targetProps: FrameQueryProps ) => {
+            e.propagate && await fn( new FrameQuery( this.channel, null, targetProps ), e )
           } )
         } )
     
@@ -773,8 +793,24 @@ export class FrameQuery {
     
     this.call({ fn: 'one', arg: [ _event, _selector ] })
         .then( () => {
-          this.channel.on(`@${_event}-${_selector || this.index}`, ( targetProps: string ) => {
-            fn( new FrameQuery( this.channel, null, targetProps ) )
+          const
+          eventIdx = `@${_event}-${_selector || this.index}`,
+          e: FrameQueryEvent = {
+            propagate: true,
+            preventDefault(){
+              // TODO: Prevent default event behaviour logic
+            },
+            stopPropagation(){
+              this.propagate = false
+
+              // Re-activate propagation for next upcoming events
+              setTimeout( () => e.propagate = true, 50 )
+            }
+          },
+          fns = []
+          
+          this.channel.on( eventIdx, async ( targetProps: FrameQueryProps ) => {
+            e.propagate && await fn( new FrameQuery( this.channel, null, targetProps ), e )
           } )
         } )
     
@@ -875,8 +911,8 @@ export default ( channel: IOF ) => {
         _selector ?
             // Event listener with scope selector
             $element[ fn ]( _event, _selector, function( e: any ){
-              if( !e.currentTarget || e.target !== e.currentTarget ) 
-                return
+              // if( !e.currentTarget || e.target !== e.currentTarget ) 
+              //   return
               
               const
               $this = $(e.currentTarget),
@@ -886,9 +922,12 @@ export default ( channel: IOF ) => {
               channel.emit(`@${_event}-${_selector}`, { index: targetIndex, length: $this.length })
             })
             // Event listener without scope selector
-            : $element[ fn ]( _event, function( this: Event ){
+            : $element[ fn ]( _event, function( e: any ){
+                // if( !e.currentTarget || e.target !== e.currentTarget ) 
+                //   return
+
                 const
-                $this = $(this),
+                $this = $(e.currentTarget),
                 targetIndex = String( generateKey() )
 
                 State[ targetIndex ] = { $element: $this }

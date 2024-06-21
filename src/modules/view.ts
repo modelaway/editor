@@ -130,7 +130,7 @@ export default class View {
        * - .style() returns style properties of this view
        */
       if( this.bridge.css ){
-        this.bridge.css.custom = async () => (await this.frame.remote?.customCSSProps())
+        this.bridge.css.custom = async () => (await this.frame.remote?.customCSSProps() as ObjectType<string>)
         this.bridge.css.style = async () => (await this.frame.flux.fn.extractStyle( this.$$ as FrameQuery ))
       }
     }
@@ -169,11 +169,24 @@ export default class View {
 
     // Record history stack
     this.frame.pushHistoryStack()
+
     /**
      * Override bridge primary fn interface methods
      */
     if( this.bridge.fn ){
-      this.bridge.fn.pushHistoryStack = async () => this.frame.pushHistoryStack()
+      this.bridge.fn.updateToolbar = ( updates: ObjectType<any> ) => {
+        /**
+         * Attach `options.` scope to update options' keys
+         */
+        const _updates: ObjectType<any> = {}
+
+        Object
+        .entries( updates )
+        .map( ([ key, value ]) => _updates[`options.${key}`] = value)
+
+        this.Toolbar?.grainUpdate( _updates )
+      }
+      this.bridge.fn.pushHistoryStack = () => this.frame.pushHistoryStack()
     }
   }
 
@@ -442,8 +455,13 @@ export default class View {
     // Adjust by left edges
     if( x < 15 ) x = CONTROL_EDGE_MARGIN
 
-    this.Toolbar = Toolbar({ key: this.key, options, settings })
-    let $toolbar = this.Toolbar.render('append', this.frame.flux.$modela, { left: `${x}px`, top: `${y}px` } )
+    this.Toolbar = Toolbar({
+      key: this.key,
+      options,
+      settings,
+      position: { left: `${x}px`, top: `${y}px` }
+    })
+    let $toolbar = this.Toolbar.render('append', this.frame.flux.$modela )
 
     const
     tHeight = $toolbar.find('> [container]').height() || 0,
@@ -468,8 +486,8 @@ export default class View {
     // Adjust by the bottom edges
     if( y > (wHeight - tHeight) ) y = wHeight - tHeight - CONTROL_EDGE_MARGIN
 
-    $toolbar.css({ left: `${x}px`, top: `${y}px` })
-
+    // Update toolbar position
+    this.Toolbar.grainUpdate({ position: { left: `${x}px`, top: `${y}px` } })
     // Fire show toolbar listeners
     this.bridge.events.emit('show.toolbar')
   }
@@ -487,7 +505,11 @@ export default class View {
     let { x, y, width } = await this.frame.getTopography( this.$$ )
     debug('show view panel: ', x, y )
 
-    this.Panel = Panel({ key: this.key, caption, options: panel( this.bridge ) })
+    this.Panel = Panel({
+      caption,
+      key: this.key,
+      options: panel( this.bridge )
+    })
     let $panel = this.Panel.render('append', this.frame.flux.$modela )
 
     const
@@ -524,8 +546,8 @@ export default class View {
     else if( y < CONTROL_EDGE_MARGIN )
       y = CONTROL_EDGE_MARGIN
     
-    $panel.css({ left: `${x}px`, top: `${y}px` })
-
+    // Update panel's position
+    this.Panel.grainUpdate({ position: { left: `${x}px`, top: `${y}px` } })
     // Fire show panel listeners
     this.bridge.events.emit('show.panel')
   }

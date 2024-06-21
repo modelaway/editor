@@ -82,9 +82,13 @@ export type ToolbarInput = {
   key: string
   options: ObjectType<ToolbarOption>
   settings?: ToolbarSettings
+  position?: {
+    left: string
+    top: string
+  }
 }
 export const Toolbar = ( input: ToolbarInput ) => {
-  const factory: ComponentFactory<ToolbarInput> = ({ key, options, settings }) => {
+  const factory: ComponentFactory<ToolbarInput> = ({ key, options, settings, position }) => {
     if( typeof options !== 'object' )
       throw new Error('Invalid Toolbar Arguments')
 
@@ -181,7 +185,14 @@ export const Toolbar = ( input: ToolbarInput ) => {
     if( !mainOptions )
       throw new Error('Undefined main options')
 
-    return `<mblock ${CONTROL_TOOLBAR_SELECTOR}="${key}" ${settings.editing ? 'class="editing"' : ''}>
+    let optionalAttrs = ''
+    if( settings.editing ) 
+      optionalAttrs += ' class="editing"'
+    
+    if( typeof position == 'object' )
+      optionalAttrs += ` style="left:${position.left};top:${position.top};"`
+
+    return `<mblock ${CONTROL_TOOLBAR_SELECTOR}="${key}" ${optionalAttrs}>
       <mblock container>
         <mul>
           <mblock options="main">
@@ -215,10 +226,14 @@ export type PanelInput = {
   key: string
   caption: ViewCaption
   options: PanelSections
+  position?: {
+    left: string
+    top: string
+  }
   active?: string 
 }
 export const Panel = ( input: PanelInput ) => {
-  const factory: ComponentFactory<PanelInput> = ({ key, caption, options, active }) => {
+  const factory: ComponentFactory<PanelInput> = ({ key, caption, options, position, active }) => {
     if( typeof options !== 'object' )
       throw new Error('Invalid createPanel options')
 
@@ -275,7 +290,11 @@ export const Panel = ( input: PanelInput ) => {
      */
     Object.entries( options ).map( ( [name, section], index ) => composeSection( name, section, active == name || index === 0) )
 
-    return `<mblock ${CONTROL_PANEL_SELECTOR}="${key}">
+    let optionalAttrs = ''
+    if( typeof position == 'object' ) 
+      optionalAttrs += ` style="left:${position.left};top:${position.top};"`
+
+    return `<mblock ${CONTROL_PANEL_SELECTOR}="${key}" ${optionalAttrs}>
       <mblock dismiss="panel" backdrop></mblock>
       <mblock container>
         <mblock class="header">

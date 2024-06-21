@@ -7,6 +7,10 @@ import {
 } from './constants'
 import { debug } from './utils'
 
+/**
+ * Global event listener of tab components 
+ * in the workspace.
+ */
 export function onTab( $this: JQuery<HTMLElement>, ws: Workspace ){
   debug('tab event --', $this.attr('tab'), $this.attr('params') )
 
@@ -24,6 +28,10 @@ export function onTab( $this: JQuery<HTMLElement>, ws: Workspace ){
   // Show active section
   $block.find(`[section="${$this.attr('tab')}"]`).addClass('active')
 }
+
+/**
+ * Workspace component display trigger events
+ */
 export function onShow( $this: JQuery<HTMLElement>, ws: Workspace ){
   debug('show event --', $this.attr('show'), $this.attr('params') )
 
@@ -108,23 +116,28 @@ export function onShow( $this: JQuery<HTMLElement>, ws: Workspace ){
     } break
   }
 }
+
+/**
+ * Global apply event: To trigger `name` and `value`
+ * application from workspace to views
+ */
 export function onApply( $this: JQuery<HTMLElement>, ws: Workspace ){
   debug('apply event --', $this.attr('apply'), $this.attr('params') )
 
+  const frame = ws.flux.frames.active()
+  if( !frame ) return
+  
   const
   /**
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
    */
   $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`),
-  frame = ws.flux.frames.active()
-  if( !frame ) return
-
-  const key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
+  key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
         || $trigger.attr( CONTROL_PANEL_SELECTOR )
         || $trigger.attr( CONTROL_FLOATING_SELECTOR )
   if( !key ) return
-
+  
   const view = frame.views.get( key )
   if( !view ) return
 
@@ -134,6 +147,10 @@ export function onApply( $this: JQuery<HTMLElement>, ws: Workspace ){
 
   view.bridge.events.emit('apply', _attr, _params )
 }
+
+/**
+ * Global workspace action event listener
+ */
 export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
   debug('action event --', $this.attr('action'), $this.attr('params') )
   /**
@@ -286,6 +303,10 @@ export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
     } break
   }
 }
+
+/**
+ * Global workspace component dismissing event listener
+ */
 export function onDismiss( $this: JQuery<HTMLElement>, ws: Workspace ){
   debug('dismiss event --', $this.attr('dismiss') )
 
@@ -316,6 +337,11 @@ export function onDismiss( $this: JQuery<HTMLElement>, ws: Workspace ){
     default: $trigger.remove(); break
   }
 }
+
+/**
+ * Custom event defined by view, triggered global
+ * and forwared to views.
+ */
 export function onCustomListener( $this: JQuery<HTMLElement>, ws: Workspace ){
   debug('custom on-* event --', $this.attr('on'), $this.attr('params') )
 

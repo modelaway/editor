@@ -102,9 +102,16 @@ export default class Functions {
   }
 
   /**
-   * 
+   * Apply grain update to toolbar options
+   */
+  updateToolbar( updates: ObjectType<any> ){
+    throw new Error('Method not available')
+  }
+
+  /**
+   * Push new content change history stack
    */
   pushHistoryStack(){
-    throw new Error('Method not overridden')
+    throw new Error('Method not available')
   }
 }

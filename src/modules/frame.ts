@@ -147,7 +147,7 @@ export default class Frame extends EventEmitter {
 
     this.$$body
     /**
-     * Show extra and sub toolbar options
+     * Show toolbar options
      */
     .on('click', `[${VIEW_ACTIVE_SELECTOR}]`, async ( $$this: FrameQuery ) => {
       if( !this.active ) return

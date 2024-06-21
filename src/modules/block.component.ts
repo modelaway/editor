@@ -75,13 +75,8 @@ export default class Component<T> {
   find( selector: string ){
     return this.$element?.find( selector )
   }
-  render( op: string, $to: JQuery<HTMLElement>, css?: ObjectType<string> ){
+  render( op: string, $to: JQuery<HTMLElement> ){
     this.$element = $(this.template)
-
-    // Apply style before rendering to the DOM
-    css
-    && Object.keys( css ).length
-    && this.$element.css( css )
 
     // Add element to the DOM
     if( $to.length ){
@@ -128,8 +123,10 @@ export default class Component<T> {
   grainUpdate( data: ObjectType<any> ){
     if( typeof data !== 'object' ) 
       return this.getEl()
-
-    this.update( deepAssign( this.input as ObjectType<any>, data ) )
+    
+    const update = deepAssign( this.input as ObjectType<any>, data )
+    console.log('--- updates:', update, this.input )
+    this.update( update )
   }
   destroy(){
     this.$element?.off().remove()

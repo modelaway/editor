@@ -17,21 +17,18 @@ import {
 } from './constants'
 import { generateKey } from './utils'
 import { FrameOption } from '../types/frame'
-import Component, { ComponentFactory } from './block.component'
+import Component from './component'
 
 export type WorkspaceLayerInput = {
 
 }
 export const WorkspaceLayer = ( input: WorkspaceLayerInput ) => {
+  const template = `<modela>
+    <mboard></mboard>
+    ${createGlobal()}
+  </modela>`
 
-  const factory: ComponentFactory<WorkspaceLayerInput> = () => {
-    return `<modela>
-      <mboard></mboard>
-      ${createGlobal()}
-    </modela>`
-  }
-
-  return new Component<WorkspaceLayerInput>( factory, input )
+  return new Component<WorkspaceLayerInput>( template, { input })
 }
 
 export const createGlobal = () => {
@@ -88,7 +85,7 @@ export type ToolbarInput = {
   }
 }
 export const Toolbar = ( input: ToolbarInput ) => {
-  const factory: ComponentFactory<ToolbarInput> = ({ key, options, settings, position }) => {
+  const factory = ({ key, options, settings, position }: ToolbarInput ) => {
     if( typeof options !== 'object' )
       throw new Error('Invalid Toolbar Arguments')
 
@@ -219,7 +216,7 @@ export const Toolbar = ( input: ToolbarInput ) => {
     </mblock>`
   }
 
-  return new Component<ToolbarInput>( factory, input )
+  return new Component<ToolbarInput>( factory( input ), { input })
 }
 
 export type PanelInput = {
@@ -233,7 +230,7 @@ export type PanelInput = {
   active?: string 
 }
 export const Panel = ( input: PanelInput ) => {
-  const factory: ComponentFactory<PanelInput> = ({ key, caption, options, position, active }) => {
+  const factory = ({ key, caption, options, position, active }: PanelInput ) => {
     if( typeof options !== 'object' )
       throw new Error('Invalid createPanel options')
 
@@ -314,7 +311,7 @@ export const Panel = ( input: PanelInput ) => {
     </mblock>`
   }
 
-  return new Component<PanelInput>( factory, input )
+  return new Component<PanelInput>( factory( input ), { input })
 }
 
 export type FloatingInput = {
@@ -323,7 +320,7 @@ export type FloatingInput = {
   triggers: string[]
 }
 export const Floating = ( input: FloatingInput ) => {
-  const factory: ComponentFactory<FloatingInput> = ({ key, type, triggers }) => {
+  const factory = ({ key, type, triggers }: FloatingInput ) => {
     if( !Array.isArray( triggers ) || !triggers.length )
       throw new Error('Undefined triggers list')
 
@@ -338,7 +335,7 @@ export const Floating = ( input: FloatingInput ) => {
     return `<mblock ${CONTROL_FLOATING_SELECTOR}="${key}"><mul>${list}</mul></mblock>`
   }
 
-  return new Component( factory, input )
+  return new Component( factory( input ), { input })
 }
 
 /**
@@ -349,11 +346,11 @@ export type AlleyInput = {
   discret?: boolean
 }
 export const Alley = ( input: AlleyInput = {} ) => {
-  const factory: ComponentFactory<AlleyInput> = ({ key, discret }) => {
+  const factory = ({ key, discret }: AlleyInput ) => {
     return `<mblock ${VIEW_ALLEY_SELECTOR}="${generateKey()}" ${VIEW_REF_SELECTOR}="${key}" status="active" ${discret ? 'discret' : ''}></mblock>`
   }
 
-  return new Component<AlleyInput>( factory, input )
+  return new Component<AlleyInput>( factory( input ), { input })
 }
 
 export const createInput = ({ type, label, name, value, pattern, placeholder, autofocus, options, range, disabled }: InputOptions ) => {
@@ -426,7 +423,7 @@ export type SearchResultInput = {
   list: ObjectType<Listset>
 }
 export const SearchResult = ( input: SearchResultInput ) => {
-  const factory: ComponentFactory<SearchResultInput> = ({ list }) => {
+  const factory = ({ list }: SearchResultInput ) => {
     let listsetHTML = ''
     
     /**
@@ -450,7 +447,7 @@ export const SearchResult = ( input: SearchResultInput ) => {
     return listsetHTML || `<mblock ${VIEW_EMPTY_SELECTOR} ${CONTROL_LANG_SELECTOR}>No result</mblock>`
   }
 
-  return new Component<SearchResultInput>( factory, input )
+  return new Component<SearchResultInput>( factory( input ), { input })
 }
 
 export type FinderPanelInput = {
@@ -458,7 +455,7 @@ export type FinderPanelInput = {
   list: ObjectType<Listset> 
 }
 export const FinderPanel = ( input: FinderPanelInput ) => {
-  const factory: ComponentFactory<FinderPanelInput> = ({ key, list }) => {
+  const factory  = ({ key, list }: FinderPanelInput ) => {
     if( !key || !list )
       throw new Error('Invalid createAddViewBlock options')
 
@@ -487,5 +484,5 @@ export const FinderPanel = ( input: FinderPanelInput ) => {
     </mblock>`
   }
 
-  return new Component<FinderPanelInput>( factory, input )
+  return new Component<FinderPanelInput>( factory( input ), { input })
 }

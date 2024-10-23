@@ -53,7 +53,7 @@ export default class Frames extends EventEmitter {
         'options.redo.disabled': redoCount < 1
       }
 
-      this.flux.workspace.Toolbar?.grainUpdate( updates )
+      this.flux.workspace.Toolbar?.subInput( updates )
 
       /**
        * Send content change signal for every history

@@ -1,5 +1,3 @@
-import type { FrameQuery } from '../lib/frame.window'
-import { CONTROL_EDGE_MARGIN } from './constants'
 
 declare global {
   interface Window {
@@ -29,6 +27,22 @@ export const debug = ( ...args: any[] ) => {
 export const generateKey = () => {
   const rmin = 101, rmax = 999
   return Date.now() + String( Math.floor( Math.random() * ( rmax - rmin + 1 )+( rmin + 1 ) ) )
+}
+
+/**
+ * Generate SHA-1 hash for a given input string.
+ * @returns A promise that resolves to the SHA-1 hash 
+ *          as a hexadecimal string of `generateKey()`.
+ */
+export const hashKey = async () => {
+  const
+  key = generateKey(),
+  hashBuffer = await crypto.subtle.digest( 'SHA-1', new TextEncoder().encode( key ) )
+
+  return Array.from( new Uint8Array( hashBuffer ) )
+              .map( b => b.toString(16).padStart( 2, '0' ) )
+              .join('')
+              .substring( 0, 7 )
 }
 
 /**
@@ -79,7 +93,6 @@ export const autoDismiss = ( id: string, $this: JQuery<HTMLElement>, delay?: num
   clearTimeout( AUTO_DISMISS_TRACKERS[ id ] )
   AUTO_DISMISS_TRACKERS[ id ] = setTimeout( () => $this.remove(), (delay || 5) * 1000 )
 }
-
 
 /**
  * Operate a deep assign on a object.

@@ -20,11 +20,11 @@ function subscribe( running: Subscriber, subscriptions: Dependency ) {
   subscriptions.add( running )
   running.dependencies.add( subscriptions )
 }
-function cleanup( running: Subscriber ) {
-  for (const dep of running.dependencies) {
-    dep.delete(running);
-  }
-  running.dependencies.clear();
+function cleanup( running: Subscriber ){
+  for( const dep of running.dependencies )
+    dep.delete( running )
+  
+  running.dependencies.clear()
 }
 
 export function signal<T>( value: T ): Signal<T> {

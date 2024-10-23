@@ -5,8 +5,8 @@ export default class I18N {
   private currentLang: string
 
   constructor(){
-    this.defaultLang = window.mlang.default
-    this.currentLang = window.mlang.current
+    this.defaultLang = window.mlang?.default
+    this.currentLang = window.mlang?.current
   }
 
   /**

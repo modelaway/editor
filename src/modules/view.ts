@@ -22,7 +22,7 @@ import {
   CONTROL_FLOATING_MARGIN
 } from './constants'
 import Stylesheet from './stylesheet'
-import Component from './block.component'
+import Component from './component'
 import {
   Alley,
   Panel,
@@ -36,7 +36,7 @@ import {
   FinderPanelInput,
   SearchResultInput
 } from './block.factory'
-import { debug, generateKey } from './utils'
+import { debug, hashKey } from './utils'
 import { FrameQuery } from '../lib/frame.window'
 
 export default class View {
@@ -184,7 +184,7 @@ export default class View {
         .entries( updates )
         .map( ([ key, value ]) => _updates[`options.${key}`] = value)
 
-        this.Toolbar?.grainUpdate( _updates )
+        this.Toolbar?.subInput( _updates )
       }
       this.bridge.fn.pushHistoryStack = () => this.frame.pushHistoryStack()
     }
@@ -225,7 +225,7 @@ export default class View {
       /**
        * Generate and assign view tracking key
        */
-      this.key = generateKey()
+      this.key = await hashKey()
 
       await this.$$.attr({
         [VIEW_KEY_SELECTOR]: this.key, // Set view key
@@ -282,7 +282,7 @@ export default class View {
      * Generate and assign tracking key to the 
      * new view
      */
-    this.key = generateKey()
+    this.key = await hashKey()
 
     await this.$$.attr({
       [VIEW_KEY_SELECTOR]: this.key, // Set view key
@@ -343,7 +343,7 @@ export default class View {
     /**
      * Generate and assign view tracking key
      */
-    this.key = generateKey()
+    this.key = await hashKey()
     await this.$$.attr( VIEW_KEY_SELECTOR, this.key )
 
     // Clone view specifications
@@ -461,7 +461,7 @@ export default class View {
       settings,
       position: { left: `${x}px`, top: `${y}px` }
     })
-    let $toolbar = this.Toolbar.render('append', this.frame.flux.$modela )
+    let $toolbar = this.Toolbar.inject('append', this.frame.flux.$modela )
 
     const
     tHeight = $toolbar.find('> [container]').height() || 0,
@@ -487,7 +487,7 @@ export default class View {
     if( y > (wHeight - tHeight) ) y = wHeight - tHeight - CONTROL_EDGE_MARGIN
 
     // Update toolbar position
-    this.Toolbar.grainUpdate({ position: { left: `${x}px`, top: `${y}px` } })
+    this.Toolbar.subInput({ position: { left: `${x}px`, top: `${y}px` } })
     // Fire show toolbar listeners
     this.bridge.events.emit('show.toolbar')
   }
@@ -510,7 +510,7 @@ export default class View {
       key: this.key,
       options: panel( this.bridge )
     })
-    let $panel = this.Panel.render('append', this.frame.flux.$modela )
+    let $panel = this.Panel.inject('append', this.frame.flux.$modela )
 
     const
     pWidth = $panel.find('> [container]').width() || 0,
@@ -547,7 +547,7 @@ export default class View {
       y = CONTROL_EDGE_MARGIN
     
     // Update panel's position
-    this.Panel.grainUpdate({ position: { left: `${x}px`, top: `${y}px` } })
+    this.Panel.subInput({ position: { left: `${x}px`, top: `${y}px` } })
     // Fire show panel listeners
     this.bridge.events.emit('show.panel')
   }
@@ -578,10 +578,13 @@ export default class View {
     // Insert new floating point to the DOM
     if( !this.frame.flux.Floating ){
       this.frame.flux.Floating = Floating({ key: this.key, type: 'view', triggers })
-      $floating = this.frame.flux.Floating.render('append', this.frame.flux.$modela )
+      $floating = this.frame.flux.Floating.inject('append', this.frame.flux.$modela )
     }
     // Change key of currently floating point to new trigger's key
-    else $floating = this.frame.flux.Floating?.update({ key: this.key, type: 'view', triggers })
+    else {
+      this.frame.flux.Floating?.setInput({ key: this.key, type: 'view', triggers })
+      $floating = this.frame.flux.Floating.$
+    }
 
     const
     tWidth = !$$discret.length && $floating.find('> mul').width() || 0,
@@ -605,7 +608,7 @@ export default class View {
     let { x, y } = this.frame.flux.workspace.getTopography( $trigger )
 
     this.FinderPanel = FinderPanel({ key: this.key as string, list: this.frame.flux.store.searchView() })
-    let $finder = this.FinderPanel.render('append', this.frame.flux.$modela )
+    let $finder = this.FinderPanel.inject('append', this.frame.flux.$modela )
 
     const
     pWidth = $finder.find('> [container]').width() || 0,
@@ -660,9 +663,9 @@ export default class View {
         const $results = $finder.find('.results')
         if( !$results.length ) return
 
-        _searchResults.render('append', $results.empty() )
+        _searchResults.inject('append', $results.empty() )
       }
-      else _searchResults.update({ list })
+      else _searchResults.subInput({ list })
     })
   }
   async showMovable(){

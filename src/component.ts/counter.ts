@@ -1,4 +1,4 @@
-import Component, { ComponentFactory } from '../modules/block.component'
+import Component, { ComponentFactory } from '../modules/component'
 import { signal } from '../modules/reactive'
 
 type CountInput = {

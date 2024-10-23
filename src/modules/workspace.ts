@@ -1,5 +1,5 @@
 import type Modela from '../exports/modela'
-import type Component from './block.component'
+import type Component from './component'
 
 import * as Event from './events'
 import {
@@ -38,12 +38,12 @@ export default class Workspace {
      * to text contents
      */
     this.WS = WorkspaceLayer({})
-    this.flux.$modela = this.WS.render('prepend', $('body') )
+    this.flux.$modela = $('body').prepend( this.WS.$ )
     if( !this.flux.$modela?.length )
       throw new Error('Unexpected error occured')
 
     this.Toolbar = Toolbar({ key: 'global', options: GLOBAL_CONTROL_OPTIONS })
-    this.Toolbar.render('append', this.flux.$modela )
+    this.flux.$modela.append( this.Toolbar.$ )
 
     this.$board = this.WS.find('> mboard')
     this.$global = this.WS.find('> mglobal')
@@ -99,7 +99,7 @@ export default class Workspace {
       'options.assets.extra': target
     }
     
-    this.Toolbar?.grainUpdate( updates )
+    this.Toolbar?.subInput( updates )
   }
 
   destroy(){

@@ -16,7 +16,7 @@ $.fn.extend({
   }
 })
 
-export type Handler = ObjectType<( ...args: any[] ) => void>
+export type Handler = ObjectType<( ...args: any[] ) => any>
 
 function wrap( html: string ): any {
   return $('<div/>').html( html ).contents()
@@ -121,11 +121,14 @@ export default class Component<Input = void, State = void, Static = void> {
   private IUC: NodeJS.Timeout
   private IUC_BEAT = 5 // ms
 
+  private let: ObjectType<any> = {}
+  private async: ObjectType<any> = {}
   private for?: {
     index: number
     key?: string
     each?: any
   }
+
   private benchmark: Benchmark
 
   /**
@@ -308,90 +311,78 @@ export default class Component<Input = void, State = void, Static = void> {
       }
       catch( error ){ return script }
     }
+    
+    function attachEvent( $el: JQuery, _event: string ){
+      const instruction = $el.attr(`on-${_event}`) as string
 
-    function execSwitch( $switch: JQuery ){
-      const by = $switch.attr('by')
-      if( !by )
-        throw new Error('Undefined switch <by> attribute')
-      
-      const
-      _by = evaluate( by ),
-      $cases = $switch.find('case'),
-      $default = $switch.find('default').hide()
+      /**
+       * Execute function script directly attach 
+       * as the listener.
+       * 
+       * Eg. 
+       *  `on-click="() => console.log('Hello world')"`
+       *  `on-change="e => this.handler.onChange(e)"`
+       */
+      if( /(\s*\w+|\s*\([^)]*\)|\s*)\s*=>\s*(\s*\{[^}]*\}|\s*[^\n;"]+)/g.test( instruction ) )
+        $el.on( _event, evaluate( instruction ) )
 
-      let validCases: string[] = []
-      
-      $cases.each(function(){
-        const 
-        $case = $(this),
-        options = $case.attr('is')
+      /**
+       * Execute reference handler function
+       * 
+       * Eg. 
+       *  `on-input="handleInputValue"`
+       *  `on-click="handleClick, this.input.count++"`
+       * 
+       * Note: `handleInputValue` and `handleClick` handlers
+       *       must be defined as `handler` at the component
+       *       level before any assignment.
+       */
+      else {
+        const [ fn, ...args ] = instruction.split(/\s*,\s*/)
+        if( typeof self.handler[ fn ] !== 'function' )
+          throw new Error(`Undefined <${fn}> ${_event} event method`)
 
-        if( !options )
-          throw new Error('Undefined switch case <is> attribute')
-      
-        const _options = options.split(',')
-        
-        // Validate string or array case value
-        if( Array.isArray( _options ) && _options.includes( _by ) ){
-          validCases = [...(new Set([ ...validCases, ..._options ]) )]
+        $el.on( _event, e => {
+          const 
+          _fn = self.handler[ fn ],
+          _args = args.map( each => (evaluate( each )) )
 
-          const nextedHtml = $case.html()
-          $case.empty()
-                .html( self.render( wrap( nextedHtml ) ) as any )
-                .show()
-        }
-        else $case.hide()
-      })
-
-      if( $default.length && !validCases.includes( _by ) ){
-        const nextedHtml = $default.html()
-        
-        $default.empty()
-                .html( self.render( wrap( nextedHtml ) ) as any )
-                .show()
+          _fn( ..._args, e )
+        })
       }
     }
 
-    function execCondition( $cond: JQuery, elseFlag = false ){
+    function showContent( $el: JQuery ){
+      const nextedHtml = $el.html()
+
+      $el.empty()
+          .html( self.render( wrap( nextedHtml ) ) as any )
+          .show()
+    }
+
+    function execLet( $let: JQuery ){
       try {
-        let res: boolean
-        /**
-         * Nothing to evaluate for `else` statement
-         */
-        if( elseFlag ) res = elseFlag
-
-        /**
-         * Evaluate `if/else-if` statements
-         */
-        else {
-          const by = $cond.attr('by')
-          if( !by )
-            throw new Error('Undefined if/else-if <by> attribute')
-
-          $cond.is('if') && $cond.nextAll('else-if, else').hide()
-          res = evaluate( by ) as boolean
-        }
-
-        if( res ){
-          const nextedHtml = $cond.html()
-          
-          $cond.empty()
-              .append( self.render( wrap( nextedHtml ) ) )
-              .show()
-        }
-        else {
-          $cond.hide()
-          
-          if( $cond.next('else-if').length ) return execCondition( $cond.next('else-if') )
-          else if( $cond.next('else').length ) return execCondition( $cond.next('else'), true )
-        }
-
-        return res
+        const attributes = ($let as any).attrs()
+        if( !attributes ) return 
+        
+        Object
+        .entries( attributes )
+        .forEach( ([ key, assign ]) => {
+          if( !assign ) return
+          self.let[ key ] = evaluate( assign as string )
+        } )
+        
+        console.log('let attributes:', self.let )
       }
       catch( error ){
         // TODO: Transfer error to global try - catch component define in the UI
-        console.log('Error - ', error )
+        console.warn('Error - ', error )
       }
+        
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
     }
 
     function execLoop( $loop: JQuery ){
@@ -446,97 +437,212 @@ export default class Component<Input = void, State = void, Static = void> {
       }
       catch( error ){
         // TODO: Transfer error to global try - catch component define in the UI
-        console.log('Error - ', error )
+        console.warn('Error - ', error )
       }
-    }
-    
-    function attachEvent( $el: JQuery, _event: string ){
-      const instruction = $el.attr(`on-${_event}`) as string
-
-      /**
-       * Execute function script directly attach 
-       * as the listener.
-       * 
-       * Eg. 
-       *  `on-click="() => console.log('Hello world')"`
-       *  `on-change="e => this.handler.onChange(e)"`
-       */
-      if( /(\s*\w+|\s*\([^)]*\)|\s*)\s*=>\s*(\s*\{[^}]*\}|\s*[^\n;"]+)/g.test( instruction ) )
-        $el.on( _event, evaluate( instruction ) )
-
-      /**
-       * Execute reference handler function
-       * 
-       * Eg. 
-       *  `on-input="handleInputValue"`
-       *  `on-click="handleClick, this.input.count++"`
-       * 
-       * Note: `handleInputValue` and `handleClick` handlers
-       *       must be defined as `handler` at the component
-       *       level before any assignment.
-       */
-      else {
-        const [ fn, ...args ] = instruction.split(/\s*,\s*/)
-        if( typeof self.handler[ fn ] !== 'function' )
-          throw new Error(`Undefined <${fn}> ${_event} event method`)
-
-        $el.on( _event, e => {
-          const 
-          _fn = self.handler[ fn ],
-          _args = args.map( each => (evaluate( each )) )
-
-          _fn( ..._args, e )
-        })
-      }
-    }
-
-    function react( $el: JQuery ){
+        
       /**
        * BENCHMARK: Tracking total elements rendered
        */
       self.benchmark.inc('elementCount')
+    }
 
-      // Render in-build syntax components
-      if( $el.is('switch') ) execSwitch( $el )
-      else if( $el.is('if') ) execCondition( $el )
-      else if( $el.is('for') ) execLoop( $el )
+    function execSwitch( $switch: JQuery ){
+      try {
+        const by = $switch.attr('by')
+        if( !by )
+          throw new Error('Undefined switch <by> attribute')
+        
+        const
+        _by = evaluate( by ),
+        $cases = $switch.find('case'),
+        $default = $switch.find('default').hide()
 
-      // Render normal body content
-      else {
-        // Process attributes
-        const attributes = ($el as any).attrs()
-        attributes && Object
-        .keys( attributes )
-        .forEach( each => {
-          // Attach event to the element
-          if( /^on-/.test( each ) ){
-            const _event = each.replace(/^on-/, '')
+        let validCases: string[] = []
+        
+        $cases.each(function(){
+          const 
+          $case = $(this),
+          options = $case.attr('is')
 
-            $el.attr(`on-${_event}`) && attachEvent( $el, _event )
-            return
+          if( !options )
+            throw new Error('Undefined switch case <is> attribute')
+        
+          const _options = options.split(',')
+          
+          // Validate string or array case value
+          if( Array.isArray( _options ) && _options.includes( _by ) ){
+            validCases = [...(new Set([ ...validCases, ..._options ]) )]
+
+            showContent( $case )
           }
-
-          switch( each ){
-            // Inject inner html into the element
-            case 'html': $el.html( $el.attr('html') as string ); break
-            // Inject text into the element
-            case 'text': $el.text( evaluate( $el.attr('text') as string ) ); break
-            // Inject the evaulation result of any ther attributes
-            default: $el.attr( each, evaluate( $el.attr( each ) as string ) ); break
-          }
+          else $case.hide()
         })
 
-        if( $el.get(0)?.nodeType !== Node.TEXT_NODE ){
+        $default.length 
+        && !validCases.includes( _by )
+        && showContent( $default )
+      }
+      catch( error ){
+        // TODO: Transfer error to global try - catch component define in the UI
+        console.warn('Error - ', error )
+      }
+        
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
+    }
+
+    function execCondition( $cond: JQuery, elseFlag = false ){
+      try {
+        let res: boolean
+        /**
+         * Nothing to evaluate for `else` statement
+         */
+        if( elseFlag ) res = elseFlag
+
+        /**
+         * Evaluate `if/else-if` statements
+         */
+        else {
+          const by = $cond.attr('by')
+          if( !by )
+            throw new Error('Undefined if/else-if <by> attribute')
+
+          $cond.is('if') && $cond.nextAll('else-if, else').hide()
+          res = evaluate( by ) as boolean
+        }
+
+        if( res ) showContent( $cond )
+        
+        else {
+          $cond.hide()
+          
+          if( $cond.next('else-if').length ) return execCondition( $cond.next('else-if') )
+          else if( $cond.next('else').length ) return execCondition( $cond.next('else'), true )
+        }
+
+        return res
+      }
+      catch( error ){
+        // TODO: Transfer error to global try - catch component define in the UI
+        console.warn('Error - ', error )
+      }
+        
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
+    }
+
+    function execAsync( $async: JQuery ){
+      try {
+        const attr = $async.attr('await') as string
+        if( !attr )
+          throw new Error('Undefined async <await> attribute')
+
+        const [ fn, ...args ] = attr.split(/\s*,\s*/)
+        if( typeof self.handler[ fn ] !== 'function' )
+          throw new Error(`Undefined <${fn}> handler method`)
+
+        const
+        $preload = $async.find('preload').hide(),
+        $resolve = $async.find('resolve').hide(),
+        $catch = $async.find('catch').hide(),
+
+        _await = self.handler[ fn ],
+        _args = args.map( each => (evaluate( each )) )
+
+        /**
+         * Render preload content
+         */
+        $preload.length && showContent( $preload )
+        
+        _await( ..._args )
+        .then( ( response: any ) => {
+          self.async.response = response
+          $preload.hide()
+          
+          /**
+           * Render response content
+           */
+          $resolve.length && showContent( $resolve )
+        })
+        .catch( ( error: unknown ) => {
+          self.async.error = error
+          $preload.hide()
+          
+          /**
+           * Render error catch content
+           */
+          $catch.length && showContent( $catch )
+        })
+      }
+      catch( error ){
+        // TODO: Transfer error to global try - catch component define in the UI
+        console.warn('Error - ', error )
+      }
+        
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
+    }
+
+    function execElement( $el: JQuery ){
+      // Process attributes
+      const attributes = ($el as any).attrs()
+      
+      attributes && Object
+      .keys( attributes )
+      .forEach( each => {
+        // Attach event to the element
+        if( /^on-/.test( each ) ){
+          const _event = each.replace(/^on-/, '')
+
+          $el.attr(`on-${_event}`) && attachEvent( $el, _event )
+          return
+        }
+
+        switch( each ){
+          // Inject inner html into the element
+          case 'html': $el.html( $el.attr('html') as string ); break
+          // Inject text into the element
+          case 'text': $el.text( evaluate( $el.attr('text') as string ) ); break
+          // Inject the evaulation result of any ther attributes
+          default: $el.attr( each, evaluate( $el.attr( each ) as string ) ); break
+        }
+      })
+
+      if( $el.get(0)?.nodeType !== Node.TEXT_NODE ){
+        if( !asRoot  ){
           const $nexted = wrap( $el.html() )
 
           $nexted.length 
           && $el.has(':not([key])')
           && $el.html( self.render( $nexted ) as any )
         }
-
-        // Apply translation to component's text contents
-        self.i18n.propagate( $el )
+          
+        /**
+         * BENCHMARK: Tracking total elements rendered
+         */
+        self.benchmark.inc('elementCount')
       }
+
+      // Apply translation to component's text contents
+      self.i18n.propagate( $el )
+    }
+
+    function react( $el: JQuery ){
+      // Render in-build syntax components
+      if( $el.is('let') ) execLet( $el )
+      else if( $el.is('for') ) execLoop( $el )
+      else if( $el.is('if') ) execCondition( $el )
+      else if( $el.is('switch') ) execSwitch( $el )
+      else if( $el.is('async') ) execAsync( $el )
+
+      // Render normal body content
+      else execElement( $el )
     }
 
     /**
@@ -545,11 +651,19 @@ export default class Component<Input = void, State = void, Static = void> {
      */
     const $els = _$.length > 1 ?
                       // Create fake div to wrap contents
-                      $('<div/>').html( _$ as any ).contents()
-                      : _$.children()
+                      $('<wrap/>').html( _$ as any ).contents()
+                      /**
+                       * Process root element's children or single 
+                       * nexted child element.
+                       */
+                      : asRoot ? _$.children() : _$
 
     // Process root element
-    asRoot && react( _$ )
+    if( asRoot ){
+      react( _$ )
+      asRoot = false
+    }
+
     // Process nexted contents
     $els.each( function(){ react( $(this) as JQuery ) })
     

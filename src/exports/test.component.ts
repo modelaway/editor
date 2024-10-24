@@ -12,7 +12,7 @@ function Demo1(){
   }
 
   const
-  template = `<div component="Greet" key="1a3" style="!this.state.online && 'color: red'">
+  template = `<div component="Greet" style="!this.state.online && 'color: red'">
         <span text="this.input.person">me</span>:
         (<span text="this.state.online ? 'Online' : 'Offline'"></span>)
         <span text="this.static.verb">...</span>
@@ -82,6 +82,7 @@ function Demo1(){
     handleConnect( online: boolean, e: Event ){
       console.log('Connected: ', online, e )
 
+      this.state.online = online
       this.state.time = 'evening'
       
       // this.setState({ online, time: 'evening' })
@@ -135,5 +136,61 @@ function Demo2(){
   $('body').append( component.$ )
 }
 
+function Demo3(){
+  const
+  template = `<async await="getUser, this.static.name">
+    <preload>Preloading...</preload>
+    <resolve>
+      <ul>
+        <li text="this.async.response.name"></li>
+        <li text="this.async.response.email"></li>
+      </ul>
+    </resolve>
+    <catch><span text="this.async.error"></span></catch>
+  </async>`,
+  _static = {
+    name: 'Peter Gibson'
+  },
+  _handler: Handler = {
+    getUser( name ){
+      return new Promise( ( resolve, reject ) => {
+        // setTimeout( () => resolve({ name, email: 'g.peter@mail.com' }), 3000 )
+        setTimeout( () => reject('Unexpected error occured'), 1000 )
+      })
+    }
+  }
+
+  const component = new Component( template, { _static, _handler }, true )
+
+  $('body').append( component.$ )
+}
+
+function Demo4(){
+  const
+  template = `<let country="Togo" capital="Lomè"></let>
+    <div>
+      <p>
+        My country is <span text="this.let.country"></span>, 
+        its capital is <span text="this.let.capital"></span>
+      </p>
+
+      <p>
+        <let country="Ghana"></let>
+
+        It borderd at west by <span text="this.let.country"></span>
+      </p>
+
+      <p>
+        I'd love to go back to <span text="this.let.capital"></span> sometime
+      </p>
+    </div>`
+
+  const component = new Component( template, {}, true )
+
+  $('body').append( component.$ )
+}
+
 // Demo1()
-Demo2()
+// Demo2()
+// Demo3()
+Demo4()

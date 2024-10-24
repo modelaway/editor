@@ -7,7 +7,7 @@ import {
   ToolbarInput,
   WorkspaceLayer,
   WorkspaceLayerInput
-} from './block.factory'
+} from './factory'
 import { CONTROL_EDGE_MARGIN, GLOBAL_CONTROL_OPTIONS } from './constants'
 
 export default class Workspace {

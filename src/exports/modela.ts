@@ -9,7 +9,7 @@ import Functions from '../modules/functions'
 import { debug } from '../modules/utils'
 import I18N from '../modules/i18n'
 import Component from '../modules/component'
-import { FloatingInput } from '../modules/block.factory'
+import { FloatingInput } from '../modules/factory'
 
 window.$ = jQuery
 window.mlang = {

@@ -7,7 +7,7 @@ import Views from './views'
 import History from './history'
 import IOF from '../lib/custom.iframe.io'
 import { debug, generateKey } from './utils'
-import { createFrame } from './block.factory'
+import { createFrame } from './factory'
 import { 
   MEDIA_SCREENS,
   CONTROL_EDGE_MARGIN,

@@ -6,8 +6,11 @@ import { effect, signal } from './reactive'
 
 $.fn.extend({
   attrs: function(){
-    const obj: any = {}
-    $.each( (this as any)[0].attributes, function(){ obj[ this.name ] = this.value })
+    const 
+    obj: any = {},
+    elem = (this as any)[0]
+
+    elem && $.each( elem.attributes, function(){ obj[ this.name ] = this.value })
 
     return obj
   }
@@ -18,7 +21,7 @@ export type Handler = ObjectType<( ...args: any[] ) => void>
 function wrap( html: string ): any {
   return $('<div/>').html( html ).contents()
 }
-function inputEquals( aObject: ObjectType<any>, bObject: ObjectType<any> ){
+function isEquals( aObject: ObjectType<any>, bObject: ObjectType<any> ){
   const
   aKeys = Object.keys( aObject ).sort(),
   bKeys = Object.keys( bObject ).sort()
@@ -30,7 +33,7 @@ function inputEquals( aObject: ObjectType<any>, bObject: ObjectType<any> ){
     // Array object
     if( aObject[ aKeys[x] ] instanceof Array ){
       if( !( bObject[ aKeys[x] ] instanceof Array ) ) return false
-      if( !inputEquals( aObject[ aKeys[x] ], bObject[ aKeys[x] ] ) ) return false
+      if( !isEquals( aObject[ aKeys[x] ], bObject[ aKeys[x] ] ) ) return false
     }
 
     // Date object
@@ -55,7 +58,7 @@ function inputEquals( aObject: ObjectType<any>, bObject: ObjectType<any> ){
         if( bObject[ aKeys[x] ] !== bObject ) return false
       }
       // WARNING: Doesn't deal with circular refs other than ^^
-      else if( !inputEquals( aObject[ aKeys[x] ], bObject[ aKeys[x] ] ) ) return false
+      else if( !isEquals( aObject[ aKeys[x] ], bObject[ aKeys[x] ] ) ) return false
     }
     // Change !== to != for loose comparison: not the same value
     else if( aObject[ aKeys[x] ] !== bObject[ aKeys[x] ] ) return false
@@ -64,11 +67,47 @@ function inputEquals( aObject: ObjectType<any>, bObject: ObjectType<any> ){
   return true
 }
 
+class Benchmark {
+  private debug: boolean
+  private initialStats: ObjectType<number> = {
+    elementCount: 0,
+    renderCount: 0
+  }
+  public stats: ObjectType<number> = this.reset()
+
+  constructor( debug = false ){
+    this.debug = debug
+  }
+  
+  inc( trace: string ){
+    if( !this.debug ) return
+    this.stats[ trace ]++
+  }
+  dev( trace: string ){
+    if( !this.debug ) return
+    this.stats[ trace ]--
+  }
+
+  record( trace: string, value: number ){
+    if( !this.debug ) return
+    this.stats[ trace ] = value
+  }
+
+  reset(){
+    return this.stats = JSON.parse( JSON.stringify( this.initialStats ) )
+  }
+
+  log(){
+    this.debug && console.table( this.stats )
+  }
+}
+
 export default class Component<Input = void, State = void, Static = void> {
   public template: string
   public $: JQuery
   private input: Input
   private state: State
+  private __state?: State // Partial state
   private static: ObjectType<any>
   private handler: Handler = {}
 
@@ -79,30 +118,35 @@ export default class Component<Input = void, State = void, Static = void> {
   private _setState: ( state: State ) => void
   private _getState: () => State | undefined
 
+  private IUC: NodeJS.Timeout
+  private IUC_BEAT = 5 // ms
+
   private for?: {
     index: number
     key?: string
     each?: any
   }
+  private benchmark: Benchmark
 
   /**
    * Initialize history manager
    */
   private i18n = new I18N()
 
-  constructor( template: string, { input, state, _static, _handler }: { input?: Input, state?: State, _static?: ObjectType<any>, _handler?: Handler }){
+  constructor( template: string, { input, state, _static, _handler }: { input?: Input, state?: State, _static?: ObjectType<any>, _handler?: Handler }, debug = false ){
     this.template = template
     this.$ = $(template)
     
     this.input = input || {} as Input
     this.state = state || {} as State
     this.static = _static || {}
+    this.benchmark = new Benchmark( debug )
 
-    _handler && this.defineHandler( _handler )
+    _handler && this.setHandler( _handler )
 
     const
     [ getInput, setInput ] = signal<Input>( this.input ),
-    [ getState, setState ] = signal( state || {} as State )
+    [ getState, setState ] = signal<State>( this.state )
 
     this._setInput = setInput
     this._setState = setState
@@ -111,6 +155,17 @@ export default class Component<Input = void, State = void, Static = void> {
     effect( () => {
       this.input = getInput()
       this.state = getState()
+
+      // Reset the benchmark
+      this.benchmark.reset()
+
+      /**
+       * Hold state value since last signal update.
+       * 
+       * IMPORTANT: Required to check changes on the state
+       *            during IUC processes.
+       */
+      this.__state = JSON.parse( JSON.stringify( this.state ) )
       
       /**
        * Use original content of the component to
@@ -132,11 +187,44 @@ export default class Component<Input = void, State = void, Static = void> {
       this.render()
 
       /**
+       * Log benchmark table
+       * 
+       * NOTE: Only show in debugging mode
+       */
+      this.benchmark.log()
+      
+      /**
+       * Triggered after component get mounted for
+       * the first time.
+       */
+      !this.isRendered
+      && typeof this.handler.onMount == 'function'
+      && this.handler.onMount()
+
+      /**
        * Flag to know when element is initially or force
        * to render.
        */
       this.isRendered = true
+      
+      /**
+       * Triggered anytime component gets rendered
+       */
+      typeof this.handler.onRender == 'function'
+      && this.handler.onRender()
     })
+
+    this.IUC = setInterval( () => {
+      /**
+       * Apply update only when a new change 
+       * occured on the state.
+       */
+      if( isEquals( this.__state as ObjectType<any>, this.state as ObjectType<any> ) )
+        return
+      
+      // Merge with initial/active state.
+      this.setState( this.state )
+    }, this.IUC_BEAT )
   }
 
   getState( key: string ){
@@ -148,17 +236,29 @@ export default class Component<Input = void, State = void, Static = void> {
     const state = this._getState() as ObjectType<keyof State>
 
     this._setState({ ...state, ...data })
+    
+    /**
+     * Triggered anytime component state gets updated
+     */
+    typeof this.handler.onUpdate == 'function'
+    && this.handler.onUpdate()
   }
   setInput( input: Input ){
     /**
      * Apply update only when new input is different 
      * from the incoming input
      */
-    if( inputEquals( this.input as ObjectType<any>, input as ObjectType<any> ) )
+    if( isEquals( this.input as ObjectType<any>, input as ObjectType<any> ) )
       return
     
     // Merge with initial/active input.
     this._setInput({ ...this.input, ...input })
+    
+    /**
+     * Triggered anytime component recieve new input
+     */
+    typeof this.handler.onInput == 'function'
+    && this.handler.onInput()
   }
   /**
    * Inject grain/partial input to current component 
@@ -170,8 +270,10 @@ export default class Component<Input = void, State = void, Static = void> {
     
     this.setInput( deepAssign( this.input as ObjectType<any>, data ) )
   }
-  destroy(){
-    this.$.off().remove()
+  setHandler( list: Handler ){
+    Object
+    .entries( list )
+    .map( ([ method, fn ]) => this.handler[ method ] = fn.bind(this) )
   }
 
   getEl(){
@@ -185,13 +287,26 @@ export default class Component<Input = void, State = void, Static = void> {
   }
 
   render( $component?: JQuery ){
-    const
-    _$ = $component || this.$,
-    self = this
+    const self = this
+    let
+    _$: JQuery,
+    asRoot = true
+
+    if( $component ){
+      if( !$component.length )
+        throw new Error('Undefined component element to render')
+
+      _$ = $component 
+      asRoot = false
+    }
+    else _$ = this.$
 
     function evaluate( script: string ){
-      const fn = new Function(`return ${script}`)
-      return fn.bind( self )()
+      try {
+        const fn = new Function(`return ${script}`)
+        return fn.bind( self )()
+      }
+      catch( error ){ return script }
     }
 
     function execSwitch( $switch: JQuery ){
@@ -336,64 +451,112 @@ export default class Component<Input = void, State = void, Static = void> {
     }
     
     function attachEvent( $el: JQuery, _event: string ){
-      const [ fn, ...args ] = ($el.attr(`on-${_event}`) as string).split(/\s*,\s*/)
+      const instruction = $el.attr(`on-${_event}`) as string
 
-      if( typeof self.handler[ fn ] !== 'function' )
-        throw new Error(`Undefined <${fn}> ${_event} event method`)
+      /**
+       * Execute function script directly attach 
+       * as the listener.
+       * 
+       * Eg. 
+       *  `on-click="() => console.log('Hello world')"`
+       *  `on-change="e => this.handler.onChange(e)"`
+       */
+      if( /(\s*\w+|\s*\([^)]*\)|\s*)\s*=>\s*(\s*\{[^}]*\}|\s*[^\n;"]+)/g.test( instruction ) )
+        $el.on( _event, evaluate( instruction ) )
 
-      $el.on( _event, e => {
-        const 
-        _fn = self.handler[ fn ],
-        _args = args.map( each => (evaluate( each )) )
+      /**
+       * Execute reference handler function
+       * 
+       * Eg. 
+       *  `on-input="handleInputValue"`
+       *  `on-click="handleClick, this.input.count++"`
+       * 
+       * Note: `handleInputValue` and `handleClick` handlers
+       *       must be defined as `handler` at the component
+       *       level before any assignment.
+       */
+      else {
+        const [ fn, ...args ] = instruction.split(/\s*,\s*/)
+        if( typeof self.handler[ fn ] !== 'function' )
+          throw new Error(`Undefined <${fn}> ${_event} event method`)
 
-        _fn( ..._args, e )
-      })
+        $el.on( _event, e => {
+          const 
+          _fn = self.handler[ fn ],
+          _args = args.map( each => (evaluate( each )) )
+
+          _fn( ..._args, e )
+        })
+      }
     }
 
     function react( $el: JQuery ){
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
+
       // Render in-build syntax components
       if( $el.is('switch') ) execSwitch( $el )
       else if( $el.is('if') ) execCondition( $el )
       else if( $el.is('for') ) execLoop( $el )
+
       // Render normal body content
       else {
-        const nextedHtml = $el.html()
+        // Process attributes
+        const attributes = ($el as any).attrs()
+        attributes && Object
+        .keys( attributes )
+        .forEach( each => {
+          // Attach event to the element
+          if( /^on-/.test( each ) ){
+            const _event = each.replace(/^on-/, '')
 
-        nextedHtml 
-        && $el.has(':not([key])')
-        && $el.html( self.render( wrap( nextedHtml ) ) as any )
+            $el.attr(`on-${_event}`) && attachEvent( $el, _event )
+            return
+          }
+
+          switch( each ){
+            // Inject inner html into the element
+            case 'html': $el.html( $el.attr('html') as string ); break
+            // Inject text into the element
+            case 'text': $el.text( evaluate( $el.attr('text') as string ) ); break
+            // Inject the evaulation result of any ther attributes
+            default: $el.attr( each, evaluate( $el.attr( each ) as string ) ); break
+          }
+        })
+
+        if( $el.get(0)?.nodeType !== Node.TEXT_NODE ){
+          const $nexted = wrap( $el.html() )
+
+          $nexted.length 
+          && $el.has(':not([key])')
+          && $el.html( self.render( $nexted ) as any )
+        }
+
+        // Apply translation to component's text contents
+        self.i18n.propagate( $el )
       }
-
-      // Process attributes
-      Object
-      .keys( ($el as any).attrs() )
-      .forEach( each => {
-        // Attach event to the element
-        if( /^on-/.test( each ) ){
-          const _event = each.replace(/^on-/, '')
-
-          $el.attr(`on-${_event}`) && attachEvent( $el, _event )
-          return
-        }
-
-        switch( each ){
-          // Inject inner html into the element
-          case 'html': $el.html( $el.attr('html') as string ); break
-          // Inject text into the element
-          case 'text': $el.text( evaluate( $el.attr('text') as string ) ); break
-        }
-      })
-
-      // Apply translation to component's text contents
-      self.i18n.propagate( $el )
     }
 
+    /**
+     * IMPORTANT: Register nexted contents before processing
+     *            the element.
+     */
     const $els = _$.length > 1 ?
                       // Create fake div to wrap contents
                       $('<div/>').html( _$ as any ).contents()
                       : _$.children()
 
+    // Process root element
+    asRoot && react( _$ )
+    // Process nexted contents
     $els.each( function(){ react( $(this) as JQuery ) })
+    
+    /**
+     * BENCHMARK: Tracking total occurence of recursive rendering
+     */
+    self.benchmark.inc('renderCount')
 
     return _$
   }
@@ -405,10 +568,8 @@ export default class Component<Input = void, State = void, Static = void> {
   emit(){
 
   }
-
-  defineHandler( list: Handler ){
-    Object
-    .entries( list )
-    .map( ([ method, fn ]) => this.handler[ method ] = fn.bind(this) )
+  destroy(){
+    this.$.off().remove()
+    clearInterval( this.IUC )
   }
 }

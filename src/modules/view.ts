@@ -35,7 +35,7 @@ import {
   FloatingInput,
   FinderPanelInput,
   SearchResultInput
-} from './block.factory'
+} from './factory'
 import { debug, hashKey } from './utils'
 import { FrameQuery } from '../lib/frame.window'
 

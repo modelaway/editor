@@ -1,6 +1,6 @@
 import type Modela from '../exports/modela'
 import type { Plugin, PluginFactory, PluginInstance } from '../types/plugin'
-import * as bx from './block.factory'
+import * as bx from './factory'
 import * as constants from './constants'
 
 export default class Plugins {

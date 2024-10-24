@@ -2,7 +2,7 @@ import type Modela from '../exports/modela'
 import type { FrameQuery } from '../lib/frame.window'
 import type { ViewBlockProperties } from '../types/view'
 
-import { createSelectFileInput } from './block.factory'
+import { createSelectFileInput } from './factory'
 import { debug } from './utils'
 
 export default class Functions {

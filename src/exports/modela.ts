@@ -8,7 +8,7 @@ import Workspace from '../modules/workspace'
 import Functions from '../modules/functions'
 import { debug } from '../modules/utils'
 import I18N from '../modules/i18n'
-import Component from '../modules/component'
+import Component from './component'
 import { FloatingInput } from '../modules/factory'
 
 window.$ = jQuery

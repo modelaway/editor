@@ -1,5 +1,5 @@
 import type Modela from '../exports/modela'
-import type Component from './component'
+import type Component from '../exports/component'
 
 import * as Event from './events'
 import {

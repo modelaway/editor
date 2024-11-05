@@ -1,8 +1,8 @@
 
 import $ from 'jquery'
-import I18N from './i18n'
-import { deepAssign } from './utils'
-import { effect, signal } from './reactive'
+// import I18N from '../modules/i18n'
+import { deepAssign } from '../modules/utils'
+import { effect, signal } from '../modules/reactive'
 
 $.fn.extend({
   attrs: function(){
@@ -102,15 +102,57 @@ class Benchmark {
   }
 }
 
+export type Template = {
+  state?: any
+  static?: any
+  handler?: Handler
+  default: string
+}
+
+export class Meta {
+  private store: ObjectType<Template> = {}
+
+  async register( name: string, template: Template ){
+    /**
+     * TODO: Register component by providing file path.
+     */
+    // if( typeof template == 'string' ){
+    //   try { this.store[ name ] = await import( template ) as Template }
+    //   catch( error ){ throw new Error(`Component <${name}> template not found at ${template}`) }
+
+    //   return
+    // }
+
+    this.store[ name ] = template
+  }
+
+  unregister( name: string ){
+    delete this.store[ name ]
+  }
+
+  use( name: string ){
+    if( !this.store[ name ] )
+      throw new Error(`No <${name}> component found`)
+
+    if( !this.store[ name ].default )
+      throw new Error(`Invalid <${name}> component`)
+
+    return this.store[ name ]
+  }
+}
+
 export default class Component<Input = void, State = void, Static = void> {
   public template: string
   public $: JQuery
   private input: Input
   private state: State
-  private __state?: State // Partial state
   private static: ObjectType<any>
   private handler: Handler = {}
 
+  private __state?: State // Partial state
+  private __components: ObjectType<Component> = {}
+
+  private debug = false
   private isRendered = false
 
   private _setInput: ( input: Input ) => void
@@ -129,14 +171,17 @@ export default class Component<Input = void, State = void, Static = void> {
     each?: any
   }
 
+  private meta?: Meta
   private benchmark: Benchmark
 
   /**
    * Initialize history manager
    */
-  private i18n = new I18N()
+  // private i18n = new I18N()
 
-  constructor( template: string, { input, state, _static, _handler }: { input?: Input, state?: State, _static?: ObjectType<any>, _handler?: Handler }, debug = false ){
+  constructor( template: string, { input, state, _static, _handler }: { input?: Input, state?: State, _static?: ObjectType<any>, _handler?: Handler }, debug = false, meta?: Meta ){
+    this.meta = meta
+    this.debug = debug
     this.template = template
     this.$ = $(template)
     
@@ -306,6 +351,8 @@ export default class Component<Input = void, State = void, Static = void> {
 
     function evaluate( script: string ){
       try {
+        script = script.replace(/\{([^}]*)\}/g, ( _, match ) => ('${'+ match +'}') )
+
         const fn = new Function(`return ${script}`)
         return fn.bind( self )()
       }
@@ -606,11 +653,23 @@ export default class Component<Input = void, State = void, Static = void> {
 
         switch( each ){
           // Inject inner html into the element
-          case 'html': $el.html( $el.attr('html') as string ); break
+          case 'html': $el.html( evaluate( $el.attr('html') as string ) ); break
           // Inject text into the element
           case 'text': $el.text( evaluate( $el.attr('text') as string ) ); break
           // Inject the evaulation result of any ther attributes
-          default: $el.attr( each, evaluate( $el.attr( each ) as string ) ); break
+          default: {
+            const res = evaluate( $el.attr( each ) as string )
+            
+            /**
+             * (?) evaluation return signal to uset the attribute.
+             * 
+             * Very useful case where the attribute don't necessarily
+             * have values by default.
+             */
+            res != '?' ? 
+                $el.attr( each, res )
+                : $el.removeAttr( each )
+          }; break
         }
       })
 
@@ -630,7 +689,62 @@ export default class Component<Input = void, State = void, Static = void> {
       }
 
       // Apply translation to component's text contents
-      self.i18n.propagate( $el )
+      // self.i18n.propagate( $el )
+    }
+
+    function execComponent( $component: JQuery ){
+      try {
+        const name = $component.attr('name') as string
+        if( !name )
+          throw new Error('Undefined component <name> attribute')
+
+        if( !self.meta )
+          throw new Error('Nexted component manager is disable')
+
+        /**
+         * Parse assigned attributes to be injected into
+         * the component as input.
+         */
+        const
+        input: any = {},
+        attrs = ($component as any).attrs()
+        Object
+        .entries( attrs )
+        .forEach( ([ key, value ]) => {
+          if( key == 'name' || value == undefined ) return
+
+          input[ key ] = evaluate( value as string )
+        } )
+
+        /**
+         * Also inject component body into inputs
+         * as `bodyHtml`
+         */
+        const
+        nextedHtml = $component.html()
+        if( nextedHtml ){
+          const $el = self.render( wrap( nextedHtml ) )
+          input.bodyHtml = $el.html() || $el.text()
+        }
+
+        const
+        { state, static: _static, handler: _handler, default: _default } = self.meta.use( name ),
+        component = new Component( _default, {
+          state,
+          input,
+          _static,
+          _handler
+        }, self.debug, self.meta )
+
+        self.__components[ name ] = component
+
+        $component.replaceWith( component.$ )
+        // $component = component.$
+      }
+      catch( error ){
+        // TODO: Transfer error to global try - catch component define in the UI
+        console.warn('Error - ', error )
+      }
     }
 
     function react( $el: JQuery ){
@@ -640,6 +754,7 @@ export default class Component<Input = void, State = void, Static = void> {
       else if( $el.is('if') ) execCondition( $el )
       else if( $el.is('switch') ) execSwitch( $el )
       else if( $el.is('async') ) execAsync( $el )
+      else if( $el.is('component') ) execComponent( $el )
 
       // Render normal body content
       else execElement( $el )
@@ -683,7 +798,20 @@ export default class Component<Input = void, State = void, Static = void> {
 
   }
   destroy(){
+    // Destroy nexted components as well
+    for( const each in this.__components ){
+      this.__components[ each ].destroy()
+      delete this.__components[ each ]
+    }
+
     this.$.off().remove()
     clearInterval( this.IUC )
+  }
+
+  appendTo( selector: string ){
+    $(selector).append( this.$ )
+  }
+  prependTo( selector: string ){
+    $(selector).prepend( this.$ )
   }
 }

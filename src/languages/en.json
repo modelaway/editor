@@ -1,11 +1,13 @@
 {
   "Undo": "Undo",
   "Redo": "Redo",
+  "Reinitialize": "Reinitialize",
   "Settings": "Settings",
   "Link": "Link",
   "Device Screens": {
     "*": "Device Screens",
     "UK": "Media Devices"
   },
-  "Bold": "Bold"
+  "Bold": "Bold",
+  "Count": "Count"
 }

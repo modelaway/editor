@@ -4,6 +4,11 @@ import $ from 'jquery'
 import { deepAssign } from '../modules/utils'
 import { effect, signal } from '../modules/reactive'
 
+// import * as Sass from 'sass'
+import { CompileResult } from 'sass'
+
+let Sass: any
+
 $.fn.extend({
   attrs: function(){
     const 
@@ -102,55 +107,374 @@ class Benchmark {
   }
 }
 
+type LanguageDictionary = ObjectType<ObjectType<string> | string>
+
+class I18N {
+  private default = window.navigator.language
+  private LANGUAGE_DICTIONARIES: ObjectType<LanguageDictionary> = {}
+
+  setLang( lang: string ): boolean {
+    if( this.default !== lang ){
+      this.default = lang
+      return true
+    }
+
+    return false
+  }
+
+  setDictionary( id: string, dico: LanguageDictionary ){
+    this.LANGUAGE_DICTIONARIES[ id ] = dico
+  }
+
+  /**
+   * 
+   */
+  translate( text: string, lang?: string ){
+    // No translation required
+    if( lang && this.default == lang )
+      return { text, lang: this.default }
+
+    lang = lang || this.default
+
+    /**
+     * Translate displayable texts
+     * 
+     * - text content
+     * - title attribute
+     * - placeholder attribute
+     */
+    const [ id, variant ]: string[] = lang.split('-')
+    if( this.LANGUAGE_DICTIONARIES[ id ] && text in this.LANGUAGE_DICTIONARIES[ id ] ){
+      // Check by language variant or default option
+      if( typeof this.LANGUAGE_DICTIONARIES[ id ][ text ] === 'object' ){
+        const variants = this.LANGUAGE_DICTIONARIES[ id ][ text ] as ObjectType<string>
+        text = variants[ variant || '*' ] || variants['*']
+      }
+      
+      // Single translation option
+      else if( typeof this.LANGUAGE_DICTIONARIES[ id ][ text ] === 'string' )
+        text = this.LANGUAGE_DICTIONARIES[ id ][ text ] as string
+    }
+
+    return { text, lang }
+  }
+
+  propagate( $node: JQuery<HTMLElement> ){
+    const self = this
+    function apply( this: HTMLElement ){
+      const
+      $this = $(this),
+      _content = $this.html(),
+      _title = $this.attr('title'),
+      _placeholder = $this.attr('placeholder')
+
+      let _lang
+
+      if( !/<\//.test( _content ) && $this.text() ){
+        const { text, lang } = self.translate( $this.text() )
+
+        $this.text( text )
+        _lang = lang
+      }
+      if( _title ){
+        const { text, lang } = self.translate( _title )
+
+        $this.attr('title', text )
+        _lang = lang
+      }
+      if( _placeholder ){
+        const { text, lang } = self.translate( _placeholder )
+        
+        $this.attr('placeholder', text )
+        _lang = lang
+      }
+
+      _lang && $this.attr('lang', _lang )
+    }
+
+    $node.children().each( apply )
+
+    return $node
+  }
+}
+
 export type Template = {
   state?: any
   static?: any
   handler?: Handler
+  stylesheet?: string
   default: string
 }
+export type ComponentScope = {
+  input?: any
+  state?: any
+  context?: string[]
+  _static?: ObjectType<any>
+  _handler?: Handler
+  stylesheet?: string
+}
+export type MetaConfig = {
+  context?: any
+  debug?: boolean
+}
 
-export class Meta {
+export class Meta<Context = any> {
+  private debug = false
+  private context?: Context
   private store: ObjectType<Template> = {}
+  private __root?: Component
 
-  async register( name: string, template: Template ){
+  public i18n = new I18N()
+
+  private _setContext: ( ctx: Context ) => void
+  private _getContext: () => Context
+
+  constructor( config?: MetaConfig ){
+    if( config?.debug ) 
+      this.debug = config.debug
+    
+    const [ getContext, setContext ] = signal<Context>( config?.context || {} )
+
+    this._setContext = setContext
+    this._getContext = getContext
+  }
+
+  async register( ref: string, template: Template ){
     /**
      * TODO: Register component by providing file path.
      */
     // if( typeof template == 'string' ){
-    //   try { this.store[ name ] = await import( template ) as Template }
-    //   catch( error ){ throw new Error(`Component <${name}> template not found at ${template}`) }
+    //   try { this.store[ ref ] = await import( template ) as Template }
+    //   catch( error ){ throw new Error(`Component <${ref}> template not found at ${template}`) }
 
     //   return
     // }
 
-    this.store[ name ] = template
+    this.store[ ref ] = template
   }
 
-  unregister( name: string ){
-    delete this.store[ name ]
+  unregister( ref: string ){
+    delete this.store[ ref ]
   }
 
-  use( name: string ){
-    if( !this.store[ name ] )
-      throw new Error(`No <${name}> component found`)
+  use( ref: string ){
+    if( !this.store[ ref ] )
+      throw new Error(`No <${ref}> component found`)
 
-    if( !this.store[ name ].default )
-      throw new Error(`Invalid <${name}> component`)
+    if( !this.store[ ref ].default )
+      throw new Error(`Invalid <${ref}> component`)
 
-    return this.store[ name ]
+    return this.store[ ref ]
+  }
+
+  root( template: string, scope: ComponentScope ){
+    this.__root = new Component('__ROOT__', template, scope, this.debug, this )
+    return this.__root
+  }
+
+  language( lang: string ){
+    this.i18n.setLang( lang )
+    /**
+     * Rerender root component when language changed
+     */
+    && this.__root?.rerender()
+  }
+
+  setContext( key: string, value: any ){
+    this._setContext({ ...this.context, [key]: value } as Context )
+  }
+  useContext( fields: (keyof Context)[], fn: ( ...args: any[] ) => void ){
+    effect( () => {
+      this.context = this._getContext()
+
+      const ctx: any = {}
+      fields.forEach( field => {
+        if( !this.context ) return
+        ctx[ field ] = this.context[ field ]
+      } )
+
+      typeof fn === 'function' && fn( ctx )
+    } )
   }
 }
 
-export default class Component<Input = void, State = void, Static = void> {
+type StyleSettings = {
+  css?: string
+  meta?: boolean
+  custom?: {
+    enabled: boolean
+    allowedRules: string[]
+    allowedProperties: string[]
+  }
+}
+export class Stylesheet {
+  private nsp: string
+  private settings: StyleSettings
+  private $head: JQuery<HTMLElement>
+
+  constructor( nsp: string, settings?: StyleSettings ){
+    if( typeof nsp !== 'string' ) 
+      throw new Error('Undefined or invalid styles attachement element(s) namespace')
+    
+    // @ts-ignore
+    !Sass && import('https://jspm.dev/sass').then( lib => Sass = lib )
+
+    /**
+     * Unique namespace identifier of targeted 
+     * views/elements
+     */
+    this.nsp = nsp
+
+    /**
+     * Head element of the DOM from where CSS
+     * operation will be done.
+     */
+    this.$head = $('head')
+
+    /**
+     * Styles settings
+     * 
+     * - css
+     * - custom
+     */
+    this.settings = settings || {}
+
+    // Auto-load defined css rules
+    this.settings && this.load( this.settings )
+  }
+
+  /**
+   * Compile Sass style string to CSS string
+   */
+  compile( str: string ): Promise<CompileResult>{
+    return new Promise( ( resolve, reject ) => {
+      if( !Sass ){
+        let 
+        waiter: any,
+        max = 1
+        
+        const exec = () => {
+          /**
+           * TEMP: Wait 8 seconds for Sass libary to load
+           */
+          if( !Sass ){
+            if( max == 8 ){
+              clearInterval( waiter )
+              reject('Undefined Sass compiler')
+            }
+            else max++
+            
+            return
+          }
+
+          clearInterval( waiter )
+          resolve( Sass.compileString( str ) )
+        }
+
+        waiter = setInterval( exec, 1000 )
+      }
+      else resolve( Sass.compileString( str ) )
+    } )
+  }
+
+  /**
+   * Compile and inject a style chunk in the DOM
+   * using `<style mv-style="*">...</style>` tag
+   */
+  private async inject( str: string ){
+    if( !str )
+      throw new Error('Invalid injection arguments')
+
+    const selector = `rel="${this.settings.meta ? '@' : ''}${this.nsp}"`
+    /**
+     * Defined meta css properties or css by view 
+     * elements by wrapping in a closure using the 
+     * namespaces selector.
+     * 
+     * :root {
+     *    --font-size: 12px;
+     *    line-height: 1.5;
+     * }
+     * 
+     * [rel="<namespace>"] {
+     *    font-size: 12px;
+     *    &:hover {
+     *      color: #000; 
+     *    }
+     * }
+     */
+    str = this.settings.meta ? str : `[rel="${this.nsp}"] { ${str} }`
+
+    const result = await this.compile( str )
+    if( !result?.css )
+      throw new Error(`<component:${this.nsp}> css injection failed`)
+    
+    const $existStyle = await this.$head.find(`style[${selector}]`)
+    $existStyle.length ?
+          // Replace existing content
+          await $existStyle.html( result.css )
+          // Inject new style
+          : await (this.$head as any)[ this.settings.meta ? 'prepend' : 'append' ](`<style ${selector}>${result.css}</style>`)
+  }
+
+  /**
+   * Load/inject predefined CSS to the document
+   */
+  async load( settings: StyleSettings ){
+    this.settings = settings
+    if( typeof this.settings !== 'object' )
+      throw new Error('Undefined styles settings')
+    
+    this.settings.css && await this.inject( this.settings.css )
+  }
+
+  /**
+   * Retreive this view's main node styles including natively 
+   * defined ones.
+   */
+  get(){
+    
+  }
+
+  /**
+   * Remove all injected styles from the DOM
+   */
+  async clear(){
+    (await this.$head.find(`style[rel="${this.settings.meta ? '@' : ''}${this.nsp}"]`)).remove()
+  }
+
+  /**
+   * Return css custom properties
+   */
+  async custom(): Promise<ObjectType<string>> {
+    return {}
+  }
+
+  /**
+   * Overridable function to return an element 
+   * style attribute value as JSON object.
+   */
+  async style(): Promise<ObjectType<string>> {
+    return {}
+  }
+}
+
+type EventListener = ( ...args: any[] ) => void
+
+export default class Component<Input = void, State = void, Static = void, Context = void> {
   public template: string
   public $: JQuery
   private input: Input
   private state: State
+  private context: Context
   private static: ObjectType<any>
   private handler: Handler = {}
 
+  private __ref: string
   private __state?: State // Partial state
+  private __stylesheet?: Stylesheet
   private __components: ObjectType<Component> = {}
+  private __events: ObjectType<EventListener[]> = {}
 
   private debug = false
   private isRendered = false
@@ -174,19 +498,25 @@ export default class Component<Input = void, State = void, Static = void> {
   private meta?: Meta
   private benchmark: Benchmark
 
-  /**
-   * Initialize history manager
-   */
-  // private i18n = new I18N()
-
-  constructor( template: string, { input, state, _static, _handler }: { input?: Input, state?: State, _static?: ObjectType<any>, _handler?: Handler }, debug = false, meta?: Meta ){
+  constructor( ref: string, template: string, { input, state, context, _static, _handler, stylesheet }: ComponentScope, debug = false, meta?: Meta ){
     this.meta = meta
     this.debug = debug
     this.template = template
-    this.$ = $(template)
+    this.$ = $(this.template)
+
+    this.__ref = ref
+    this.__stylesheet = new Stylesheet( this.__ref, {
+      css: stylesheet,
+      /**
+       * Inject root component styles into global meta
+       * style tag.
+       */
+      meta: this.__ref === '__ROOT__'
+    })
     
     this.input = input || {} as Input
     this.state = state || {} as State
+    this.context = {} as Context
     this.static = _static || {}
     this.benchmark = new Benchmark( debug )
 
@@ -194,7 +524,8 @@ export default class Component<Input = void, State = void, Static = void> {
 
     const
     [ getInput, setInput ] = signal<Input>( this.input ),
-    [ getState, setState ] = signal<State>( this.state )
+    [ getState, setState ] = signal<State>( this.state ),
+    [ getContext, setContext ] = signal<Context>( this.context )
 
     this._setInput = setInput
     this._setState = setState
@@ -203,6 +534,7 @@ export default class Component<Input = void, State = void, Static = void> {
     effect( () => {
       this.input = getInput()
       this.state = getState()
+      this.context = getContext()
 
       // Reset the benchmark
       this.benchmark.reset()
@@ -216,23 +548,9 @@ export default class Component<Input = void, State = void, Static = void> {
       this.__state = JSON.parse( JSON.stringify( this.state ) )
       
       /**
-       * Use original content of the component to
-       * during rerendering
-       */
-      if( this.isRendered ){
-        if( !template )
-          throw new Error('Component template is empty')
-
-        const $clone = $(template)
-        this.$.replaceWith( $clone )
-
-        this.$ = $clone
-      }
-      
-      /**
        * Render/Rerender component
        */
-      this.render()
+      this.isRendered ? this.rerender() : this.render()
 
       /**
        * Log benchmark table
@@ -273,6 +591,20 @@ export default class Component<Input = void, State = void, Static = void> {
       // Merge with initial/active state.
       this.setState( this.state )
     }, this.IUC_BEAT )
+
+    Array.isArray( context )
+    && context.length
+    && this.meta?.useContext( context, ctx => {
+      /**
+       * Apply update only when a new change 
+       * occured on the context.
+       */
+      if( isEquals( this.context as ObjectType<any>, ctx ) )
+        return
+      
+      // Merge with initial/active context.
+      setContext( ctx )
+    } )
   }
 
   getState( key: string ){
@@ -351,7 +683,7 @@ export default class Component<Input = void, State = void, Static = void> {
 
     function evaluate( script: string ){
       try {
-        script = script.replace(/\{([^}]*)\}/g, ( _, match ) => ('${'+ match +'}') )
+        // script = script.replace(/\{([^}]*)\}/g, ( _, match ) => ('${'+ match +'}') )
 
         const fn = new Function(`return ${script}`)
         return fn.bind( self )()
@@ -359,9 +691,7 @@ export default class Component<Input = void, State = void, Static = void> {
       catch( error ){ return script }
     }
     
-    function attachEvent( $el: JQuery, _event: string ){
-      const instruction = $el.attr(`on-${_event}`) as string
-
+    function attachEvent( element: JQuery | Component, _event: string, instruction: string ){
       /**
        * Execute function script directly attach 
        * as the listener.
@@ -371,7 +701,7 @@ export default class Component<Input = void, State = void, Static = void> {
        *  `on-change="e => this.handler.onChange(e)"`
        */
       if( /(\s*\w+|\s*\([^)]*\)|\s*)\s*=>\s*(\s*\{[^}]*\}|\s*[^\n;"]+)/g.test( instruction ) )
-        $el.on( _event, evaluate( instruction ) )
+        element.on( _event, evaluate( instruction ) )
 
       /**
        * Execute reference handler function
@@ -386,15 +716,17 @@ export default class Component<Input = void, State = void, Static = void> {
        */
       else {
         const [ fn, ...args ] = instruction.split(/\s*,\s*/)
-        if( typeof self.handler[ fn ] !== 'function' )
-          throw new Error(`Undefined <${fn}> ${_event} event method`)
+        if( typeof self.handler[ fn ] !== 'function' ) return
+          // throw new Error(`Undefined <${fn}> ${_event} event method`)
 
-        $el.on( _event, e => {
-          const 
-          _fn = self.handler[ fn ],
-          _args = args.map( each => (evaluate( each )) )
+        element.on( _event, ( ...params: any[] ) => {
+          const _fn = self.handler[ fn ]
+          let _args = args.map( each => (evaluate( each )) )
 
-          _fn( ..._args, e )
+          if( params.length )
+            _args = [ ...params, ..._args ]
+
+          _fn( ..._args, ...params )
         })
       }
     }
@@ -418,8 +750,6 @@ export default class Component<Input = void, State = void, Static = void> {
           if( !assign ) return
           self.let[ key ] = evaluate( assign as string )
         } )
-        
-        console.log('let attributes:', self.let )
       }
       catch( error ){
         // TODO: Transfer error to global try - catch component define in the UI
@@ -641,24 +971,54 @@ export default class Component<Input = void, State = void, Static = void> {
       const attributes = ($el as any).attrs()
       
       attributes && Object
-      .keys( attributes )
-      .forEach( each => {
+      .entries( attributes )
+      .forEach( ([ attr, value ]) => {
         // Attach event to the element
-        if( /^on-/.test( each ) ){
-          const _event = each.replace(/^on-/, '')
+        if( /^on-/.test( attr ) ){
+          const _event = attr.replace(/^on-/, '')
 
-          $el.attr(`on-${_event}`) && attachEvent( $el, _event )
+          $el.attr(`on-${_event}`) && attachEvent( $el, _event, value as string )
           return
         }
 
-        switch( each ){
+        switch( attr ){
           // Inject inner html into the element
-          case 'html': $el.html( evaluate( $el.attr('html') as string ) ); break
+          case 'html': $el.html( evaluate( value as string ) ); break
+
           // Inject text into the element
-          case 'text': $el.text( evaluate( $el.attr('text') as string ) ); break
-          // Inject the evaulation result of any ther attributes
+          case 'text': {
+            let text = evaluate( value as string )
+
+            // Apply translation
+            if( self.meta && !$el.is('[no-translate]') ){
+              const { text: _text } = self.meta.i18n.translate( text )
+              text = _text
+            }
+
+            $el.text( text )
+          } break
+
+          // Convert object style attribute to string
+          case 'style': {
+            const style = evaluate( value as string )
+            
+            // Defined in object format
+            if( typeof style === 'object' ){
+              let str = ''
+
+              Object
+              .entries( style )
+              .forEach( ([ k, v ]) => str += `${k}:${v};` )
+              
+              str.length && $el.attr('style', str )
+            }
+            // Defined in string format
+            else $el.attr('style', style )
+          } break
+
+          // Inject the evaulation result of any other attributes
           default: {
-            const res = evaluate( $el.attr( each ) as string )
+            const res = evaluate( value as string )
             
             /**
              * (?) evaluation return signal to uset the attribute.
@@ -667,9 +1027,9 @@ export default class Component<Input = void, State = void, Static = void> {
              * have values by default.
              */
             res != '?' ? 
-                $el.attr( each, res )
-                : $el.removeAttr( each )
-          }; break
+                $el.attr( attr, res )
+                : $el.removeAttr( attr )
+          }
         }
       })
 
@@ -689,14 +1049,14 @@ export default class Component<Input = void, State = void, Static = void> {
       }
 
       // Apply translation to component's text contents
-      // self.i18n.propagate( $el )
+      self.meta?.i18n.propagate( $el )
     }
 
     function execComponent( $component: JQuery ){
       try {
-        const name = $component.attr('name') as string
-        if( !name )
-          throw new Error('Undefined component <name> attribute')
+        const ref = $component.attr('ref') as string
+        if( !ref )
+          throw new Error('Undefined component <ref> attribute')
 
         if( !self.meta )
           throw new Error('Nexted component manager is disable')
@@ -707,11 +1067,20 @@ export default class Component<Input = void, State = void, Static = void> {
          */
         const
         input: any = {},
-        attrs = ($component as any).attrs()
+        attrs = ($component as any).attrs(),
+        events: ObjectType<any> = {}
+
         Object
         .entries( attrs )
         .forEach( ([ key, value ]) => {
-          if( key == 'name' || value == undefined ) return
+          if( key == 'ref' || value == undefined )
+            return
+
+          // Component events
+          if( /^on-/.test( key ) ){
+            events[ key.replace(/^on-/, '') ] = value
+            return
+          }
 
           input[ key ] = evaluate( value as string )
         } )
@@ -728,18 +1097,23 @@ export default class Component<Input = void, State = void, Static = void> {
         }
 
         const
-        { state, static: _static, handler: _handler, default: _default } = self.meta.use( name ),
-        component = new Component( _default, {
+        { state, static: _static, handler: _handler, default: _default, stylesheet } = self.meta.use( ref ),
+        component = new Component( ref, _default, {
           state,
           input,
           _static,
-          _handler
+          _handler,
+          stylesheet
         }, self.debug, self.meta )
 
-        self.__components[ name ] = component
+        self.__components[ ref ] = component
 
         $component.replaceWith( component.$ )
-        // $component = component.$
+        
+        // Listen to this nexted component's events
+        Object
+        .entries( events )
+        .forEach( ([ _event, instruction ]) => attachEvent( component, _event, instruction ) )
       }
       catch( error ){
         // TODO: Transfer error to global try - catch component define in the UI
@@ -776,6 +1150,17 @@ export default class Component<Input = void, State = void, Static = void> {
     // Process root element
     if( asRoot ){
       react( _$ )
+
+      /**
+       * Component relationship attribute with other 
+       * resources like `style tags`, `script tags`, ...
+       */
+      _$.attr('rel', this.__ref )
+
+      // Object
+      // .values( self.__components )
+      // .forEach( each => each.render() )
+
       asRoot = false
     }
 
@@ -789,13 +1174,20 @@ export default class Component<Input = void, State = void, Static = void> {
 
     return _$
   }
-  inject( method: string, $node: any ){
-    $node[ method ]( this.$ )
 
-    return this.$
-  }
-  emit(){
+  /**
+   * Rerender component using the original content 
+   * of the component to during rerendering
+   */
+  rerender(){
+    if( !this.template )
+      throw new Error('Component template is empty')
 
+    const $clone = $(this.template)
+    this.$.replaceWith( $clone )
+
+    this.$ = $clone
+    this.render()
   }
   destroy(){
     // Destroy nexted components as well
@@ -805,6 +1197,9 @@ export default class Component<Input = void, State = void, Static = void> {
     }
 
     this.$.off().remove()
+    this.__stylesheet?.clear()
+
+    // Turn off IUC
     clearInterval( this.IUC )
   }
 
@@ -813,5 +1208,21 @@ export default class Component<Input = void, State = void, Static = void> {
   }
   prependTo( selector: string ){
     $(selector).prepend( this.$ )
+  }
+  replaceWith( selector: string ){
+    $(selector).replaceWith( this.$ )
+  }
+
+  on( _event: string, fn: EventListener ){
+    if( !Array.isArray( this.__events[ _event ] ) )
+      this.__events[ _event ] = []
+
+    this.__events[ _event ].push( fn )
+  }
+  off( _event: string ){
+    delete this.__events[ _event ]
+  }
+  emit( _event: string, ...params: any[] ){
+    this.__events[ _event ]?.forEach( fn => fn( ...params ) )
   }
 }

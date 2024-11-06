@@ -1,4 +1,6 @@
 import Component, { Meta, type Template, type Handler } from './component'
+import english from '../languages/en.json'
+import french from '../languages/fr.json'
 
 function Demo1(){
   type Input = {
@@ -90,7 +92,7 @@ function Demo1(){
     }
   }
 
-  const component = new Component<Input, State>( template, { input, state, _static, _handler }, true )
+  const component = new Component<Input, State>('Demo1', template, { input, state, _static, _handler }, true )
 
   component.appendTo('body')
 
@@ -129,9 +131,12 @@ function Demo2(){
     handleClick( e: Event ){
       this.state.count++
     }
-  }
+  },
+  stylesheet = `
+    span, button { font: 14px arial; color: rgba(50, 50, 70); }
+  `
 
-  const component = new Component( template, { state, _handler }, true )
+  const component = new Component('Demo2', template, { state, _handler, stylesheet }, true )
 
   component.appendTo('body')
 }
@@ -154,13 +159,13 @@ function Demo3(){
   _handler: Handler = {
     getUser( name ){
       return new Promise( ( resolve, reject ) => {
-        // setTimeout( () => resolve({ name, email: 'g.peter@mail.com' }), 3000 )
-        setTimeout( () => reject('Unexpected error occured'), 1000 )
+        setTimeout( () => resolve({ name, email: 'g.peter@mail.com' }), 3000 )
+        // setTimeout( () => reject('Unexpected error occured'), 1000 )
       })
     }
   }
 
-  const component = new Component( template, { _static, _handler }, true )
+  const component = new Component('Demo3', template, { _static, _handler }, true )
 
   component.appendTo('body')
 }
@@ -185,28 +190,12 @@ function Demo4(){
       </p>
     </div>`
 
-  const component = new Component( template, {}, true )
+  const component = new Component('Demo4', template, {}, true )
 
   component.appendTo('body')
 }
 
 function Demo5(){
-  const
-  template = `<section>
-      <p>
-        <component ref="103" text=this.let.text/>
-      </p>
-
-      <button on-click="changeLang, 'french'">Français</button>
-      <button on-click="changeLang, 'english'">English</button>
-    </section>`
-
-  const component = new Component( template, {}, true )
-
-  component.appendTo('body')
-}
-
-function Demo6(){
   const cp: Template = {
     state: {
       count: 0
@@ -218,11 +207,15 @@ function Demo6(){
           return
 
         this.state.count++
+        this.emit('update', this.state.count )
       }
     },
     static: {
       limit: 12
     },
+    stylesheet: `
+      span { font: 14px arial; color: blue; }
+    `,
     
     default: `<div>
       <span html=this.input.bodyHtml></span>: 
@@ -232,34 +225,57 @@ function Demo6(){
     </div>`
   }
 
-  const meta = new Meta()
+  const 
+  config = {
+    context: {
+      lang: 'en-US',
+      online: true
+    },
+    debug: true
+  },
+  meta = new Meta( config )
+
   meta.register('counter', cp )
   // await meta.register('caption', '../../examples/active-modela/components/caption')
+
+  meta.i18n.setDictionary('en', english )
+  meta.i18n.setDictionary('fr', french )
 
   const
   state = {
     initial: 3
   },
-  template = `<section>
-      <component name="counter" initial=this.state.initial>
+  template = `<section style="{ border: '2px solid gray', margin: '3rem', padding: '15px' }">
+      <component ref="counter"
+                  initial=this.state.initial
+                  on-update="value => console.log( value )">
         Count till 12
       </component>
 
+      <p>I'm <span text="this.context.online ? 'Online' : 'Offline'"></span></p>
+
       <br><br>
       <button on-click="() => this.state.initial = 10">Reinitialize</button>
-      <button on-click="() => this.destroy()">Destroy</button>
+      <button title="Undo"
+              style="background: black;color: white" 
+              on-click="() => this.destroy()">Destroy</button>
 
-      <component name="caption"></component>
+      <component ref="caption"></component>
     </section>`
 
-  const component = new Component( template, { state }, true, meta )
+  const component = meta.root( template, { state, context: ['online'] } )
 
   component.appendTo('body')
+
+  // Change detault translation language
+  setTimeout( () => {
+    meta.language('fr-FR')
+    meta.setContext('online', false )
+  }, 5000 )
 }
 
 // Demo1()
 // Demo2()
 // Demo3()
 // Demo4()
-// Demo5()
-Demo6()
+Demo5()

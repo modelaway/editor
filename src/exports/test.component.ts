@@ -1,4 +1,4 @@
-import Component, { Meta, type Template, type Handler } from './component'
+import Component, { Lips, type Template, type Handler } from './component'
 import english from '../languages/en.json'
 import french from '../languages/fr.json'
 
@@ -210,7 +210,7 @@ function Demo5(){
         this.emit('update', this.state.count )
       }
     },
-    static: {
+    _static: {
       limit: 12
     },
     stylesheet: `
@@ -233,13 +233,13 @@ function Demo5(){
     },
     debug: true
   },
-  meta = new Meta( config )
+  lips = new Lips( config )
 
-  meta.register('counter', cp )
-  // await meta.register('caption', '../../examples/active-modela/components/caption')
+  lips.register('counter', cp )
+  // await lips.register('caption', '../../examples/active-modela/components/caption')
 
-  meta.i18n.setDictionary('en', english )
-  meta.i18n.setDictionary('fr', french )
+  lips.i18n.setDictionary('en', english )
+  lips.i18n.setDictionary('fr', french )
 
   const
   state = {
@@ -263,14 +263,14 @@ function Demo5(){
       <component ref="caption"></component>
     </section>`
 
-  const component = meta.root( template, { state, context: ['online'] } )
+  const component = lips.root( template, { state, context: ['online'] } )
 
   component.appendTo('body')
 
   // Change detault translation language
   setTimeout( () => {
-    meta.language('fr-FR')
-    meta.setContext('online', false )
+    lips.language('fr-FR')
+    lips.setContext('online', false )
   }, 5000 )
 }
 
@@ -278,4 +278,4 @@ function Demo5(){
 // Demo2()
 // Demo3()
 // Demo4()
-Demo5()
+// Demo5()

@@ -23,8 +23,8 @@ $.fn.extend({
 
 export type Handler = ObjectType<( ...args: any[] ) => any>
 
-function wrap( html: string ): any {
-  return $('<div/>').html( html ).contents()
+function wrap( arg: string ): JQuery<any> {
+  return $('<wrap/>').html( arg ).contents()
 }
 function isEquals( aObject: ObjectType<any>, bObject: ObjectType<any> ){
   const
@@ -71,6 +71,11 @@ function isEquals( aObject: ObjectType<any>, bObject: ObjectType<any> ){
 
   return true
 }
+function uniqueObject( obj: any ){
+  if( typeof obj !== 'object' ) return obj
+
+  return JSON.parse( JSON.stringify( obj ) )
+}
 
 class Benchmark {
   private debug: boolean
@@ -99,7 +104,7 @@ class Benchmark {
   }
 
   reset(){
-    return this.stats = JSON.parse( JSON.stringify( this.initialStats ) )
+    return this.stats = uniqueObject( this.initialStats )
   }
 
   log(){
@@ -200,7 +205,8 @@ class I18N {
 
 export type Template = {
   state?: any
-  static?: any
+  _static?: any
+  context?: any
   handler?: Handler
   stylesheet?: string
   default: string
@@ -213,12 +219,17 @@ export type ComponentScope = {
   _handler?: Handler
   stylesheet?: string
 }
-export type MetaConfig = {
+export type ComponentOptions = {
+  debug?: boolean
+  prekey?: string
+  lips?: Lips
+}
+export type LipsConfig = {
   context?: any
   debug?: boolean
 }
 
-export class Meta<Context = any> {
+export class Lips<Context = any> {
   private debug = false
   private context?: Context
   private store: ObjectType<Template> = {}
@@ -229,7 +240,7 @@ export class Meta<Context = any> {
   private _setContext: ( ctx: Context ) => void
   private _getContext: () => Context
 
-  constructor( config?: MetaConfig ){
+  constructor( config?: LipsConfig ){
     if( config?.debug ) 
       this.debug = config.debug
     
@@ -268,7 +279,13 @@ export class Meta<Context = any> {
   }
 
   root( template: string, scope: ComponentScope ){
-    this.__root = new Component('__ROOT__', template, scope, this.debug, this )
+    const options = {
+      debug: this.debug,
+      prekey: '0',
+      lips: this
+    }
+
+    this.__root = new Component('__ROOT__', template, scope, options )
     return this.__root
   }
 
@@ -280,8 +297,10 @@ export class Meta<Context = any> {
     && this.__root?.rerender()
   }
 
-  setContext( key: string, value: any ){
-    this._setContext({ ...this.context, [key]: value } as Context )
+  setContext( key: Context | string, value?: any ){
+    typeof key == 'string' ?
+              this._setContext({ ...this.context, [key]: value } as Context )
+              : this._setContext({ ...this.context, ...key } as Context )
   }
   useContext( fields: (keyof Context)[], fn: ( ...args: any[] ) => void ){
     effect( () => {
@@ -475,7 +494,14 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private __stylesheet?: Stylesheet
   private __components: ObjectType<Component> = {}
   private __events: ObjectType<EventListener[]> = {}
+  private __attachableEvents: { $el: JQuery, _event: string, instruction: string }[] = []
 
+  /**
+   * Nexted Component Count (NCC) in tree
+   * hieralchy and discovery order
+   */
+  private NCC = 0
+  private prekey = '0'
   private debug = false
   private isRendered = false
 
@@ -484,6 +510,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private _setState: ( state: State ) => void
   private _getState: () => State | undefined
 
+  // Internal Update Clock (IUC)
   private IUC: NodeJS.Timeout
   private IUC_BEAT = 5 // ms
 
@@ -495,14 +522,16 @@ export default class Component<Input = void, State = void, Static = void, Contex
     each?: any
   }
 
-  private meta?: Meta
+  private lips?: Lips
   private benchmark: Benchmark
 
-  constructor( ref: string, template: string, { input, state, context, _static, _handler, stylesheet }: ComponentScope, debug = false, meta?: Meta ){
-    this.meta = meta
-    this.debug = debug
+  constructor( ref: string, template: string, { input, state, context, _static, _handler, stylesheet }: ComponentScope, { debug, prekey, lips }: ComponentOptions ){
     this.template = template
     this.$ = $(this.template)
+
+    this.lips = lips
+    if( debug ) this.debug = debug
+    if( prekey ) this.prekey = prekey
 
     this.__ref = ref
     this.__stylesheet = new Stylesheet( this.__ref, {
@@ -530,6 +559,26 @@ export default class Component<Input = void, State = void, Static = void, Contex
     this._setInput = setInput
     this._setState = setState
     this._getState = getState
+    
+    this.IUC = setInterval( () => {
+      /**
+       * Apply update only when a new change 
+       * occured on the state.
+       * 
+       * Merge with initial/active state.
+       */
+      !isEquals( this.__state as ObjectType<any>, this.state as ObjectType<any> )
+      && this.setState( this.state )
+    }, this.IUC_BEAT )
+
+    /**
+     * Set context update effect listener
+     * to merge with initial/active context
+     * after any occurances.
+     */
+    Array.isArray( context )
+    && context.length
+    && this.lips?.useContext( context, ctx => !isEquals( this.context as ObjectType<any>, ctx ) && setContext( ctx ) )
 
     effect( () => {
       this.input = getInput()
@@ -540,17 +589,33 @@ export default class Component<Input = void, State = void, Static = void, Contex
       this.benchmark.reset()
 
       /**
-       * Hold state value since last signal update.
-       * 
-       * IMPORTANT: Required to check changes on the state
-       *            during IUC processes.
+       * Reinitialize NCC before any rendering
        */
-      this.__state = JSON.parse( JSON.stringify( this.state ) )
+      this.NCC = 0
       
       /**
        * Render/Rerender component
        */
-      this.isRendered ? this.rerender() : this.render()
+      if( this.isRendered ) this.rerender()
+      else {
+        /**
+         * Triggered before component get rendered
+         * for the first time.
+         */
+        typeof this.handler.onCreate == 'function'
+        && this.handler.onCreate()
+
+        this.render()
+      }
+
+      /**
+       * Attach/Reattach extracted events
+       * listeners anytime component get rendered.
+       * 
+       * This to avoid loosing binding to attached
+       * DOM element's events
+       */
+      this.attachEvents()
 
       /**
        * Log benchmark table
@@ -558,6 +623,14 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * NOTE: Only show in debugging mode
        */
       this.benchmark.log()
+
+      /**
+       * Hold state value since last signal update.
+       * 
+       * IMPORTANT: Required to check changes on the state
+       *            during IUC processes.
+       */
+      this.__state = uniqueObject( this.state )
       
       /**
        * Triggered after component get mounted for
@@ -579,32 +652,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
       typeof this.handler.onRender == 'function'
       && this.handler.onRender()
     })
-
-    this.IUC = setInterval( () => {
-      /**
-       * Apply update only when a new change 
-       * occured on the state.
-       */
-      if( isEquals( this.__state as ObjectType<any>, this.state as ObjectType<any> ) )
-        return
-      
-      // Merge with initial/active state.
-      this.setState( this.state )
-    }, this.IUC_BEAT )
-
-    Array.isArray( context )
-    && context.length
-    && this.meta?.useContext( context, ctx => {
-      /**
-       * Apply update only when a new change 
-       * occured on the context.
-       */
-      if( isEquals( this.context as ObjectType<any>, ctx ) )
-        return
-      
-      // Merge with initial/active context.
-      setContext( ctx )
-    } )
   }
 
   getState( key: string ){
@@ -681,58 +728,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
     }
     else _$ = this.$
 
-    function evaluate( script: string ){
-      try {
-        // script = script.replace(/\{([^}]*)\}/g, ( _, match ) => ('${'+ match +'}') )
-
-        const fn = new Function(`return ${script}`)
-        return fn.bind( self )()
-      }
-      catch( error ){ return script }
-    }
-    
-    function attachEvent( element: JQuery | Component, _event: string, instruction: string ){
-      /**
-       * Execute function script directly attach 
-       * as the listener.
-       * 
-       * Eg. 
-       *  `on-click="() => console.log('Hello world')"`
-       *  `on-change="e => this.handler.onChange(e)"`
-       */
-      if( /(\s*\w+|\s*\([^)]*\)|\s*)\s*=>\s*(\s*\{[^}]*\}|\s*[^\n;"]+)/g.test( instruction ) )
-        element.on( _event, evaluate( instruction ) )
-
-      /**
-       * Execute reference handler function
-       * 
-       * Eg. 
-       *  `on-input="handleInputValue"`
-       *  `on-click="handleClick, this.input.count++"`
-       * 
-       * Note: `handleInputValue` and `handleClick` handlers
-       *       must be defined as `handler` at the component
-       *       level before any assignment.
-       */
-      else {
-        const [ fn, ...args ] = instruction.split(/\s*,\s*/)
-        if( typeof self.handler[ fn ] !== 'function' ) return
-          // throw new Error(`Undefined <${fn}> ${_event} event method`)
-
-        element.on( _event, ( ...params: any[] ) => {
-          const _fn = self.handler[ fn ]
-          let _args = args.map( each => (evaluate( each )) )
-
-          if( params.length )
-            _args = [ ...params, ..._args ]
-
-          _fn( ..._args, ...params )
-        })
-      }
-    }
-
-    function showContent( $el: JQuery ){
-      const nextedHtml = $el.html()
+    function showContent( $el: JQuery, html?: string ){
+      const nextedHtml = html || $el.html()
 
       $el.empty()
           .html( self.render( wrap( nextedHtml ) ) as any )
@@ -748,7 +745,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
         .entries( attributes )
         .forEach( ([ key, assign ]) => {
           if( !assign ) return
-          self.let[ key ] = evaluate( assign as string )
+          self.let[ key ] = self.__evaluate__( assign as string )
         } )
       }
       catch( error ){
@@ -767,7 +764,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
         const
         _from = $loop.attr('from') ? Number( $loop.attr('from') ) : undefined,
         _to = $loop.attr('to') ? Number( $loop.attr('to') ) : undefined,
-        _in = evaluate( $loop.attr('in') as string ),
+        _in = self.__evaluate__( $loop.attr('in') as string ),
         nextedHtml = $loop.html()
         
         if( _from !== undefined ){
@@ -830,7 +827,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
           throw new Error('Undefined switch <by> attribute')
         
         const
-        _by = evaluate( by ),
+        _by = self.__evaluate__( by ),
         $cases = $switch.find('case'),
         $default = $switch.find('default').hide()
 
@@ -887,7 +884,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
             throw new Error('Undefined if/else-if <by> attribute')
 
           $cond.is('if') && $cond.nextAll('else-if, else').hide()
-          res = evaluate( by ) as boolean
+          res = self.__evaluate__( by ) as boolean
         }
 
         if( res ) showContent( $cond )
@@ -918,36 +915,55 @@ export default class Component<Input = void, State = void, Static = void, Contex
         if( !attr )
           throw new Error('Undefined async <await> attribute')
 
-        const [ fn, ...args ] = attr.split(/\s*,\s*/)
-        if( typeof self.handler[ fn ] !== 'function' )
-          throw new Error(`Undefined <${fn}> handler method`)
+        const
+        $preload = $async.find('preload'),
+        preloadHtml = $preload.html()
+
+        $preload.empty()
 
         const
-        $preload = $async.find('preload').hide(),
-        $resolve = $async.find('resolve').hide(),
-        $catch = $async.find('catch').hide(),
+        $resolve = $async.find('resolve'),
+        resolvedHtml = $resolve.html()
+        
+        $resolve.empty()
 
-        _await = self.handler[ fn ],
-        _args = args.map( each => (evaluate( each )) )
+        const
+        $catch = $async.find('catch'),
+        catchHtml = $catch.html()
+        
+        $catch.empty()
+        
+        const
+        [ fn, ...args ] = attr.split(/\s*,\s*/),
+        _await = self.handler[ fn ] || self.__evaluate__( fn )
+        
+        if( typeof _await !== 'function' )
+          throw new Error(`Undefined <${fn}> handler method`)
+
+        const _args = args.map( each => (self.__evaluate__( each )) )
 
         /**
          * Render preload content
          */
-        $preload.length && showContent( $preload )
+        $preload.length && showContent( $preload, preloadHtml )
         
         _await( ..._args )
         .then( ( response: any ) => {
           self.async.response = response
-          $preload.hide()
           
           /**
            * Render response content
            */
-          $resolve.length && showContent( $resolve )
+
+          console.log( resolvedHtml )
+          const $kk = self.render( wrap( resolvedHtml ) )
+          console.log( $kk )
+
+          $resolve.length 
+          && $async.replaceWith( $kk )
         })
         .catch( ( error: unknown ) => {
           self.async.error = error
-          $preload.hide()
           
           /**
            * Render error catch content
@@ -973,25 +989,28 @@ export default class Component<Input = void, State = void, Static = void, Contex
       attributes && Object
       .entries( attributes )
       .forEach( ([ attr, value ]) => {
-        // Attach event to the element
+        // Record attachable events to the element
         if( /^on-/.test( attr ) ){
-          const _event = attr.replace(/^on-/, '')
+          self.__attachableEvents.push({
+            $el,
+            _event: attr.replace(/^on-/, ''),
+            instruction: value as string
+          })
 
-          $el.attr(`on-${_event}`) && attachEvent( $el, _event, value as string )
           return
         }
 
         switch( attr ){
           // Inject inner html into the element
-          case 'html': $el.html( evaluate( value as string ) ); break
+          case 'html': $el.html( self.__evaluate__( value as string ) ); break
 
           // Inject text into the element
           case 'text': {
-            let text = evaluate( value as string )
+            let text = self.__evaluate__( value as string )
 
             // Apply translation
-            if( self.meta && !$el.is('[no-translate]') ){
-              const { text: _text } = self.meta.i18n.translate( text )
+            if( self.lips && !$el.is('[no-translate]') ){
+              const { text: _text } = self.lips.i18n.translate( text )
               text = _text
             }
 
@@ -1000,7 +1019,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
           // Convert object style attribute to string
           case 'style': {
-            const style = evaluate( value as string )
+            const style = self.__evaluate__( value as string )
             
             // Defined in object format
             if( typeof style === 'object' ){
@@ -1018,7 +1037,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
           // Inject the evaulation result of any other attributes
           default: {
-            const res = evaluate( value as string )
+            const res = self.__evaluate__( value as string )
             
             /**
              * (?) evaluation return signal to uset the attribute.
@@ -1049,7 +1068,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
       }
 
       // Apply translation to component's text contents
-      self.meta?.i18n.propagate( $el )
+      self.lips?.i18n.propagate( $el )
     }
 
     function execComponent( $component: JQuery ){
@@ -1058,8 +1077,11 @@ export default class Component<Input = void, State = void, Static = void, Contex
         if( !ref )
           throw new Error('Undefined component <ref> attribute')
 
-        if( !self.meta )
+        if( !self.lips )
           throw new Error('Nexted component manager is disable')
+
+        const __key__ = `${self.prekey}.${self.NCC++}`
+        // console.log('__key__:', __key__, ref )
 
         /**
          * Parse assigned attributes to be injected into
@@ -1082,7 +1104,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
             return
           }
 
-          input[ key ] = evaluate( value as string )
+          input[ key ] = self.__evaluate__( value as string )
         } )
 
         /**
@@ -1096,24 +1118,48 @@ export default class Component<Input = void, State = void, Static = void, Contex
           input.bodyHtml = $el.html() || $el.text()
         }
 
-        const
-        { state, static: _static, handler: _handler, default: _default, stylesheet } = self.meta.use( ref ),
-        component = new Component( ref, _default, {
-          state,
-          input,
-          _static,
-          _handler,
-          stylesheet
-        }, self.debug, self.meta )
+        /**
+         * Update previously rendered component by
+         * injecting updated inputs
+         */
+        if( self.__components[ __key__ ] ){
+          $component.replaceWith( self.__components[ __key__ ].$ )
 
-        self.__components[ ref ] = component
+          self.__components[ __key__ ].setInput( uniqueObject( input ) )
 
-        $component.replaceWith( component.$ )
-        
-        // Listen to this nexted component's events
-        Object
-        .entries( events )
-        .forEach( ([ _event, instruction ]) => attachEvent( component, _event, instruction ) )
+          /**
+           * Reattach all events binding after DOM
+           * replacement of the entire component.
+           */
+          self.__components[ __key__ ].attachEvents()
+        }
+        /**
+         * Render the whole component for first time
+         */
+        else {
+          const
+          { state, _static, handler: _handler, context, default: _default, stylesheet } = self.lips.use( ref ),
+          component = new Component( ref, _default, {
+            state: uniqueObject( state ),
+            input: uniqueObject( input ),
+            context,
+            _static: uniqueObject( _static ),
+            _handler,
+            stylesheet
+          }, {
+            debug: self.debug,
+            lips: self.lips,
+            prekey: __key__
+          })
+
+          self.__components[ __key__ ] = component
+          $component.replaceWith( component.$ )
+          
+          // Listen to this nexted component's events
+          Object
+          .entries( events )
+          .forEach( ([ _event, instruction ]) => self.__attachEvent__( component, _event, instruction ) )
+        }
       }
       catch( error ){
         // TODO: Transfer error to global try - catch component define in the UI
@@ -1140,7 +1186,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
      */
     const $els = _$.length > 1 ?
                       // Create fake div to wrap contents
-                      $('<wrap/>').html( _$ as any ).contents()
+                      wrap( _$ as any )
                       /**
                        * Process root element's children or single 
                        * nexted child element.
@@ -1156,11 +1202,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * resources like `style tags`, `script tags`, ...
        */
       _$.attr('rel', this.__ref )
-
-      // Object
-      // .values( self.__components )
-      // .forEach( each => each.render() )
-
       asRoot = false
     }
 
@@ -1174,7 +1215,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
     return _$
   }
-
   /**
    * Rerender component using the original content 
    * of the component to during rerendering
@@ -1189,6 +1229,66 @@ export default class Component<Input = void, State = void, Static = void, Contex
     this.$ = $clone
     this.render()
   }
+
+  private __evaluate__( script: string ){
+    try {
+      // script = script.replace(/\{([^}]*)\}/g, ( _, match ) => ('${'+ match +'}') )
+
+      const fn = new Function(`return ${script}`)
+      return fn.bind( this )()
+    }
+    catch( error ){ return script }
+  }
+  private __attachEvent__( element: JQuery | Component, _event: string, instruction: string ){
+    /**
+     * Execute function script directly attach 
+     * as the listener.
+     * 
+     * Eg. 
+     *  `on-click="() => console.log('Hello world')"`
+     *  `on-change="e => this.handler.onChange(e)"`
+     */
+    if( /(\s*\w+|\s*\([^)]*\)|\s*)\s*=>\s*(\s*\{[^}]*\}|\s*[^\n;"]+)/g.test( instruction ) )
+      element.on( _event, this.__evaluate__( instruction ) )
+
+    /**
+     * Execute reference handler function
+     * 
+     * Eg. 
+     *  `on-input="handleInputValue"`
+     *  `on-click="handleClick, this.input.count++"`
+     * 
+     * Note: `handleInputValue` and `handleClick` handlers
+     *       must be defined as `handler` at the component
+     *       level before any assignment.
+     */
+    else {
+      const [ fn, ...args ] = instruction.split(/\s*,\s*/)
+      if( typeof this.handler[ fn ] !== 'function' ) return
+        // throw new Error(`Undefined <${fn}> ${_event} event method`)
+
+      element.on( _event, ( ...params: any[] ) => {
+        const _fn = this.handler[ fn ]
+        let _args = args.map( each => (this.__evaluate__( each )) )
+
+        if( params.length )
+          _args = [ ...params, ..._args ]
+
+        _fn( ..._args, ...params )
+      })
+    }
+  }
+
+  attachEvents(){
+    this.__attachableEvents.forEach( ({ $el, _event, instruction }) => {
+      $el.attr(`on-${_event}`) 
+      && this.__attachEvent__( $el, _event, instruction )
+    } )
+  }
+  detachEvents(){
+
+  }
+  
   destroy(){
     // Destroy nexted components as well
     for( const each in this.__components ){

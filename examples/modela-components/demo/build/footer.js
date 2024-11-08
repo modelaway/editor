@@ -2,4 +2,4 @@ var i=Object.create;var{defineProperty:a,getPrototypeOf:m,getOwnPropertyNames:o}
   <small style="color:gray" text=this.static.content>...</small>
 </p>`;export{d as default,b as _static};
 
-//# debugId=A731240048596EFB64756e2164756e21
+//# debugId=AF523936AF638C0964756e2164756e21

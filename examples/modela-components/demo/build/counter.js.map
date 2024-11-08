@@ -1,0 +1,10 @@
+{
+  "version": 3,
+  "sources": ["../components/counter.ts"],
+  "sourcesContent": [
+    "\nexport const _static = {\n  limit: 12\n}\n\nexport const context = ['lang']\nexport const state = {\n  count: 0\n}\n\nexport const handler = {\n  onCreate(){ this.state.count = Number( this.input.initial ) },\n  onInput(){ this.state.count = Number( this.input.initial ) },\n  handleClick( e ){\n    if( this.state.count >= this.static.limit )\n      return\n\n    this.state.count++\n    this.emit('update', this.state.count )\n  }\n}\n\nexport const stylesheet = `\n  span { font: 14px arial; color: blue; }\n`\n  \nexport default `<div>\n  <span html=this.input.bodyHtml></span>: \n  <span text=\"this.state.count\"></span>\n  <br>\n  <button on-click=\"handleClick\">\n    <span text=\"Count\"></span>\n    (<span text=this.context.lang></span>)\n  </button>\n</div>`"
+  ],
+  "mappings": "uKACO,IAAM,EAAU,CACrB,MAAO,EACT,EAEa,EAAU,CAAC,MAAM,EACjB,EAAQ,CACnB,MAAO,CACT,EAEa,EAAU,CACrB,QAAQ,EAAE,CAAE,KAAK,MAAM,MAAQ,OAAQ,KAAK,MAAM,OAAQ,GAC1D,OAAO,EAAE,CAAE,KAAK,MAAM,MAAQ,OAAQ,KAAK,MAAM,OAAQ,GACzD,WAAW,CAAE,EAAG,CACd,GAAI,KAAK,MAAM,OAAS,KAAK,OAAO,MAClC,OAEF,KAAK,MAAM,QACX,KAAK,KAAK,SAAU,KAAK,MAAM,KAAM,EAEzC,EAEa,EAAa;AAAA;AAAA,EAIX;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;",
+  "debugId": "59BE85B2D6F32B1164756e2164756e21",
+  "names": []
+}

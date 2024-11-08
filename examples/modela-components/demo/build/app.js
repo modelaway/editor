@@ -1,11 +1,4 @@
-
-export const state = {
-  initial: 3
-}
-
-export const context = ['online']
-
-export default `
+var h=Object.create;var{defineProperty:f,getPrototypeOf:l,getOwnPropertyNames:r}=Object;var a=Object.prototype.hasOwnProperty;var i=(o,e,t)=>{t=o!=null?h(l(o)):{};const n=e||!o||!o.__esModule?f(t,"default",{value:o,enumerable:!0}):t;for(let c of r(o))if(!a.call(n,c))f(n,c,{get:()=>o[c],enumerable:!0});return n};var s=(o)=>{return import.meta.require(o)};var u=(o,e)=>{for(var t in e)f(o,t,{get:e[t],enumerable:!0,configurable:!0,set:(n)=>e[t]=()=>n})};var d={initial:3},g=["online"],j=`
 <section style="{ border: '2px solid gray', margin: '3rem', padding: '15px' }">
   <counter initial=this.state.initial
             on-update="value => console.log( value )">
@@ -27,4 +20,6 @@ export default `
   <profile></profile>
   <footer></footer>
 </section>
-`
+`;export{d as state,j as default,g as context};
+
+//# debugId=0B05B27D8DDD1D6C64756e2164756e21

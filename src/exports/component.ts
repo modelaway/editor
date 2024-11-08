@@ -1178,7 +1178,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
       else if( $el.is('if') ) execCondition( $el )
       else if( $el.is('switch') ) execSwitch( $el )
       else if( $el.is('async') ) execAsync( $el )
-      // else if( $el.is('component') ) execComponent( $el )
       
       // Identify and render custom components
       else if( self.lips && self.lips.has( $el.prop('tagName')?.toLowerCase() ) )

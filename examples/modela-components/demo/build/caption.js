@@ -1,3 +1,7 @@
-var m=Object.create;var{defineProperty:c,getPrototypeOf:s,getOwnPropertyNames:b}=Object;var d=Object.prototype.hasOwnProperty;var j=(e,n,l)=>{l=e!=null?m(s(e)):{};const t=n||!e||!e.__esModule?c(l,"default",{value:e,enumerable:!0}):l;for(let a of b(e))if(!d.call(t,a))c(t,a,{get:()=>e[a],enumerable:!0});return t};var k=(e)=>{return import.meta.require(e)};var f=(e,n)=>{for(var l in n)c(e,l,{get:n[l],enumerable:!0,configurable:!0,set:(t)=>n[l]=()=>t})};var i={};f(i,{default:()=>{{return h}},_static:()=>{{return g}}});var g={content:"Nexted counter component"},h='<small style="color:gray" text=this.static.content></small>';export{h as default,g as _static};
+var a=Object.create;var{defineProperty:s,getPrototypeOf:i,getOwnPropertyNames:m}=Object;var o=Object.prototype.hasOwnProperty;var g=(n,c,t)=>{t=n!=null?a(i(n)):{};const e=c||!n||!n.__esModule?s(t,"default",{value:n,enumerable:!0}):t;for(let l of m(n))if(!o.call(e,l))s(e,l,{get:()=>n[l],enumerable:!0});return e};var h=(n)=>{return import.meta.require(n)};var p=(n,c)=>{for(var t in c)s(n,t,{get:c[t],enumerable:!0,configurable:!0,set:(e)=>c[t]=()=>e})};var f={};p(f,{default:()=>{{return d}},_static:()=>{{return b}}});var b={content:"Nexted counter component"},d=`
+<p>
+  <small style="color:gray" text=this.static.content>...</small>
+</p>
+`;export{d as default,b as _static};
 
-//# debugId=781F5A42966CF48464756e2164756e21
+//# debugId=B4BAFA2F6DB937E364756e2164756e21

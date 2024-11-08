@@ -92,7 +92,7 @@ function Demo1(){
     }
   }
 
-  const component = new Component<Input, State>('Demo1', template, { input, state, _static, _handler }, true )
+  const component = new Component<Input, State>('Demo1', template, { input, state, _static, _handler }, { debug: true })
 
   component.appendTo('body')
 
@@ -136,7 +136,7 @@ function Demo2(){
     span, button { font: 14px arial; color: rgba(50, 50, 70); }
   `
 
-  const component = new Component('Demo2', template, { state, _handler, stylesheet }, true )
+  const component = new Component('Demo2', template, { state, _handler, stylesheet }, { debug: true })
 
   component.appendTo('body')
 }
@@ -165,7 +165,7 @@ function Demo3(){
     }
   }
 
-  const component = new Component('Demo3', template, { _static, _handler }, true )
+  const component = new Component('Demo3', template, { _static, _handler }, { debug: true })
 
   component.appendTo('body')
 }
@@ -190,7 +190,7 @@ function Demo4(){
       </p>
     </div>`
 
-  const component = new Component('Demo4', template, {}, true )
+  const component = new Component('Demo4', template, {}, { debug: true })
 
   component.appendTo('body')
 }
@@ -246,11 +246,10 @@ function Demo5(){
     initial: 3
   },
   template = `<section style="{ border: '2px solid gray', margin: '3rem', padding: '15px' }">
-      <component ref="counter"
-                  initial=this.state.initial
-                  on-update="value => console.log( value )">
+      <counter initial=this.state.initial
+                on-update="value => console.log( value )">
         Count till 12
-      </component>
+      </counter>
 
       <p>I'm <span text="this.context.online ? 'Online' : 'Offline'"></span></p>
 
@@ -260,7 +259,7 @@ function Demo5(){
               style="background: black;color: white" 
               on-click="() => this.destroy()">Destroy</button>
 
-      <component ref="caption"></component>
+      <caption></caption>
     </section>`
 
   const component = lips.root( template, { state, context: ['online'] } )

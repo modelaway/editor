@@ -18,6 +18,12 @@ $.fn.extend({
     elem && $.each( elem.attributes, function(){ obj[ this.name ] = this.value })
 
     return obj
+  },
+  tagname: function(){
+    const tn = (this as any).prop('tagName')
+    if( !tn ) return false
+
+    return tn.toLowerCase()
   }
 })
 
@@ -250,32 +256,35 @@ export class Lips<Context = any> {
     this._getContext = getContext
   }
 
-  async register( ref: string, template: Template ){
+  async register( name: string, template: Template ){
     /**
      * TODO: Register component by providing file path.
      */
     // if( typeof template == 'string' ){
-    //   try { this.store[ ref ] = await import( template ) as Template }
-    //   catch( error ){ throw new Error(`Component <${ref}> template not found at ${template}`) }
+    //   try { this.store[ name ] = await import( template ) as Template }
+    //   catch( error ){ throw new Error(`Component <${name}> template not found at ${template}`) }
 
     //   return
     // }
 
-    this.store[ ref ] = template
+    this.store[ name ] = template
   }
 
-  unregister( ref: string ){
-    delete this.store[ ref ]
+  unregister( name: string ){
+    delete this.store[ name ]
   }
 
-  use( ref: string ){
-    if( !this.store[ ref ] )
-      throw new Error(`No <${ref}> component found`)
+  has( name: string ){
+    return name in this.store
+  }
+  use( name: string ){
+    if( !this.has( name ) )
+      throw new Error(`No <${name}> component found`)
 
-    if( !this.store[ ref ].default )
-      throw new Error(`Invalid <${ref}> component`)
+    if( !this.store[ name ].default )
+      throw new Error(`Invalid <${name}> component`)
 
-    return this.store[ ref ]
+    return this.store[ name ]
   }
 
   root( template: string, scope: ComponentScope ){
@@ -489,7 +498,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private static: ObjectType<any>
   private handler: Handler = {}
 
-  private __ref: string
+  private __name__: string
   private __state?: State // Partial state
   private __stylesheet?: Stylesheet
   private __components: ObjectType<Component> = {}
@@ -525,7 +534,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private lips?: Lips
   private benchmark: Benchmark
 
-  constructor( ref: string, template: string, { input, state, context, _static, _handler, stylesheet }: ComponentScope, { debug, prekey, lips }: ComponentOptions ){
+  constructor( name: string, template: string, { input, state, context, _static, _handler, stylesheet }: ComponentScope, { debug, prekey, lips }: ComponentOptions ){
     this.template = template
     this.$ = $(this.template)
 
@@ -533,14 +542,14 @@ export default class Component<Input = void, State = void, Static = void, Contex
     if( debug ) this.debug = debug
     if( prekey ) this.prekey = prekey
 
-    this.__ref = ref
-    this.__stylesheet = new Stylesheet( this.__ref, {
+    this.__name__ = name
+    this.__stylesheet = new Stylesheet( this.__name__, {
       css: stylesheet,
       /**
        * Inject root component styles into global meta
        * style tag.
        */
-      meta: this.__ref === '__ROOT__'
+      meta: this.__name__ === '__ROOT__'
     })
     
     this.input = input || {} as Input
@@ -923,13 +932,13 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
         const
         $resolve = $async.find('resolve'),
-        resolvedHtml = $resolve.html()
+        resolvedHtml = $resolve.hide().html()
         
         $resolve.empty()
 
         const
         $catch = $async.find('catch'),
-        catchHtml = $catch.html()
+        catchHtml = $catch.hide().html()
         
         $catch.empty()
         
@@ -946,7 +955,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
          * Render preload content
          */
         $preload.length && showContent( $preload, preloadHtml )
-        
+
         _await( ..._args )
         .then( ( response: any ) => {
           self.async.response = response
@@ -954,13 +963,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
           /**
            * Render response content
            */
-
-          console.log( resolvedHtml )
-          const $kk = self.render( wrap( resolvedHtml ) )
-          console.log( $kk )
-
-          $resolve.length 
-          && $async.replaceWith( $kk )
+          $resolve.length
+          && $async.replaceWith( self.render( $(resolvedHtml) as JQuery ) )
         })
         .catch( ( error: unknown ) => {
           self.async.error = error
@@ -968,7 +972,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
           /**
            * Render error catch content
            */
-          $catch.length && showContent( $catch )
+          $catch.length
+          && $async.replaceWith( self.render( $(catchHtml) as JQuery ) )
         })
       }
       catch( error ){
@@ -1073,21 +1078,19 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
     function execComponent( $component: JQuery ){
       try {
-        const ref = $component.attr('ref') as string
-        if( !ref )
-          throw new Error('Undefined component <ref> attribute')
+        const name = $component.prop('tagName')?.toLowerCase() as string
+        if( !name )
+          throw new Error('Invalid component')
 
         if( !self.lips )
           throw new Error('Nexted component manager is disable')
 
-        const __key__ = `${self.prekey}.${self.NCC++}`
-        // console.log('__key__:', __key__, ref )
-
+        const 
+        __key__ = `${self.prekey}.${self.NCC++}`,
         /**
          * Parse assigned attributes to be injected into
          * the component as input.
          */
-        const
         input: any = {},
         attrs = ($component as any).attrs(),
         events: ObjectType<any> = {}
@@ -1095,8 +1098,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
         Object
         .entries( attrs )
         .forEach( ([ key, value ]) => {
-          if( key == 'ref' || value == undefined )
-            return
+          if( key == 'key' ) return
 
           // Component events
           if( /^on-/.test( key ) ){
@@ -1138,8 +1140,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
          */
         else {
           const
-          { state, _static, handler: _handler, context, default: _default, stylesheet } = self.lips.use( ref ),
-          component = new Component( ref, _default, {
+          { state, _static, handler: _handler, context, default: _default, stylesheet } = self.lips.use( name ),
+          component = new Component( name, _default, {
             state: uniqueObject( state ),
             input: uniqueObject( input ),
             context,
@@ -1152,8 +1154,10 @@ export default class Component<Input = void, State = void, Static = void, Contex
             prekey: __key__
           })
 
+          $component.empty().append( component.$ )
+
+          component.$ = $component
           self.__components[ __key__ ] = component
-          $component.replaceWith( component.$ )
           
           // Listen to this nexted component's events
           Object
@@ -1174,7 +1178,11 @@ export default class Component<Input = void, State = void, Static = void, Contex
       else if( $el.is('if') ) execCondition( $el )
       else if( $el.is('switch') ) execSwitch( $el )
       else if( $el.is('async') ) execAsync( $el )
-      else if( $el.is('component') ) execComponent( $el )
+      // else if( $el.is('component') ) execComponent( $el )
+      
+      // Identify and render custom components
+      else if( self.lips && self.lips.has( $el.prop('tagName')?.toLowerCase() ) )
+        execComponent( $el )
 
       // Render normal body content
       else execElement( $el )
@@ -1201,7 +1209,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * Component relationship attribute with other 
        * resources like `style tags`, `script tags`, ...
        */
-      _$.attr('rel', this.__ref )
+      _$.attr('rel', this.__name__ )
       asRoot = false
     }
 
@@ -1278,15 +1286,33 @@ export default class Component<Input = void, State = void, Static = void, Contex
       })
     }
   }
+  private __detachEvent__( element: JQuery | Component, _event: string ){
+    element.off( _event )
+  }
 
   attachEvents(){
     this.__attachableEvents.forEach( ({ $el, _event, instruction }) => {
-      $el.attr(`on-${_event}`) 
+      $el.attr(`on-${_event}`)
+      && $el.off( _event )
       && this.__attachEvent__( $el, _event, instruction )
     } )
+
+    /**
+     * Also propagate to nexted component
+     */
+    Object
+    .values( this.__components )
+    .forEach( component => component.attachEvents() )
   }
   detachEvents(){
+    this.__attachableEvents.forEach( ({ $el, _event }) => this.__detachEvent__( $el, _event ) )
 
+    /**
+     * Also propagate to nexted component
+     */
+    Object
+    .values( this.__components )
+    .forEach( component => component.detachEvents() )
   }
   
   destroy(){

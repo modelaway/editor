@@ -1,0 +1,12 @@
+{
+  "version": 3,
+  "sources": ["../pages/home.ts", "../pages/account.ts", "../client/app.ts"],
+  "sourcesContent": [
+    "export default `<section>Home</section>`",
+  "export default `<section>Account</section>`",
+  "\nimport * as Home from '../pages/home'\nimport * as Account from '../pages/account'\n\nexport const _static = {\n  routes: [\n    { path: '/', template: Home, default: true },\n    { path: '/account', template: Account }\n  ]\n}\nexport const state = {\n  initial: 3\n}\n\nexport const context = ['online']\n\nexport default `\n<main>\n  <router routes=this.static.routes></router>\n\n  <section style=\"{ border: '2px solid gray', margin: '3rem', padding: '15px' }\">\n    <counter initial=this.state.initial\n              on-update=\"value => console.log( value )\">\n      Count till 12\n    </counter>\n\n    <counter initial=1>\n      Note: 10\n    </counter>\n\n    <p>I'm <span text=\"this.context.online ? 'Online' : 'Offline'\"></span></p>\n\n    <br><br>\n    <button on-click=\"() => this.state.initial = 10\">Reinitialize</button>\n    <button title=\"Undo\"\n            style=\"background: black;color: white\" \n            on-click=\"() => this.destroy()\">Destroy</button>\n    <br>\n    <profile></profile>\n    <footer></footer>\n  </section>\n</main>\n`"
+  ],
+  "mappings": "yCAAA,IAAeyCCAf,IAAeACIR,IAAM,EAAU,CACrB,OAAQ,CACN,CAAE,KAAM,IAAK,SAAU,EAAM,QAAS,EAAK,EAC3C,CAAE,KAAM,WAAY,SAAU,CAAQ,CACxC,CACF,EACa,EAAQ,CACnB,QAAS,CACX,EAEa,EAAU,CAAC,QAAQ,EAEjB;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;AAAA;",
+  "debugId": "5D085BDCD4B1B60064756e2164756e21",
+  "names": []
+}

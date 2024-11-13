@@ -1,9 +1,15 @@
-import { Lips } from '../../../../dist/component.min.js'
+import Lips from '../../../../dist/component.min'
 import registry from './registry'
 import english from '../../../../src/languages/en.json'
 import french from '../../../../src/languages/fr.json'
 
 import app, { state, context } from './app'
+
+type Context = {
+  lang: string
+  online: boolean
+  getUser: ( name ) => Promise<{ name: string, email: string }>
+}
 
 const lips = new Lips()
 
@@ -30,5 +36,5 @@ component.appendTo('body')
 // Change detault translation language
 setTimeout( () => {
   // lips.language('fr-FR')
-  // lips.setContext('online', false )
+  lips.setContext('online', false )
 }, 5000 )

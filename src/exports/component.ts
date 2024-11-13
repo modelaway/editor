@@ -27,8 +27,6 @@ $.fn.extend({
   }
 })
 
-export type Handler = ObjectType<( ...args: any[] ) => any>
-
 function wrap( arg: string ): JQuery<any> {
   return $('<wrap/>').html( arg ).contents()
 }
@@ -78,7 +76,8 @@ function isEquals( aObject: ObjectType<any>, bObject: ObjectType<any> ){
   return true
 }
 function uniqueObject( obj: any ){
-  if( typeof obj !== 'object' ) return obj
+  if( typeof obj !== 'object' )
+    return obj
 
   return JSON.parse( JSON.stringify( obj ) )
 }
@@ -108,11 +107,9 @@ class Benchmark {
     if( !this.debug ) return
     this.stats[ trace ] = value
   }
-
   reset(){
     return this.stats = uniqueObject( this.initialStats )
   }
-
   log(){
     this.debug && console.table( this.stats )
   }
@@ -209,20 +206,23 @@ class I18N {
   }
 }
 
-export type Template = {
+export interface Handler<Input = void, State = void, Static = void, Context = void> {
+  [index: string]: ( this: Component<Input, State, Static, Context>, ...args: any[] ) => void
+}
+export type Template<Input = void, State = void, Static = void, Context = void> = {
   state?: any
   _static?: any
   context?: any
-  handler?: Handler
+  handler?: Handler<Input, State, Static, Context>
   stylesheet?: string
   default: string
 }
-export type ComponentScope = {
+export type ComponentScope<Input = void, State = void, Static = void, Context = void> = {
   input?: any
   state?: any
   context?: string[]
-  _static?: ObjectType<any>
-  _handler?: Handler
+  _static?: Static
+  handler?: Handler<Input, State, Static, Context>
   stylesheet?: string
 }
 export type ComponentOptions = {
@@ -235,7 +235,7 @@ export type LipsConfig = {
   debug?: boolean
 }
 
-export class Lips<Context = any> {
+export default class Lips<Context = any> {
   private debug = false
   private context?: Context
   private store: ObjectType<Template> = {}
@@ -256,7 +256,7 @@ export class Lips<Context = any> {
     this._getContext = getContext
   }
 
-  async register( name: string, template: Template ){
+  async register( name: string, template: Template<any, any, any, any> ){
     /**
      * TODO: Register component by providing file path.
      */
@@ -288,7 +288,7 @@ export class Lips<Context = any> {
   }
 
   root( template: string, scope: ComponentScope ){
-    const options = {
+    const options: ComponentOptions = {
       debug: this.debug,
       prekey: '0',
       lips: this
@@ -489,14 +489,14 @@ export class Stylesheet {
 
 type EventListener = ( ...args: any[] ) => void
 
-export default class Component<Input = void, State = void, Static = void, Context = void> {
+export class Component<Input = void, State = void, Static = void, Context = void> {
   public template: string
   public $: JQuery
-  private input: Input
-  private state: State
-  private context: Context
-  private static: ObjectType<any>
-  private handler: Handler = {}
+  public input: Input
+  public state: State
+  public static: Static
+  public context: Context
+  private handler: Handler<Input, State, Static, Context> = {}
 
   private __name__: string
   private __state?: State // Partial state
@@ -515,7 +515,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private isRendered = false
 
   private _setInput: ( input: Input ) => void
-
   private _setState: ( state: State ) => void
   private _getState: () => State | undefined
 
@@ -534,7 +533,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private lips?: Lips
   private benchmark: Benchmark
 
-  constructor( name: string, template: string, { input, state, context, _static, _handler, stylesheet }: ComponentScope, { debug, prekey, lips }: ComponentOptions ){
+  constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet }: ComponentScope<Input, State, Static, Context>, { debug, prekey, lips }: ComponentOptions ){
     this.template = template
     this.$ = $(this.template)
 
@@ -543,22 +542,24 @@ export default class Component<Input = void, State = void, Static = void, Contex
     if( prekey ) this.prekey = prekey
 
     this.__name__ = name
-    this.__stylesheet = new Stylesheet( this.__name__, {
+
+    const cssOptions = {
       css: stylesheet,
       /**
        * Inject root component styles into global meta
        * style tag.
        */
       meta: this.__name__ === '__ROOT__'
-    })
+    }
+    this.__stylesheet = new Stylesheet( this.__name__, cssOptions )
+    this.benchmark = new Benchmark( debug )
     
     this.input = input || {} as Input
     this.state = state || {} as State
+    this.static = _static || {} as Static
     this.context = {} as Context
-    this.static = _static || {}
-    this.benchmark = new Benchmark( debug )
 
-    _handler && this.setHandler( _handler )
+    handler && this.setHandler( handler )
 
     const
     [ getInput, setInput ] = signal<Input>( this.input ),
@@ -569,6 +570,14 @@ export default class Component<Input = void, State = void, Static = void, Contex
     this._setState = setState
     this._getState = getState
     
+    /**
+     * Triggered an initial input is provided
+     */
+    this.input
+    && Object.keys( this.input ).length
+    && typeof this.handler?.onInput == 'function'
+    && this.handler.onInput.bind(this)()
+
     this.IUC = setInterval( () => {
       /**
        * Apply update only when a new change 
@@ -576,7 +585,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * 
        * Merge with initial/active state.
        */
-      !isEquals( this.__state as ObjectType<any>, this.state as ObjectType<any> )
+      this.state
+      && !isEquals( this.__state as ObjectType<any>, this.state as ObjectType<any> )
       && this.setState( this.state )
     }, this.IUC_BEAT )
 
@@ -612,7 +622,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
          * for the first time.
          */
         typeof this.handler.onCreate == 'function'
-        && this.handler.onCreate()
+        && this.handler.onCreate.bind(this)()
 
         this.render()
       }
@@ -647,7 +657,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
        */
       !this.isRendered
       && typeof this.handler.onMount == 'function'
-      && this.handler.onMount()
+      && this.handler.onMount.bind(this)()
 
       /**
        * Flag to know when element is initially or force
@@ -659,7 +669,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * Triggered anytime component gets rendered
        */
       typeof this.handler.onRender == 'function'
-      && this.handler.onRender()
+      && this.handler.onRender.bind(this)()
     })
   }
 
@@ -677,7 +687,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
      * Triggered anytime component state gets updated
      */
     typeof this.handler.onUpdate == 'function'
-    && this.handler.onUpdate()
+    && this.handler.onUpdate.bind(this)()
   }
   setInput( input: Input ){
     /**
@@ -694,7 +704,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
      * Triggered anytime component recieve new input
      */
     typeof this.handler.onInput == 'function'
-    && this.handler.onInput()
+    && this.handler.onInput.bind(this)()
   }
   /**
    * Inject grain/partial input to current component 
@@ -706,7 +716,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
     
     this.setInput( deepAssign( this.input as ObjectType<any>, data ) )
   }
-  setHandler( list: Handler ){
+  setHandler( list: Handler<Input, State, Static, Context> ){
     Object
     .entries( list )
     .map( ([ method, fn ]) => this.handler[ method ] = fn.bind(this) )
@@ -766,6 +776,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * BENCHMARK: Tracking total elements rendered
        */
       self.benchmark.inc('elementCount')
+
+      return $let
     }
 
     function execLoop( $loop: JQuery ){
@@ -827,6 +839,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * BENCHMARK: Tracking total elements rendered
        */
       self.benchmark.inc('elementCount')
+
+      return $loop
     }
 
     function execSwitch( $switch: JQuery ){
@@ -874,6 +888,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * BENCHMARK: Tracking total elements rendered
        */
       self.benchmark.inc('elementCount')
+
+      return $switch
     }
 
     function execCondition( $cond: JQuery, elseFlag = false ){
@@ -916,6 +932,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * BENCHMARK: Tracking total elements rendered
        */
       self.benchmark.inc('elementCount')
+
+      return $cond
     }
 
     function execAsync( $async: JQuery ){
@@ -944,7 +962,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
         
         const
         [ fn, ...args ] = attr.split(/\s*,\s*/),
-        _await = self.handler[ fn ] || self.__evaluate__( fn )
+        _await = (self.handler[ fn ] || self.__evaluate__( fn )).bind(self) as any
         
         if( typeof _await !== 'function' )
           throw new Error(`Undefined <${fn}> handler method`)
@@ -963,8 +981,12 @@ export default class Component<Input = void, State = void, Static = void, Contex
           /**
            * Render response content
            */
-          $resolve.length
-          && $async.replaceWith( self.render( $(resolvedHtml) as JQuery ) )
+          if( $resolve.length ){
+            const $res = self.render( $(resolvedHtml) as JQuery )
+
+            $async.replaceWith( $res )
+            $async = $res
+          }
         })
         .catch( ( error: unknown ) => {
           self.async.error = error
@@ -985,6 +1007,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * BENCHMARK: Tracking total elements rendered
        */
       self.benchmark.inc('elementCount')
+
+      return $async
     }
 
     function execElement( $el: JQuery ){
@@ -1059,11 +1083,11 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
       if( $el.get(0)?.nodeType !== Node.TEXT_NODE ){
         if( !asRoot  ){
-          const $nexted = wrap( $el.html() )
-
-          $nexted.length 
+          const $nexted = $el.contents()
+          
+          $nexted.length
           && $el.has(':not([key])')
-          && $el.html( self.render( $nexted ) as any )
+          && $el.html( self.render( $nexted as any ) as any )
         }
           
         /**
@@ -1074,6 +1098,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
       // Apply translation to component's text contents
       self.lips?.i18n.propagate( $el )
+
+      return $el
     }
 
     function execComponent( $component: JQuery ){
@@ -1105,27 +1131,31 @@ export default class Component<Input = void, State = void, Static = void, Contex
             events[ key.replace(/^on-/, '') ] = value
             return
           }
-
+          
           input[ key ] = self.__evaluate__( value as string )
         } )
 
         /**
          * Also inject component body into inputs
-         * as `bodyHtml`
+         * as `__innerHtml`
          */
         const
         nextedHtml = $component.html()
         if( nextedHtml ){
           const $el = self.render( wrap( nextedHtml ) )
-          input.bodyHtml = $el.html() || $el.text()
+          input.__innerHtml = $el.html() || $el.text()
         }
-
+        
         /**
          * Update previously rendered component by
          * injecting updated inputs
          */
         if( self.__components[ __key__ ] ){
-          $component.replaceWith( self.__components[ __key__ ].$ )
+          console.log( name, $component.is( self.__components[ __key__ ].$.prop('tagName') ) )
+          $component
+          .empty()
+          .attr('rel', name )
+          .append( self.__components[ __key__ ].$ )
 
           self.__components[ __key__ ].setInput( uniqueObject( input ) )
 
@@ -1140,13 +1170,13 @@ export default class Component<Input = void, State = void, Static = void, Contex
          */
         else {
           const
-          { state, _static, handler: _handler, context, default: _default, stylesheet } = self.lips.use( name ),
+          { state, _static, handler, context, default: _default, stylesheet } = self.lips.use( name ),
           component = new Component( name, _default, {
             state: uniqueObject( state ),
             input: uniqueObject( input ),
             context,
             _static: uniqueObject( _static ),
-            _handler,
+            handler,
             stylesheet
           }, {
             debug: self.debug,
@@ -1154,16 +1184,26 @@ export default class Component<Input = void, State = void, Static = void, Contex
             prekey: __key__
           })
 
-          $component.empty().append( component.$ )
+          /**
+           * Specify component relationship with other 
+           * resources like `style tags`, `script tags`, 
+           * etc, using [rel] attribute
+           */
+          $component
+          .empty()
+          .attr('rel', name )
+          .append( component.$ )
 
-          component.$ = $component
+          // component.$ = $component
           self.__components[ __key__ ] = component
-          
+
           // Listen to this nexted component's events
           Object
           .entries( events )
           .forEach( ([ _event, instruction ]) => self.__attachEvent__( component, _event, instruction ) )
         }
+
+        return $component
       }
       catch( error ){
         // TODO: Transfer error to global try - catch component define in the UI
@@ -1173,18 +1213,18 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
     function react( $el: JQuery ){
       // Render in-build syntax components
-      if( $el.is('let') ) execLet( $el )
-      else if( $el.is('for') ) execLoop( $el )
-      else if( $el.is('if') ) execCondition( $el )
-      else if( $el.is('switch') ) execSwitch( $el )
-      else if( $el.is('async') ) execAsync( $el )
+      if( $el.is('let') ) return execLet( $el )
+      else if( $el.is('for') ) return execLoop( $el )
+      else if( $el.is('if') ) return execCondition( $el )
+      else if( $el.is('switch') ) return execSwitch( $el )
+      else if( $el.is('async') ) return execAsync( $el )
       
       // Identify and render custom components
       else if( self.lips && self.lips.has( $el.prop('tagName')?.toLowerCase() ) )
-        execComponent( $el )
+        return execComponent( $el )
 
       // Render normal body content
-      else execElement( $el )
+      else return execElement( $el )
     }
 
     /**
@@ -1203,17 +1243,18 @@ export default class Component<Input = void, State = void, Static = void, Contex
     // Process root element
     if( asRoot ){
       react( _$ )
-
-      /**
-       * Component relationship attribute with other 
-       * resources like `style tags`, `script tags`, ...
-       */
-      _$.attr('rel', this.__name__ )
       asRoot = false
     }
 
     // Process nexted contents
-    $els.each( function(){ react( $(this) as JQuery ) })
+    $els.each( function(){
+      const 
+      $this = $(this),
+      $rendered = react( $this as JQuery )
+
+      $this.replaceWith( $rendered as JQuery )
+      // $this = $rendered
+    })
     
     /**
      * BENCHMARK: Tracking total occurence of recursive rendering
@@ -1281,7 +1322,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
         if( params.length )
           _args = [ ...params, ..._args ]
 
-        _fn( ..._args, ...params )
+        _fn.bind(this)( ..._args, ...params )
       })
     }
   }

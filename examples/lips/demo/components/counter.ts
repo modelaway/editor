@@ -1,15 +1,27 @@
+import type { Handler } from '../../../../src/exports/component'
 
-export const _static = {
+export type Input = {
+  initial: number
+}
+type Static = {
+  limit: number
+}
+type State = {
+  count: number
+}
+
+export const _static: Static = {
   limit: 12
 }
 
 export const context = ['lang']
-export const state = {
+
+export const state: State = {
   count: 0
 }
 
-export const handler = {
-  onCreate(){ this.state.count = Number( this.input.initial ) },
+export const handler: Handler<Input, State, Static> = {
+  // onCreate(){ this.state.count = Number( this.input.initial ) },
   onInput(){ this.state.count = Number( this.input.initial ) },
   handleClick( e ){
     if( this.state.count >= this.static.limit )
@@ -25,7 +37,7 @@ export const stylesheet = `
 `
   
 export default `<div>
-  <span html=this.input.bodyHtml></span>: 
+  <span html=this.input.__innerHtml></span>: 
   <span text="this.state.count"></span>
   <br>
   <button on-click="handleClick">

@@ -1,4 +1,4 @@
-import Component, { Lips, type Template, type Handler } from './component'
+import Lips, { Component, type Template, type Handler } from './component'
 import english from '../languages/en.json'
 import french from '../languages/fr.json'
 
@@ -11,6 +11,9 @@ function Demo1(){
     time: string
     speech: string
     online: boolean
+  }
+  type Static = {
+    [index: string]: any
   }
 
   const
@@ -66,7 +69,7 @@ function Demo1(){
     person: 'Bob',
     default: 'Good evening'
   },
-  _static: ObjectType<any> = {
+  _static: Static = {
     verb: 'Say',
     users: {
       Europe: [
@@ -80,7 +83,7 @@ function Demo1(){
       ]
     }
   },
-  _handler: Handler = {
+  handler: Handler<Input, State, Static> = {
     handleConnect( online: boolean, e: Event ){
       console.log('Connected: ', online, e )
 
@@ -92,7 +95,7 @@ function Demo1(){
     }
   }
 
-  const component = new Component<Input, State>('Demo1', template, { input, state, _static, _handler }, { debug: true })
+  const component = new Component<Input, State, Static>('Demo1', template, { input, state, _static, handler }, { debug: true })
 
   component.appendTo('body')
 
@@ -118,7 +121,7 @@ function Demo2(){
   state: State = {
     count: 0
   },
-  _handler: Handler = {
+  handler: Handler<any, State> = {
     onMount(){
       console.log('Component mounted')
     },
@@ -136,12 +139,15 @@ function Demo2(){
     span, button { font: 14px arial; color: rgba(50, 50, 70); }
   `
 
-  const component = new Component('Demo2', template, { state, _handler, stylesheet }, { debug: true })
+  const component = new Component<any, State>('Demo2', template, { state, handler, stylesheet }, { debug: true })
 
   component.appendTo('body')
 }
 
 function Demo3(){
+  type Static = {
+
+  }
   const
   template = `<async await="getUser, this.static.name">
     <preload>Preloading...</preload>
@@ -156,7 +162,7 @@ function Demo3(){
   _static = {
     name: 'Peter Gibson'
   },
-  _handler: Handler = {
+  handler: Handler<any, any, Static> = {
     getUser( name ){
       return new Promise( ( resolve, reject ) => {
         setTimeout( () => resolve({ name, email: 'g.peter@mail.com' }), 3000 )
@@ -165,7 +171,7 @@ function Demo3(){
     }
   }
 
-  const component = new Component('Demo3', template, { _static, _handler }, { debug: true })
+  const component = new Component('Demo3', template, { _static, handler }, { debug: true })
 
   component.appendTo('body')
 }
@@ -196,12 +202,22 @@ function Demo4(){
 }
 
 function Demo5(){
-  const cp: Template = {
+  type TemplateInput = {
+    initial: number
+  }
+  type TemplateState = {
+    count: number
+  }
+  type TemplateStatic = {
+    limit: number
+  }
+
+  const cp: Template<TemplateInput, TemplateState, TemplateStatic> = {
     state: {
       count: 0
     },
     handler: {
-      onMount(){ this.state.count = Number( this.input.initial ) },
+      onInput(){ this.state.count = Number( this.input.initial ) },
       handleClick( e: Event ){
         if( this.state.count >= this.static.limit )
           return
@@ -218,7 +234,7 @@ function Demo5(){
     `,
     
     default: `<div>
-      <span html=this.input.bodyHtml></span>: 
+      <span html=this.input.__innerHtml></span>: 
       <span text="this.state.count"></span>
       <br>
       <button on-click="handleClick">Count</button>
@@ -241,15 +257,29 @@ function Demo5(){
   lips.i18n.setDictionary('en', english )
   lips.i18n.setDictionary('fr', french )
 
+  type State = {
+    initial: number
+  }
+
   const
-  state = {
+  state: State = {
     initial: 3
   },
-  template = `<section style="{ border: '2px solid gray', margin: '3rem', padding: '15px' }">
+  handler: Handler<any, State> = {
+    onMount(){
+      this.$.css({ color: 'green' })
+      
+      console.log('State: ', this.state.initial )
+    }
+  },
+  template = `<main>
+    <section style="{ border: '2px solid gray', margin: '3rem', padding: '15px' }">
       <counter initial=this.state.initial
                 on-update="value => console.log( value )">
         Count till 12
       </counter>
+
+      <counter initial=1>Number</counter>
 
       <p>I'm <span text="this.context.online ? 'Online' : 'Offline'"></span></p>
 
@@ -260,7 +290,8 @@ function Demo5(){
               on-click="() => this.destroy()">Destroy</button>
 
       <caption></caption>
-    </section>`
+    </section>
+  </main>`
 
   const component = lips.root( template, { state, context: ['online'] } )
 
@@ -277,4 +308,4 @@ function Demo5(){
 // Demo2()
 // Demo3()
 // Demo4()
-// Demo5()
+Demo5()

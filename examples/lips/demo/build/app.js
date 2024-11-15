@@ -1,6 +1,24 @@
-var d=Object.create;var{defineProperty:k,getPrototypeOf:f,getOwnPropertyNames:j}=Object;var l=Object.prototype.hasOwnProperty;var v=(i,e,t)=>{t=i!=null?d(f(i)):{};const n=e||!i||!i.__esModule?k(t,"default",{value:i,enumerable:!0}):t;for(let o of j(i))if(!l.call(n,o))k(n,o,{get:()=>i[o],enumerable:!0});return n};var w=(i)=>{return import.meta.require(i)};var c=(i,e)=>{for(var t in e)k(i,t,{get:e[t],enumerable:!0,configurable:!0,set:(n)=>e[t]=()=>n})};var r={};c(r,{default:()=>{{return q}}});var q="<section>Home</section>";var b={};c(b,{default:()=>{{return s}}});var s="<section>Account</section>";var y={routes:[{path:"/",template:r,default:!0},{path:"/account",template:b}]},z={initial:3},B=["online"],C=`
+var j=Object.create;var{defineProperty:R,getPrototypeOf:o,getOwnPropertyNames:q}=Object;var t=Object.prototype.hasOwnProperty;var F=(e,i,n)=>{n=e!=null?j(o(e)):{};const l=i||!e||!e.__esModule?R(n,"default",{value:e,enumerable:!0}):n;for(let k of q(e))if(!t.call(l,k))R(l,k,{get:()=>e[k],enumerable:!0});return l};var G=(e)=>{return import.meta.require(e)};var b=(e,i)=>{for(var n in i)R(e,n,{get:i[n],enumerable:!0,configurable:!0,set:(l)=>i[n]=()=>l})};var E={};b(E,{state:()=>{{return z}},handler:()=>{{return C}},default:()=>{{return D}},context:()=>{{return B}},_static:()=>{{return y}}});var $={};b($,{default:()=>{{return v}}});var v=`
+<section>
+  Home
+  <footer></footer>
+</section>
+`;var d={};b(d,{default:()=>{{return w}}});var w=`
+<section>
+  User Account ID: <span text=this.input.query.userid></span>
+</section>
+`;var f={};b(f,{default:()=>{{return x}}});var x=`
+<section>
+  <p>Product ID: <span text=this.input.params.id></span></p>
+  <p>Product Category: <span text=this.input.query.category></span></p>
+</section>
+`;var y={routes:[{path:"/",template:$,default:!0},{path:"/account",template:d},{path:"/product/:id",template:f}]},z={initial:3},B=["online"],C={onRouteChange(...e){console.log("Route changed -- ",...e)},onPageNotFound(e){console.log(`<${e}> page not found`)}},D=`
 <main>
-  <router routes=this.static.routes></router>
+  <router routes=this.static.routes
+          global
+          on-after="onRouteChange, 'after'"
+          on-before="onRouteChange, 'before'"
+          on-not-found="onPageNotFound"></router>
 
   <section style="{ border: '2px solid gray', margin: '3rem', padding: '15px' }">
     <counter initial=this.state.initial
@@ -24,6 +42,6 @@ var d=Object.create;var{defineProperty:k,getPrototypeOf:f,getOwnPropertyNames:j}
     <footer></footer>
   </section>
 </main>
-`;export{z as state,C as default,B as context,y as _static};
+`;export{z as state,C as handler,D as default,B as context,y as _static};
 
-//# debugId=5D085BDCD4B1B60064756e2164756e21
+//# debugId=7D1497D3197BE99E64756e2164756e21

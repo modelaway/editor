@@ -1,105 +1,128 @@
+import type { Handler, Template } from '../../../../src/exports/component'
 
-export const _static = {
-  global: false,
-  parseQuery: ( str: string ) => {
-    const
-    obj: any = {},
-    array = str.split('&')
-
-    array.map( each => {
-      const [ key, value ] = each.split('=')
-      obj[ key ] = value
-    })
-
-    return obj
-  },
-  routes: []
+type TObject<T> = { [index: string]: any }
+type RouteDef = {
+  path: string
+  template: Template
+  default?: boolean
+}
+export type Input = {
+  global?: boolean
+  routes: RouteDef[]
 }
 
-export const state = {
-  currentPage: null,
+type Route = RouteDef & {
+  pathVars: string[]
+  pathRegex: RegExp
+}
+type Static = {
+  global: boolean
+  routes: Route[]
+  currentPath: string
+  currentRoute: Route | null
+  params: TObject<any>
+  query: TObject<any>
+}
+
+export const _static: Static = {
+  global: false,
+  routes: [],
+  currentPath: '/',
   currentRoute: null,
   params: {},
-  query: {},
-  refreshing: false,
+  query: {}
 }
 
-export const handler = {
+function parseQuery( str: string ){
+  const
+  obj: any = {},
+  array = str.split('&')
+
+  array.map( each => {
+    const [ key, value ] = each.split('=')
+    obj[ key ] = value
+  })
+
+  return obj
+}
+
+declare global {
+  interface Window {
+    navigate: ( path: string, back?: boolean ) => void
+  }
+}
+
+export const handler: Handler<Input, undefined, Static> = {
   onInput(){
-    // if( !this.input.routes )
-    //   return
-    
-    console.log( this.input )
+    if( !this.input.routes )
+      return
 
-    // this.static.routes = routes.map( route => {
-    //   // Mount default page
-    //   route = this.loadComponent( route )
+    if( this.input.global )
+      this.static.global = this.input.global
 
-    //   if( route.path === defaultPath 
-    //       || route.name === defaultRoute
-    //       || route.default )
-    //     defaultPath = defaultPath || route.path
+    let defaultPath
+    this.static.routes = this.input.routes.map( ({ path, template, default: _default }) => {
+      if( _default )
+        defaultPath = path
 
-    //   const
-    //   // Retrieve pathname variables
-    //   pathVars = route.path.match(/:[^\/]*(\/|$)/gi),
-    //   // Convert path to wildcard matching regex path
-    //   pathRegex = route.path.replaceAll('/', '\\/')
-    //                         .replaceAll(/:[^\/]*(\/|$)/gi, '([^\\\/]+)(?:\\\/|$)')
+      const
+      // Retrieve pathname variables
+      pathVars = path.match(/:[^\/]*(\/|$)/gi) || [],
+      // Convert path to wildcard matching regex path
+      pathRegex = path.replaceAll('/', '\\/')
+                      .replaceAll(/:[^\/]*(\/|$)/gi, '([^\\\/]+)(?:\\\/|$)')
       
-    //   return {
-    //     ...route, 
-    //     pathVars,
-    //     pathRegex: new RegExp(`${pathRegex}$`, 'i')
-    //   }
-    // } )
+      return {
+        path,
+        template,
+        default: _default, 
+        pathVars,
+        pathRegex: new RegExp(`${pathRegex}$`, 'i')
+      }
+    } )
 
-    // const cpathname = window.location.pathname
-    // defaultPath = defaultPath
-    //               && cpathname == '/' 
-    //               && cpathname !== defaultPath ?
-    //                       // Default path different root path `/`
-    //                       defaultPath
-    //                       // Use first route as default
-    //                       : cpathname ? cpathname + window.location.search : this.static.routes[0].path
+    if( this.input.global ){
+      const cpathname = window.location.pathname
+      defaultPath = defaultPath
+                    && cpathname == '/' 
+                    && cpathname !== defaultPath ?
+                            // Default path different root path `/`
+                            defaultPath
+                            // Use first route as default
+                            : cpathname ? cpathname + window.location.search : this.static.routes[0].path
+    }
 
-    // this.navigate( defaultPath )
+    this.navigate( defaultPath )
   },
-  onMount(){ 
-    // if( this.input.global ){
-    //   window.navigate = this.navigate.bind(this)
-    //   window.refresh = () => {
-    //     this.state.refreshing = true
-    //     setTimeout( () => this.state.refreshing = false, 10 )
-    //   }
+  onMount(){
+    if( this.input.global ){
+      window.navigate = this.navigate.bind(this)
+      // window.refresh = () => {
+        
+      // }
     
-    //   window.addEventListener('popstate', e => e.state && this.navigate( e.state.path, true ) )
-    // }
+      window.addEventListener('popstate', e => e.state && this.navigate( e.state.path, true ) )
+    }
   },
 
-  loadComponent( route ){
-    if( !route.component )
-      route.component = require( route.page )
-
-    return route
-  },
-  navigate( path, back ){
+  navigate( path: string, back?: boolean ){
     // Record new navigation history
-    !back && history.pushState({ path }, '', path )
+    !back
+    && this.static.global
+    && history.pushState({ path }, '', path )
 
     const parts = path.split('?')
     path = parts[0]
     
     // Parse search query
-    const query = parts[1] ? this.static.parseQuery( parts[1] ) : {}
+    const query = parts[1] ? parseQuery( parts[1] ) : {}
 
     // Routing state prior to where to nativate to
     let fromState: any = null 
-    if( this.state.currentRoute ){
+    if( this.static.currentRoute ){
       fromState = {
-        name: this.state.currentRoute.name,
-        path: this.state.currentRoute.path,
-        params: this.state.params
+        path: this.static.currentRoute.path,
+        params: this.static.params
       }
 
       // Before match and render page event
@@ -110,37 +133,45 @@ export const handler = {
     const result = this.match( path )
     // Page not found
     if( !result ){
-      this.state.currentPage ?
-                    this.once('update', () => this.emit('not-found', path ) )
-                    : setTimeout( () => this.emit('not-found', path ), 200 )
-                    
-      return this.setState({ currentPage: null, params: {}, query: {} })
+      this.static.currentRoute = null
+      this.static.params = {}
+      this.static.query = {}
+
+      this.emit('not-found', path )
+      return
     }
 
-    const { route, params } = result
-
     // After match and render page event
-    this.once('update', () => this.emit('after', {
+    const { route, params } = result
+    this.emit('after', {
       fromState,
       toState: {
-        name: route.name,
         path: route.path,
         params,
         query
       }
-    }) )
-    
-    this.setState({
-      currentPath: path,
-      currentPage: this.loadComponent( route ).component,
-      currentRoute: route,
-      params,
-      query
     })
+    
+    this.static.currentPath = path
+    this.static.currentRoute = route
+    this.static.params = params
+    this.static.query = query
+
+    // Input passed routing arguments
+    route.template.input = { params, query }
+
+    const 
+    page = this.lips?.render( path, route.template )
+    if( !page ){
+      this.emit('not-found', path )
+      return
+    }
+
+    this.getEl().empty().append( page.getEl() )
   },
   match( path ){
     const params: any = {}
-    let matchRoute = false
+    let matchRoute: Route | boolean = false
 
     for( const route of this.static.routes ){
       const
@@ -162,9 +193,4 @@ export const handler = {
   }
 }
 
-export default `<div>Router</div>`
-
-// <if by=this.state.refreshing></if>
-// <else>
-//   <${state.currentPage} key=(this.state.currentRoute && this.state.currentRoute.name) params=this.state.params query=this.state.query/>
-// </else>
+export default `<wrapper></wrapper>`

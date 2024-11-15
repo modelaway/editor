@@ -277,24 +277,45 @@ export default class Lips<Context = any> {
   has( name: string ){
     return name in this.store
   }
-  use( name: string ){
-    if( !this.has( name ) )
-      throw new Error(`No <${name}> component found`)
+  async import( pathname: string ): Promise<Template>{
+    // Fetch from registered component
+    if( this.has( pathname ) ){
+      if( !this.store[ pathname ].default )
+        throw new Error(`Invalid <${pathname}> component`)
+      
+      return this.store[ pathname ]
+    }
+    
+    /**
+     * Import component directly from a file
+     */
+    try {
+      const template = await import( pathname ) as Template
+      if( !template?.default )
+        throw null
 
-    if( !this.store[ name ].default )
-      throw new Error(`Invalid <${name}> component`)
-
-    return this.store[ name ]
+      this.register( pathname, template )
+      return template
+    }
+    catch( error ){ throw new Error(`No <${pathname}> component found`) }
   }
 
-  root( template: string, scope: ComponentScope ){
-    const options: ComponentOptions = {
+  render( name: string, template: Template ){
+    const
+    { default: _default, ...scope } = template,
+    options: ComponentOptions = {
       debug: this.debug,
       prekey: '0',
       lips: this
     }
 
-    this.__root = new Component('__ROOT__', template, scope, options )
+    return new Component( name, _default, scope, options )
+  }
+
+  root( template: Template, selector: string ){
+    this.__root = this.render('__ROOT__', template )
+    this.__root.appendTo( selector )
+
     return this.__root
   }
 
@@ -490,19 +511,19 @@ export class Stylesheet {
 type EventListener = ( ...args: any[] ) => void
 
 export class Component<Input = void, State = void, Static = void, Context = void> {
-  public template: string
-  public $: JQuery
+  private template: string
+  private $: JQuery
   public input: Input
   public state: State
   public static: Static
   public context: Context
-  private handler: Handler<Input, State, Static, Context> = {}
 
   private __name__: string
   private __state?: State // Partial state
   private __stylesheet?: Stylesheet
   private __components: ObjectType<Component> = {}
   private __events: ObjectType<EventListener[]> = {}
+  private __once_events: ObjectType<EventListener[]> = {}
   private __attachableEvents: { $el: JQuery, _event: string, instruction: string }[] = []
 
   /**
@@ -530,8 +551,14 @@ export class Component<Input = void, State = void, Static = void, Context = void
     each?: any
   }
 
-  private lips?: Lips
+  public lips?: Lips
   private benchmark: Benchmark
+
+  /**
+   * Allow methods of `handler` to be dynamically
+   * added to `this` component object.
+   */
+  [key: string]: any
 
   constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet }: ComponentScope<Input, State, Static, Context>, { debug, prekey, lips }: ComponentOptions ){
     this.template = template
@@ -575,8 +602,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
      */
     this.input
     && Object.keys( this.input ).length
-    && typeof this.handler?.onInput == 'function'
-    && this.handler.onInput.bind(this)()
+    && typeof this.onInput == 'function'
+    && this.onInput.bind(this)()
 
     this.IUC = setInterval( () => {
       /**
@@ -621,8 +648,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
          * Triggered before component get rendered
          * for the first time.
          */
-        typeof this.handler.onCreate == 'function'
-        && this.handler.onCreate.bind(this)()
+        typeof this.onCreate == 'function'
+        && this.onCreate.bind(this)()
 
         this.render()
       }
@@ -656,8 +683,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
        * the first time.
        */
       !this.isRendered
-      && typeof this.handler.onMount == 'function'
-      && this.handler.onMount.bind(this)()
+      && typeof this.onMount == 'function'
+      && this.onMount.bind(this)()
 
       /**
        * Flag to know when element is initially or force
@@ -668,8 +695,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
       /**
        * Triggered anytime component gets rendered
        */
-      typeof this.handler.onRender == 'function'
-      && this.handler.onRender.bind(this)()
+      typeof this.onRender == 'function'
+      && this.onRender.bind(this)()
     })
   }
 
@@ -686,8 +713,13 @@ export class Component<Input = void, State = void, Static = void, Context = void
     /**
      * Triggered anytime component state gets updated
      */
-    typeof this.handler.onUpdate == 'function'
-    && this.handler.onUpdate.bind(this)()
+    typeof this.onUpdate == 'function'
+    && this.onUpdate.bind(this)()
+
+    /**
+     * Component's state `update` event broadcast
+     */
+    this.emit('update')
   }
   setInput( input: Input ){
     /**
@@ -703,8 +735,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
     /**
      * Triggered anytime component recieve new input
      */
-    typeof this.handler.onInput == 'function'
-    && this.handler.onInput.bind(this)()
+    typeof this.onInput == 'function'
+    && this.onInput.bind(this)()
   }
   /**
    * Inject grain/partial input to current component 
@@ -719,7 +751,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
   setHandler( list: Handler<Input, State, Static, Context> ){
     Object
     .entries( list )
-    .map( ([ method, fn ]) => this.handler[ method ] = fn.bind(this) )
+    .map( ([ method, fn ]) => this[ method ] = fn.bind(this) )
   }
 
   getEl(){
@@ -962,7 +994,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
         
         const
         [ fn, ...args ] = attr.split(/\s*,\s*/),
-        _await = (self.handler[ fn ] || self.__evaluate__( fn )).bind(self) as any
+        _await = (self[ fn ] || self.__evaluate__( fn )).bind(self) as any
         
         if( typeof _await !== 'function' )
           throw new Error(`Undefined <${fn}> handler method`)
@@ -1066,7 +1098,19 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
           // Inject the evaulation result of any other attributes
           default: {
-            const res = self.__evaluate__( value as string )
+            const res = value ?
+                          self.__evaluate__( value as string )
+                          /**
+                           * IMPORTANT: An attribute without a value is
+                           * considered neutral but `true` of a value by
+                           * default.
+                           * 
+                           * Eg. <counter initial=3 throttle/>
+                           * 
+                           * the `throttle` attribute is hereby an input with a
+                           * value `true`.
+                           */
+                          : true
             
             /**
              * (?) evaluation return signal to uset the attribute.
@@ -1102,7 +1146,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
       return $el
     }
 
-    function execComponent( $component: JQuery ){
+    async function execComponent( $component: JQuery ){
       try {
         const name = $component.prop('tagName')?.toLowerCase() as string
         if( !name )
@@ -1132,7 +1176,19 @@ export class Component<Input = void, State = void, Static = void, Context = void
             return
           }
           
-          input[ key ] = self.__evaluate__( value as string )
+          input[ key ] = value ?
+                          self.__evaluate__( value as string )
+                          /**
+                           * IMPORTANT: An attribute without a value is
+                           * considered neutral but `true` of a value by
+                           * default.
+                           * 
+                           * Eg. <counter initial=3 throttle/>
+                           * 
+                           * the `throttle` attribute is hereby an input with a
+                           * value `true`.
+                           */
+                          : true
         } )
 
         /**
@@ -1151,7 +1207,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
          * injecting updated inputs
          */
         if( self.__components[ __key__ ] ){
-          console.log( name, $component.is( self.__components[ __key__ ].$.prop('tagName') ) )
           $component
           .empty()
           .attr('rel', name )
@@ -1170,7 +1225,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
          */
         else {
           const
-          { state, _static, handler, context, default: _default, stylesheet } = self.lips.use( name ),
+          { state, _static, handler, context, default: _default, stylesheet } = await self.lips.import( name ),
           component = new Component( name, _default, {
             state: uniqueObject( state ),
             input: uniqueObject( input ),
@@ -1202,7 +1257,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
           .entries( events )
           .forEach( ([ _event, instruction ]) => self.__attachEvent__( component, _event, instruction ) )
         }
-
+        
         return $component
       }
       catch( error ){
@@ -1247,14 +1302,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
     }
 
     // Process nexted contents
-    $els.each( function(){
-      const 
-      $this = $(this),
-      $rendered = react( $this as JQuery )
-
-      $this.replaceWith( $rendered as JQuery )
-      // $this = $rendered
-    })
+    $els.each( function(){ react( $(this) as JQuery ) } )
     
     /**
      * BENCHMARK: Tracking total occurence of recursive rendering
@@ -1294,7 +1342,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
      * 
      * Eg. 
      *  `on-click="() => console.log('Hello world')"`
-     *  `on-change="e => this.handler.onChange(e)"`
+     *  `on-change="e => this.onChange(e)"`
      */
     if( /(\s*\w+|\s*\([^)]*\)|\s*)\s*=>\s*(\s*\{[^}]*\}|\s*[^\n;"]+)/g.test( instruction ) )
       element.on( _event, this.__evaluate__( instruction ) )
@@ -1312,17 +1360,17 @@ export class Component<Input = void, State = void, Static = void, Context = void
      */
     else {
       const [ fn, ...args ] = instruction.split(/\s*,\s*/)
-      if( typeof this.handler[ fn ] !== 'function' ) return
+      if( typeof this[ fn ] !== 'function' ) return
         // throw new Error(`Undefined <${fn}> ${_event} event method`)
 
       element.on( _event, ( ...params: any[] ) => {
-        const _fn = this.handler[ fn ]
+        const _fn = this[ fn ].bind(this)
         let _args = args.map( each => (this.__evaluate__( each )) )
 
         if( params.length )
-          _args = [ ...params, ..._args ]
+          _args = [ ..._args, ...params ]
 
-        _fn.bind(this)( ..._args, ...params )
+        _fn( ..._args )
       })
     }
   }
@@ -1385,10 +1433,20 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
     this.__events[ _event ].push( fn )
   }
+  once( _event: string, fn: EventListener ){
+    if( !Array.isArray( this.__once_events[ _event ] ) )
+      this.__once_events[ _event ] = []
+
+    this.__once_events[ _event ].push( fn )
+  }
   off( _event: string ){
     delete this.__events[ _event ]
   }
   emit( _event: string, ...params: any[] ){
     this.__events[ _event ]?.forEach( fn => fn( ...params ) )
+
+    // Once listeners
+    this.__once_events[ _event ]?.forEach( fn => fn( ...params ) )
+    delete this.__once_events[ _event ]
   }
 }

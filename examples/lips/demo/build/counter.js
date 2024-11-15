@@ -1,6 +1,6 @@
-var h=Object.create;var{defineProperty:e,getPrototypeOf:k,getOwnPropertyNames:m}=Object;var o=Object.prototype.hasOwnProperty;var s=(i,l,a)=>{a=i!=null?h(k(i)):{};const n=l||!i||!i.__esModule?e(a,"default",{value:i,enumerable:!0}):a;for(let d of m(i))if(!o.call(n,d))e(n,d,{get:()=>i[d],enumerable:!0});return n};var t=(i)=>{return import.meta.require(i)};var r=(i,l)=>{for(var a in l)e(i,a,{get:l[a],enumerable:!0,configurable:!0,set:(n)=>l[a]=()=>n})};var q={};r(q,{stylesheet:()=>{{return j}},state:()=>{{return f}},handler:()=>{{return g}},default:()=>{{return p}},context:()=>{{return c}},_static:()=>{{return b}}});var b={limit:12},c=["lang"],f={count:0},g={onInput(){this.state.count=Number(this.input.initial)},handleClick(i){if(this.state.count>=this.static.limit)return;this.state.count++,this.emit("update",this.state.count)}},j=`
+var c=Object.create;var{defineProperty:b,getPrototypeOf:d,getOwnPropertyNames:h}=Object;var l=Object.prototype.hasOwnProperty;var k=(i,n,a)=>{a=i!=null?c(d(i)):{};const o=n||!i||!i.__esModule?b(a,"default",{value:i,enumerable:!0}):a;for(let t of h(i))if(!l.call(o,t))b(o,t,{get:()=>i[t],enumerable:!0});return o};var p=(i)=>{return import.meta.require(i)};var m=(i,n)=>{for(var a in n)b(i,a,{get:n[a],enumerable:!0,configurable:!0,set:(o)=>n[a]=()=>o})};var j={};m(j,{stylesheet:()=>{{return f}},state:()=>{{return u}},handler:()=>{{return v}},default:()=>{{return g}},context:()=>{{return s}},_static:()=>{{return r}}});var r={limit:12},s=["lang"],u={count:0},v={onInput(){this.state.count=Number(this.input.initial)},handleClick(i){if(console.log(i),this.state.count>=this.static.limit)return;this.state.count++,this.emit("update",this.state.count)}},f=`
   span { font: 14px arial; color: blue; }
-`,p=`<div>
+`,g=`<div>
   <span html=this.input.__innerHtml></span>: 
   <span text="this.state.count"></span>
   <br>
@@ -8,6 +8,6 @@ var h=Object.create;var{defineProperty:e,getPrototypeOf:k,getOwnPropertyNames:m}
     <span text="Count"></span>
     (<span text=this.context.lang></span>)
   </button>
-</div>`;export{j as stylesheet,f as state,g as handler,p as default,c as context,b as _static};
+</div>`;export{f as stylesheet,u as state,v as handler,g as default,s as context,r as _static};
 
-//# debugId=5F879205C3B37F2A64756e2164756e21
+//# debugId=1D9BABA5DA69487164756e2164756e21

@@ -1,1 +1,5 @@
-export default `<section>Account</section>`
+export default `
+<section>
+  User Account ID: <span text=this.input.query.userid></span>
+</section>
+`

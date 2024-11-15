@@ -24,6 +24,7 @@ export const handler: Handler<Input, State, Static> = {
   // onCreate(){ this.state.count = Number( this.input.initial ) },
   onInput(){ this.state.count = Number( this.input.initial ) },
   handleClick( e ){
+    console.log( e )
     if( this.state.count >= this.static.limit )
       return
 

@@ -267,7 +267,7 @@ function Demo5(){
   },
   handler: Handler<any, State> = {
     onMount(){
-      this.$.css({ color: 'green' })
+      this.getEl().css({ color: 'green' })
       
       console.log('State: ', this.state.initial )
     }
@@ -293,9 +293,7 @@ function Demo5(){
     </section>
   </main>`
 
-  const component = lips.root( template, { state, context: ['online'] } )
-
-  component.appendTo('body')
+  const component = lips.root({ default: template, state, context: ['online'] }, 'body')
 
   // Change detault translation language
   setTimeout( () => {

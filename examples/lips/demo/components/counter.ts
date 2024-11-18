@@ -1,4 +1,4 @@
-import type { Handler } from '../../../../src/exports/component'
+import type { Handler } from '../../../../src/component'
 
 export type Input = {
   initial: number
@@ -24,7 +24,6 @@ export const handler: Handler<Input, State, Static> = {
   // onCreate(){ this.state.count = Number( this.input.initial ) },
   onInput(){ this.state.count = Number( this.input.initial ) },
   handleClick( e ){
-    console.log( e )
     if( this.state.count >= this.static.limit )
       return
 

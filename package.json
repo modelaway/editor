@@ -17,7 +17,7 @@
   "private": false,
   "scripts": {
     "dev": "bun compile --watch",
-    "compile": "bun build --entrypoints ./src/exports/* ./src/plugins/* --entry-naming [name].min.[ext] --minify --root . --outdir ./dist --target browser --format esm --sourcemap=external",
+    "compile": "bun build --entrypoints ./src/exports/* ./src/plugins/* ./src/component/lips.ts --entry-naming [name].min.[ext] --minify --root . --outdir ./dist --target browser --format esm --sourcemap=external",
     "prepack": "bun compile",
     "test": "Echo 'Error: No test specified' && exit 1",
     "test:view": "yarn build:tsc && jest test/auth.test.js"
@@ -28,11 +28,13 @@
     "events": "^3.3.0",
     "htmlparser2": "^9.1.0",
     "jquery": "^3.7.1",
+    "jquery-ui": "^1.14.1",
     "sass": "^1.77.2"
   },
   "devDependencies": {
     "@types/diff-match-patch": "^1.0.36",
     "@types/jquery": "^3.5.30",
+    "@types/jqueryui": "^1.12.23",
     "browserslist": "^4.23.0",
     "bun-style-loader": "^0.4.0"
   },

@@ -1,4 +1,4 @@
-import type { Handler, Template } from '../../../../src/exports/component'
+import type { Handler, Template } from '.'
 
 type TObject<T> = { [index: string]: any }
 type RouteDef = {

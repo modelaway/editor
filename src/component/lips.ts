@@ -1,13 +1,26 @@
+import type { 
+  TObject,
+  LipsConfig,
+  Template,
+  EventListener,
+  Handler,
+  ComponentScope,
+  ComponentOptions
+} from '.'
 
 import $ from 'jquery'
-// import I18N from '../modules/i18n'
+import I18N from './i18n'
+import Benchmark from './benchmark'
+import Stylesheet from './stylesheet'
 import { deepAssign } from '../modules/utils'
-import { effect, signal } from '../modules/reactive'
+import { isEquals, uniqueObject } from './utils'
+import { effect, signal } from './signal'
 
-// import * as Sass from 'sass'
-import { CompileResult } from 'sass'
+import * as Router from './router'
 
-let Sass: any
+function wrap( arg: string ): JQuery<any> {
+  return $('<wrap/>').html( arg ).contents()
+}
 
 $.fn.extend({
   attrs: function(){
@@ -26,214 +39,6 @@ $.fn.extend({
     return tn.toLowerCase()
   }
 })
-
-function wrap( arg: string ): JQuery<any> {
-  return $('<wrap/>').html( arg ).contents()
-}
-function isEquals( aObject: ObjectType<any>, bObject: ObjectType<any> ){
-  const
-  aKeys = Object.keys( aObject ).sort(),
-  bKeys = Object.keys( bObject ).sort()
-
-  if( aKeys.length !== bKeys.length ) return false //not the same nr of keys
-  if( aKeys.join('') !== bKeys.join('') ) return false //different keys
-
-  for( let x = 0; x < aKeys.length; ++x ){
-    // Array object
-    if( aObject[ aKeys[x] ] instanceof Array ){
-      if( !( bObject[ aKeys[x] ] instanceof Array ) ) return false
-      if( !isEquals( aObject[ aKeys[x] ], bObject[ aKeys[x] ] ) ) return false
-    }
-
-    // Date object
-    else if( aObject[ aKeys[x] ] instanceof Date ){
-      if( !( bObject[ aKeys[x] ] instanceof Date ) ) return false
-      if( String( aObject[ aKeys[x] ] ) !== String( bObject[ aKeys[x] ] ) ) return false
-    }
-
-    // Object containing functions
-    else if( aObject[ aKeys[x] ] instanceof Function ){
-      if( !( bObject[ aKeys[x] ] instanceof Function ) ) return false
-      
-      // Ignore functions, or check them regardless?
-    }
-
-    // Object instance
-    else if( aObject[ aKeys[x] ] instanceof Object ){
-      if( !( bObject[ aKeys[x] ] instanceof Object ) ) return false
-
-      // Self reference?
-      if( aObject[ aKeys[x] ] === aObject ){
-        if( bObject[ aKeys[x] ] !== bObject ) return false
-      }
-      // WARNING: Doesn't deal with circular refs other than ^^
-      else if( !isEquals( aObject[ aKeys[x] ], bObject[ aKeys[x] ] ) ) return false
-    }
-    // Change !== to != for loose comparison: not the same value
-    else if( aObject[ aKeys[x] ] !== bObject[ aKeys[x] ] ) return false
-  }
-
-  return true
-}
-function uniqueObject( obj: any ){
-  if( typeof obj !== 'object' )
-    return obj
-
-  return JSON.parse( JSON.stringify( obj ) )
-}
-
-class Benchmark {
-  private debug: boolean
-  private initialStats: ObjectType<number> = {
-    elementCount: 0,
-    renderCount: 0
-  }
-  public stats: ObjectType<number> = this.reset()
-
-  constructor( debug = false ){
-    this.debug = debug
-  }
-  
-  inc( trace: string ){
-    if( !this.debug ) return
-    this.stats[ trace ]++
-  }
-  dev( trace: string ){
-    if( !this.debug ) return
-    this.stats[ trace ]--
-  }
-
-  record( trace: string, value: number ){
-    if( !this.debug ) return
-    this.stats[ trace ] = value
-  }
-  reset(){
-    return this.stats = uniqueObject( this.initialStats )
-  }
-  log(){
-    this.debug && console.table( this.stats )
-  }
-}
-
-type LanguageDictionary = ObjectType<ObjectType<string> | string>
-
-class I18N {
-  private default = window.navigator.language
-  private LANGUAGE_DICTIONARIES: ObjectType<LanguageDictionary> = {}
-
-  setLang( lang: string ): boolean {
-    if( this.default !== lang ){
-      this.default = lang
-      return true
-    }
-
-    return false
-  }
-
-  setDictionary( id: string, dico: LanguageDictionary ){
-    this.LANGUAGE_DICTIONARIES[ id ] = dico
-  }
-
-  /**
-   * 
-   */
-  translate( text: string, lang?: string ){
-    // No translation required
-    if( lang && this.default == lang )
-      return { text, lang: this.default }
-
-    lang = lang || this.default
-
-    /**
-     * Translate displayable texts
-     * 
-     * - text content
-     * - title attribute
-     * - placeholder attribute
-     */
-    const [ id, variant ]: string[] = lang.split('-')
-    if( this.LANGUAGE_DICTIONARIES[ id ] && text in this.LANGUAGE_DICTIONARIES[ id ] ){
-      // Check by language variant or default option
-      if( typeof this.LANGUAGE_DICTIONARIES[ id ][ text ] === 'object' ){
-        const variants = this.LANGUAGE_DICTIONARIES[ id ][ text ] as ObjectType<string>
-        text = variants[ variant || '*' ] || variants['*']
-      }
-      
-      // Single translation option
-      else if( typeof this.LANGUAGE_DICTIONARIES[ id ][ text ] === 'string' )
-        text = this.LANGUAGE_DICTIONARIES[ id ][ text ] as string
-    }
-
-    return { text, lang }
-  }
-
-  propagate( $node: JQuery<HTMLElement> ){
-    const self = this
-    function apply( this: HTMLElement ){
-      const
-      $this = $(this),
-      _content = $this.html(),
-      _title = $this.attr('title'),
-      _placeholder = $this.attr('placeholder')
-
-      let _lang
-
-      if( !/<\//.test( _content ) && $this.text() ){
-        const { text, lang } = self.translate( $this.text() )
-
-        $this.text( text )
-        _lang = lang
-      }
-      if( _title ){
-        const { text, lang } = self.translate( _title )
-
-        $this.attr('title', text )
-        _lang = lang
-      }
-      if( _placeholder ){
-        const { text, lang } = self.translate( _placeholder )
-        
-        $this.attr('placeholder', text )
-        _lang = lang
-      }
-
-      _lang && $this.attr('lang', _lang )
-    }
-
-    $node.children().each( apply )
-
-    return $node
-  }
-}
-
-export interface Handler<Input = void, State = void, Static = void, Context = void> {
-  [index: string]: ( this: Component<Input, State, Static, Context>, ...args: any[] ) => void
-}
-export type Template<Input = void, State = void, Static = void, Context = void> = {
-  state?: any
-  _static?: any
-  context?: any
-  handler?: Handler<Input, State, Static, Context>
-  stylesheet?: string
-  default: string
-}
-export type ComponentScope<Input = void, State = void, Static = void, Context = void> = {
-  input?: any
-  state?: any
-  context?: string[]
-  _static?: Static
-  handler?: Handler<Input, State, Static, Context>
-  stylesheet?: string
-}
-export type ComponentOptions = {
-  debug?: boolean
-  prekey?: string
-  lips?: Lips
-}
-export type LipsConfig = {
-  context?: any
-  debug?: boolean
-}
 
 export default class Lips<Context = any> {
   private debug = false
@@ -254,6 +59,13 @@ export default class Lips<Context = any> {
 
     this._setContext = setContext
     this._getContext = getContext
+    
+    /**
+     * Register native components
+     * 
+     * `<router routers=[] global, ...></router>` -- Internal Routing Component
+     */
+    this.register('router', Router )
   }
 
   async register( name: string, template: Template<any, any, any, any> ){
@@ -347,169 +159,6 @@ export default class Lips<Context = any> {
   }
 }
 
-type StyleSettings = {
-  css?: string
-  meta?: boolean
-  custom?: {
-    enabled: boolean
-    allowedRules: string[]
-    allowedProperties: string[]
-  }
-}
-export class Stylesheet {
-  private nsp: string
-  private settings: StyleSettings
-  private $head: JQuery<HTMLElement>
-
-  constructor( nsp: string, settings?: StyleSettings ){
-    if( typeof nsp !== 'string' ) 
-      throw new Error('Undefined or invalid styles attachement element(s) namespace')
-    
-    // @ts-ignore
-    !Sass && import('https://jspm.dev/sass').then( lib => Sass = lib )
-
-    /**
-     * Unique namespace identifier of targeted 
-     * views/elements
-     */
-    this.nsp = nsp
-
-    /**
-     * Head element of the DOM from where CSS
-     * operation will be done.
-     */
-    this.$head = $('head')
-
-    /**
-     * Styles settings
-     * 
-     * - css
-     * - custom
-     */
-    this.settings = settings || {}
-
-    // Auto-load defined css rules
-    this.settings && this.load( this.settings )
-  }
-
-  /**
-   * Compile Sass style string to CSS string
-   */
-  compile( str: string ): Promise<CompileResult>{
-    return new Promise( ( resolve, reject ) => {
-      if( !Sass ){
-        let 
-        waiter: any,
-        max = 1
-        
-        const exec = () => {
-          /**
-           * TEMP: Wait 8 seconds for Sass libary to load
-           */
-          if( !Sass ){
-            if( max == 8 ){
-              clearInterval( waiter )
-              reject('Undefined Sass compiler')
-            }
-            else max++
-            
-            return
-          }
-
-          clearInterval( waiter )
-          resolve( Sass.compileString( str ) )
-        }
-
-        waiter = setInterval( exec, 1000 )
-      }
-      else resolve( Sass.compileString( str ) )
-    } )
-  }
-
-  /**
-   * Compile and inject a style chunk in the DOM
-   * using `<style mv-style="*">...</style>` tag
-   */
-  private async inject( str: string ){
-    if( !str )
-      throw new Error('Invalid injection arguments')
-
-    const selector = `rel="${this.settings.meta ? '@' : ''}${this.nsp}"`
-    /**
-     * Defined meta css properties or css by view 
-     * elements by wrapping in a closure using the 
-     * namespaces selector.
-     * 
-     * :root {
-     *    --font-size: 12px;
-     *    line-height: 1.5;
-     * }
-     * 
-     * [rel="<namespace>"] {
-     *    font-size: 12px;
-     *    &:hover {
-     *      color: #000; 
-     *    }
-     * }
-     */
-    str = this.settings.meta ? str : `[rel="${this.nsp}"] { ${str} }`
-
-    const result = await this.compile( str )
-    if( !result?.css )
-      throw new Error(`<component:${this.nsp}> css injection failed`)
-    
-    const $existStyle = await this.$head.find(`style[${selector}]`)
-    $existStyle.length ?
-          // Replace existing content
-          await $existStyle.html( result.css )
-          // Inject new style
-          : await (this.$head as any)[ this.settings.meta ? 'prepend' : 'append' ](`<style ${selector}>${result.css}</style>`)
-  }
-
-  /**
-   * Load/inject predefined CSS to the document
-   */
-  async load( settings: StyleSettings ){
-    this.settings = settings
-    if( typeof this.settings !== 'object' )
-      throw new Error('Undefined styles settings')
-    
-    this.settings.css && await this.inject( this.settings.css )
-  }
-
-  /**
-   * Retreive this view's main node styles including natively 
-   * defined ones.
-   */
-  get(){
-    
-  }
-
-  /**
-   * Remove all injected styles from the DOM
-   */
-  async clear(){
-    (await this.$head.find(`style[rel="${this.settings.meta ? '@' : ''}${this.nsp}"]`)).remove()
-  }
-
-  /**
-   * Return css custom properties
-   */
-  async custom(): Promise<ObjectType<string>> {
-    return {}
-  }
-
-  /**
-   * Overridable function to return an element 
-   * style attribute value as JSON object.
-   */
-  async style(): Promise<ObjectType<string>> {
-    return {}
-  }
-}
-
-type EventListener = ( ...args: any[] ) => void
-
 export class Component<Input = void, State = void, Static = void, Context = void> {
   private template: string
   private $: JQuery
@@ -521,9 +170,9 @@ export class Component<Input = void, State = void, Static = void, Context = void
   private __name__: string
   private __state?: State // Partial state
   private __stylesheet?: Stylesheet
-  private __components: ObjectType<Component> = {}
-  private __events: ObjectType<EventListener[]> = {}
-  private __once_events: ObjectType<EventListener[]> = {}
+  private __components: TObject<Component> = {}
+  private __events: TObject<EventListener[]> = {}
+  private __once_events: TObject<EventListener[]> = {}
   private __attachableEvents: { $el: JQuery, _event: string, instruction: string }[] = []
 
   /**
@@ -543,8 +192,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
   private IUC: NodeJS.Timeout
   private IUC_BEAT = 5 // ms
 
-  private let: ObjectType<any> = {}
-  private async: ObjectType<any> = {}
+  private let: TObject<any> = {}
+  private async: TObject<any> = {}
   private for?: {
     index: number
     key?: string
@@ -560,13 +209,13 @@ export class Component<Input = void, State = void, Static = void, Context = void
    */
   [key: string]: any
 
-  constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet }: ComponentScope<Input, State, Static, Context>, { debug, prekey, lips }: ComponentOptions ){
+  constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet }: ComponentScope<Input, State, Static, Context>, options?: ComponentOptions ){
     this.template = template
     this.$ = $(this.template)
 
-    this.lips = lips
-    if( debug ) this.debug = debug
-    if( prekey ) this.prekey = prekey
+    if( options?.lips ) this.lips = options.lips    
+    if( options?.debug ) this.debug = options.debug
+    if( options?.prekey ) this.prekey = options.prekey
 
     this.__name__ = name
 
@@ -579,7 +228,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
       meta: this.__name__ === '__ROOT__'
     }
     this.__stylesheet = new Stylesheet( this.__name__, cssOptions )
-    this.benchmark = new Benchmark( debug )
+    this.benchmark = new Benchmark( this.debug )
     
     this.input = input || {} as Input
     this.state = state || {} as State
@@ -613,7 +262,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
        * Merge with initial/active state.
        */
       this.state
-      && !isEquals( this.__state as ObjectType<any>, this.state as ObjectType<any> )
+      && !isEquals( this.__state as TObject<any>, this.state as TObject<any> )
       && this.setState( this.state )
     }, this.IUC_BEAT )
 
@@ -624,7 +273,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
      */
     Array.isArray( context )
     && context.length
-    && this.lips?.useContext( context, ctx => !isEquals( this.context as ObjectType<any>, ctx ) && setContext( ctx ) )
+    && this.lips?.useContext( context, ctx => !isEquals( this.context as TObject<any>, ctx ) && setContext( ctx ) )
 
     effect( () => {
       this.input = getInput()
@@ -701,12 +350,12 @@ export class Component<Input = void, State = void, Static = void, Context = void
   }
 
   getState( key: string ){
-    const state = this._getState() as ObjectType<any>
+    const state = this._getState() as TObject<any>
     
     return state && typeof state == 'object' && state[ key ]
   }
   setState( data: any ){
-    const state = this._getState() as ObjectType<keyof State>
+    const state = this._getState() as TObject<keyof State>
 
     this._setState({ ...state, ...data })
     
@@ -726,7 +375,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
      * Apply update only when new input is different 
      * from the incoming input
      */
-    if( isEquals( this.input as ObjectType<any>, input as ObjectType<any> ) )
+    if( isEquals( this.input as TObject<any>, input as TObject<any> ) )
       return
     
     // Merge with initial/active input.
@@ -742,11 +391,11 @@ export class Component<Input = void, State = void, Static = void, Context = void
    * Inject grain/partial input to current component 
    * instead of sending a whole updated input
    */
-  subInput( data: ObjectType<any> ){
+  subInput( data: TObject<any> ){
     if( typeof data !== 'object' ) 
       return this.getEl()
     
-    this.setInput( deepAssign( this.input as ObjectType<any>, data ) )
+    this.setInput( deepAssign( this.input as TObject<any>, data ) )
   }
   setHandler( list: Handler<Input, State, Static, Context> ){
     Object
@@ -798,6 +447,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
           if( !assign ) return
           self.let[ key ] = self.__evaluate__( assign as string )
         } )
+
+        $let.remove()
       }
       catch( error ){
         // TODO: Transfer error to global try - catch component define in the UI
@@ -818,7 +469,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
         _from = $loop.attr('from') ? Number( $loop.attr('from') ) : undefined,
         _to = $loop.attr('to') ? Number( $loop.attr('to') ) : undefined,
         _in = self.__evaluate__( $loop.attr('in') as string ),
-        nextedHtml = $loop.html()
+        nextedHtml = $loop.html(),
+        $items = []
         
         if( _from !== undefined ){
           if( _to == undefined )
@@ -828,7 +480,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
           for( let x = _from; x < _to; x++ ){
             self.for = { index: x }
             
-            $loop.append( self.render( wrap( nextedHtml ) ) )
+            $items.push( self.render( wrap( nextedHtml ) ) )
+            // $loop.append( self.render( wrap( nextedHtml ) ) )
           }
         }
 
@@ -838,7 +491,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
           let index = 0
           for( const each of _in ){
             self.for = { index, each }
-            $loop.append( self.render( wrap( nextedHtml ) ) )
+            $items.push( self.render( wrap( nextedHtml ) ) )
 
             index++
           }
@@ -854,13 +507,13 @@ export class Component<Input = void, State = void, Static = void, Context = void
               key,
               each: _in[ key ]
             }
-            $loop.append( self.render( wrap( nextedHtml ) ) )
+            $items.push( self.render( wrap( nextedHtml ) ) )
 
             index++
           }
         }
         
-        $loop.show()
+        $loop.append( $items )
       }
       catch( error ){
         // TODO: Transfer error to global try - catch component define in the UI
@@ -884,9 +537,13 @@ export class Component<Input = void, State = void, Static = void, Context = void
         const
         _by = self.__evaluate__( by ),
         $cases = $switch.find('case'),
-        $default = $switch.find('default').hide()
+        $default = $switch.find('default')
 
-        let validCases: string[] = []
+        $switch.empty()
+
+        let 
+        validCases: string[] = [],
+        $validCase: JQuery | null = null
         
         $cases.each(function(){
           const 
@@ -902,14 +559,15 @@ export class Component<Input = void, State = void, Static = void, Context = void
           if( Array.isArray( _options ) && _options.includes( _by ) ){
             validCases = [...(new Set([ ...validCases, ..._options ]) )]
 
-            showContent( $case )
+            $validCase = self.render( $case.contents() as JQuery )
           }
-          else $case.hide()
         })
 
-        $default.length 
-        && !validCases.includes( _by )
-        && showContent( $default )
+        if( $default.length && !validCases.includes( _by ) )
+          $validCase = self.render( $default.contents() as JQuery )
+        
+        $validCase?.length
+        && $switch.append( $validCase )
       }
       catch( error ){
         // TODO: Transfer error to global try - catch component define in the UI
@@ -945,7 +603,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
         }
 
         if( res ) showContent( $cond )
-        
         else {
           $cond.hide()
           
@@ -964,8 +621,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
        * BENCHMARK: Tracking total elements rendered
        */
       self.benchmark.inc('elementCount')
-
-      return $cond
     }
 
     function execAsync( $async: JQuery ){
@@ -1118,7 +773,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
              * Very useful case where the attribute don't necessarily
              * have values by default.
              */
-            res != '?' ? 
+            res != '?' ?
                 $el.attr( attr, res )
                 : $el.removeAttr( attr )
           }
@@ -1163,7 +818,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
          */
         input: any = {},
         attrs = ($component as any).attrs(),
-        events: ObjectType<any> = {}
+        events: TObject<any> = {}
 
         Object
         .entries( attrs )

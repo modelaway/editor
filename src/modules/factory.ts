@@ -17,18 +17,18 @@ import {
 } from './constants'
 import { generateKey } from './utils'
 import { FrameOption } from '../types/frame'
-import Component from '../exports/component'
+import { Component } from '../component/lips'
 
 export type WorkspaceLayerInput = {
 
 }
 export const WorkspaceLayer = ( input: WorkspaceLayerInput ) => {
   const template = `<modela>
-    <mboard></mboard>
+    <mcanvas></mcanvas>
     ${createGlobal()}
   </modela>`
 
-  return new Component<WorkspaceLayerInput>( template, { input })
+  return new Component<WorkspaceLayerInput>( 'workspace', template, { input } )
 }
 
 export const createGlobal = () => {
@@ -55,7 +55,7 @@ export const createFrame = ( key: string, options: FrameOption ) => {
                       `src="${options.source}"` // Source URL provided
                       : `src="data:text/html;charset=utf-8,${encodeURI( FRAME_BLANK_DOCUMENT )}"` // Default HTML Document skeleton
   
-  return `<mframe ${CONTROL_FRAME_SELECTOR}="${key}">
+  return `<mframe ${CONTROL_FRAME_SELECTOR}="${key}" style="top:${options.position.top};left:${options.position.left}">
     <mul>
       <mli action="frame.edit"><micon class="bx bx-edit-alt"></micon></mli>
       <mli action="frame.delete"><micon class="bx bx-trash"></micon></mli>
@@ -275,7 +275,7 @@ export const Toolbar = ( input: ToolbarInput ) => {
     </mblock>`
   }
 
-  return new Component<ToolbarInput>( factory( input ), { input })
+  return new Component<ToolbarInput>('toolbar', factory( input ), { input })
 }
 
 export type PanelInput = {
@@ -370,7 +370,7 @@ export const Panel = ( input: PanelInput ) => {
     </mblock>`
   }
 
-  return new Component<PanelInput>( factory( input ), { input })
+  return new Component<PanelInput>('panel', factory( input ), { input })
 }
 
 export type FloatingInput = {
@@ -394,7 +394,7 @@ export const Floating = ( input: FloatingInput ) => {
     return `<mblock ${CONTROL_FLOATING_SELECTOR}="${key}"><mul>${list}</mul></mblock>`
   }
 
-  return new Component( factory( input ), { input })
+  return new Component('floating', factory( input ), { input })
 }
 
 /**
@@ -409,7 +409,7 @@ export const Alley = ( input: AlleyInput = {} ) => {
     return `<mblock ${VIEW_ALLEY_SELECTOR}="${generateKey()}" ${VIEW_REF_SELECTOR}="${key}" status="active" ${discret ? 'discret' : ''}></mblock>`
   }
 
-  return new Component<AlleyInput>( factory( input ), { input })
+  return new Component<AlleyInput>('alley', factory( input ), { input })
 }
 
 export const createInput = ({ type, label, name, value, pattern, placeholder, autofocus, options, range, disabled }: InputOptions ) => {
@@ -506,7 +506,7 @@ export const SearchResult = ( input: SearchResultInput ) => {
     return listsetHTML || `<mblock ${VIEW_EMPTY_SELECTOR} ${CONTROL_LANG_SELECTOR}>No result</mblock>`
   }
 
-  return new Component<SearchResultInput>( factory( input ), { input })
+  return new Component<SearchResultInput>('searchResult', factory( input ), { input })
 }
 
 export type FinderPanelInput = {
@@ -543,5 +543,5 @@ export const FinderPanel = ( input: FinderPanelInput ) => {
     </mblock>`
   }
 
-  return new Component<FinderPanelInput>( factory( input ), { input })
+  return new Component<FinderPanelInput>('finder', factory( input ), { input })
 }

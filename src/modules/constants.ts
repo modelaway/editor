@@ -57,6 +57,11 @@ export const CONTROL_EDGE_MARGIN = 15
 export const CONTROL_PANEL_MARGIN = 20
 export const CONTROL_TOOLBAR_MARGIN = 6
 export const CONTROL_FLOATING_MARGIN = 10
+export const CONTROL_ZOOM_DEFAULT_SCALE = 0.1
+export const CONTROL_ZOOM_SCALE_STEP = 0.1
+export const CONTROL_ZOOM_MIN_SCALE = 0.1
+export const CONTROL_ZOOM_MAX_SCALE = 5
+export const CONTROL_SNAP_GRID_SIZE = 10
 
 export const FORM_INPUT_SELECTOR = 'mv-form-input'
 export const FORM_SEPERATOR_SELECTOR = 'mv-form-seperator'

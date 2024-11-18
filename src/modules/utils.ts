@@ -2,6 +2,7 @@
 declare global {
   interface Window {
     $: typeof jQuery
+    jQuery: typeof jQuery
   }
   interface String {
     toCapitalCase: () => string

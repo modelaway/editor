@@ -27,22 +27,45 @@
   --me-input-color: rgba(235, 235, 240, 0.7);
 }
 
+/* html, body {
+  margin: 0;
+  overflow: hidden;
+  height: 100%;
+} */
+
 modela {
-  display: flex;
   position: relative;
-  width: auto;
-  height: auto;
-  min-width: 1500vw;
-  min-height: 1500vh;
+  width: 100vw;
+  height: 100vh;
+  display: block;
+  overflow: auto;
+  /* background-color: #f0f0f0; */
+  background-color: rgb(240, 240, 250);
+  cursor: grab;
 }
 modela,
-modela mboard mframe,
-modela mboard mframe mblock {
-  background-color: rgb(240, 240, 250);
+modela mcanvas mframe,
+modela mcanvas mframe mblock {
+  /* background-color: rgb(240, 240, 250); */
   transition: 600ms;
 }
-modela mboard {
-  display: flex;
+modela mcanvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 15000vw;
+  height: 15000vh;
+  background-color: white;
+  transform-origin: center center;
+  transform: translate(-50%, -50%) scale(0.1);
+  transition: transform 0.1s ease-out;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+  background-size: 10px 10px; /* Grid size */
+  background-image: linear-gradient(to right, #ccc 1px, transparent 1px),
+                    linear-gradient(to bottom, #ccc 1px, transparent 1px);
+  touch-action: none;
+
+  /* display: flex;
   position: relative;
   width: auto;
   height: auto;
@@ -51,19 +74,45 @@ modela mboard {
   flex-wrap: wrap;
   align-content: flex-start;
   align-items: flex-start;
-  padding: 5rem;
+  padding: 5rem; */
 }
-modela mboard[active] mframe:not([active]) {
-  display: none;
+modela mcanvas .snap-guide {
+  position: absolute;
+  background-color: rgba(0, 0, 255, 0.2); /* Light blue for guides */
+  z-index: 999; /* Above other elements */
+  pointer-events: none; /* Non-interactive */
 }
-modela mboard mframe {
-  position: relative;
-  /* margin: 5rem; */
-  transform: scale(0.5);
-  transform-origin: top center;
+modela mcanvas .snap-guide.horizontal {
+  height: 1px;
+  width: 100%;
+}
+modela mcanvas .snap-guide.vertical {
+  width: 1px;
+  height: 100%;
 }
 
-modela mboard mframe[active] {
+/* modela mcanvas[active] mframe:not([active]) {
+  display: none;
+} */
+/* modela mcanvas mframe {
+  position: relative;
+  transform: scale(0.5);
+  transform-origin: top center;
+} */
+
+modela mcanvas > mframe {
+  position: absolute;
+  z-index: 10;
+  display: block;
+  background-color: #fff;
+  pointer-events: auto;
+  overflow: hidden;
+}
+modela mcanvas > mframe[component] {
+  resize: both;
+  overflow: auto;
+}
+/* modela mcanvas mframe[active] {
   position: fixed;
   z-index: 1;
   top: 0;
@@ -74,8 +123,8 @@ modela mboard mframe[active] {
   margin: 0;
   transform: scale(1);
   transform-origin: top center;
-}
-modela mboard mframe mul {
+} */
+modela mcanvas mframe mul {
   display: none;
   align-items: center;
   justify-content: space-around;
@@ -84,21 +133,21 @@ modela mboard mframe mul {
   transform: scale(2);
   transform-origin: 5.5rem 5rem;
 }
-modela mboard mframe:hover mul {
+modela mcanvas mframe:hover mul {
   display: flex;
 }
-modela mboard mframe mul mli {
+modela mcanvas mframe mul mli {
   padding: 4px;
   cursor: pointer;
 }
-modela mboard mframe mblock {
+modela mcanvas mframe mblock {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-modela mboard mframe mblock > iframe {
+modela mcanvas mframe mblock > iframe {
   width:100%;
   height:100%;
   border:none;
@@ -130,13 +179,13 @@ modela,
   font-size: var(--me-font-size);
 }
 
-mul,
+/* mul,
 mblock,
 mglobal { display: block; }
 micon,
 mlabel,
 minline { display: inline; }
-mli { display: inherit; }
+mli { display: inherit; } */
 
 modela mglobal,
 modela mglobal > [show],

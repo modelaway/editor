@@ -22,7 +22,7 @@ import {
   CONTROL_FLOATING_MARGIN
 } from './constants'
 import Stylesheet from './stylesheet'
-import Component from '../exports/component'
+import Component from '../component/component'
 import {
   Alley,
   Panel,

@@ -1,4 +1,6 @@
-import Lips, { Component, type Template, type Handler } from './component'
+import type { Template, Handler } from '../component'
+
+import Lips, { Component } from '../component/lips'
 import english from '../languages/en.json'
 import french from '../languages/fr.json'
 
@@ -18,48 +20,48 @@ function Demo1(){
 
   const
   template = `<div component="Greet" style="!this.state.online && 'color: red'">
-        <span text=this.input.person>me</span>:
-        (<span text="this.state.online ? 'Online' : 'Offline'"></span>)
-        <span text=this.static.verb>...</span>
-        <for from="0" to="2">
-          <if by="this.state.time == 'morning'">
-            <switch by=this.state.speech>
-              <case is="hi">
-                <span on-click="handleConnect, !this.state.online">Hi - </span>
-                <span text=this.for.index></span>
-              </case>
-              <case is="hello"><span>Hello - <span text=this.for.index></span></span></case>
-              <case is="bonjour"><span>Bonjour - </span><span text=this.for.index></span></case>
-              <default>Salut</default>
-            </switch>
-          </if>
-          <else-if by="this.state.time == 'afternoon'">
-            <span>Good afternoon - </span>
-            <span text=this.for.index></span>
-          </else-if>
-          <else>
-            <span text=this.input.default></span>
-            <span html="<b>Everyone</b>"></span>
-          </else>
-        </for>
+      <span text=this.input.person>me</span>:
+      (<span text="this.state.online ? 'Online' : 'Offline'"></span>)
+      <span text=this.static.verb>...</span>
+      <for from="0" to="2">
+        <if by="this.state.time == 'morning'">
+          <switch by=this.state.speech>
+            <case is="hi">
+              <span on-click="handleConnect, !this.state.online">Hi - </span>
+              <span text=this.for.index></span>
+            </case>
+            <case is="hello"><span>Hello - <span text=this.for.index></span></span></case>
+            <case is="bonjour"><span>Bonjour - </span><span text=this.for.index></span></case>
+            <default>Salut</default>
+          </switch>
+        </if>
+        <else-if by="this.state.time == 'afternoon'">
+          <span>Good afternoon - </span>
+          <span text=this.for.index></span>
+        </else-if>
+        <else>
+          <span text=this.input.default></span>
+          <span html="<b>Everyone</b>"></span>
+        </else>
+      </for>
 
-        <br>
-        <ul>
-          <for in=this.static.users>
-            <li key=this.for.index>
-              <span text=this.for.key>Frederic Dupont</span>:
-              <ul>
-                <for in=this.for.each>
-                  <li key=this.for.index>
-                    <span text=this.for.each.name>Frederic Dupont</span> - 
-                    <span text=this.for.each.location>Nice, Belogre</span>
-                  </li>
-                </for>
-              </ul>
-            </li>
-          </for>
-        </ul>
-      </div>`,
+      <br>
+      <ul>
+        <for in=this.static.users>
+          <li key=this.for.index>
+            <span text=this.for.key>Frederic Dupont</span>:
+            <ul>
+              <for in=this.for.each>
+                <li key=this.for.index>
+                  <span text=this.for.each.name>Frederic Dupont</span> - 
+                  <span text=this.for.each.location>Nice, Belogre</span>
+                </li>
+              </for>
+            </ul>
+          </li>
+        </for>
+      </ul>
+    </div>`,
   state: State = {
     time: 'morning',
     speech: 'hi',
@@ -302,8 +304,8 @@ function Demo5(){
   }, 5000 )
 }
 
-// Demo1()
+Demo1()
 // Demo2()
 // Demo3()
 // Demo4()
-Demo5()
+// Demo5()

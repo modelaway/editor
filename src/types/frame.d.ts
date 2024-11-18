@@ -7,6 +7,10 @@ export type FrameOption = {
   source: string
   title?: string
   device?: string
+  position: { 
+    left: string
+    top: string
+  }
 }
 
 export interface FrameFlux {

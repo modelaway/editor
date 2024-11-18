@@ -1,4 +1,4 @@
-var c=Object.create;var{defineProperty:b,getPrototypeOf:d,getOwnPropertyNames:h}=Object;var l=Object.prototype.hasOwnProperty;var k=(i,n,a)=>{a=i!=null?c(d(i)):{};const o=n||!i||!i.__esModule?b(a,"default",{value:i,enumerable:!0}):a;for(let t of h(i))if(!l.call(o,t))b(o,t,{get:()=>i[t],enumerable:!0});return o};var p=(i)=>{return import.meta.require(i)};var m=(i,n)=>{for(var a in n)b(i,a,{get:n[a],enumerable:!0,configurable:!0,set:(o)=>n[a]=()=>o})};var j={};m(j,{stylesheet:()=>{{return f}},state:()=>{{return u}},handler:()=>{{return v}},default:()=>{{return g}},context:()=>{{return s}},_static:()=>{{return r}}});var r={limit:12},s=["lang"],u={count:0},v={onInput(){this.state.count=Number(this.input.initial)},handleClick(i){if(console.log(i),this.state.count>=this.static.limit)return;this.state.count++,this.emit("update",this.state.count)}},f=`
+var o=Object.create;var{defineProperty:n,getPrototypeOf:r,getOwnPropertyNames:s}=Object;var c=Object.prototype.hasOwnProperty;var j=(a,t,i)=>{i=a!=null?o(r(a)):{};const b=t||!a||!a.__esModule?n(i,"default",{value:a,enumerable:!0}):i;for(let e of s(a))if(!c.call(b,e))n(b,e,{get:()=>a[e],enumerable:!0});return b};var k=(a)=>{return import.meta.require(a)};var d=(a,t)=>{for(var i in t)n(a,i,{get:t[i],enumerable:!0,configurable:!0,set:(b)=>t[i]=()=>b})};var h={};d(h,{stylesheet:()=>{{return f}},state:()=>{{return u}},handler:()=>{{return v}},default:()=>{{return g}},context:()=>{{return p}},_static:()=>{{return m}}});var m={limit:12},p=["lang"],u={count:0},v={onInput(){this.state.count=Number(this.input.initial)},handleClick(a){if(this.state.count>=this.static.limit)return;this.state.count++,this.emit("update",this.state.count)}},f=`
   span { font: 14px arial; color: blue; }
 `,g=`<div>
   <span html=this.input.__innerHtml></span>: 
@@ -8,6 +8,6 @@ var c=Object.create;var{defineProperty:b,getPrototypeOf:d,getOwnPropertyNames:h}
     <span text="Count"></span>
     (<span text=this.context.lang></span>)
   </button>
-</div>`;export{f as stylesheet,u as state,v as handler,g as default,s as context,r as _static};
+</div>`;export{f as stylesheet,u as state,v as handler,g as default,p as context,m as _static};
 
-//# debugId=1D9BABA5DA69487164756e2164756e21
+//# debugId=334ACFE872220B8C64756e2164756e21

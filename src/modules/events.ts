@@ -169,7 +169,14 @@ export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
       options = {
         source: '/',
         title: 'New Frame',
-        device: 'default'
+        device: 'default',
+        /**
+         * TODO: Adjust according to the `left` position of the last frame
+         */
+        position: {
+          left: '100px',
+          top: '100px'
+        }
       },
       frame = ws.flux.frames.add( options )
       if( !frame ) return

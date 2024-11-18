@@ -1,5 +1,5 @@
 import type Modela from '../exports/modela'
-import type Component from '../exports/component'
+import type { Component } from '../component/lips'
 
 import * as Event from './events'
 import {
@@ -8,7 +8,14 @@ import {
   WorkspaceLayer,
   WorkspaceLayerInput
 } from './factory'
-import { CONTROL_EDGE_MARGIN, GLOBAL_CONTROL_OPTIONS } from './constants'
+import {
+  CONTROL_EDGE_MARGIN,
+  CONTROL_ZOOM_DEFAULT_SCALE,
+  CONTROL_ZOOM_MAX_SCALE,
+  CONTROL_ZOOM_MIN_SCALE,
+  CONTROL_ZOOM_SCALE_STEP,
+  GLOBAL_CONTROL_OPTIONS
+} from './constants'
 
 export default class Workspace {
   readonly flux: Modela
@@ -16,9 +23,14 @@ export default class Workspace {
   WS?: Component<WorkspaceLayerInput>
   Toolbar?: Component<ToolbarInput>
 
-  $board?: JQuery<HTMLElement>
+  $canvas?: JQuery<HTMLElement>
   $global?: JQuery<HTMLElement>
   $toolbar?: JQuery<HTMLElement>
+
+  /**
+   * Default zoom scale
+   */
+  scale = CONTROL_ZOOM_DEFAULT_SCALE
   
   /**
    * Copy element clipboard
@@ -38,14 +50,16 @@ export default class Workspace {
      * to text contents
      */
     this.WS = WorkspaceLayer({})
-    this.flux.$modela = $('body').prepend( this.WS.$ )
+    $('body').prepend( this.WS.getEl() )
+
+    this.flux.$modela = this.WS.getEl()
     if( !this.flux.$modela?.length )
       throw new Error('Unexpected error occured')
 
     this.Toolbar = Toolbar({ key: 'global', options: GLOBAL_CONTROL_OPTIONS })
-    this.flux.$modela.append( this.Toolbar.$ )
+    this.flux.$modela.append( this.Toolbar.getEl() )
 
-    this.$board = this.WS.find('> mboard')
+    this.$canvas = this.WS.find('> mcanvas')
     this.$global = this.WS.find('> mglobal')
 
     // Initialize event listeners
@@ -87,6 +101,84 @@ export default class Workspace {
      * Custom `on-*` event trigger
      */
     .on('click', '[on]', handler( Event.onCustomListener ) )
+
+    let
+    startX: number,
+    startY: number,
+    scrollLeft: number,
+    scrollTop: number,
+    isPanning = false
+    
+    this.flux.$modela
+    /**
+     * Handle canvas zoom effect with scroll
+     */
+    .on('wheel', ( e: any ) => {
+      /**
+       * Only zoom when holding Ctrl
+       */
+      if( !e.originalEvent.ctrlKey ) return
+      e.cancelable && e.preventDefault()
+
+      const delta = e.originalEvent.deltaY
+      if( delta > 0 && this.scale < CONTROL_ZOOM_MAX_SCALE ) this.scale += CONTROL_ZOOM_SCALE_STEP
+      else if( delta < 0 && this.scale > CONTROL_ZOOM_MIN_SCALE ) this.scale -= CONTROL_ZOOM_SCALE_STEP
+      
+      this.scale = Math.max( CONTROL_ZOOM_MIN_SCALE, Math.min( CONTROL_ZOOM_MAX_SCALE, this.scale ) )
+
+      // Apply scale transformation
+      this.$canvas?.css('transform', `translate(-50%, -50%) scale(${this.scale})`)
+    })
+    // .on('keypress', ( e: any ) => {
+    //   /**
+    //    * Only zoom when holding Ctrl
+    //    */
+    //   if( !e.originalEvent.ctrlKey ) return
+    //   e.preventDefault()
+
+    //   console.log( e.keyCode )
+    // })
+
+    /**
+     * Handle canvas drag-in-drop panning
+     */
+    .on('mousedown', ( e: any ) => {
+      isPanning = true
+      
+      this.flux.$modela?.css('cursor', 'grabbing')
+
+      startX = e.pageX
+      startY = e.pageY
+      scrollLeft = this.flux.$modela?.scrollLeft() as number
+      scrollTop = this.flux.$modela?.scrollTop() as number
+    })
+    .on('mouseleave', ( e: any ) => {
+      if( isPanning ){
+        isPanning = false
+        this.flux.$modela?.css('cursor', 'grab')
+      }
+    })
+
+    $(document)
+    .on('mouseup', () => {
+      if( isPanning ){
+        isPanning = false
+        this.flux.$modela?.css('cursor', 'grab')
+      }
+    })
+    .on('mousemove', ( e: any ) => {
+      if( !isPanning ) return
+      e.preventDefault()
+
+      const 
+      x = e.pageX,
+      y = e.pageY,
+      walkX = ( x - startX ) * 2, // Adjust speed
+      walkY = ( y - startY ) * 2
+
+      this.flux.$modela?.scrollLeft( scrollLeft - walkX )
+      this.flux.$modela?.scrollTop( scrollTop - walkY )
+    })
   }
 
   switch( target: boolean = false ){

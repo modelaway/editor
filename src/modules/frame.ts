@@ -17,7 +17,8 @@ import {
   VIEW_KEY_SELECTOR,
   PATCH_CSS_SETTINGS,
   VIEW_ACTIVE_SELECTOR,
-  VIEW_ALLEY_SELECTOR
+  VIEW_ALLEY_SELECTOR,
+  CONTROL_SNAP_GRID_SIZE
 } from './constants'
 import FrameWindow, { FrameWindowRemote, FrameWindowDOM, FrameQuery } from '../lib/frame.window'
 
@@ -75,7 +76,7 @@ export default class Frame extends EventEmitter {
     // Use default frame screen resolution
     this.resize( options.device || 'default')
     // Add frame to the board
-    flux.workspace.$board?.append( this.$frame )
+    flux.workspace.$canvas?.append( this.$frame )
     
     /**
      * Emit new frame added to the board
@@ -134,7 +135,66 @@ export default class Frame extends EventEmitter {
     this.emit('load')
   }
 
+  /**
+   * Optionally create grid guides
+   */
+  private createSnapGuide( x: number, y: number, width: number, height: number ){
+    const $snapGuide = $('<div>', {
+      class: 'snap-guide',
+      css: {
+        left: `${x}px`,
+        top: `${y}px`,
+        width: `${width}px`,
+        height: `${height}px`
+      }
+    })
+
+    this.flux.workspace.$canvas?.append( $snapGuide )
+    /**
+     * Auto-remove snap guide after 500ms
+     */
+    setTimeout(() => $snapGuide.remove(), 500 )
+  }
+
   events(){
+    const self = this
+    /**
+     * Enable frame drag on adjustment grid
+     * 
+     * Size of each grid cell
+     */
+    const gridSize = CONTROL_SNAP_GRID_SIZE / this.flux.workspace.scale
+
+    this.$frame.draggable({
+      // Constrain dragging to the canvas
+      containment: 'mcanvas',
+      // Snap to grid
+      grid: [ gridSize, gridSize ],
+      cursor: 'move',
+      drag: function( event: any, ui: any ){
+        // Show current position for debugging
+        const dragPos = ui.position
+        console.log(`Dragging to: ${dragPos.left}, ${dragPos.top}`)
+
+        // Check alignment with other wrappers or the grid
+        self.$frame.not(this as any).each(function(){
+          if( !self.flux.workspace.$canvas ) return
+
+          const nearPos = $(this).position()
+
+          Math.abs( dragPos.left - nearPos.left ) < 10
+          && self.createSnapGuide( nearPos.left, 0, 1, self.flux.workspace.$canvas.height() as number )
+          
+          Math.abs( dragPos.top - nearPos.top) < 10
+          && self.createSnapGuide( 0, nearPos.top, self.flux.workspace.$canvas.width() as number, 1 )
+        })
+      },
+      stop: ( event: any, ui: any ) => {
+        // Final snapped position
+        console.log(`Stopped at: ${ui.position.left}, ${ui.position.top}`)
+      }
+    })
+
     if( !this.$$body?.length || !this.flux.$modela?.length ) return
 
     /**

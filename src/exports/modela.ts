@@ -1,4 +1,3 @@
-
 import jQuery from 'jquery'
 import Store from '../modules/store'
 import Frames from '../modules/frames'
@@ -8,8 +7,9 @@ import Workspace from '../modules/workspace'
 import Functions from '../modules/functions'
 import { debug } from '../modules/utils'
 import I18N from '../modules/i18n'
-import Component from './component'
+import { Component } from '../component/lips'
 import { FloatingInput } from '../modules/factory'
+import 'jquery-ui'
 
 window.$ = jQuery
 window.mlang = {

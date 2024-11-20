@@ -52,8 +52,8 @@ export function onShow( $this: JQuery<HTMLElement>, ws: Workspace ){
 
     } break
 
-    // Show main board
-    case 'board': ws.flux.frames.board(); break
+    // Show main canvas overview
+    case 'overview': ws.flux.workspace.overview(); break
 
     // Show extra options
     case 'extra-toolbar': {
@@ -184,9 +184,9 @@ export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
       // Scroll new frame into visible area.
       frame.$frame.animate({ scrollLeft: '5rem' }, 600 )
     } break
-    // Mount a frame for edit on the board
-    case 'frame.edit': ws.flux.frames.edit( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
-    // Delete a frame on the board
+    // Focus a frame for edit
+    // case 'frame.focus': ws.flux.frames.focus( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
+    // Delete a frame
     case 'frame.delete': ws.flux.frames.remove( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
 
     /**

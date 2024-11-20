@@ -25,6 +25,9 @@ export type WorkspaceLayerInput = {
 export const WorkspaceLayer = ( input: WorkspaceLayerInput ) => {
   const template = `<modela>
     <mcanvas></mcanvas>
+    <snapguide horizontal></snapguide>
+    <snapguide vertical></snapguide>
+
     ${createGlobal()}
   </modela>`
 
@@ -57,7 +60,6 @@ export const createFrame = ( key: string, options: FrameOption ) => {
   
   return `<mframe ${CONTROL_FRAME_SELECTOR}="${key}" style="top:${options.position.top};left:${options.position.left}">
     <mul>
-      <mli action="frame.edit"><micon class="bx bx-edit-alt"></micon></mli>
       <mli action="frame.delete"><micon class="bx bx-trash"></micon></mli>
     </mul>
 
@@ -69,6 +71,7 @@ export const createFrame = ( key: string, options: FrameOption ) => {
               allow="geolocation"
               sandbox="allow-scripts allow-same-origin"></iframe>
     </mblock>
+    <moverlap action="frame.focus" on></moverlap>
   </mframe>`
 }
 

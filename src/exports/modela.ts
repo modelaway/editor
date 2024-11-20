@@ -9,7 +9,6 @@ import { debug } from '../modules/utils'
 import I18N from '../modules/i18n'
 import { Component } from '../component/lips'
 import { FloatingInput } from '../modules/factory'
-import 'jquery-ui'
 
 window.$ = jQuery
 window.mlang = {
@@ -24,7 +23,7 @@ export default class Modela {
    * 
    * 1. Manually set Modela interface calls off
    * 2. Help avoid unnecessary crashing of Modela 
-   *    when it got dismissed but its instance methods 
+   *    when it got dismissed but its instance methods
    *    still get called.
    */
   private enabled = true

@@ -95,7 +95,7 @@ export default class Frames extends EventEmitter {
     return this.currentFrame
   }
 
-  board(){
+  overview(){
     // Remove active floating
     this.flux.Floating?.destroy()
     this.flux.Floating = undefined
@@ -108,7 +108,7 @@ export default class Frames extends EventEmitter {
     // Restore global toolbar without frame control
     this.flux.workspace.switch( false )
   }
-  edit( key: string ){
+  focus( key: string ){
     if( !this.has( key ) ) return
     const frame = this.get( key )
 
@@ -117,6 +117,7 @@ export default class Frames extends EventEmitter {
     
     // Show frame controls on global toolbar
     this.flux.workspace.switch( true )
+    // this.flux.workspace.spotOn( frame.$frame )
   }
 
   remove( index: string ){

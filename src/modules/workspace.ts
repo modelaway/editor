@@ -11,9 +11,9 @@ import {
 import {
   CONTROL_EDGE_MARGIN,
   CONTROL_ZOOM_DEFAULT_SCALE,
-  CONTROL_ZOOM_MAX_SCALE,
   CONTROL_ZOOM_MIN_SCALE,
   CONTROL_ZOOM_SCALE_STEP,
+  CONTROL_ZOOOM_EVEN_SCALE,
   GLOBAL_CONTROL_OPTIONS
 } from './constants'
 
@@ -24,6 +24,9 @@ export default class Workspace {
   Toolbar?: Component<ToolbarInput>
 
   $canvas?: JQuery<HTMLElement>
+  $vsnapguide?: JQuery<HTMLElement>
+  $hsnapguide?: JQuery<HTMLElement>
+
   $global?: JQuery<HTMLElement>
   $toolbar?: JQuery<HTMLElement>
 
@@ -31,6 +34,18 @@ export default class Workspace {
    * Default zoom scale
    */
   scale = CONTROL_ZOOM_DEFAULT_SCALE
+  /**
+   * Initial canvas by default scale
+   */
+  canvasOffset = { x: 0, y: 0 }
+  /**
+   * Initial paning position by default scale
+   */
+  startPan = { x: 0, y: 0 }
+  
+  isZooming = false
+  isPanning = false
+  isDragging = false
   
   /**
    * Copy element clipboard
@@ -60,10 +75,23 @@ export default class Workspace {
     this.flux.$modela.append( this.Toolbar.getEl() )
 
     this.$canvas = this.WS.find('> mcanvas')
+    this.$canvas.css({
+      left: '50%',
+      top: '50%',
+      transform: `translate(-50%, -50%) scale(${this.scale})`
+    })
+
+    this.$vsnapguide = this.WS.find('> snapguide[vertical]').hide()
+    this.$hsnapguide = this.WS.find('> snapguide[horizontal]').hide()
+
     this.$global = this.WS.find('> mglobal')
 
     // Initialize event listeners
     this.events()
+    // Enable panning effect on canvas
+    this.enablePan()
+    // Initial context/frame controls on global toolbar
+    this.switch()
   }
 
   events(){
@@ -93,6 +121,7 @@ export default class Workspace {
      * Action event trigger
      */
     .on('click', '[action]', handler( Event.onAction ) )
+    .on('dblclick', '[action]', handler( Event.onAction ) )
     /**
      * Dismiss event trigger
      */
@@ -101,15 +130,7 @@ export default class Workspace {
      * Custom `on-*` event trigger
      */
     .on('click', '[on]', handler( Event.onCustomListener ) )
-
-    let
-    startX: number,
-    startY: number,
-    scrollLeft: number,
-    scrollTop: number,
-    isPanning = false
     
-    this.flux.$modela
     /**
      * Handle canvas zoom effect with scroll
      */
@@ -117,75 +138,127 @@ export default class Workspace {
       /**
        * Only zoom when holding Ctrl
        */
-      if( !e.originalEvent.ctrlKey ) return
+      if( !e.originalEvent.ctrlKey 
+          || !this.flux.$modela?.length
+          || !this.$canvas?.length ) return
+          
       e.cancelable && e.preventDefault()
 
-      const delta = e.originalEvent.deltaY
-      if( delta > 0 && this.scale < CONTROL_ZOOM_MAX_SCALE ) this.scale += CONTROL_ZOOM_SCALE_STEP
-      else if( delta < 0 && this.scale > CONTROL_ZOOM_MIN_SCALE ) this.scale -= CONTROL_ZOOM_SCALE_STEP
+      const
+      delta = e.originalEvent.deltaY > 0 ? -CONTROL_ZOOM_SCALE_STEP : CONTROL_ZOOM_SCALE_STEP,
+      newScale = this.scale + delta // Next scale
+
+      if( newScale <= CONTROL_ZOOM_MIN_SCALE ) return
       
-      this.scale = Math.max( CONTROL_ZOOM_MIN_SCALE, Math.min( CONTROL_ZOOM_MAX_SCALE, this.scale ) )
+      const
+      cursorX = e.originalEvent.pageX,
+      cursorY = e.originalEvent.pageY,
+      
+      // Calculate ffset for infinite zoom
+      zoomRatio = newScale / this.scale,
 
-      // Apply scale transformation
-      this.$canvas?.css('transform', `translate(-50%, -50%) scale(${this.scale})`)
+      rect = this.$canvas[0].getBoundingClientRect(),
+      offsetX = ( cursorX - rect.left ) * ( CONTROL_ZOOOM_EVEN_SCALE - zoomRatio ),
+      offsetY = ( cursorY - rect.top ) * ( CONTROL_ZOOOM_EVEN_SCALE - zoomRatio )
+
+      this.scale = newScale
+      this.canvasOffset.x += offsetX
+      this.canvasOffset.y += offsetY
+
+      console.log( zoomRatio, this.scale, this.canvasOffset )
+
+      this.$canvas.css('transform', `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.scale})`)
     })
-    // .on('keypress', ( e: any ) => {
-    //   /**
-    //    * Only zoom when holding Ctrl
-    //    */
-    //   if( !e.originalEvent.ctrlKey ) return
-    //   e.preventDefault()
+  }
+  private enablePan(){
+    if( !this.flux.$modela?.length ) return
 
-    //   console.log( e.keyCode )
-    // })
+    let
+    startX: number,
+    startY: number,
+    scrollLeft: number,
+    scrollTop: number
 
+    this.flux.$modela
     /**
      * Handle canvas drag-in-drop panning
      */
     .on('mousedown', ( e: any ) => {
-      isPanning = true
+      if( this.isDragging ) return
       
+      this.isPanning = true
       this.flux.$modela?.css('cursor', 'grabbing')
 
-      startX = e.pageX
-      startY = e.pageY
-      scrollLeft = this.flux.$modela?.scrollLeft() as number
-      scrollTop = this.flux.$modela?.scrollTop() as number
+      this.startPan.x = e.pageX - this.canvasOffset.x
+      this.startPan.y = e.pageY - this.canvasOffset.y
     })
     .on('mouseleave', ( e: any ) => {
-      if( isPanning ){
-        isPanning = false
-        this.flux.$modela?.css('cursor', 'grab')
-      }
+      if( !this.isPanning ) return
+
+      this.isPanning = false
+      this.flux.$modela?.css('cursor', 'grab')
     })
 
     $(document)
     .on('mouseup', () => {
-      if( isPanning ){
-        isPanning = false
-        this.flux.$modela?.css('cursor', 'grab')
-      }
+      if( !this.isPanning ) return
+
+      this.isPanning = false
+      this.flux.$modela?.css('cursor', 'grab')
     })
     .on('mousemove', ( e: any ) => {
-      if( !isPanning ) return
+      if( !this.isPanning ) return
       e.preventDefault()
 
-      const 
-      x = e.pageX,
-      y = e.pageY,
-      walkX = ( x - startX ) * 2, // Adjust speed
-      walkY = ( y - startY ) * 2
+      this.canvasOffset.x = e.pageX - this.startPan.x
+      this.canvasOffset.y = e.pageY - this.startPan.y
 
-      this.flux.$modela?.scrollLeft( scrollLeft - walkX )
-      this.flux.$modela?.scrollTop( scrollTop - walkY )
+      this.$canvas?.css('transform', `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.scale})`)
     })
+  }
+
+  zoomIn(){
+
+
+    /**
+     * Disable/enable all controls on frame by the canvas
+     * scale level.
+     */
+    if( this.scale < 0.8 ){
+      this.flux.frames.each( frame => frame.disable() )
+      // Show frame controls on global toolbar
+      this.switch( false )
+    }
+    else {
+      this.flux.frames.each( frame => frame.enable() )
+      // Show frame controls on global toolbar
+      this.switch( true )
+    }
+  }
+  zoomOut(){
+    if( this.scale <= CONTROL_ZOOM_MIN_SCALE ) return
+    
+    /**
+     * Disable/enable all controls on frame by the canvas
+     * scale level.
+     */
+    if( this.scale < 0.8 ){
+      this.flux.frames.each( frame => frame.disable() )
+      // Show frame controls on global toolbar
+      this.switch( false )
+    }
+    else {
+      this.flux.frames.each( frame => frame.enable() )
+      // Show frame controls on global toolbar
+      this.switch( true )
+    }
   }
 
   switch( target: boolean = false ){
     const updates = {
       'options.undo.hidden': !target,
       'options.redo.hidden': !target,
-      'options.board.hidden': !target,
+      'options.overview.hidden': !target,
       'options.add-frame.hidden': target,
       'options.styles.extra': target,
       'options.assets.extra': target
@@ -193,12 +266,16 @@ export default class Workspace {
     
     this.Toolbar?.subInput( updates )
   }
-
   destroy(){
     this.flux.$modela?.off()
     this.flux.$modela?.remove()
 
     this.flux.$root?.off()
+  }
+  overview(){
+    this.scale = CONTROL_ZOOM_DEFAULT_SCALE
+    this.$canvas?.css('transform', `translate(-50%, -50%) scale(${this.scale})`)
+    this.switch( false )
   }
 
   /**

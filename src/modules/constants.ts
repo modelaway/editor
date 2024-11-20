@@ -58,10 +58,11 @@ export const CONTROL_PANEL_MARGIN = 20
 export const CONTROL_TOOLBAR_MARGIN = 6
 export const CONTROL_FLOATING_MARGIN = 10
 export const CONTROL_ZOOM_DEFAULT_SCALE = 0.1
-export const CONTROL_ZOOM_SCALE_STEP = 0.1
-export const CONTROL_ZOOM_MIN_SCALE = 0.1
-export const CONTROL_ZOOM_MAX_SCALE = 5
+export const CONTROL_ZOOM_SCALE_STEP = 0.02
+export const CONTROL_ZOOOM_EVEN_SCALE = 1
+export const CONTROL_ZOOM_MIN_SCALE = 0.01
 export const CONTROL_SNAP_GRID_SIZE = 10
+export const CONTROL_SNAP_THRESHOLD = 5 // Snapping threshold: Distance within which snapping occurs
 
 export const FORM_INPUT_SELECTOR = 'mv-form-input'
 export const FORM_SEPERATOR_SELECTOR = 'mv-form-seperator'
@@ -181,12 +182,12 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
       shortcut: 'command + f'
     }
   },
-  board: {
+  overview: {
     icon: 'bx bx-grid-alt',
     title: 'Board',
     event: {
       type: 'show',
-      params: 'board',
+      params: 'overview',
       shortcut: 'command + y'
     },
     hidden: true,

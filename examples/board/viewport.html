@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Canvas with Draggable Elements and Snapping</title>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    #viewport {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      background-color: #f4f4f4;
+      overflow: hidden;
+      cursor: grab;
+    }
+    #canvas {
+      position: absolute;
+      transform-origin: 0 0;
+      background-color: #fff;
+      border: 1px solid #ddd;
+    }
+    mframe {
+      position: absolute;
+      display: block;
+      width: 100px;
+      height: 50px;
+      background: rgba(0, 128, 255, 0.2);
+      border: 1px solid #0080ff;
+      text-align: center;
+      line-height: 50px;
+      font-size: 12px;
+      cursor: pointer;
+      user-select: none;
+    }
+    mframe.dragging {
+      opacity: 0.7;
+      z-index: 10;
+    }
+    .snap-guide {
+      position: absolute;
+      background: rgba(255, 0, 0, 0.5);
+      pointer-events: none;
+      z-index: 5;
+    }
+  </style>
+</head>
+<body>
+  <div id="viewport">
+    <div id="canvas"></div>
+  </div>
+  <script>
+    $(function () {
+      const $viewport = $('#viewport');
+      const $canvas = $('#canvas');
+      let scale = 1;
+      let canvasOffset = { x: 0, y: 0 };
+      let isPanning = false;
+      let startPan = { x: 0, y: 0 };
+
+      const SNAP_THRESHOLD = 10;
+
+      // Initialize canvas
+      $canvas.css({
+        left: '50%',
+        top: '50%',
+        transform: `translate(-50%, -50%) scale(${scale})`,
+      });
+
+      // Mousewheel event for zooming
+      $viewport.on('wheel', function (e) {
+        e.preventDefault();
+        const delta = e.originalEvent.deltaY > 0 ? -0.1 : 0.1;
+        const cursorX = e.originalEvent.pageX;
+        const cursorY = e.originalEvent.pageY;
+
+        // Calculate scale and offset
+        const newScale = scale + delta;
+
+        if( newScale <= 0.01 ) return
+        console.log( newScale )
+        
+        const zoomRatio = newScale / scale;
+        const rect = $canvas[0].getBoundingClientRect();
+
+        const offsetX = (cursorX - rect.left) * (1 - zoomRatio);
+        const offsetY = (cursorY - rect.top) * (1 - zoomRatio);
+
+        scale = newScale;
+        canvasOffset.x += offsetX;
+        canvasOffset.y += offsetY;
+
+        $canvas.css({
+          transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${scale})`,
+        });
+      });
+
+      // Mouse events for panning
+      // $viewport.on('mousedown', function (e) {
+      //   isPanning = true;
+      //   startPan.x = e.pageX - canvasOffset.x;
+      //   startPan.y = e.pageY - canvasOffset.y;
+      //   $viewport.css('cursor', 'grabbing');
+      // });
+
+      // $(document).on('mousemove', function (e) {
+      //   if (!isPanning) return;
+
+      //   canvasOffset.x = e.pageX - startPan.x;
+      //   canvasOffset.y = e.pageY - startPan.y;
+
+      //   $canvas.css({
+      //     transform: `translate(${canvasOffset.x}px, ${canvasOffset.y}px) scale(${scale})`,
+      //   });
+      // });
+
+      // $(document).on('mouseup', function () {
+      //   isPanning = false;
+      //   $viewport.css('cursor', 'grab');
+      // });
+
+      // Function to add elements to the canvas
+      function addElement(x, y) {
+        const $element = $('<mframe>').text('Frame');
+        $element.css({ left: x + 'px', top: y + 'px' });
+        $canvas.append($element);
+        makeDraggable($element);
+      }
+
+      // Add element on double-click
+      $viewport.on('dblclick', function (e) {
+        const rect = $canvas[0].getBoundingClientRect();
+        const x = (e.pageX - rect.left) / scale;
+        const y = (e.pageY - rect.top) / scale;
+        addElement(x, y);
+      });
+
+      // Make elements draggable with snapping
+      function makeDraggable($element) {
+        let isDragging = false;
+        let offset = { x: 0, y: 0 };
+
+        $element.on('mousedown', function (e) {
+          e.preventDefault();
+          isDragging = true;
+          offset.x = e.pageX - parseInt($element.css('left'), 10);
+          offset.y = e.pageY - parseInt($element.css('top'), 10);
+          $element.addClass('dragging');
+        });
+
+        $(document).on('mousemove', function (e) {
+          if (!isDragging) return;
+
+          const newLeft = (e.pageX - offset.x) / scale;
+          const newTop = (e.pageY - offset.y) / scale;
+
+          let snappedLeft = newLeft;
+          let snappedTop = newTop;
+
+          // Check snapping
+          $canvas.find('mframe').not($element).each(function () {
+            const $other = $(this);
+            const otherRect = $other[0].getBoundingClientRect();
+            const elementRect = $element[0].getBoundingClientRect();
+
+            // Snap by edges
+            if (Math.abs(otherRect.left - elementRect.right) < SNAP_THRESHOLD) {
+              snappedLeft = parseInt($other.css('left'), 10) - $element.outerWidth();
+            }
+            if (Math.abs(otherRect.top - elementRect.bottom) < SNAP_THRESHOLD) {
+              snappedTop = parseInt($other.css('top'), 10) - $element.outerHeight();
+            }
+            if (Math.abs(otherRect.right - elementRect.left) < SNAP_THRESHOLD) {
+              snappedLeft = parseInt($other.css('left'), 10) + $other.outerWidth();
+            }
+            if (Math.abs(otherRect.bottom - elementRect.top) < SNAP_THRESHOLD) {
+              snappedTop = parseInt($other.css('top'), 10) + $other.outerHeight();
+            }
+          });
+
+          $element.css({ left: snappedLeft + 'px', top: snappedTop + 'px' });
+        });
+
+        $(document).on('mouseup', function () {
+          if (isDragging) {
+            isDragging = false;
+            $element.removeClass('dragging');
+          }
+        });
+      }
+
+      // Add predefined elements
+      addElement(100, 100);
+      addElement(300, 100);
+    });
+  </script>
+</body>
+</html>

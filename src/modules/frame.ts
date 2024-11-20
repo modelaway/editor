@@ -18,7 +18,9 @@ import {
   PATCH_CSS_SETTINGS,
   VIEW_ACTIVE_SELECTOR,
   VIEW_ALLEY_SELECTOR,
-  CONTROL_SNAP_GRID_SIZE
+  CONTROL_SNAP_GRID_SIZE,
+  CONTROL_SNAP_THRESHOLD,
+  CONTROL_FRAME_SELECTOR
 } from './constants'
 import FrameWindow, { FrameWindowRemote, FrameWindowDOM, FrameQuery } from '../lib/frame.window'
 
@@ -131,70 +133,26 @@ export default class Frame extends EventEmitter {
 
     // Initialize control events
     this.events()
+    /**
+     * Enable draggable features frame
+     * 
+     * - Move frame
+     * - Snap guidance
+     */
+    this.draggable()
+
     // Frame fully loaded
     this.emit('load')
   }
 
-  /**
-   * Optionally create grid guides
-   */
-  private createSnapGuide( x: number, y: number, width: number, height: number ){
-    const $snapGuide = $('<div>', {
-      class: 'snap-guide',
-      css: {
-        left: `${x}px`,
-        top: `${y}px`,
-        width: `${width}px`,
-        height: `${height}px`
-      }
-    })
-
-    this.flux.workspace.$canvas?.append( $snapGuide )
-    /**
-     * Auto-remove snap guide after 500ms
-     */
-    setTimeout(() => $snapGuide.remove(), 500 )
+  enable(){
+    this.$frame.find('> moverlap').removeAttr('on')
+  }
+  disable(){
+    this.$frame.find('> moverlap').attr('on', 'true')
   }
 
   events(){
-    const self = this
-    /**
-     * Enable frame drag on adjustment grid
-     * 
-     * Size of each grid cell
-     */
-    const gridSize = CONTROL_SNAP_GRID_SIZE / this.flux.workspace.scale
-
-    this.$frame.draggable({
-      // Constrain dragging to the canvas
-      containment: 'mcanvas',
-      // Snap to grid
-      grid: [ gridSize, gridSize ],
-      cursor: 'move',
-      drag: function( event: any, ui: any ){
-        // Show current position for debugging
-        const dragPos = ui.position
-        console.log(`Dragging to: ${dragPos.left}, ${dragPos.top}`)
-
-        // Check alignment with other wrappers or the grid
-        self.$frame.not(this as any).each(function(){
-          if( !self.flux.workspace.$canvas ) return
-
-          const nearPos = $(this).position()
-
-          Math.abs( dragPos.left - nearPos.left ) < 10
-          && self.createSnapGuide( nearPos.left, 0, 1, self.flux.workspace.$canvas.height() as number )
-          
-          Math.abs( dragPos.top - nearPos.top) < 10
-          && self.createSnapGuide( 0, nearPos.top, self.flux.workspace.$canvas.width() as number, 1 )
-        })
-      },
-      stop: ( event: any, ui: any ) => {
-        // Final snapped position
-        console.log(`Stopped at: ${ui.position.left}, ${ui.position.top}`)
-      }
-    })
-
     if( !this.$$body?.length || !this.flux.$modela?.length ) return
 
     /**
@@ -241,6 +199,165 @@ export default class Frame extends EventEmitter {
     .on('input', '[contenteditable]', async () => await this.pushHistoryStack( true ) )
     // .on('keydown', onUserAction )
     // .on('paste', onUserAction )
+  }
+
+  /**
+   * Enable frame drag on adjustment grid
+   */
+  draggable(){
+    const self = this
+    let
+    startX: number,
+    startY: number,
+    startLeft: number,
+    startTop: number,
+    $target: JQuery | undefined
+
+    // Mouse down: Start dragging
+    this.$frame.find('moverlap')
+    .on('mousedown', function( e: any ){
+      self.flux.workspace.isDragging = true
+      $target = $(this).closest(`mframe[${CONTROL_FRAME_SELECTOR}="${self.key}"]`)
+
+      // Store starting positions
+      startX = e.pageX
+      startY = e.pageY
+      startLeft = parseFloat( $target.css('left') )
+      startTop = parseFloat( $target.css('top') )
+
+      // Prevent iframe interaction
+      e.preventDefault()
+    })
+
+    $(document)
+    // Mouse up: Stop dragging
+    .on('mouseup', () => {
+      if( this.flux.workspace.isDragging ){
+        this.flux.workspace.isDragging = false
+
+        // Hide snap guides
+        this.flux.workspace.$vsnapguide?.hide()
+        this.flux.workspace.$hsnapguide?.hide()
+      }
+
+      $target = undefined
+    })
+    // Mouse move: Handle dragging and snapping
+    .on('mousemove', ( e: any ) => {
+      if( this.flux.workspace.isDragging
+          && $target?.length
+          && $target.is(`mframe[${CONTROL_FRAME_SELECTOR}="${this.key}"]`)
+          && this.flux.workspace.$vsnapguide?.length
+          && this.flux.workspace.$hsnapguide?.length ){
+        const
+        frameWidth = $target.width() as number,
+        frameHeight = $target.height() as number,
+
+        scaleQuo = 1 / this.flux.workspace.scale,
+
+        deltaX = ( e.pageX - startX ) * scaleQuo,
+        deltaY = ( e.pageY - startY ) * scaleQuo
+
+        if( Number.isNaN( deltaX ) || Number.isNaN( deltaY ) ) return
+
+        let
+        newLeft = startLeft + deltaX,
+        newTop = startTop + deltaY,
+        newRight = newLeft + frameWidth,
+        newBottom = newTop + frameHeight,
+
+        // Check alignment with other elements
+        closestLeft = null,
+        closestTop = null,
+        closestRight = null,
+        closestBottom = null,
+
+        hsnapTop = 0,
+        vsnapLeft = 0
+
+        $('mframe').not($target).each(function(){
+          const
+          $other = $(this),
+          otherLeft = parseFloat( $other.css('left') ),
+          otherTop = parseFloat( $other.css('top') ),
+          otherRight = otherLeft + ($other.width() as number),
+          otherBottom = otherTop + ($other.height() as number),
+
+          otherRect = $other[0].getBoundingClientRect()
+
+          // Snap to other elements' left and right edges
+          if( Math.abs( newLeft - otherLeft ) < CONTROL_SNAP_THRESHOLD ){
+            closestLeft = otherLeft
+            vsnapLeft = otherRect.left
+          }
+          if( Math.abs( newLeft - otherRight ) < CONTROL_SNAP_THRESHOLD ){
+            closestLeft = otherRight
+            vsnapLeft = otherRect.right
+          }
+          if( Math.abs( newRight - otherLeft ) < CONTROL_SNAP_THRESHOLD ){
+            closestRight = otherLeft
+            vsnapLeft = otherRect.left
+          }
+          if( Math.abs( newRight - otherRight ) < CONTROL_SNAP_THRESHOLD ){
+            closestRight = otherRight
+            vsnapLeft = otherRect.right
+          }
+
+          // Snap to other elements' top and bottom edges
+          if( Math.abs( newTop - otherTop ) < CONTROL_SNAP_THRESHOLD ){
+            closestTop = otherTop
+            hsnapTop = otherRect.top
+          }
+          if( Math.abs( newTop - otherBottom ) < CONTROL_SNAP_THRESHOLD ){
+            closestTop = otherBottom
+            hsnapTop = otherRect.bottom
+          }
+          if( Math.abs( newBottom - otherTop ) < CONTROL_SNAP_THRESHOLD ){
+            closestBottom = otherTop
+            hsnapTop = otherRect.top
+          }
+          if( Math.abs( newBottom - otherBottom ) < CONTROL_SNAP_THRESHOLD ){
+            closestBottom = otherBottom
+            hsnapTop = otherRect.bottom
+          }
+        })
+        
+        // Use closest alignment point or snap to grid
+        if( closestLeft !== null ){
+          newLeft = closestLeft
+
+          this.flux.workspace.$vsnapguide
+          .css({ left: `${vsnapLeft}px`, top: 0 })
+          .show()
+        }
+        else if( closestRight !== null ){
+          newLeft = closestRight - frameWidth
+
+          this.flux.workspace.$vsnapguide
+          .css({ left: `${vsnapLeft}px`, top: 0 })
+          .show()
+        }
+        else this.flux.workspace.$vsnapguide.hide()
+
+        if( closestTop !== null ){
+          newTop = closestTop
+
+          this.flux.workspace.$hsnapguide
+          .css({ left: 0, top: `${hsnapTop}px` })
+          .show()
+        }
+        else if( closestBottom !== null ){
+          newTop = closestBottom - frameHeight
+
+          this.flux.workspace.$hsnapguide
+          .css({ left: 0, top: `${hsnapTop}px` })
+          .show()
+        }
+        else this.flux.workspace.$hsnapguide.hide()
+        
+        $target.css({ left: `${newLeft}px`, top: `${newTop}px` })
+      }
+    })
   }
   resize( device: string ){
     if( device === 'default' ){

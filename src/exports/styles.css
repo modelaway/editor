@@ -27,111 +27,73 @@
   --me-input-color: rgba(235, 235, 240, 0.7);
 }
 
-/* html, body {
-  margin: 0;
-  overflow: hidden;
-  height: 100%;
-} */
-
 modela {
   position: relative;
   width: 100vw;
   height: 100vh;
   display: block;
-  overflow: auto;
-  /* background-color: #f0f0f0; */
-  background-color: rgb(240, 240, 250);
+  overflow: hidden;
+  background-color: #f0f0f0;
   cursor: grab;
+  /* Grid size */
+  /* background-size: 10px 10px;
+  background-image: linear-gradient(to right, #ccc 1px, transparent 1px),
+                    linear-gradient(to bottom, #ccc 1px, transparent 1px); */
 }
-modela,
-modela mcanvas mframe,
-modela mcanvas mframe mblock {
-  /* background-color: rgb(240, 240, 250); */
-  transition: 600ms;
+modela moverlap {
+  position: absolute;
+  display: none;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
 }
+modela moverlap[on] { display: block }
 modela mcanvas {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 15000vw;
-  height: 15000vh;
-  background-color: white;
-  transform-origin: center center;
-  transform: translate(-50%, -50%) scale(0.1);
-  transition: transform 0.1s ease-out;
+  z-index: 1;
+  transform-origin: 0 0;
   box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-  background-size: 10px 10px; /* Grid size */
-  background-image: linear-gradient(to right, #ccc 1px, transparent 1px),
-                    linear-gradient(to bottom, #ccc 1px, transparent 1px);
   touch-action: none;
-
-  /* display: flex;
-  position: relative;
-  width: auto;
-  height: auto;
-  min-width: 1500vw;
-  min-height: 1500vh;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  align-items: flex-start;
-  padding: 5rem; */
 }
-modela mcanvas .snap-guide {
+modela snapguide {
   position: absolute;
-  background-color: rgba(0, 0, 255, 0.2); /* Light blue for guides */
-  z-index: 999; /* Above other elements */
-  pointer-events: none; /* Non-interactive */
+  z-index: 10;
+  background-color: rgba(0, 0, 255, 0.5);
+  z-index: 999;
+  pointer-events: none;
 }
-modela mcanvas .snap-guide.horizontal {
+modela snapguide[horizontal] {
   height: 1px;
   width: 100%;
 }
-modela mcanvas .snap-guide.vertical {
+modela snapguide[vertical] {
   width: 1px;
   height: 100%;
 }
 
-/* modela mcanvas[active] mframe:not([active]) {
-  display: none;
-} */
-/* modela mcanvas mframe {
-  position: relative;
-  transform: scale(0.5);
-  transform-origin: top center;
-} */
-
 modela mcanvas > mframe {
   position: absolute;
-  z-index: 10;
   display: block;
   background-color: #fff;
+  border: 1px solid var(--me-border-color);
+  cursor: pointer;
   pointer-events: auto;
-  overflow: hidden;
 }
 modela mcanvas > mframe[component] {
   resize: both;
   overflow: auto;
 }
-/* modela mcanvas mframe[active] {
-  position: fixed;
-  z-index: 1;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  bottom: 0;
-  margin: 0;
-  transform: scale(1);
-  transform-origin: top center;
-} */
 modela mcanvas mframe mul {
   display: none;
   align-items: center;
   justify-content: space-around;
   position: absolute;
   right: 0;
-  transform: scale(2);
-  transform-origin: 5.5rem 5rem;
+  margin-top: -2.5rem;
+}
+modela mcanvas mframe mul:active {
+  color: red!important;
 }
 modela mcanvas mframe:hover mul {
   display: flex;
@@ -179,13 +141,12 @@ modela,
   font-size: var(--me-font-size);
 }
 
-/* mul,
-mblock,
+mul,
 mglobal { display: block; }
 micon,
 mlabel,
 minline { display: inline; }
-mli { display: inherit; } */
+mli { display: inherit; }
 
 modela mglobal,
 modela mglobal > [show],

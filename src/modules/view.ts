@@ -22,20 +22,13 @@ import {
   CONTROL_FLOATING_MARGIN
 } from './constants'
 import Stylesheet from './stylesheet'
-import Component from '../component/component'
-import {
-  Alley,
-  Panel,
-  Toolbar,
-  Floating,
-  FinderPanel,
-  SearchResult,
-  ToolbarInput,
-  PanelInput,
-  FloatingInput,
-  FinderPanelInput,
-  SearchResultInput
-} from './factory'
+import { Component } from '../component/lips'
+import Alley from './factory/alley'
+import Panel, { PanelInput } from './factory/panel'
+import Finder, { FinderInput } from './factory/finder'
+import Toolbar, { ToolbarInput } from './factory/toolbar'
+import Floating, { FloatingInput } from './factory/floating'
+import SearchResult, { SearchResultInput } from './factory/searchResult'
 import { debug, hashKey } from './utils'
 import { FrameQuery } from '../lib/frame.window'
 
@@ -89,7 +82,7 @@ export default class View {
   /**
    * Finder panel block component
    */
-  private FinderPanel?: Component<FinderPanelInput>
+  private Finder?: Component<FinderInput>
 
   constructor( frame: Frame ){
     this.frame = frame
@@ -151,8 +144,8 @@ export default class View {
         const freePositions = ['fixed', 'absolute', 'sticky']
 
         freePositions.includes( await this.$$.css('position') as string ) ?
-                                      await this.$$.prepend( Alley({ key: this.key, discret: true }).template )
-                                      : await this.$$.after( Alley({ key: this.key }).template )
+                                      await this.$$.prepend( Alley({ key: this.key, discret: true }).getEl() as any )
+                                      : await this.$$.after( Alley({ key: this.key }) as any )
       }
     }
     catch( error: any ){ debug( error.message ) }
@@ -378,7 +371,7 @@ export default class View {
         each.allowedViewTypes && this.$$.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
         each.addView
         && this.frame.flux.settings.enableAlleys
-        && await this.$$.append( Alley().template )
+        && await this.$$.append( Alley().getEl() as any )
 
         return
       }
@@ -392,7 +385,7 @@ export default class View {
       each.allowedViewTypes && await $block.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
       each.addView
       && this.frame.flux.settings.enableAlleys
-      && await $block.append( Alley().template )
+      && await $block.append( Alley().getEl() as any )
     } )
   }
   async destroy(){
@@ -583,7 +576,7 @@ export default class View {
     // Change key of currently floating point to new trigger's key
     else {
       this.frame.flux.Floating?.setInput({ key: this.key, type: 'view', triggers })
-      $floating = this.frame.flux.Floating.$
+      $floating = this.frame.flux.Floating.getEl()
     }
 
     const
@@ -607,8 +600,8 @@ export default class View {
      */
     let { x, y } = this.frame.flux.workspace.getTopography( $trigger )
 
-    this.FinderPanel = FinderPanel({ key: this.key as string, list: this.frame.flux.store.searchView() })
-    let $finder = this.FinderPanel.inject('append', this.frame.flux.$modela )
+    this.Finder = Finder({ key: this.key as string, list: this.frame.flux.store.searchView() })
+    let $finder = this.Finder.inject('append', this.frame.flux.$modela )
 
     const
     pWidth = $finder.find('> [container]').width() || 0,
@@ -745,7 +738,7 @@ export default class View {
     // Remove editing control panel if active
     this.Panel?.destroy()
     // Remove editing finder panel if active
-    this.FinderPanel?.destroy()
+    this.Finder?.destroy()
 
     /**
      * Fire dismiss function provided with 

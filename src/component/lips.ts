@@ -18,8 +18,11 @@ import { effect, signal } from './signal'
 
 import * as Router from './router'
 
-function wrap( arg: string ): JQuery<any> {
-  return $('<wrap/>').html( arg ).contents()
+function preprocessTemplate( str: string ){
+  return str.trim()
+            .replace(/<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
+            .replace(/<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
+            .replace(/<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">');
 }
 
 $.fn.extend({
@@ -89,27 +92,28 @@ export default class Lips<Context = any> {
   has( name: string ){
     return name in this.store
   }
-  async import( pathname: string ): Promise<Template>{
+  import( pathname: string ): Template {
     // Fetch from registered component
-    if( this.has( pathname ) ){
-      if( !this.store[ pathname ].default )
-        throw new Error(`Invalid <${pathname}> component`)
-      
-      return this.store[ pathname ]
-    }
-    
-    /**
-     * Import component directly from a file
-     */
-    try {
-      const template = await import( pathname ) as Template
-      if( !template?.default )
-        throw null
+    if( !this.has( pathname ) )
+      throw new Error(`<${pathname}> component not found`)
 
-      this.register( pathname, template )
-      return template
-    }
-    catch( error ){ throw new Error(`No <${pathname}> component found`) }
+    if( !this.store[ pathname ].default )
+      throw new Error(`Invalid <${pathname}> component`)
+    
+    return this.store[ pathname ]
+  
+    /**
+     * TODO: Import component directly from a file
+     */
+    // try {
+    //   const template = await import( pathname ) as Template
+    //   if( !template?.default )
+    //     throw null
+
+    //   this.register( pathname, template )
+    //   return template
+    // }
+    // catch( error ){ throw new Error(`No <${pathname}> component found`) }
   }
 
   render( name: string, template: Template ){
@@ -161,7 +165,7 @@ export default class Lips<Context = any> {
 
 export class Component<Input = void, State = void, Static = void, Context = void> {
   private template: string
-  private $: JQuery
+  private $?: JQuery
   public input: Input
   public state: State
   public static: Static
@@ -173,7 +177,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
   private __components: TObject<Component> = {}
   private __events: TObject<EventListener[]> = {}
   private __once_events: TObject<EventListener[]> = {}
-  private __attachableEvents: { $el: JQuery, _event: string, instruction: string }[] = []
+  private __attachableEvents: { $node: JQuery, _event: string, instruction: string, scope?: TObject<any> }[] = []
 
   /**
    * Nexted Component Count (NCC) in tree
@@ -210,8 +214,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
   [key: string]: any
 
   constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet }: ComponentScope<Input, State, Static, Context>, options?: ComponentOptions ){
-    this.template = template
-    this.$ = $(this.template)
+    this.template = preprocessTemplate( template )
 
     if( options?.lips ) this.lips = options.lips    
     if( options?.debug ) this.debug = options.debug
@@ -287,12 +290,18 @@ export class Component<Input = void, State = void, Static = void, Context = void
        * Reinitialize NCC before any rendering
        */
       this.NCC = 0
+
+      /**
+       * Reset attachble events list before every rendering
+       */
+      this.__attachableEvents = []
       
       /**
        * Render/Rerender component
        */
       if( this.isRendered ) this.rerender()
       else {
+
         /**
          * Triggered before component get rendered
          * for the first time.
@@ -300,7 +309,10 @@ export class Component<Input = void, State = void, Static = void, Context = void
         typeof this.onCreate == 'function'
         && this.onCreate.bind(this)()
 
-        this.render()
+        this.$ = this.render()
+        
+        // Assign CSS relationship attribute
+        this.$.attr('rel', this.__name__ )
       }
 
       /**
@@ -310,6 +322,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
        * This to avoid loosing binding to attached
        * DOM element's events
        */
+      this.detachEvents()
       this.attachEvents()
 
       /**
@@ -366,9 +379,9 @@ export class Component<Input = void, State = void, Static = void, Context = void
     && this.onUpdate.bind(this)()
 
     /**
-     * Component's state `update` event broadcast
+     * REVIEW: Component's state `update` event broadcast
      */
-    this.emit('update')
+    // this.emit('update')
   }
   setInput( input: Input ){
     /**
@@ -410,114 +423,79 @@ export class Component<Input = void, State = void, Static = void, Context = void
     return this.$
   }
   find( selector: string ){
-    return this.$.find( selector )
+    return this.$?.find( selector )
   }
 
-  render( $component?: JQuery ){
+  render( $nodes?: JQuery, scope: TObject<any> = {} ){
     const self = this
-    let
-    _$: JQuery,
-    asRoot = true
+    /**
+     * Initialize an empty jQuery object to 
+     * act like a DocumentFragment
+     */
+    let _$ = $()
 
-    if( $component ){
-      if( !$component.length )
-        throw new Error('Undefined component element to render')
-
-      _$ = $component 
-      asRoot = false
-    }
-    else _$ = this.$
-
-    function showContent( $el: JQuery, html?: string ){
-      const nextedHtml = html || $el.html()
-
-      $el.empty()
-          .html( self.render( wrap( nextedHtml ) ) as any )
-          .show()
-    }
-
-    function execLet( $let: JQuery ){
-      try {
-        const attributes = ($let as any).attrs()
-        if( !attributes ) return 
-        
-        Object
-        .entries( attributes )
-        .forEach( ([ key, assign ]) => {
-          if( !assign ) return
-          self.let[ key ] = self.__evaluate__( assign as string )
-        } )
-
-        $let.remove()
-      }
-      catch( error ){
-        // TODO: Transfer error to global try - catch component define in the UI
-        console.warn('Error - ', error )
-      }
+    function execLet( $node: JQuery ){
+      const attributes = ($node as any).attrs()
+      if( !attributes ) return 
+      
+      Object
+      .entries( attributes )
+      .forEach( ([ key, assign ]) => {
+        if( !assign ) return
+        scope[ key ] = self.__evaluate__( assign as string, scope )
+      } )
         
       /**
        * BENCHMARK: Tracking total elements rendered
        */
       self.benchmark.inc('elementCount')
-
-      return $let
     }
 
-    function execLoop( $loop: JQuery ){
-      try {
-        const
-        _from = $loop.attr('from') ? Number( $loop.attr('from') ) : undefined,
-        _to = $loop.attr('to') ? Number( $loop.attr('to') ) : undefined,
-        _in = self.__evaluate__( $loop.attr('in') as string ),
-        nextedHtml = $loop.html(),
-        $items = []
-        
-        if( _from !== undefined ){
-          if( _to == undefined )
-            throw new Error('Expected <from> <to> attributes of the for loop to be defined')
+    function execFor( $node: JQuery ){
+      const
+      $contents = $node.contents() as JQuery,
+      _in = self.__evaluate__( $node.attr('in') as string, scope )
 
-          $loop.empty()
-          for( let x = _from; x < _to; x++ ){
-            self.for = { index: x }
-            
-            $items.push( self.render( wrap( nextedHtml ) ) )
-            // $loop.append( self.render( wrap( nextedHtml ) ) )
-          }
+      let
+      $fragment = $(),
+      _from = $node.attr('from') as any,
+      _to = $node.attr('to') as any
+      
+      if( _from !== undefined ){
+        _from = parseFloat( _from )
+
+        if( _to == undefined )
+          throw new Error('Expected <from> <to> attributes of the for loop to be defined')
+
+        _to = parseFloat( _to )
+
+        for( let x = _from; x <= _to; x++ )
+          if( $contents.length ) 
+            $fragment = $fragment.add( self.render( $contents, { index: x }) )
+      }
+
+      else if( Array.isArray( _in ) ){
+        let index = 0
+        for( const each of _in ){
+          if( $contents.length )
+            $fragment = $fragment.add( self.render( $contents, { each, index }) )
+          
+          index++
         }
+      }
 
-        else if( Array.isArray( _in ) ){
-          $loop.empty()
-
-          let index = 0
-          for( const each of _in ){
-            self.for = { index, each }
-            $items.push( self.render( wrap( nextedHtml ) ) )
-
-            index++
-          }
-        }
-
-        else if( typeof _in == 'object' ){
-          $loop.empty()
-
-          let index = 0
-          for( const key in _in ){
-            self.for = {
+      else if( typeof _in == 'object' ){
+        let index = 0
+        for( const key in _in ){
+          if( $contents.length )
+            $fragment = $fragment.add( self.render( $contents, {
               index,
               key,
               each: _in[ key ]
-            }
-            $items.push( self.render( wrap( nextedHtml ) ) )
-
-            index++
-          }
+            }) )
+          
+          index++
         }
-        
-        $loop.append( $items )
-      }
-      catch( error ){
-        // TODO: Transfer error to global try - catch component define in the UI
-        console.warn('Error - ', error )
       }
         
       /**
@@ -525,169 +503,69 @@ export class Component<Input = void, State = void, Static = void, Context = void
        */
       self.benchmark.inc('elementCount')
 
-      return $loop
+      return $fragment
     }
 
-    function execSwitch( $switch: JQuery ){
-      try {
-        const by = $switch.attr('by')
-        if( !by )
-          throw new Error('Undefined switch <by> attribute')
-        
-        const
-        _by = self.__evaluate__( by ),
-        $cases = $switch.find('case'),
-        $default = $switch.find('default')
+    function execSwitch( $node: JQuery ){
+      const by = $node.attr('by')
+      let $fragment = $()
 
-        $switch.empty()
+      if( by ){
+        const switchValue = self.__evaluate__( by, scope )
+        let matched = false
 
-        let 
-        validCases: string[] = [],
-        $validCase: JQuery | null = null
-        
-        $cases.each(function(){
-          const 
-          $case = $(this),
-          options = $case.attr('is')
+        $node.children().each( function(){
+          const
+          $child = $(this),
+          $contents = $child.contents() as JQuery,
+          _is = $child.attr('is')
 
-          if( !options )
-            throw new Error('Undefined switch case <is> attribute')
-        
-          const _options = options.split(',')
-          
-          // Validate string or array case value
-          if( Array.isArray( _options ) && _options.includes( _by ) ){
-            validCases = [...(new Set([ ...validCases, ..._options ]) )]
+          if( matched || !_is ) return
 
-            $validCase = self.render( $case.contents() as JQuery )
+          if( $child.is('case') && self.__evaluate__( _is, scope ) === switchValue ){
+            matched = true
+            if( $contents.length )
+              $fragment = $fragment.add( self.render( $contents, scope ) )
           }
-        })
-
-        if( $default.length && !validCases.includes( _by ) )
-          $validCase = self.render( $default.contents() as JQuery )
-        
-        $validCase?.length
-        && $switch.append( $validCase )
-      }
-      catch( error ){
-        // TODO: Transfer error to global try - catch component define in the UI
-        console.warn('Error - ', error )
-      }
-        
-      /**
-       * BENCHMARK: Tracking total elements rendered
-       */
-      self.benchmark.inc('elementCount')
-
-      return $switch
-    }
-
-    function execCondition( $cond: JQuery, elseFlag = false ){
-      try {
-        let res: boolean
-        /**
-         * Nothing to evaluate for `else` statement
-         */
-        if( elseFlag ) res = elseFlag
-
-        /**
-         * Evaluate `if/else-if` statements
-         */
-        else {
-          const by = $cond.attr('by')
-          if( !by )
-            throw new Error('Undefined if/else-if <by> attribute')
-
-          $cond.is('if') && $cond.nextAll('else-if, else').hide()
-          res = self.__evaluate__( by ) as boolean
-        }
-
-        if( res ) showContent( $cond )
-        else {
-          $cond.hide()
-          
-          if( $cond.next('else-if').length ) return execCondition( $cond.next('else-if') )
-          else if( $cond.next('else').length ) return execCondition( $cond.next('else'), true )
-        }
-
-        return res
-      }
-      catch( error ){
-        // TODO: Transfer error to global try - catch component define in the UI
-        console.warn('Error - ', error )
-      }
-        
-      /**
-       * BENCHMARK: Tracking total elements rendered
-       */
-      self.benchmark.inc('elementCount')
-    }
-
-    function execAsync( $async: JQuery ){
-      try {
-        const attr = $async.attr('await') as string
-        if( !attr )
-          throw new Error('Undefined async <await> attribute')
-
-        const
-        $preload = $async.find('preload'),
-        preloadHtml = $preload.html()
-
-        $preload.empty()
-
-        const
-        $resolve = $async.find('resolve'),
-        resolvedHtml = $resolve.hide().html()
-        
-        $resolve.empty()
-
-        const
-        $catch = $async.find('catch'),
-        catchHtml = $catch.hide().html()
-        
-        $catch.empty()
-        
-        const
-        [ fn, ...args ] = attr.split(/\s*,\s*/),
-        _await = (self[ fn ] || self.__evaluate__( fn )).bind(self) as any
-        
-        if( typeof _await !== 'function' )
-          throw new Error(`Undefined <${fn}> handler method`)
-
-        const _args = args.map( each => (self.__evaluate__( each )) )
-
-        /**
-         * Render preload content
-         */
-        $preload.length && showContent( $preload, preloadHtml )
-
-        _await( ..._args )
-        .then( ( response: any ) => {
-          self.async.response = response
-          
-          /**
-           * Render response content
-           */
-          if( $resolve.length ){
-            const $res = self.render( $(resolvedHtml) as JQuery )
-
-            $async.replaceWith( $res )
-            $async = $res
-          }
-        })
-        .catch( ( error: unknown ) => {
-          self.async.error = error
-          
-          /**
-           * Render error catch content
-           */
-          $catch.length
-          && $async.replaceWith( self.render( $(catchHtml) as JQuery ) )
+          else if ( $child.is('default') && !matched && $contents.length )
+            $fragment = $fragment.add( self.render( $contents, scope ) )
         })
       }
-      catch( error ){
-        // TODO: Transfer error to global try - catch component define in the UI
-        console.warn('Error - ', error )
+        
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
+
+      return $fragment
+    }
+
+    function execIf( $node: JQuery ){
+      const 
+      $fragment = $(),
+      $ifContents = $node.contents() as JQuery,
+      condition = $node.attr('by')
+
+      // Evaluate the primary <if(condition)>
+      if( condition && $ifContents.length ){
+        if( self.__evaluate__( condition, scope ) )
+          return self.render( $ifContents, scope )
+
+        // Check for <else-if(condition)> and <else>
+        let $sibling = $node.nextAll('else-if, else').first()
+        while( $sibling.length > 0 ){
+          const $contents = $sibling.contents() as JQuery
+
+          if( $sibling.is('else-if') ){
+            const elseIfCondition = $sibling.attr('by') as string
+            if( self.__evaluate__( elseIfCondition, scope ) && $contents.length )
+              return self.render( $contents, scope )
+          } 
+          else if( $sibling.is('else') && $contents.length )
+            return self.render( $contents, scope )
+          
+          $sibling = $sibling.nextAll('else-if, else').first()
+        }
       }
         
       /**
@@ -695,22 +573,82 @@ export class Component<Input = void, State = void, Static = void, Context = void
        */
       self.benchmark.inc('elementCount')
 
-      return $async
+      return $fragment
     }
 
-    function execElement( $el: JQuery ){
-      // Process attributes
-      const attributes = ($el as any).attrs()
+    function execAsync( $node: JQuery ){
+      const attr = $node.attr('await') as string
+      if( !attr )
+        throw new Error('Undefined async <await> attribute')
+
+      const
+      $preload = $node.find('preload').clone(),
+      $resolve = $node.find('resolve').clone(),
+      $catch = $node.find('catch').clone()
+      let $fragment = $()
+
+      // Initially append preload content
+      const preloadContent = $preload.contents() as JQuery
+      if( preloadContent.length ){
+        $fragment = $fragment.add( self.render( preloadContent, scope ) )
+      }
+
+      // Replace the original node with the fragment in the DOM
+      $node.replaceWith( $fragment )
+
+      const
+      [ fn, ...args ] = attr.trim().split(/\s*,\s*/),
+      _await = (self[ fn ] || self.__evaluate__( fn, scope )).bind(self) as any
       
+      if( typeof _await !== 'function' )
+        throw new Error(`Undefined <${fn}> handler method`)
+
+      const _args = args.map( each => (self.__evaluate__( each, scope )) )
+
+      _await( ..._args )
+      .then( ( response: any ) => {
+        const resolveContent = $resolve?.contents() as JQuery
+        
+        resolveContent.length
+        && $fragment.replaceWith( self.render( resolveContent, { ...scope, response } ) )
+      })
+      .catch( ( error: unknown ) => {
+        const catchContent = $catch?.contents() as JQuery
+
+        catchContent.length
+        && $fragment.replaceWith( self.render( catchContent, { ...scope, error } ) )
+      })
+      
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
+
+      return $fragment
+    }
+
+    function execElement( $node: JQuery ){
+      if( !$node.length ) return $node
+
+      const
+      $fnode = $(`<${$node.prop('tagName').toLowerCase()}/>`),
+      $contents = $node.contents() as JQuery
+
+      $contents.length && $fnode.append( self.render( $contents, scope ) )
+
+      // Process attributes
+      const attributes = ($node as any).attrs()
+
       attributes && Object
       .entries( attributes )
       .forEach( ([ attr, value ]) => {
         // Record attachable events to the element
         if( /^on-/.test( attr ) ){
           self.__attachableEvents.push({
-            $el,
+            $node: $fnode,
             _event: attr.replace(/^on-/, ''),
-            instruction: value as string
+            instruction: value as string,
+            scope
           })
 
           return
@@ -718,24 +656,24 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
         switch( attr ){
           // Inject inner html into the element
-          case 'html': $el.html( self.__evaluate__( value as string ) ); break
+          case 'html': $fnode.html( self.__evaluate__( value as string, scope ) ); break
 
           // Inject text into the element
           case 'text': {
-            let text = self.__evaluate__( value as string )
+            let text = self.__evaluate__( value as string, scope )
 
             // Apply translation
-            if( self.lips && !$el.is('[no-translate]') ){
+            if( self.lips && !$fnode.is('[no-translate]') ){
               const { text: _text } = self.lips.i18n.translate( text )
               text = _text
             }
 
-            $el.text( text )
+            $fnode.text( text )
           } break
 
           // Convert object style attribute to string
           case 'style': {
-            const style = self.__evaluate__( value as string )
+            const style = self.__evaluate__( value as string, scope )
             
             // Defined in object format
             if( typeof style === 'object' ){
@@ -745,16 +683,16 @@ export class Component<Input = void, State = void, Static = void, Context = void
               .entries( style )
               .forEach( ([ k, v ]) => str += `${k}:${v};` )
               
-              str.length && $el.attr('style', str )
+              str.length && $fnode.attr('style', str )
             }
             // Defined in string format
-            else $el.attr('style', style )
+            else $fnode.attr('style', style )
           } break
 
           // Inject the evaulation result of any other attributes
           default: {
             const res = value ?
-                          self.__evaluate__( value as string )
+                          self.__evaluate__( value as string, scope )
                           /**
                            * IMPORTANT: An attribute without a value is
                            * considered neutral but `true` of a value by
@@ -774,36 +712,18 @@ export class Component<Input = void, State = void, Static = void, Context = void
              * have values by default.
              */
             res != '?' ?
-                $el.attr( attr, res )
-                : $el.removeAttr( attr )
+                $fnode.attr( attr, res )
+                : $fnode.removeAttr( attr )
           }
         }
       })
 
-      if( $el.get(0)?.nodeType !== Node.TEXT_NODE ){
-        if( !asRoot  ){
-          const $nexted = $el.contents()
-          
-          $nexted.length
-          && $el.has(':not([key])')
-          && $el.html( self.render( $nexted as any ) as any )
-        }
-          
-        /**
-         * BENCHMARK: Tracking total elements rendered
-         */
-        self.benchmark.inc('elementCount')
-      }
-
-      // Apply translation to component's text contents
-      self.lips?.i18n.propagate( $el )
-
-      return $el
+      return $fnode
     }
 
-    async function execComponent( $component: JQuery ){
+    function execComponent( $node: JQuery ){
       try {
-        const name = $component.prop('tagName')?.toLowerCase() as string
+        const name = $node.prop('tagName')?.toLowerCase() as string
         if( !name )
           throw new Error('Invalid component')
 
@@ -817,7 +737,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
          * the component as input.
          */
         input: any = {},
-        attrs = ($component as any).attrs(),
+        attrs = ($node as any).attrs(),
         events: TObject<any> = {}
 
         Object
@@ -832,7 +752,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
           }
           
           input[ key ] = value ?
-                          self.__evaluate__( value as string )
+                          self.__evaluate__( value as string, scope )
                           /**
                            * IMPORTANT: An attribute without a value is
                            * considered neutral but `true` of a value by
@@ -844,43 +764,49 @@ export class Component<Input = void, State = void, Static = void, Context = void
                            * value `true`.
                            */
                           : true
-        } )
+        })
 
         /**
          * Also inject component body into inputs
          * as `__innerHtml`
          */
         const
-        nextedHtml = $component.html()
-        if( nextedHtml ){
-          const $el = self.render( wrap( nextedHtml ) )
+        nodeContents = $node.contents() as JQuery
+        if( nodeContents ){
+          const $el = self.render( nodeContents, scope )
           input.__innerHtml = $el.html() || $el.text()
         }
+      
+        /**
+         * Specify component relationship with other 
+         * resources like `style tags`, `script tags`, 
+         * etc, using [rel] attribute
+         */
+        let $fragment = $()
         
         /**
          * Update previously rendered component by
          * injecting updated inputs
          */
         if( self.__components[ __key__ ] ){
-          $component
-          .empty()
-          .attr('rel', name )
-          .append( self.__components[ __key__ ].$ )
-
           self.__components[ __key__ ].setInput( uniqueObject( input ) )
+
+          // Replace the original node with the fragment in the DOM
+          $fragment = $fragment.add( self.__components[ __key__ ].getEl() )
+          $node.replaceWith( $fragment )
 
           /**
            * Reattach all events binding after DOM
            * replacement of the entire component.
            */
-          self.__components[ __key__ ].attachEvents()
+          // self.__components[ __key__ ].attachEvents()
         }
         /**
          * Render the whole component for first time
          */
         else {
           const
-          { state, _static, handler, context, default: _default, stylesheet } = await self.lips.import( name ),
+          { state, _static, handler, context, default: _default, stylesheet } = self.lips.import( name ),
           component = new Component( name, _default, {
             state: uniqueObject( state ),
             input: uniqueObject( input ),
@@ -893,27 +819,20 @@ export class Component<Input = void, State = void, Static = void, Context = void
             lips: self.lips,
             prekey: __key__
           })
+          
+          $fragment = $fragment.add( component.getEl() )
+          // Replace the original node with the fragment in the DOM
+          $node.replaceWith( $fragment )
 
-          /**
-           * Specify component relationship with other 
-           * resources like `style tags`, `script tags`, 
-           * etc, using [rel] attribute
-           */
-          $component
-          .empty()
-          .attr('rel', name )
-          .append( component.$ )
-
-          // component.$ = $component
           self.__components[ __key__ ] = component
 
           // Listen to this nexted component's events
           Object
           .entries( events )
-          .forEach( ([ _event, instruction ]) => self.__attachEvent__( component, _event, instruction ) )
+          .forEach( ([ _event, instruction ]) => self.__attachEvent__( component, _event, instruction, scope ) )
         }
         
-        return $component
+        return $fragment
       }
       catch( error ){
         // TODO: Transfer error to global try - catch component define in the UI
@@ -921,49 +840,48 @@ export class Component<Input = void, State = void, Static = void, Context = void
       }
     }
 
-    function react( $el: JQuery ){
+    function parse( $node: JQuery ){
+      if( $node.get(0)?.nodeType === Node.TEXT_NODE )
+        return document.createTextNode( self.__interpolate__( $node.text(), scope ) )
+
       // Render in-build syntax components
-      if( $el.is('let') ) return execLet( $el )
-      else if( $el.is('for') ) return execLoop( $el )
-      else if( $el.is('if') ) return execCondition( $el )
-      else if( $el.is('switch') ) return execSwitch( $el )
-      else if( $el.is('async') ) return execAsync( $el )
+      if( $node.is('let') ) return execLet( $node )
+      else if( $node.is('if') ) return execIf( $node )
+      /**
+       * Ignore <else-if> and <else> tags as node 
+       * for their should be already process by <if>
+       */
+      else if( $node.is('else-if, else') ) return
+      else if( $node.is('for') ) return execFor( $node )
+      else if( $node.is('switch') ) return execSwitch( $node )
+      else if( $node.is('async') ) return execAsync( $node )
       
       // Identify and render custom components
-      else if( self.lips && self.lips.has( $el.prop('tagName')?.toLowerCase() ) )
-        return execComponent( $el )
+      else if( self.lips && self.lips.has( $node.prop('tagName')?.toLowerCase() ) )
+        return execComponent( $node )
 
-      // Render normal body content
-      else return execElement( $el )
+      // Any other note type
+      return execElement( $node )
     }
 
-    /**
-     * IMPORTANT: Register nexted contents before processing
-     *            the element.
-     */
-    const $els = _$.length > 1 ?
-                      // Create fake div to wrap contents
-                      wrap( _$ as any )
-                      /**
-                       * Process root element's children or single 
-                       * nexted child element.
-                       */
-                      : asRoot ? _$.children() : _$
-
-    // Process root element
-    if( asRoot ){
-      react( _$ )
-      asRoot = false
+    if( $nodes && !$nodes.length ){
+      console.warn('Undefined node element to render')
+      return $nodes
     }
-
-    // Process nexted contents
-    $els.each( function(){ react( $(this) as JQuery ) } )
     
+    // Process nodes
+    $nodes = $nodes || $(this.template)
+
+    $nodes.each( function(){
+      const $node = parse( $(this) as JQuery )
+      if( $node ) _$ = _$.add( $node )
+    } )
+
     /**
      * BENCHMARK: Tracking total occurence of recursive rendering
      */
     self.benchmark.inc('renderCount')
-
+  
     return _$
   }
   /**
@@ -974,33 +892,39 @@ export class Component<Input = void, State = void, Static = void, Context = void
     if( !this.template )
       throw new Error('Component template is empty')
 
-    const $clone = $(this.template)
-    this.$.replaceWith( $clone )
+    const $clone = this.render()
 
+    this.$?.replaceWith( $clone )
     this.$ = $clone
-    this.render()
+    
+    // Reassign CSS relationship attribute
+    this.$.attr('rel', this.__name__ )
   }
 
-  private __evaluate__( script: string ){
+  private __evaluate__( script: string, scope?: TObject<any> ){
     try {
-      // script = script.replace(/\{([^}]*)\}/g, ( _, match ) => ('${'+ match +'}') )
+      const
+      expression = scope ? `with( scope ){ return ${script}; }` : `return ${script}`,
+      fn = new Function('self', 'input', 'state', 'static', 'context', 'scope', expression )
 
-      const fn = new Function(`return ${script}`)
-      return fn.bind( this )()
+      return fn( this, this.input, this.state, this.static, this.context, scope || {} )
     }
     catch( error ){ return script }
   }
-  private __attachEvent__( element: JQuery | Component, _event: string, instruction: string ){
+  private __interpolate__( str: string, scope?: TObject<any> ){
+    return str.replace(/{\s*([^{}]+)\s*}/g, ( _, expr) => this.__evaluate__( expr, scope ) )
+  }
+  private __attachEvent__( element: JQuery | Component, _event: string, instruction: string, scope?: TObject<any> ){
     /**
      * Execute function script directly attach 
      * as the listener.
      * 
      * Eg. 
      *  `on-click="() => console.log('Hello world')"`
-     *  `on-change="e => this.onChange(e)"`
+     *  `on-change="e => self.onChange(e)"`
      */
     if( /(\s*\w+|\s*\([^)]*\)|\s*)\s*=>\s*(\s*\{[^}]*\}|\s*[^\n;"]+)/g.test( instruction ) )
-      element.on( _event, this.__evaluate__( instruction ) )
+      element.on( _event, this.__evaluate__( instruction, scope ) )
 
     /**
      * Execute reference handler function
@@ -1020,7 +944,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
       element.on( _event, ( ...params: any[] ) => {
         const _fn = this[ fn ].bind(this)
-        let _args = args.map( each => (this.__evaluate__( each )) )
+        let _args = args.map( each => (this.__evaluate__( each, scope )) )
 
         if( params.length )
           _args = [ ..._args, ...params ]
@@ -1034,10 +958,9 @@ export class Component<Input = void, State = void, Static = void, Context = void
   }
 
   attachEvents(){
-    this.__attachableEvents.forEach( ({ $el, _event, instruction }) => {
-      $el.attr(`on-${_event}`)
-      && $el.off( _event )
-      && this.__attachEvent__( $el, _event, instruction )
+    this.__attachableEvents.forEach( ({ $node, _event, instruction, scope }) => {
+      $node.off( _event )
+      && this.__attachEvent__( $node, _event, instruction, scope )
     } )
 
     /**
@@ -1048,7 +971,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
     .forEach( component => component.attachEvents() )
   }
   detachEvents(){
-    this.__attachableEvents.forEach( ({ $el, _event }) => this.__detachEvent__( $el, _event ) )
+    this.__attachableEvents.forEach( ({ $node, _event }) => this.__detachEvent__( $node, _event ) )
 
     /**
      * Also propagate to nexted component
@@ -1065,7 +988,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
       delete this.__components[ each ]
     }
 
-    this.$.off().remove()
+    this.detachEvents()
+    this.$?.remove()
     this.__stylesheet?.clear()
 
     // Turn off IUC
@@ -1073,13 +997,13 @@ export class Component<Input = void, State = void, Static = void, Context = void
   }
 
   appendTo( selector: string ){
-    $(selector).append( this.$ )
+    this.$?.length && $(selector).append( this.$ )
   }
   prependTo( selector: string ){
-    $(selector).prepend( this.$ )
+    this.$?.length && $(selector).prepend( this.$ )
   }
   replaceWith( selector: string ){
-    $(selector).replaceWith( this.$ )
+    this.$?.length && $(selector).replaceWith( this.$ )
   }
 
   on( _event: string, fn: EventListener ){
@@ -1087,15 +1011,20 @@ export class Component<Input = void, State = void, Static = void, Context = void
       this.__events[ _event ] = []
 
     this.__events[ _event ].push( fn )
+    return this
   }
   once( _event: string, fn: EventListener ){
     if( !Array.isArray( this.__once_events[ _event ] ) )
       this.__once_events[ _event ] = []
 
     this.__once_events[ _event ].push( fn )
+    return this
   }
   off( _event: string ){
     delete this.__events[ _event ]
+    delete this.__once_events[ _event ]
+
+    return this
   }
   emit( _event: string, ...params: any[] ){
     this.__events[ _event ]?.forEach( fn => fn( ...params ) )

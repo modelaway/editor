@@ -7,8 +7,7 @@ import Views from './views'
 import History from './history'
 import IOF from '../lib/custom.iframe.io'
 import { debug, generateKey } from './utils'
-import { createFrame } from './factory'
-import { 
+import {
   MEDIA_SCREENS,
   CONTROL_EDGE_MARGIN,
   CONTROL_PANEL_SELECTOR,
@@ -18,11 +17,35 @@ import {
   PATCH_CSS_SETTINGS,
   VIEW_ACTIVE_SELECTOR,
   VIEW_ALLEY_SELECTOR,
-  CONTROL_SNAP_GRID_SIZE,
   CONTROL_SNAP_THRESHOLD,
   CONTROL_FRAME_SELECTOR
 } from './constants'
 import FrameWindow, { FrameWindowRemote, FrameWindowDOM, FrameQuery } from '../lib/frame.window'
+
+const createFrame = ( key: string, options: FrameOption ) => {
+  /**
+   * User `srcdoc` to inject default HTML skeleton
+   * into the iframe if `option.source` isn't provided.
+   */
+  const source = options.content ?
+                      `src="${URL.createObjectURL( new Blob([ options.content ], { type: 'text/html' }) )}"`
+                      : `src="${options.source}"`
+
+  return `<mframe ${CONTROL_FRAME_SELECTOR}="${key}" style="top:${options.position?.top || '0px'};left:${options.position?.left || '0px'}">
+    <mul>
+      <mli action="frame.delete"><micon class="bx bx-trash"></micon></mli>
+    </mul>
+
+    <mblock>
+      <iframe ${source}
+              title="${options.title || `Frame ${key}`}"
+              importance="high"
+              referrerpolicy="origin"
+              sandbox="allow-scripts allow-same-origin"></iframe>
+    </mblock>
+    <moverlap action="frame.focus" on></moverlap>
+  </mframe>`
+}
 
 export default class Frame extends EventEmitter {
   private chn?: IOF
@@ -67,7 +90,7 @@ export default class Frame extends EventEmitter {
         throw new Error('Unexpected error occured')
 
       this.chn = new IOF({ type: 'WINDOW' })
-      this.chn.initiate( target.contentWindow as Window, new URL( options.source ).origin )
+      this.chn.initiate( target.contentWindow as Window, new URL( options.source || window.location.href ).origin )
 
       // Remove all existings listeners when iframe get reloaded
       this.chn.removeListeners()

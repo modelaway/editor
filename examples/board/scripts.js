@@ -54,24 +54,24 @@ editor.mount('body')
 editor.frames.add({
   source: 'http://127.0.0.1:3000/publications/@modela/bun/examples/test/index.html',
   title: 'Frame Test',
-  position: { top: 'calc(50% - 50vh)', left: 'calc(50% - 50vw)' }
+  // position: { top: 'calc(50% - 50vh)', left: 'calc(50% - 50vw)' }
 })
 // Add a tablet frame to the board
-// editor.frames.add({
-//   source: 'http://127.0.0.1:3000/publications/@modela/bun/examples/wigo/index.html',
-//   title: 'Frame Test',
-//   device: 'tablet'
-// })
+editor.frames.add({
+  source: 'http://127.0.0.1:3000/publications/@modela/bun/examples/wigo/index.html',
+  title: 'Frame Test',
+  device: 'tablet'
+})
 // Add a mobile frame to the board
 editor.frames.add({
   source: 'http://127.0.0.1:3000/publications/@modela/bun/examples/wigo/index.html',
   title: 'Frame Test',
   device: 'mobile',
-  position: { top: 'calc(50% - 50vh)', left: 'calc(50% + 60vw)' }
+  // position: { top: 'calc(50% - 50vh)', left: 'calc(50% + 60vw)' }
 })
 // Add empty tablet frame to the board
-// editor.frames.add({
-//   // source: 'http://127.0.0.1:3000/publications/@modela/bun/examples/wigo/index.html',
-//   title: 'Empty Frame Test',
-//   device: 'tablet'
-// })
+editor.frames.add({
+  // source: 'http://127.0.0.1:3000/publications/@modela/bun/examples/wigo/index.html',
+  title: 'Empty Frame Test',
+  device: 'tablet'
+})

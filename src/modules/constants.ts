@@ -11,16 +11,15 @@ export const CONTROL_ROOT = '#modela'
  * Could be `classname` or `tagname` or `data-*`
  */
 export const VIEW_IDENTIFIER = '.view'
-
-export const VIEW_KEY_SELECTOR = 'mv-key'
-export const VIEW_REF_SELECTOR = 'mv-ref'
-export const VIEW_NAME_SELECTOR = 'mv-name'
-export const VIEW_STYLE_SELECTOR = 'mv-style'
-export const VIEW_EMPTY_SELECTOR = 'mv-empty'
-export const VIEW_ALLEY_SELECTOR = 'mv-alley'
-export const VIEW_ACTIVE_SELECTOR = 'mv-active'
-export const VIEW_CAPTION_SELECTOR = 'mv-caption'
-export const VIEW_TYPES_ALLOWED_SELECTOR = 'mv-types-allowed'
+export const VIEW_KEY_SELECTOR = 'vkey'
+export const VIEW_REF_SELECTOR = 'vref'
+export const VIEW_NAME_SELECTOR = 'vname'
+export const VIEW_STYLE_SELECTOR = 'vstyle'
+export const VIEW_EMPTY_SELECTOR = 'vempty'
+export const VIEW_ALLEY_SELECTOR = 'valley'
+export const VIEW_ACTIVE_SELECTOR = 'vactive'
+export const VIEW_CAPTION_SELECTOR = 'vcaption'
+export const VIEW_TYPES_ALLOWED_SELECTOR = 'vtypes-allowed'
 
 /**
  * Frames related
@@ -33,13 +32,14 @@ export const FRAME_BLANK_DOCUMENT = `<!DOCTYPE html>
       <meta name="description" content="Blank Modela Frame Document">
       <title>Blank Frame</title>
       <script type="module">
-        import { connect } from './client.min.js'
+        import { connect } from '${new URL('../dist/client.min.js', import.meta.url ).href}'
         try { await connect() }
         catch( error ){ console.debug('Failed to connect to modela:', error ) }
       </script>
     </head>
     <body></body>
   </html>`
+export const FRAME_DEFAULT_MARGIN = 140 // Pixel (px)
 
 /**
  * Control layer element selector
@@ -173,7 +173,7 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
     hidden: true,
     disabled: true
   },
-  'add-frame': {
+  'frame.add': {
     icon: 'bx bx-plus',
     title: 'Add New Frame',
     event: {

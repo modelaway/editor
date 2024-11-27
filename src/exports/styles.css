@@ -76,7 +76,7 @@ modela mcanvas > mframe {
   position: absolute;
   display: block;
   background-color: #fff;
-  border: 1px solid var(--me-border-color);
+  /* border: 1px solid var(--me-border-color); */
   cursor: pointer;
   pointer-events: auto;
 }

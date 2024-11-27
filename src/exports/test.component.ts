@@ -19,42 +19,42 @@ function Demo1(){
   }
 
   const
-  template = `<div component="Greet" style="!this.state.online && 'color: red'">
-      <span text=this.input.person>me</span>:
-      (<span text="this.state.online ? 'Online' : 'Offline'"></span>)
-      <span text=this.static.verb>...</span>
+  template = `<div component="Greet" style="!state.online && 'color: red'">
+      <span text=input.person>me</span>:
+      (<span text="state.online ? 'Online' : 'Offline'"></span>)
+      <span text=static.verb>...</span>
       <for from="0" to="2">
-        <if by="this.state.time == 'morning'">
-          <switch by=this.state.speech>
+        <if( state.time == 'morning' )>
+          <switch by=state.speech>
             <case is="hi">
-              <span on-click="handleConnect, !this.state.online">Hi - </span>
-              <span text=this.for.index></span>
+              <span on-click="handleConnect, !state.online">Hi - </span>
+              <span text=index></span>
             </case>
-            <case is="hello"><span>Hello - <span text=this.for.index></span></span></case>
-            <case is="bonjour"><span>Bonjour - </span><span text=this.for.index></span></case>
+            <case is="hello"><span>Hello - <span text=index></span></span></case>
+            <case is="bonjour"><span>Bonjour - </span><span text=index></span></case>
             <default>Salut</default>
           </switch>
         </if>
-        <else-if by="this.state.time == 'afternoon'">
+        <else-if( state.time == 'afternoon' )>
           <span>Good afternoon - </span>
-          <span text=this.for.index></span>
+          <span text=index></span>
         </else-if>
         <else>
-          <span text=this.input.default></span>
+          <span text=input.default></span>
           <span html="<b>Everyone</b>"></span>
         </else>
       </for>
 
       <br>
       <ul>
-        <for in=this.static.users>
-          <li key=this.for.index>
-            <span text=this.for.key>Frederic Dupont</span>:
+        <for in=static.users>
+          <li key=index>
+            <span text=key>Frederic Dupont</span>:
             <ul>
-              <for in=this.for.each>
-                <li key=this.for.index>
-                  <span text=this.for.each.name>Frederic Dupont</span> - 
-                  <span text=this.for.each.location>Nice, Belogre</span>
+              <for in=each>
+                <li key=index>
+                  <span text=each.name>Frederic Dupont</span> - 
+                  <span text=each.location>Nice, Belogre</span>
                 </li>
               </for>
             </ul>
@@ -115,10 +115,10 @@ function Demo2(){
 
   const
   template = `<div>
-    <span text=this.state.count></span>
+    <span text=state.count></span>
     <br>
     <button on-click="handleClick">Count</button>
-    <button on-click="() => this.destroy()">Destroy</button>
+    <button on-click="() => self.destroy()">Destroy</button>
   </div>`,
   state: State = {
     count: 0
@@ -151,15 +151,15 @@ function Demo3(){
 
   }
   const
-  template = `<async await="getUser, this.static.name">
+  template = `<async await="getUser, static.name">
     <preload>Preloading...</preload>
     <resolve>
       <ul>
-        <li text=this.async.response.name></li>
-        <li text=this.async.response.email></li>
+        <li text=response.name></li>
+        <li text=response.email></li>
       </ul>
     </resolve>
-    <catch><span text=this.async.error></span></catch>
+    <catch><span text=error></span></catch>
   </async>`,
   _static = {
     name: 'Peter Gibson'
@@ -180,21 +180,22 @@ function Demo3(){
 
 function Demo4(){
   const
-  template = `<let country="Togo" capital="Lomè"></let>
+  template = `
+    <let country="Togo" capital="Lomè"></let>
     <div>
       <p>
-        My country is <span text=this.let.country></span>, 
-        its capital is <span text=this.let.capital></span>
+        My country is {country}, 
+        The capital of {country} is {capital}
       </p>
 
       <p>
         <let country="Ghana"></let>
 
-        It borderd at west by <span text=this.let.country></span>
+        It borderd at west by <span text=country></span>
       </p>
 
       <p>
-        I'd love to go back to <span text=this.let.capital></span> sometime
+        I'd love to go back to <span text=capital></span> in December {new Date().getFullYear() + 1}
       </p>
     </div>`
 
@@ -236,8 +237,8 @@ function Demo5(){
     `,
     
     default: `<div>
-      <span html=this.input.__innerHtml></span>: 
-      <span text="this.state.count"></span>
+      <span html=input.__innerHtml></span>: 
+      <span text="state.count"></span>
       <br>
       <button on-click="handleClick">Count</button>
     </div>`
@@ -276,20 +277,20 @@ function Demo5(){
   },
   template = `<main>
     <section style="{ border: '2px solid gray', margin: '3rem', padding: '15px' }">
-      <counter initial=this.state.initial
+      <counter initial=state.initial
                 on-update="value => console.log( value )">
         Count till 12
       </counter>
 
       <counter initial=1>Number</counter>
 
-      <p>I'm <span text="this.context.online ? 'Online' : 'Offline'"></span></p>
+      <p>I'm <span text="context.online ? 'Online' : 'Offline'"></span></p>
 
       <br><br>
-      <button on-click="() => this.state.initial = 10">Reinitialize</button>
+      <button on-click="() => state.initial = 10">Reinitialize</button>
       <button title="Undo"
               style="background: black;color: white" 
-              on-click="() => this.destroy()">Destroy</button>
+              on-click="() => self.destroy()">Destroy</button>
 
       <caption></caption>
     </section>
@@ -299,13 +300,13 @@ function Demo5(){
 
   // Change detault translation language
   setTimeout( () => {
-    lips.language('fr-FR')
-    lips.setContext('online', false )
+    // lips.language('fr-FR')
+    // lips.setContext('online', false )
   }, 5000 )
 }
 
-Demo1()
+// Demo1()
 // Demo2()
 // Demo3()
 // Demo4()
-// Demo5()
+Demo5()

@@ -2,12 +2,8 @@ import type Modela from '../exports/modela'
 import type { Component } from '../component/lips'
 
 import * as Event from './events'
-import {
-  Toolbar,
-  ToolbarInput,
-  WorkspaceLayer,
-  WorkspaceLayerInput
-} from './factory'
+import WS, { WorkspaceInput } from './factory/workspace'
+import Toolbar, { ToolbarInput } from './factory/toolbar'
 import {
   CONTROL_EDGE_MARGIN,
   CONTROL_ZOOM_DEFAULT_SCALE,
@@ -20,7 +16,7 @@ import {
 export default class Workspace {
   readonly flux: Modela
 
-  WS?: Component<WorkspaceLayerInput>
+  WS?: Component<WorkspaceInput>
   Toolbar?: Component<ToolbarInput>
 
   $canvas?: JQuery<HTMLElement>
@@ -64,7 +60,7 @@ export default class Workspace {
      * Create modela workspace layer and apply translation 
      * to text contents
      */
-    this.WS = WorkspaceLayer({})
+    this.WS = WS({})
     $('body').prepend( this.WS.getEl() )
 
     this.flux.$modela = this.WS.getEl()
@@ -121,7 +117,6 @@ export default class Workspace {
      * Action event trigger
      */
     .on('click', '[action]', handler( Event.onAction ) )
-    .on('dblclick', '[action]', handler( Event.onAction ) )
     /**
      * Dismiss event trigger
      */
@@ -138,46 +133,15 @@ export default class Workspace {
       /**
        * Only zoom when holding Ctrl
        */
-      if( !e.originalEvent.ctrlKey 
-          || !this.flux.$modela?.length
-          || !this.$canvas?.length ) return
-          
+      if( !e.originalEvent.ctrlKey ) return
       e.cancelable && e.preventDefault()
-
-      const
-      delta = e.originalEvent.deltaY > 0 ? -CONTROL_ZOOM_SCALE_STEP : CONTROL_ZOOM_SCALE_STEP,
-      newScale = this.scale + delta // Next scale
-
-      if( newScale <= CONTROL_ZOOM_MIN_SCALE ) return
       
-      const
-      cursorX = e.originalEvent.pageX,
-      cursorY = e.originalEvent.pageY,
-      
-      // Calculate ffset for infinite zoom
-      zoomRatio = newScale / this.scale,
-
-      rect = this.$canvas[0].getBoundingClientRect(),
-      offsetX = ( cursorX - rect.left ) * ( CONTROL_ZOOOM_EVEN_SCALE - zoomRatio ),
-      offsetY = ( cursorY - rect.top ) * ( CONTROL_ZOOOM_EVEN_SCALE - zoomRatio )
-
-      this.scale = newScale
-      this.canvasOffset.x += offsetX
-      this.canvasOffset.y += offsetY
-
-      console.log( zoomRatio, this.scale, this.canvasOffset )
-
-      this.$canvas.css('transform', `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.scale})`)
+      this.zoomTo( e.originalEvent.deltaY > 0 ? -CONTROL_ZOOM_SCALE_STEP : CONTROL_ZOOM_SCALE_STEP, e )
     })
+    // .on('dblclick', '[action]', handler( Event.onAction ) )
   }
   private enablePan(){
     if( !this.flux.$modela?.length ) return
-
-    let
-    startX: number,
-    startY: number,
-    scrollLeft: number,
-    scrollTop: number
 
     this.flux.$modela
     /**
@@ -217,41 +181,43 @@ export default class Workspace {
     })
   }
 
-  zoomIn(){
+  zoomTo( delta: number, e: any ){
+    if( !this.$canvas?.length ) return
 
-
-    /**
-     * Disable/enable all controls on frame by the canvas
-     * scale level.
-     */
-    if( this.scale < 0.8 ){
-      this.flux.frames.each( frame => frame.disable() )
-      // Show frame controls on global toolbar
-      this.switch( false )
-    }
-    else {
-      this.flux.frames.each( frame => frame.enable() )
-      // Show frame controls on global toolbar
-      this.switch( true )
-    }
-  }
-  zoomOut(){
-    if( this.scale <= CONTROL_ZOOM_MIN_SCALE ) return
+    const newScale = this.scale + delta // Next scale
+    if( newScale <= CONTROL_ZOOM_MIN_SCALE ) return
     
+    const
+    cursorX = e.originalEvent.pageX,
+    cursorY = e.originalEvent.pageY,
+    
+    // Calculate ffset for infinite zoom
+    zoomRatio = newScale / this.scale,
+
+    rect = this.$canvas[0].getBoundingClientRect(),
+    offsetX = ( cursorX - rect.left ) * ( CONTROL_ZOOOM_EVEN_SCALE - zoomRatio ),
+    offsetY = ( cursorY - rect.top ) * ( CONTROL_ZOOOM_EVEN_SCALE - zoomRatio )
+
+    this.scale = newScale
+    this.canvasOffset.x += offsetX
+    this.canvasOffset.y += offsetY
+
+    this.$canvas.css('transform', `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.scale})`)
+
     /**
      * Disable/enable all controls on frame by the canvas
      * scale level.
      */
-    if( this.scale < 0.8 ){
-      this.flux.frames.each( frame => frame.disable() )
-      // Show frame controls on global toolbar
-      this.switch( false )
-    }
-    else {
-      this.flux.frames.each( frame => frame.enable() )
-      // Show frame controls on global toolbar
-      this.switch( true )
-    }
+    // if( this.scale < 0.8 ){
+    //   this.flux.frames.each( frame => frame.disable() )
+    //   // Show frame controls on global toolbar
+    //   this.switch( false )
+    // }
+    // else {
+    //   this.flux.frames.each( frame => frame.enable() )
+    //   // Show frame controls on global toolbar
+    //   this.switch( true )
+    // }
   }
 
   switch( target: boolean = false ){

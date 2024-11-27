@@ -1,11 +1,14 @@
 
 export function isEquals( aObject: ObjectType<any>, bObject: ObjectType<any> ){
+  if( typeof aObject !== 'object'
+      || typeof bObject !== 'object' ) return null
+
   const
   aKeys = Object.keys( aObject ).sort(),
   bKeys = Object.keys( bObject ).sort()
 
-  if( aKeys.length !== bKeys.length ) return false //not the same nr of keys
-  if( aKeys.join('') !== bKeys.join('') ) return false //different keys
+  if( aKeys.length !== bKeys.length ) return false // Not the same nr of keys
+  if( aKeys.join('') !== bKeys.join('') ) return false // Different keys
 
   for( let x = 0; x < aKeys.length; ++x ){
     // Array object

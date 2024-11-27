@@ -4,10 +4,11 @@ import type Functions from '../modules/functions'
 import type { RJQuery } from '../lib/frame.window'
 
 export type FrameOption = {
-  source: string
+  source?: string
+  content?: string
   title?: string
   device?: string
-  position: { 
+  position?: { 
     left: string
     top: string
   }

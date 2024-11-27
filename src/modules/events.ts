@@ -3,7 +3,8 @@ import {
   CONTROL_FLOATING_SELECTOR,
   CONTROL_TOOLBAR_SELECTOR,
   CONTROL_PANEL_SELECTOR,
-  CONTROL_FRAME_SELECTOR
+  CONTROL_FRAME_SELECTOR,
+  FRAME_BLANK_DOCUMENT
 } from './constants'
 import { debug } from './utils'
 
@@ -164,25 +165,13 @@ export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
      * -------------- Frame controls --------------
      */
     // Add new view to the DOM
-    case 'add-frame': {
-      const 
-      options = {
-        source: '/',
+    case 'frame.add': {
+      const options = {
         title: 'New Frame',
-        device: 'default',
-        /**
-         * TODO: Adjust according to the `left` position of the last frame
-         */
-        position: {
-          left: '100px',
-          top: '100px'
-        }
-      },
-      frame = ws.flux.frames.add( options )
-      if( !frame ) return
+        device: 'default'
+      }
       
-      // Scroll new frame into visible area.
-      frame.$frame.animate({ scrollLeft: '5rem' }, 600 )
+      ws.flux.frames.add( options )
     } break
     // Focus a frame for edit
     // case 'frame.focus': ws.flux.frames.focus( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break

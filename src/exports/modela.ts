@@ -1,3 +1,5 @@
+import type { FloatingInput } from '../modules/factory/floating'
+
 import jQuery from 'jquery'
 import Store from '../modules/store'
 import Frames from '../modules/frames'
@@ -8,7 +10,6 @@ import Functions from '../modules/functions'
 import { debug } from '../modules/utils'
 import I18N from '../modules/i18n'
 import { Component } from '../component/lips'
-import { FloatingInput } from '../modules/factory'
 
 window.$ = jQuery
 window.mlang = {

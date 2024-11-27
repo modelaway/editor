@@ -3,6 +3,10 @@ import type { FrameOption } from '../types/frame'
 
 import Frame from './frame'
 import EventEmitter from 'events'
+import { 
+  FRAME_BLANK_DOCUMENT,
+  FRAME_DEFAULT_MARGIN
+} from './constants'
 
 export default class Frames extends EventEmitter {
   private flux: Modela
@@ -85,6 +89,37 @@ export default class Frames extends EventEmitter {
   }
 
   add( options: FrameOption ){
+    /**
+     * Create blank iframe using default HTML 
+     * Document skeleton
+     */
+    if( !options.source && !options.content )
+      options.content = FRAME_BLANK_DOCUMENT
+    
+    /**
+     * Position the new frame next to the last frame
+     * by the right side.
+     */
+    if( !options.position ){
+      const
+      lastKey = Object.keys( this.list ).pop() || '*',
+      lastFrame = this.get( lastKey )
+
+      if( lastFrame ){
+        const
+        _left = parseFloat( lastFrame.$frame.css('left') ),
+        _top = parseFloat( lastFrame.$frame.css('top') ),
+        _width = lastFrame.$frame.width() as number
+
+        options.position = {
+          left: `${_left + _width + FRAME_DEFAULT_MARGIN}px`,
+          top: `${_top}px`
+        }
+      }
+      // Use default origin for initial frame
+      else options.position = { left: `0px`, top: `0px` }
+    }
+
     this.currentFrame = new Frame( this.flux, options )
 
     /**

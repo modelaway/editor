@@ -1,13 +1,13 @@
-var o=Object.create;var{defineProperty:n,getPrototypeOf:r,getOwnPropertyNames:s}=Object;var c=Object.prototype.hasOwnProperty;var j=(a,t,i)=>{i=a!=null?o(r(a)):{};const b=t||!a||!a.__esModule?n(i,"default",{value:a,enumerable:!0}):i;for(let e of s(a))if(!c.call(b,e))n(b,e,{get:()=>a[e],enumerable:!0});return b};var k=(a)=>{return import.meta.require(a)};var d=(a,t)=>{for(var i in t)n(a,i,{get:t[i],enumerable:!0,configurable:!0,set:(b)=>t[i]=()=>b})};var h={};d(h,{stylesheet:()=>{{return f}},state:()=>{{return u}},handler:()=>{{return v}},default:()=>{{return g}},context:()=>{{return p}},_static:()=>{{return m}}});var m={limit:12},p=["lang"],u={count:0},v={onInput(){this.state.count=Number(this.input.initial)},handleClick(a){if(this.state.count>=this.static.limit)return;this.state.count++,this.emit("update",this.state.count)}},f=`
+var b=Object.create;var{defineProperty:s,getPrototypeOf:d,getOwnPropertyNames:m}=Object;var n=Object.prototype.hasOwnProperty;var p=(i,c,a)=>{a=i!=null?b(d(i)):{};const e=c||!i||!i.__esModule?s(a,"default",{value:i,enumerable:!0}):a;for(let r of m(i))if(!n.call(e,r))s(e,r,{get:()=>i[r],enumerable:!0});return e};var q=(i)=>{return import.meta.require(i)};var o=(i,c)=>{for(var a in c)s(i,a,{get:c[a],enumerable:!0,configurable:!0,set:(e)=>c[a]=()=>e})};var l={};o(l,{stylesheet:()=>{{return j}},state:()=>{{return g}},handler:()=>{{return h}},default:()=>{{return k}},context:()=>{{return f}},_static:()=>{{return v}}});var v={limit:12},f=["lang"],g={count:0},h={onInput(){this.state.count=Number(this.input.initial)},handleClick(i){if(this.state.count>=this.static.limit)return;this.state.count++,this.emit("update",this.state.count)}},j=`
   span { font: 14px arial; color: blue; }
-`,g=`<div>
-  <span html=this.input.__innerHtml></span>: 
-  <span text="this.state.count"></span>
+`,k=`<div>
+  <span html=input.__innerHtml></span>: 
+  <span text="state.count"></span>
   <br>
   <button on-click="handleClick">
     <span text="Count"></span>
-    (<span text=this.context.lang></span>)
+    (<span text=context.lang></span>)
   </button>
-</div>`;export{f as stylesheet,u as state,v as handler,g as default,p as context,m as _static};
+</div>`;export{j as stylesheet,g as state,h as handler,k as default,f as context,v as _static};
 
-//# debugId=334ACFE872220B8C64756e2164756e21
+//# debugId=00DD985FFEDCC42064756e2164756e21

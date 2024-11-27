@@ -1,5 +1,5 @@
 export default `
 <section>
-  User Account ID: <span text=this.input.query.userid></span>
+  User Account ID: <span text=input.query.userid></span>
 </section>
 `

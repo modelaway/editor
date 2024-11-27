@@ -1,5 +1,5 @@
-var i=Object.create;var{defineProperty:a,getPrototypeOf:m,getOwnPropertyNames:o}=Object;var p=Object.prototype.hasOwnProperty;var g=(n,c,t)=>{t=n!=null?i(m(n)):{};const e=c||!n||!n.__esModule?a(t,"default",{value:n,enumerable:!0}):t;for(let l of o(n))if(!p.call(e,l))a(e,l,{get:()=>n[l],enumerable:!0});return e};var h=(n)=>{return import.meta.require(n)};var s=(n,c)=>{for(var t in c)a(n,t,{get:c[t],enumerable:!0,configurable:!0,set:(e)=>c[t]=()=>e})};var f={};s(f,{default:()=>{{return d}},_static:()=>{{return b}}});var b={content:"Nexted counter component"},d=`<p>
-  <small style="color:gray" text=this.static.content>...</small>
-</p>`;export{d as default,b as _static};
+var p=Object.create;var{defineProperty:m,getPrototypeOf:s,getOwnPropertyNames:b}=Object;var c=Object.prototype.hasOwnProperty;var i=(n,e,t)=>{t=n!=null?p(s(n)):{};const l=e||!n||!n.__esModule?m(t,"default",{value:n,enumerable:!0}):t;for(let a of b(n))if(!c.call(l,a))m(l,a,{get:()=>n[a],enumerable:!0});return l};var j=(n)=>{return import.meta.require(n)};var d=(n,e)=>{for(var t in e)m(n,t,{get:e[t],enumerable:!0,configurable:!0,set:(l)=>e[t]=()=>l})};var h={};d(h,{default:()=>{{return g}},_static:()=>{{return f}}});var f={content:"Nexted counter component"},g=`<p>
+  <small style="color:gray" text=static.content>...</small>
+</p>`;export{g as default,f as _static};
 
-//# debugId=AF523936AF638C0964756e2164756e21
+//# debugId=F6C58959E139BAAD64756e2164756e21

@@ -3,5 +3,5 @@ export const _static = {
 }
 
 export default `<p>
-  <small style="color:gray" text=this.static.content>...</small>
+  <small style="color:gray" text=static.content>...</small>
 </p>`

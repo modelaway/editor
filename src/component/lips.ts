@@ -377,11 +377,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
      */
     typeof this.onUpdate == 'function'
     && this.onUpdate.bind(this)()
-
-    /**
-     * REVIEW: Component's state `update` event broadcast
-     */
-    // this.emit('update')
   }
   setInput( input: Input ){
     /**
@@ -627,6 +622,117 @@ export class Component<Input = void, State = void, Static = void, Context = void
       return $fragment
     }
 
+    function execComponent( $node: JQuery ){
+      const name = $node.prop('tagName')?.toLowerCase() as string
+      if( !name )
+        throw new Error('Invalid component')
+
+      if( !self.lips )
+        throw new Error('Nexted component manager is disable')
+
+      const 
+      __key__ = `${self.prekey}.${self.NCC++}`,
+      /**
+       * Parse assigned attributes to be injected into
+       * the component as input.
+       */
+      input: any = {},
+      attrs = ($node as any).attrs(),
+      events: TObject<any> = {}
+
+      Object
+      .entries( attrs )
+      .forEach( ([ key, value ]) => {
+        if( key == 'key' ) return
+
+        // Component events
+        if( /^on-/.test( key ) ){
+          events[ key.replace(/^on-/, '') ] = value
+          return
+        }
+        
+        input[ key ] = value ?
+                        self.__evaluate__( value as string, scope )
+                        /**
+                         * IMPORTANT: An attribute without a value is
+                         * considered neutral but `true` of a value by
+                         * default.
+                         * 
+                         * Eg. <counter initial=3 throttle/>
+                         * 
+                         * the `throttle` attribute is hereby an input with a
+                         * value `true`.
+                         */
+                        : true
+      })
+
+      /**
+       * Also inject component body into inputs
+       * as `__innerHtml`
+       */
+      const
+      nodeContents = $node.contents() as JQuery
+      if( nodeContents ){
+        const $el = self.render( nodeContents, scope )
+        input.__innerHtml = $el.html() || $el.text()
+      }
+    
+      /**
+       * Specify component relationship with other 
+       * resources like `style tags`, `script tags`, 
+       * etc, using [rel] attribute
+       */
+      let $fragment = $()
+      
+      /**
+       * Update previously rendered component by
+       * injecting updated inputs
+       */
+      if( self.__components[ __key__ ] ){
+        self.__components[ __key__ ].setInput( uniqueObject( input ) )
+
+        // Replace the original node with the fragment in the DOM
+        $fragment = $fragment.add( self.__components[ __key__ ].getEl() )
+        $node.replaceWith( $fragment )
+      }
+      /**
+       * Render the whole component for first time
+       */
+      else {
+        const
+        { state, _static, handler, context, default: _default, stylesheet } = self.lips.import( name ),
+        component = new Component( name, _default, {
+          state: uniqueObject( state ),
+          input: uniqueObject( input ),
+          context,
+          _static: uniqueObject( _static ),
+          handler,
+          stylesheet
+        }, {
+          debug: self.debug,
+          lips: self.lips,
+          prekey: __key__
+        })
+        
+        $fragment = $fragment.add( component.getEl() )
+        // Replace the original node with the fragment in the DOM
+        $node.replaceWith( $fragment )
+        self.__components[ __key__ ] = component
+
+        // Listen to this nexted component's events
+        Object
+        .entries( events )
+        .forEach( ([ _event, instruction ]) => self.__attachEvent__( component, _event, instruction, scope ) )
+      }
+      
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
+      
+      return $fragment
+    }
+
     function execElement( $node: JQuery ){
       if( !$node.length ) return $node
 
@@ -663,7 +769,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
             let text = self.__evaluate__( value as string, scope )
 
             // Apply translation
-            if( self.lips && !$fnode.is('[no-translate]') ){
+            if( self.lips && !$node.is('[no-translate]') ){
               const { text: _text } = self.lips.i18n.translate( text )
               text = _text
             }
@@ -717,127 +823,13 @@ export class Component<Input = void, State = void, Static = void, Context = void
           }
         }
       })
+      
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
 
       return $fnode
-    }
-
-    function execComponent( $node: JQuery ){
-      try {
-        const name = $node.prop('tagName')?.toLowerCase() as string
-        if( !name )
-          throw new Error('Invalid component')
-
-        if( !self.lips )
-          throw new Error('Nexted component manager is disable')
-
-        const 
-        __key__ = `${self.prekey}.${self.NCC++}`,
-        /**
-         * Parse assigned attributes to be injected into
-         * the component as input.
-         */
-        input: any = {},
-        attrs = ($node as any).attrs(),
-        events: TObject<any> = {}
-
-        Object
-        .entries( attrs )
-        .forEach( ([ key, value ]) => {
-          if( key == 'key' ) return
-
-          // Component events
-          if( /^on-/.test( key ) ){
-            events[ key.replace(/^on-/, '') ] = value
-            return
-          }
-          
-          input[ key ] = value ?
-                          self.__evaluate__( value as string, scope )
-                          /**
-                           * IMPORTANT: An attribute without a value is
-                           * considered neutral but `true` of a value by
-                           * default.
-                           * 
-                           * Eg. <counter initial=3 throttle/>
-                           * 
-                           * the `throttle` attribute is hereby an input with a
-                           * value `true`.
-                           */
-                          : true
-        })
-
-        /**
-         * Also inject component body into inputs
-         * as `__innerHtml`
-         */
-        const
-        nodeContents = $node.contents() as JQuery
-        if( nodeContents ){
-          const $el = self.render( nodeContents, scope )
-          input.__innerHtml = $el.html() || $el.text()
-        }
-      
-        /**
-         * Specify component relationship with other 
-         * resources like `style tags`, `script tags`, 
-         * etc, using [rel] attribute
-         */
-        let $fragment = $()
-        
-        /**
-         * Update previously rendered component by
-         * injecting updated inputs
-         */
-        if( self.__components[ __key__ ] ){
-          self.__components[ __key__ ].setInput( uniqueObject( input ) )
-
-          // Replace the original node with the fragment in the DOM
-          $fragment = $fragment.add( self.__components[ __key__ ].getEl() )
-          $node.replaceWith( $fragment )
-
-          /**
-           * Reattach all events binding after DOM
-           * replacement of the entire component.
-           */
-          // self.__components[ __key__ ].attachEvents()
-        }
-        /**
-         * Render the whole component for first time
-         */
-        else {
-          const
-          { state, _static, handler, context, default: _default, stylesheet } = self.lips.import( name ),
-          component = new Component( name, _default, {
-            state: uniqueObject( state ),
-            input: uniqueObject( input ),
-            context,
-            _static: uniqueObject( _static ),
-            handler,
-            stylesheet
-          }, {
-            debug: self.debug,
-            lips: self.lips,
-            prekey: __key__
-          })
-          
-          $fragment = $fragment.add( component.getEl() )
-          // Replace the original node with the fragment in the DOM
-          $node.replaceWith( $fragment )
-
-          self.__components[ __key__ ] = component
-
-          // Listen to this nexted component's events
-          Object
-          .entries( events )
-          .forEach( ([ _event, instruction ]) => self.__attachEvent__( component, _event, instruction, scope ) )
-        }
-        
-        return $fragment
-      }
-      catch( error ){
-        // TODO: Transfer error to global try - catch component define in the UI
-        console.warn('Error - ', error )
-      }
     }
 
     function parse( $node: JQuery ){
@@ -871,7 +863,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
     
     // Process nodes
     $nodes = $nodes || $(this.template)
-
     $nodes.each( function(){
       const $node = parse( $(this) as JQuery )
       if( $node ) _$ = _$.add( $node )
@@ -903,6 +894,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
   private __evaluate__( script: string, scope?: TObject<any> ){
     try {
+      script = script.trim()
+
       const
       expression = scope ? `with( scope ){ return ${script}; }` : `return ${script}`,
       fn = new Function('self', 'input', 'state', 'static', 'context', 'scope', expression )

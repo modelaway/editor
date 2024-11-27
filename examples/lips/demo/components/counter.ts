@@ -37,11 +37,11 @@ export const stylesheet = `
 `
   
 export default `<div>
-  <span html=this.input.__innerHtml></span>: 
-  <span text="this.state.count"></span>
+  <span html=input.__innerHtml></span>: 
+  <span text="state.count"></span>
   <br>
   <button on-click="handleClick">
     <span text="Count"></span>
-    (<span text=this.context.lang></span>)
+    (<span text=context.lang></span>)
   </button>
 </div>`

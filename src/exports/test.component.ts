@@ -301,7 +301,7 @@ function Demo5(){
   // Change detault translation language
   setTimeout( () => {
     // lips.language('fr-FR')
-    // lips.setContext('online', false )
+    lips.setContext('online', false )
   }, 5000 )
 }
 

@@ -44,7 +44,12 @@ export default class Fonts implements Plugin {
     /**
      * Apply fonts to each frame once loaded
      */
-    factory.flux.frames.on('frame.load', this.apply.bind(this) )
+    factory.flux.canvas.on('frame.load', this.apply.bind(this) )
+  }
+  discard(){
+    /**
+     * Do something before to get discarded
+     */
   }
 
   private async apply( frame: Frame ){
@@ -118,11 +123,5 @@ export default class Fonts implements Plugin {
 
     // Refresh imported fonts in the DOM
     this.load()
-  }
-
-  discard(){
-    /**
-     * Do something before to get discarded
-     */
   }
 }

@@ -144,7 +144,7 @@ export default class View {
         const freePositions = ['fixed', 'absolute', 'sticky']
 
         freePositions.includes( await this.$$.css('position') as string ) ?
-                                      await this.$$.prepend( Alley({ key: this.key, discret: true }).getEl() as any )
+                                      await this.$$.prepend( Alley({ key: this.key, discret: true }).getNode() as any )
                                       : await this.$$.after( Alley({ key: this.key }) as any )
       }
     }
@@ -371,7 +371,7 @@ export default class View {
         each.allowedViewTypes && this.$$.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
         each.addView
         && this.frame.flux.settings.enableAlleys
-        && await this.$$.append( Alley().getEl() as any )
+        && await this.$$.append( Alley().getNode() as any )
 
         return
       }
@@ -385,7 +385,7 @@ export default class View {
       each.allowedViewTypes && await $block.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
       each.addView
       && this.frame.flux.settings.enableAlleys
-      && await $block.append( Alley().getEl() as any )
+      && await $block.append( Alley().getNode() as any )
     } )
   }
   async destroy(){
@@ -427,10 +427,10 @@ export default class View {
    * Show view's editing toolbar
    */
   async showToolbar(){
-    if( !this.frame.flux.$modela || !this.key || !this.$$ )
+    if( !this.frame.flux.$viewport || !this.key || !this.$$ )
       throw new Error('Invalid method called')
 
-    if( this.frame.flux.$modela.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`).length ) 
+    if( this.frame.flux.$viewport.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`).length ) 
       return
 
     const
@@ -454,7 +454,7 @@ export default class View {
       settings,
       position: { left: `${x}px`, top: `${y}px` }
     })
-    let $toolbar = this.Toolbar.inject('append', this.frame.flux.$modela )
+    let $toolbar = this.Toolbar.appendTo( this.frame.flux.$viewport ).getNode()
 
     const
     tHeight = $toolbar.find('> [container]').height() || 0,
@@ -485,10 +485,10 @@ export default class View {
     this.bridge.events.emit('show.toolbar')
   }
   async showPanel(){
-    if( !this.frame.flux.$modela || !this.key || !this.$$ ) 
+    if( !this.frame.flux.$viewport || !this.key || !this.$$ ) 
       throw new Error('Invalid method called')
 
-    if( this.frame.flux.$modela.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}"]`).length ) 
+    if( this.frame.flux.$viewport.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}"]`).length ) 
       return
 
     const { caption, panel } = this.get() as ViewComponent
@@ -503,7 +503,7 @@ export default class View {
       key: this.key,
       options: panel( this.bridge )
     })
-    let $panel = this.Panel.inject('append', this.frame.flux.$modela )
+    let $panel = this.Panel.appendTo( this.frame.flux.$viewport ).getNode()
 
     const
     pWidth = $panel.find('> [container]').width() || 0,
@@ -545,10 +545,10 @@ export default class View {
     this.bridge.events.emit('show.panel')
   }
   async showFloating(){
-    if( !this.frame.flux.$modela || !this.key || !this.$$ )
+    if( !this.frame.flux.$viewport || !this.key || !this.$$ )
       throw new Error('Invalid method called')
 
-    if( this.frame.flux.$modela.find(`[${CONTROL_FLOATING_SELECTOR}="${this.key}"]`).length ) 
+    if( this.frame.flux.$viewport.find(`[${CONTROL_FLOATING_SELECTOR}="${this.key}"]`).length ) 
       return
     
     const triggers = ['addpoint']
@@ -571,12 +571,12 @@ export default class View {
     // Insert new floating point to the DOM
     if( !this.frame.flux.Floating ){
       this.frame.flux.Floating = Floating({ key: this.key, type: 'view', triggers })
-      $floating = this.frame.flux.Floating.inject('append', this.frame.flux.$modela )
+      $floating = this.frame.flux.Floating.appendTo( this.frame.flux.$viewport ).getNode()
     }
     // Change key of currently floating point to new trigger's key
     else {
       this.frame.flux.Floating?.setInput({ key: this.key, type: 'view', triggers })
-      $floating = this.frame.flux.Floating.getEl()
+      $floating = this.frame.flux.Floating.getNode()
     }
 
     const
@@ -592,7 +592,7 @@ export default class View {
     $floating.css({ left: `${x}px`, top: `${y}px` })
   }
   async showViewFinder( $trigger: JQuery<HTMLElement> ){
-    if( !this.frame.flux.$modela || !this.key || !this.$$ )
+    if( !this.frame.flux.$viewport || !this.key || !this.$$ )
       throw new Error('Invalid method called')
 
     /**
@@ -601,7 +601,7 @@ export default class View {
     let { x, y } = this.frame.flux.workspace.getTopography( $trigger )
 
     this.Finder = Finder({ key: this.key as string, list: this.frame.flux.store.searchView() })
-    let $finder = this.Finder.inject('append', this.frame.flux.$modela )
+    let $finder = this.Finder.appendTo( this.frame.flux.$viewport ).getNode()
 
     const
     pWidth = $finder.find('> [container]').width() || 0,
@@ -656,7 +656,7 @@ export default class View {
         const $results = $finder.find('.results')
         if( !$results.length ) return
 
-        _searchResults.inject('append', $results.empty() )
+        _searchResults.appendTo( $results.empty() ).getNode()
       }
       else _searchResults.subInput({ list })
     })

@@ -54,7 +54,7 @@ export function onShow( $this: JQuery<HTMLElement>, ws: Workspace ){
     } break
 
     // Show main canvas overview
-    case 'overview': ws.flux.workspace.overview(); break
+    case 'overview': ws.flux.canvas.overview(); break
 
     // Show extra options
     case 'extra-toolbar': {
@@ -77,7 +77,7 @@ export function onShow( $this: JQuery<HTMLElement>, ws: Workspace ){
     } break 
 
     case 'panel': {
-      const frame = ws.flux.frames.active()
+      const frame = ws.flux.canvas.active()
       if( !frame ) return
 
       const key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
@@ -90,7 +90,7 @@ export function onShow( $this: JQuery<HTMLElement>, ws: Workspace ){
     } break
 
     case 'finder': {
-      const frame = ws.flux.frames.active()
+      const frame = ws.flux.canvas.active()
       if( !frame ) return
 
       /**
@@ -125,7 +125,7 @@ export function onShow( $this: JQuery<HTMLElement>, ws: Workspace ){
 export function onApply( $this: JQuery<HTMLElement>, ws: Workspace ){
   debug('apply event --', $this.attr('apply'), $this.attr('params') )
 
-  const frame = ws.flux.frames.active()
+  const frame = ws.flux.canvas.active()
   if( !frame ) return
   
   const
@@ -171,19 +171,19 @@ export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
         device: 'default'
       }
       
-      ws.flux.frames.add( options )
+      ws.flux.canvas.add( options )
     } break
     // Focus a frame for edit
-    // case 'frame.focus': ws.flux.frames.focus( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
+    // case 'frame.focus': ws.flux.canvas.focus( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
     // Delete a frame
-    case 'frame.delete': ws.flux.frames.remove( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
+    case 'frame.delete': ws.flux.canvas.remove( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
 
     /**
      * -------------- History navigation controls --------------
      */
     // Undo history
     case 'undo': {
-      const frame = ws.flux.frames.active()
+      const frame = ws.flux.canvas.active()
       if( !frame ) return
 
       // Revert to last history stack
@@ -192,7 +192,7 @@ export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
     } break
     // Redo history
     case 'redo': {
-      const frame = ws.flux.frames.active()
+      const frame = ws.flux.canvas.active()
       if( !frame ) return
       
       // Restore a reverted history stack
@@ -208,7 +208,7 @@ export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
     case 'screen-mode.mobile':
     case 'screen-mode.desktop':
     case 'screen-mode.default': {
-      const frame = ws.flux.frames.active()
+      const frame = ws.flux.canvas.active()
       if( !frame ) return
 
       const [ _, device ] = $this.attr('action')?.split('.') || []
@@ -225,7 +225,7 @@ export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
           || ws.clipboard?.type !== 'finder'
           || !ws.clipboard.key ) return
 
-      const frame = ws.flux.frames.active()
+      const frame = ws.flux.canvas.active()
       if( !frame ) return
       
       // Use finder initiation trigger key as destination
@@ -237,35 +237,35 @@ export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
     } break
     // Move view up
     case 'view.move-up': {
-      const frame = ws.flux.frames.active()
+      const frame = ws.flux.canvas.active()
       if( !frame ) return
       
       frame.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'up' )
     } break
     // Move view down
     case 'view.move-down': {
-      const frame = ws.flux.frames.active()
+      const frame = ws.flux.canvas.active()
       if( !frame ) return
       
       frame.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'down' )
     } break
     // Move view
     case 'view.move': {
-      const frame = ws.flux.frames.active()
+      const frame = ws.flux.canvas.active()
       if( !frame ) return
       
       frame.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'any' )
     } break
     // Duplicate view
     case 'view.duplicate': {
-      const frame = ws.flux.frames.active()
+      const frame = ws.flux.canvas.active()
       if( !frame ) return
       
       frame.views.duplicate( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string )
     } break
     // Delete view
     case 'view.delete': {
-      const frame = ws.flux.frames.active()
+      const frame = ws.flux.canvas.active()
       if( !frame ) return
       
       frame.views.remove( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string )
@@ -282,7 +282,7 @@ export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
       if( !ws.clipboard?.key || ws.clipboard.type !== 'view' )
         return
 
-      const frame = ws.flux.frames.active()
+      const frame = ws.flux.canvas.active()
       if( !frame ) return
 
       // Paste view
@@ -347,7 +347,7 @@ export function onCustomListener( $this: JQuery<HTMLElement>, ws: Workspace ){
    * make it easier to find different options blocks
    */
   $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`),
-  frame = ws.flux.frames.active()
+  frame = ws.flux.canvas.active()
   if( !frame ) return
 
   const key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )

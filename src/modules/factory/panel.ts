@@ -74,17 +74,18 @@ export default ( input: PanelInput ) => {
      */
     Object.entries( options ).map( ( [name, section], index ) => composeSection( name, section, active == name || index === 0) )
 
-    let optionalAttrs = ''
-    if( typeof position == 'object' ) 
-      optionalAttrs += ` style="left:${position.left};top:${position.top};"`
+    // let optionalAttrs = ''
+    // if( typeof position == 'object' ) 
+    //   optionalAttrs += ` style="left:${position.left};top:${position.top};"`
 
-    return `<mblock ${CONTROL_PANEL_SELECTOR}="${key}" ${optionalAttrs}>
+    return `<mblock ${CONTROL_PANEL_SELECTOR}="${key}"
+                    style="typeof input.position == 'object' ? { left: input.position.left, top: input.position.top } : '?'">
       <mblock dismiss="panel" backdrop></mblock>
       <mblock container>
         <mblock class="header">
           <mblock>
-            <micon class="${caption.icon}"></micon>
-            <mlabel ${CONTROL_LANG_SELECTOR}>${caption.title}</mlabel>
+            <micon class=input.caption.icon></micon>
+            <mlabel ${CONTROL_LANG_SELECTOR}>{input.caption.title}</mlabel>
 
             <!-- Dismiss control panel -->
             <span dismiss="panel" title="Dismiss" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-x"></micon></span>

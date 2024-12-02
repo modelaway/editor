@@ -58,13 +58,13 @@ export default ( input: ToolbarInput ) => {
       
       // Option has sub options
       if( sub && Object.keys( sub ).length ){
-        attrs += ` show="sub-toolbar" params="this.for.key"`
+        attrs += ` show="sub-toolbar" params=key`
 
         // Create a sub options
         subOptions.push(`
-                        <mblock options="sub" extends="this.for.key">
+                        <mblock options="sub" extends=key>
                           <mli dismiss="sub-toolbar" title="Back" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-chevron-left"></micon></mli>
-                          <mli class="label"><micon class="this.for.each.icon"></micon><mlabel ${CONTROL_LANG_SELECTOR} text="this.for.each.label || this.for.each.icon.title"></mlabel></mli>
+                          <mli class="label"><micon class=each.icon></micon><mlabel ${CONTROL_LANG_SELECTOR} text="each.label || each.icon.title"></mlabel></mli>
                           
                           ${Object.entries( sub ).map( composeSubLi( attr ) ).join('')}
                         </mblock>`)
@@ -125,48 +125,47 @@ export default ( input: ToolbarInput ) => {
     //   optionalAttrs += ` style="left:${position.left};top:${position.top};"`
 
     return `<mblock ${CONTROL_TOOLBAR_SELECTOR}="${key}"
-                    class="this.input.settings.editing ? 'editing' : '?'"
-                    style="typeof this.input.position == 'object' ? \`left:{this.input.position.left};top:{this.input.position.top};\` : '?'">
+                    class="input.settings.editing ? 'editing' : '?'"
+                    style="typeof input.position == 'object' ? { left: input.position.left, top: input.position.top } : '?'">
       <mblock container>
         <mul>
-          <let options="Object.values( this.input.options ).filter( option => (!option.hidden))"></let>
-          <let prime_options="this.let.options.filter( option => (!option.extra) )"></let>
-          <let extra_options="this.let.options.filter( option => (option.extra))"></let>
-          <let sub_options="this.let.options.filter( option => (option.sub))"></let>
+          <let options="Object.values( input.options ).filter( option => (!option.hidden))"></let>
+          <let prime_options="options.filter( option => (!option.extra) )"></let>
+          <let extra_options="options.filter( option => (option.extra))"></let>
+          <let sub_options="options.filter( option => (option.sub))"></let>
 
           <mblock options="main">
-
-            <for in="this.let.prime_options">
-              <mli meta="!this.for.each.meta && '?'"
-                    active="!this.for.each.active && '?'"
-                    class="this.for.each.label ? 'label' : '?'"
-                    title="this.for.each.title ? this.for.each.title : '?'"
-                    disable="!this.for.each.disabled && '?'"
+            <for in=prime_options>
+              <mli meta="!each.meta && '?'"
+                    active="!each.active && '?'"
+                    class="each.label ? 'label' : '?'"
+                    title="each.title ? each.title : '?'"
+                    disable="!each.disabled && '?'"
                     ${CONTROL_LANG_SELECTOR}>
-                <micon class="this.for.each.icon"></micon>
-                <if by="this.for.each.label">
-                  <mlabel ${CONTROL_LANG_SELECTOR} text="this.for.each.label"></mlabel>
+                <micon class="each.icon"></micon>
+                <if( each.label )>
+                  <mlabel ${CONTROL_LANG_SELECTOR} text=each.label></mlabel>
                 </if>
               </mli>
             </for>
 
-            <if by="this.let.extra_options.length">
+            <if( extra_options.length )>
               <mli show="extra-toolbar" title="Extra options" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-dots-horizontal-rounded"></micon></mli>
             </if>
           </mblock>
 
-          <if by="this.let.extra_options.length">
+          <if( extra_options.length )>
             <mblock options="extra">
-              <for in="this.let.extra_options">
-                <mli meta="!this.for.each.meta && '?'"
-                      active="!this.for.each.active && '?'"
-                      class="this.for.each.label ? 'label' : '?'"
-                      title="this.for.each.title ? this.for.each.title : '?'"
-                      disable="!this.for.each.disabled && '?'"
+              <for in=extra_options>
+                <mli meta="!each.meta && '?'"
+                      active="!each.active && '?'"
+                      class="each.label ? 'label' : '?'"
+                      title="each.title ? each.title : '?'"
+                      disable="!each.disabled && '?'"
                       ${CONTROL_LANG_SELECTOR}>
-                  <micon class="this.for.each.icon"></micon>
-                  <if by="this.for.each.label">
-                    <mlabel ${CONTROL_LANG_SELECTOR} text="this.for.each.label"></mlabel>
+                  <micon class=each.icon></micon>
+                  <if( each.label )>
+                    <mlabel ${CONTROL_LANG_SELECTOR} text=each.label></mlabel>
                   </if>
                 </mli>
               </for>
@@ -174,23 +173,23 @@ export default ( input: ToolbarInput ) => {
             </mblock>
           </if>
 
-          <if by="this.let.sub_options.length">
-            <for in="Object.entries( this.input.options ).filter( ([key, option]) => (option.sub))">
-              <mblock options="sub" extends="this.for.each[0]">
+          <if( sub_options.length )>
+            <for in="Object.entries( input.options ).filter( ([key, option]) => (option.sub))">
+              <mblock options="sub" extends="each[0]">
                 <mli dismiss="sub-toolbar" title="Back" ${CONTROL_LANG_SELECTOR}>
                   <micon class="bx bx-chevron-left"></micon>
                 </mli>
                 <mli class="label">
-                  <micon class="this.for.each[1].icon"></micon>
-                  <mlabel ${CONTROL_LANG_SELECTOR} text="this.for.each[1].label || this.for.each[1].title"></mlabel>
+                  <micon class=each[1].icon></micon>
+                  <mlabel ${CONTROL_LANG_SELECTOR} text="each[1].label || each[1].title"></mlabel>
                 </mli>
                 
-                <for in="this.for.each[1].sub">
-                  <mli active="!this.for.each.active && '?'"
-                      disable="!this.for.each.disabled && '?'"
-                      title="this.for.each.title ? this.for.each.title : '?'"
+                <for in=each[1].sub>
+                  <mli active="!each.active && '?'"
+                      disable="!each.disabled && '?'"
+                      title="each.title ? each.title : '?'"
                       ${CONTROL_LANG_SELECTOR}>
-                    <micon class="this.for.each.icon"></micon>
+                    <micon class=each.icon></micon>
                   </mli>
                 </for>
               </mblock>

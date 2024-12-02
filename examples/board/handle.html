@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Resize Handles</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+      .content {
+        position: absolute;
+        background-color: rgba(0, 0, 0, 0.1); /* Placeholder for the content */
+      }
+
+      .resizable-frame {
+        display: inline-block;
+        border: 1px dashed #007bff; /* Frame border */
+        box-sizing: border-box;
+      }
+
+      /* Handles (pseudo-elements) */
+      .resizable-frame .handle {
+        content: '';
+        position: absolute;
+        width: 10px; /* Adjust handle size */
+        height: 10px;
+        background: #007bff;
+        cursor: pointer;
+      }
+      .resizable-frame .handle.tl { top: -5px; left: -5px; cursor: nwse-resize; } /* Top-left */
+      .resizable-frame .handle.tr { top: -5px; right: -5px; cursor: nesw-resize; } /* Top-right */
+      .resizable-frame .handle.bl { bottom: -5px; left: -5px; cursor: nesw-resize; } /* Bottom-left */
+      .resizable-frame .handle.br { bottom: -5px; right: -5px; cursor: nwse-resize; } /* Bottom-right */
+      .resizable-frame .handle.tc { top: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; } /* Top-center */
+      .resizable-frame .handle.bc { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; } /* Bottom-center */
+      .resizable-frame .handle.lc { left: -5px; top: 50%; transform: translateY(-50%); cursor: ew-resize; } /* Left-center */
+      .resizable-frame .handle.rc { right: -5px; top: 50%; transform: translateY(-50%); cursor: ew-resize; } /* Right-center */
+
+      snapguide {
+        position: absolute;
+        z-index: 10;
+        background-color: rgba(0, 0, 255, 0.5);
+        z-index: 999;
+        pointer-events: none;
+      }
+      snapguide[horizontal] {
+        height: 1px;
+        width: 100%;
+      }
+      snapguide[vertical] {
+        width: 1px;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body style="margin:0;">
+    <div class="content" style="width:200px; height:200px; background-color: green; left: 400px; top: 200px"></div>
+  </body>
+  <script>
+    function handle(){
+      const
+      __canvas__ = 'body', 
+      __target__ = '.content',
+      __wrapper__ = '.resizable-frame',
+      __target_element__ = '<div class="content"></div>',
+      __wrapper_element__ = '<div class="resizable-frame"></div>',
+      __scale__ = 1,
+      __min_width__ = 50,
+      __min_height__ = 50,
+      __snap_guide_threshold__ = 5
+
+      let
+      isCreating = false,
+      isResizing = false,
+      isMoving = false,
+      
+      $handle,
+      $wrapper,
+      $newContent,
+      $vsnapguide = $('<snapguide vertical></snapguide>'),
+      $hsnapguide = $('<snapguide horizontal></snapguide>'),
+
+      cursorX,
+      cursorY,
+      startLeft,
+      startTop,
+      startWidth,
+      startHeight
+
+      function snapguide( $wrapper, newLeft, newTop, newWidth, newHeight ){
+        const
+        wrapperWidth = newWidth || $wrapper.width(),
+        wrapperHeight = newHeight || $wrapper.height(),
+        newRight = newLeft + wrapperWidth,
+        newBottom = newTop + wrapperHeight
+
+        let
+        // Check alignment with other elements
+        closestLeft = null,
+        closestTop = null,
+        closestRight = null,
+        closestBottom = null,
+
+        hsnapTop = 0,
+        vsnapLeft = 0
+
+        $(`${__canvas__} ${__target__}`).not( $wrapper.find( __target__ ) ).each(function(){
+          const
+          $other = $(this),
+          otherLeft = parseFloat( $other.css('left') ),
+          otherTop = parseFloat( $other.css('top') ),
+          otherRight = otherLeft + $other.width(),
+          otherBottom = otherTop + $other.height(),
+
+          otherRect = $other[0].getBoundingClientRect()
+
+          // Snap to other elements' left and right edges
+          if( Math.abs( newLeft - otherLeft ) < __snap_guide_threshold__ ){
+            closestLeft = otherLeft
+            vsnapLeft = otherRect.left
+          }
+          if( Math.abs( newLeft - otherRight ) < __snap_guide_threshold__ ){
+            closestLeft = otherRight
+            vsnapLeft = otherRect.right
+          }
+          if( Math.abs( newRight - otherLeft ) < __snap_guide_threshold__ ){
+            closestRight = otherLeft
+            vsnapLeft = otherRect.left
+          }
+          if( Math.abs( newRight - otherRight ) < __snap_guide_threshold__ ){
+            closestRight = otherRight
+            vsnapLeft = otherRect.right
+          }
+
+          // Snap to other elements' top and bottom edges
+          if( Math.abs( newTop - otherTop ) < __snap_guide_threshold__ ){
+            closestTop = otherTop
+            hsnapTop = otherRect.top
+          }
+          if( Math.abs( newTop - otherBottom ) < __snap_guide_threshold__ ){
+            closestTop = otherBottom
+            hsnapTop = otherRect.bottom
+          }
+          if( Math.abs( newBottom - otherTop ) < __snap_guide_threshold__ ){
+            closestBottom = otherTop
+            hsnapTop = otherRect.top
+          }
+          if( Math.abs( newBottom - otherBottom ) < __snap_guide_threshold__ ){
+            closestBottom = otherBottom
+            hsnapTop = otherRect.bottom
+          }
+        })
+
+        // Use closest alignment point or snap to grid
+        if( closestLeft !== null ){
+          newLeft = closestLeft
+
+          $vsnapguide
+          .css({ left: `${vsnapLeft}px`, top: 0 })
+          .appendTo(__canvas__)
+        }
+        else if( closestRight !== null ){
+          newLeft = closestRight - wrapperWidth
+
+          $vsnapguide
+          .css({ left: `${vsnapLeft}px`, top: 0 })
+          .appendTo(__canvas__)
+        }
+        else $vsnapguide.remove()
+
+        if( closestTop !== null ){
+          newTop = closestTop
+
+          $hsnapguide
+          .css({ left: 0, top: `${hsnapTop}px` })
+          .appendTo(__canvas__)
+        }
+        else if( closestBottom !== null ){
+          newTop = closestBottom - wrapperHeight
+
+          $hsnapguide
+          .css({ left: 0, top: `${hsnapTop}px` })
+          .appendTo(__canvas__)
+        }
+        else $hsnapguide.remove()
+
+        return { newLeft, newTop }
+      }
+
+      $(__canvas__)
+      .on('click', __target__, function(){
+        const $content = $(this)
+
+        // Prevent duplicate wrapping
+        if( $content.data('is-wrapped') ) return
+
+        const
+        // Extract essential styles from the content
+        originalStyles = {
+          position: $content.css('position'),
+          zIndex: $content.css('z-index'),
+          marginTop: $content.css('margin-top'),
+          marginLeft: $content.css('margin-left'),
+          marginBottom: $content.css('margin-bottom'),
+          marginRight: $content.css('margin-right'),
+          top: $content.position().top,
+          left: $content.position().left
+        },
+        // Create a wrapper with the same essential styles
+        $wrapper = $(__wrapper_element__).css({
+          position: ['fixed', 'absolute'].includes( originalStyles.position ) ? originalStyles.position : 'relative',
+          zIndex: originalStyles.zIndex,
+          top: originalStyles.top,
+          left: originalStyles.left,
+          width: $content.outerWidth(),
+          height: $content.outerHeight(),
+          boxSizing: 'border-box'
+        })
+
+        // Temporarily overlay the content
+        $content
+        .data('is-wrapped', true )
+        .data('original-style', originalStyles )
+        .css({
+          margin: 0,
+          width: '100%',
+          height: '100%',
+          position: 'static' // Reset to prevent interference during wrapping
+        })
+        // Add the wrapper at the same level
+        .before( $wrapper )
+
+        $wrapper.append( $content )
+
+        // Add resizing handles
+        const handles = ['fixed', 'absolute'].includes( originalStyles.position ) ?
+                    /**
+                     * Resize from every side and angle 
+                     * of the element
+                     */
+                    ['tl', 'tr', 'bl', 'br', 'tc', 'bc', 'lc', 'rc']
+                    /**
+                     * Relative-like position element can only be resized
+                     * from the `right` and `bottom` sides and the `right-bottom`
+                     * angle of the element to maintain the `left-top` position 
+                     * relative to its parent element.
+                     */
+                    : ['br', 'bc', 'rc']
+        handles.forEach( ( htype ) => $wrapper.append(`<div class="handle ${htype}"></div>`) )
+      })
+
+      /**
+       * Handle resizing logic
+       */
+      .on('mousedown', '.handle', function( e ){
+        e.preventDefault()
+
+        $handle = $(this)
+        $wrapper = $handle.closest(__wrapper__)
+
+        isResizing = true
+        cursorX = e.pageX
+        cursorY = e.pageY
+
+        startWidth = $wrapper.width()
+        startHeight = $wrapper.height()
+        
+        startTop = parseFloat( $wrapper.css('top') ) || 0
+        startLeft = parseFloat( $wrapper.css('left') ) || 0
+      })
+
+      /**
+       * Mouse down on body to start creating a 
+       * new content element
+       */
+      $(document)
+      .on('mousedown', function( e ){
+        e.preventDefault()
+
+        // Move resizable frame
+        if( $(e.target).closest(__wrapper__).length ){
+          const $this = $(e.target).closest(__wrapper__)
+
+          /**
+           * Relative-like content element cannot be 
+           * moved by drag
+           */
+          if( !['fixed', 'absolute'].includes( $this.css('position') ) ) return
+          
+          $wrapper = $this
+
+          isMoving = true
+          cursorX = e.pageX
+          cursorY = e.pageY
+          
+          startTop = parseFloat( $wrapper.css('top') ) || 0
+          startLeft = parseFloat( $wrapper.css('left') ) || 0
+
+          return
+        }
+
+        // Create new content element
+        if( !$(e.target).is(__target__) ){
+          isCreating = true
+          cursorX = e.pageX
+          cursorY = e.pageY
+          
+          // Create a new content element
+          $newContent = $(__target_element__).css({
+            top: cursorY,
+            left: cursorX,
+            width: 0,
+            height: 0,
+            boxSizing: 'border-box'
+          })
+
+          // Append content to the body
+          $(__canvas__).append( $newContent )
+        }
+      })
+      .on('mousemove', function( e ){
+        if( isCreating ){
+          /**
+           * Calculate new dimensions and adjust top/left 
+           * if dragging upward/leftward
+           */
+          const
+          newWidth = Math.abs( e.pageX - cursorX ),
+          newHeight = Math.abs( e.pageY - cursorY ),
+          newLeft = e.pageX < cursorX ? e.pageX : cursorX,
+          newTop = e.pageY < cursorY ? e.pageY : cursorY
+
+          $newContent.css({
+            width: newWidth,
+            height: newHeight,
+            left: newLeft,
+            top: newTop
+          })
+        }
+
+        if( !isCreating && isResizing ){
+          let
+          newWidth = startWidth,
+          newHeight = startHeight,
+          newTop = startTop,
+          newLeft = startLeft
+
+          // Calculate new dimensions and positions
+          if( $handle.hasClass('tl')
+              || $handle.hasClass('lc')
+              || $handle.hasClass('bl') ){
+            const widthChange = e.pageX - cursorX
+
+            if( startWidth - widthChange > __min_width__ ){
+              newWidth = startWidth - widthChange
+              newLeft = startLeft + widthChange
+            }
+            else {
+              newWidth = __min_width__
+              newLeft = startLeft + ( startWidth - __min_width__ )
+            }
+          }
+
+          if( $handle.hasClass('tl')
+              || $handle.hasClass('tc')
+              || $handle.hasClass('tr') ){
+            const heightChange = e.pageY - cursorY
+
+            if( startHeight - heightChange > __min_height__ ){
+              newHeight = startHeight - heightChange
+              newTop = startTop + heightChange
+            }
+            else {
+              newHeight = __min_height__
+              newTop = startTop + ( startHeight - __min_height__ )
+            }
+          }
+
+          if( $handle.hasClass('tr')
+              || $handle.hasClass('rc')
+              || $handle.hasClass('br') )
+            newWidth = startWidth +( e.pageX - cursorX )
+
+          if( $handle.hasClass('bl')
+              || $handle.hasClass('bc')
+              || $handle.hasClass('br') )
+            newHeight = startHeight +( e.pageY - cursorY )
+
+          const guide = snapguide( $wrapper, newLeft, newTop, newWidth, newHeight )
+
+          newTop = guide.newTop
+          newLeft = guide.newLeft
+
+          // Update frame styles
+          $wrapper.css({
+            width: `${Math.max( newWidth, __min_width__ )}px`,
+            height: `${Math.max( newHeight, __min_height__ )}px`,
+            top: `${newTop}px`,
+            left: `${newLeft}px`
+          })
+        }
+        
+        if( !isCreating && !isResizing && isMoving && $wrapper.length ){
+          const
+          scaleQuo = 1 / __scale__,
+
+          deltaX = ( e.pageX - cursorX ) * scaleQuo,
+          deltaY = ( e.pageY - cursorY ) * scaleQuo
+
+          if( Number.isNaN( deltaX ) || Number.isNaN( deltaY ) ) return
+
+          let
+          newTop = startTop + deltaY,
+          newLeft = startLeft + deltaX
+
+          const guide = snapguide( $wrapper, newLeft, newTop )
+
+          newTop = guide.newTop
+          newLeft = guide.newLeft
+          
+          // Move frame to new position
+          $wrapper.css({ top: `${newTop}px`, left: `${newLeft}px` })
+        }
+      })
+      .on('mouseup', function (){
+        if( isCreating ){
+          isCreating = false
+
+          // Remove tiny elements
+          $newContent.width() < __min_width__
+          || $newContent.height() < __min_height__
+          && $newContent.remove()
+        }
+
+        if( isResizing ) isResizing = false
+        if( isMoving ) isMoving = false
+
+        // Hide snap guides
+        $(`${__canvas__} .snapguide`).remove()
+        
+        $handle = undefined
+        $wrapper = undefined
+      })
+
+      /**
+       * 
+       */
+      .on('click', function( e ){
+        if( $(e.target).is(__target__)
+            || $(e.target).closest(__wrapper__).length ) return
+
+        const $wrappers = $(__canvas__).find(__wrapper__)
+        
+        $wrappers.each( function(){
+          const
+          $wrapper = $(this),
+          $content = $wrapper.find(__target__),
+
+          newWidth = $wrapper.width(),
+          newHeight = $wrapper.height(),
+          newTop = $wrapper.css('top'),
+          newLeft = $wrapper.css('left'),
+          originalStyles = $content.data('original-style')
+
+          if( !originalStyles ) return
+          
+          $content.css({
+            width: `${newWidth}px`,
+            height: `${newHeight}px`,
+            position: originalStyles.position,
+            top: ['fixed', 'absolute'].includes( originalStyles.position ) ? newTop : '',
+            left: ['fixed', 'absolute'].includes( originalStyles.position ) ? newLeft : '',
+            marginTop: originalStyles.marginTop,
+            marginLeft: originalStyles.marginLeft,
+            marginBottom: originalStyles.marginBottom,
+            marginRight: originalStyles.marginRight
+          })
+
+          // Restore hierarchy
+          $content
+          .data('is-wrapped', false )
+          .insertBefore( $wrapper )
+          
+          // Clean up wrapper and handles
+          $wrapper.remove()
+        })
+      })
+    }
+
+    $(document).ready( handle )
+  </script>
+</html>

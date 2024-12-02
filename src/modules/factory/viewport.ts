@@ -17,17 +17,17 @@ export const createGlobal = () => {
   </mglobal>`
 }
 
-export type WorkspaceInput = {
+export type ViewportInput = {
 
 }
-export default ( input: WorkspaceInput ) => {
-  const template = `<modela>
+export default ( input: ViewportInput ) => {
+  const template = `<viewport>
     <mcanvas></mcanvas>
     <snapguide horizontal></snapguide>
     <snapguide vertical></snapguide>
 
     ${createGlobal()}
-  </modela>`
+  </viewport>`
 
-  return new Component<WorkspaceInput>( 'workspace', template, { input } )
+  return new Component<ViewportInput>( 'viewport', template, { input } )
 }

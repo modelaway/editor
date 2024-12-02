@@ -2,21 +2,39 @@ import type Modela from '../exports/modela'
 import type { FrameOption } from '../types/frame'
 
 import Frame from './frame'
+import Handle from './handle'
 import EventEmitter from 'events'
 import { 
+  CONTROL_ZOOOM_EVEN_SCALE,
   FRAME_BLANK_DOCUMENT,
   FRAME_DEFAULT_MARGIN
 } from './constants'
 
-export default class Frames extends EventEmitter {
+export default class Canvas extends EventEmitter {
   private flux: Modela
+  private handle?: Handle
   private list: ObjectType<Frame> = {}
   private currentFrame?: Frame
   
   constructor( flux: Modela ){
     super()
-
     this.flux = flux
+  }
+  enable(){
+    this.handle = new Handle( this.flux, {
+      viewport: this.flux.$viewport as JQuery<HTMLElement>,
+      canvas: this.flux.workspace.$canvas as JQuery<HTMLElement>,
+      target: 'mframe',
+      target_element: '<div class="content"></div>',
+
+      MIN_WIDTH: 0,
+      MIN_HEIGHT: 0
+    })
+
+    this.handle.apply()
+  }
+  disable(){
+    this.handle?.discard()
   }
 
   /**
@@ -141,18 +159,29 @@ export default class Frames extends EventEmitter {
     this.currentFrame?.dismiss()
 
     // Restore global toolbar without frame control
-    this.flux.workspace.switch( false )
+    this.flux.workspace.watch( false )
   }
   focus( key: string ){
     if( !this.has( key ) ) return
-    const frame = this.get( key )
+    this.currentFrame = this.get( key )
 
-    frame.edit()
-    this.currentFrame = frame
+    // Unfreeze targeted/current frame only
+    this.each( frame => frame.freeze() )
+    this.currentFrame.unfreeze()
     
-    // Show frame controls on global toolbar
-    this.flux.workspace.switch( true )
-    // this.flux.workspace.spotOn( frame.$frame )
+    /**
+     * Pan frame to viewport & activate contextual controls
+     */
+    const rect = this.currentFrame.$frame[0].getBoundingClientRect()
+    const origin = {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2
+    }
+
+    console.log( origin )
+
+    this.flux.workspace.zoomTo( CONTROL_ZOOOM_EVEN_SCALE, origin )
+    this.flux.workspace.watch( true )
   }
 
   remove( index: string ){

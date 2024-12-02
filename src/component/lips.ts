@@ -401,7 +401,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
    */
   subInput( data: TObject<any> ){
     if( typeof data !== 'object' ) 
-      return this.getEl()
+      return this.getNode()
     
     this.setInput( deepAssign( this.input as TObject<any>, data ) )
   }
@@ -411,7 +411,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
     .map( ([ method, fn ]) => this[ method ] = fn.bind(this) )
   }
 
-  getEl(){
+  getNode(){
     if( !this.$ )
       throw new Error('Component is not rendered')
 
@@ -692,7 +692,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
         self.__components[ __key__ ].setInput( uniqueObject( input ) )
 
         // Replace the original node with the fragment in the DOM
-        $fragment = $fragment.add( self.__components[ __key__ ].getEl() )
+        $fragment = $fragment.add( self.__components[ __key__ ].getNode() )
         $node.replaceWith( $fragment )
       }
       /**
@@ -714,7 +714,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
           prekey: __key__
         })
         
-        $fragment = $fragment.add( component.getEl() )
+        $fragment = $fragment.add( component.getNode() )
         // Replace the original node with the fragment in the DOM
         $node.replaceWith( $fragment )
         self.__components[ __key__ ] = component
@@ -734,7 +734,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
     }
 
     function execElement( $node: JQuery ){
-      if( !$node.length ) return $node
+      if( !$node.length || !$node.prop('tagName') ) return $node
 
       const
       $fnode = $(`<${$node.prop('tagName').toLowerCase()}/>`),
@@ -989,14 +989,23 @@ export class Component<Input = void, State = void, Static = void, Context = void
     clearInterval( this.IUC )
   }
 
-  appendTo( selector: string ){
-    this.$?.length && $(selector).append( this.$ )
+  appendTo( arg: JQuery<HTMLElement> | string ){
+    const $to = typeof arg == 'string' ? $(arg) : arg
+    this.$?.length && $to.append( this.$ )
+
+    return this
   }
-  prependTo( selector: string ){
-    this.$?.length && $(selector).prepend( this.$ )
+  prependTo( arg: JQuery<HTMLElement> | string ){
+    const $to = typeof arg == 'string' ? $(arg) : arg
+    this.$?.length && $to.prepend( this.$ )
+
+    return this
   }
-  replaceWith( selector: string ){
-    this.$?.length && $(selector).replaceWith( this.$ )
+  replaceWith( arg: JQuery<HTMLElement> | string ){
+    const $with = typeof arg == 'string' ? $(arg) : arg
+    this.$?.length && $with.replaceWith( this.$ )
+
+    return this
   }
 
   on( _event: string, fn: EventListener ){

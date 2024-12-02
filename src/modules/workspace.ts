@@ -2,7 +2,7 @@ import type Modela from '../exports/modela'
 import type { Component } from '../component/lips'
 
 import * as Event from './events'
-import WS, { WorkspaceInput } from './factory/workspace'
+import Viewport, { ViewportInput } from './factory/viewport'
 import Toolbar, { ToolbarInput } from './factory/toolbar'
 import {
   CONTROL_EDGE_MARGIN,
@@ -13,10 +13,15 @@ import {
   GLOBAL_CONTROL_OPTIONS
 } from './constants'
 
+type Origin = {
+  x: number
+  y: number
+}
+
 export default class Workspace {
   readonly flux: Modela
 
-  WS?: Component<WorkspaceInput>
+  Viewport?: Component<ViewportInput>
   Toolbar?: Component<ToolbarInput>
 
   $canvas?: JQuery<HTMLElement>
@@ -57,41 +62,43 @@ export default class Workspace {
    */
   enable(){
     /**
-     * Create modela workspace layer and apply translation 
+     * Create modela viewport layer and apply translation 
      * to text contents
      */
-    this.WS = WS({})
-    $('body').prepend( this.WS.getEl() )
+    this.Viewport = Viewport({})
+    $('body').prepend( this.Viewport.getNode() )
 
-    this.flux.$modela = this.WS.getEl()
-    if( !this.flux.$modela?.length )
+    this.flux.$viewport = this.Viewport.getNode()
+    if( !this.flux.$viewport?.length )
       throw new Error('Unexpected error occured')
 
     this.Toolbar = Toolbar({ key: 'global', options: GLOBAL_CONTROL_OPTIONS })
-    this.flux.$modela.append( this.Toolbar.getEl() )
+    this.Toolbar.appendTo( this.flux.$viewport )
 
-    this.$canvas = this.WS.find('> mcanvas')
-    this.$canvas.css({
+    this.$canvas = this.Viewport.find('> mcanvas')
+    this.$canvas?.css({
       left: '50%',
       top: '50%',
       transform: `translate(-50%, -50%) scale(${this.scale})`
     })
 
-    this.$vsnapguide = this.WS.find('> snapguide[vertical]').hide()
-    this.$hsnapguide = this.WS.find('> snapguide[horizontal]').hide()
+    this.$vsnapguide = this.Viewport.find('> snapguide[vertical]')?.hide()
+    this.$hsnapguide = this.Viewport.find('> snapguide[horizontal]')?.hide()
 
-    this.$global = this.WS.find('> mglobal')
+    this.$global = this.Viewport.find('> mglobal')
 
     // Initialize event listeners
     this.events()
     // Enable panning effect on canvas
     this.enablePan()
+
     // Initial context/frame controls on global toolbar
-    this.switch()
+    this.flux.canvas.enable()
+    this.watch()
   }
 
   events(){
-    if( !this.flux.$modela?.length ) return
+    if( !this.flux.$viewport?.length ) return
 
     const self = this
     function handler( fn: Function ){
@@ -100,7 +107,7 @@ export default class Workspace {
       }
     }
     
-    this.flux.$modela
+    this.flux.$viewport
     /**
      * Tab event trigger
      */
@@ -135,15 +142,22 @@ export default class Workspace {
        */
       if( !e.originalEvent.ctrlKey ) return
       e.cancelable && e.preventDefault()
+
+      const 
+      cursorPosition: Origin = {
+        x: e.originalEvent.pageX,
+        y: e.originalEvent.pageY
+      },
+      delta = e.originalEvent.deltaY > 0 ? -CONTROL_ZOOM_SCALE_STEP : CONTROL_ZOOM_SCALE_STEP
       
-      this.zoomTo( e.originalEvent.deltaY > 0 ? -CONTROL_ZOOM_SCALE_STEP : CONTROL_ZOOM_SCALE_STEP, e )
+      // Next scale
+      this.zoomTo( this.scale + delta, cursorPosition )
     })
-    // .on('dblclick', '[action]', handler( Event.onAction ) )
   }
   private enablePan(){
-    if( !this.flux.$modela?.length ) return
+    if( !this.flux.$viewport?.length ) return
 
-    this.flux.$modela
+    this.flux.$viewport
     /**
      * Handle canvas drag-in-drop panning
      */
@@ -151,7 +165,7 @@ export default class Workspace {
       if( this.isDragging ) return
       
       this.isPanning = true
-      this.flux.$modela?.css('cursor', 'grabbing')
+      this.flux.$viewport?.css('cursor', 'grabbing')
 
       this.startPan.x = e.pageX - this.canvasOffset.x
       this.startPan.y = e.pageY - this.canvasOffset.y
@@ -160,7 +174,7 @@ export default class Workspace {
       if( !this.isPanning ) return
 
       this.isPanning = false
-      this.flux.$modela?.css('cursor', 'grab')
+      this.flux.$viewport?.css('cursor', 'grab')
     })
 
     $(document)
@@ -168,7 +182,7 @@ export default class Workspace {
       if( !this.isPanning ) return
 
       this.isPanning = false
-      this.flux.$modela?.css('cursor', 'grab')
+      this.flux.$viewport?.css('cursor', 'grab')
     })
     .on('mousemove', ( e: any ) => {
       if( !this.isPanning ) return
@@ -181,46 +195,26 @@ export default class Workspace {
     })
   }
 
-  zoomTo( delta: number, e: any ){
-    if( !this.$canvas?.length ) return
-
-    const newScale = this.scale + delta // Next scale
-    if( newScale <= CONTROL_ZOOM_MIN_SCALE ) return
+  zoomTo( scale: number, origin: Origin ){
+    if( !this.$canvas?.length
+        || scale <= CONTROL_ZOOM_MIN_SCALE ) return
     
     const
-    cursorX = e.originalEvent.pageX,
-    cursorY = e.originalEvent.pageY,
-    
     // Calculate ffset for infinite zoom
-    zoomRatio = newScale / this.scale,
+    zoomRatio = scale / this.scale,
 
     rect = this.$canvas[0].getBoundingClientRect(),
-    offsetX = ( cursorX - rect.left ) * ( CONTROL_ZOOOM_EVEN_SCALE - zoomRatio ),
-    offsetY = ( cursorY - rect.top ) * ( CONTROL_ZOOOM_EVEN_SCALE - zoomRatio )
+    offsetX = ( origin.x - rect.left ) * ( CONTROL_ZOOOM_EVEN_SCALE - zoomRatio ),
+    offsetY = ( origin.y - rect.top ) * ( CONTROL_ZOOOM_EVEN_SCALE - zoomRatio )
 
-    this.scale = newScale
+    this.scale = scale
     this.canvasOffset.x += offsetX
     this.canvasOffset.y += offsetY
 
     this.$canvas.css('transform', `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.scale})`)
-
-    /**
-     * Disable/enable all controls on frame by the canvas
-     * scale level.
-     */
-    // if( this.scale < 0.8 ){
-    //   this.flux.frames.each( frame => frame.disable() )
-    //   // Show frame controls on global toolbar
-    //   this.switch( false )
-    // }
-    // else {
-    //   this.flux.frames.each( frame => frame.enable() )
-    //   // Show frame controls on global toolbar
-    //   this.switch( true )
-    // }
   }
 
-  switch( target: boolean = false ){
+  watch( target: boolean = false ){
     const updates = {
       'options.undo.hidden': !target,
       'options.redo.hidden': !target,
@@ -233,15 +227,12 @@ export default class Workspace {
     this.Toolbar?.subInput( updates )
   }
   destroy(){
-    this.flux.$modela?.off()
-    this.flux.$modela?.remove()
+    this.flux.$viewport?.off()
+    this.flux.$viewport?.remove()
 
     this.flux.$root?.off()
-  }
-  overview(){
-    this.scale = CONTROL_ZOOM_DEFAULT_SCALE
-    this.$canvas?.css('transform', `translate(-50%, -50%) scale(${this.scale})`)
-    this.switch( false )
+
+    this.flux.canvas.disable()
   }
 
   /**

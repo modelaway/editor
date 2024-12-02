@@ -101,7 +101,7 @@ export default class Frame extends EventEmitter {
     // Use default frame screen resolution
     this.resize( options.device || 'default')
     // Add frame to the board
-    flux.workspace.$canvas?.append( this.$frame )
+    this.flux.workspace.$canvas?.append( this.$frame )
     
     /**
      * Emit new frame added to the board
@@ -162,21 +162,22 @@ export default class Frame extends EventEmitter {
      * - Move frame
      * - Snap guidance
      */
-    this.draggable()
+    // this.draggable()
 
     // Frame fully loaded
     this.emit('load')
   }
 
-  enable(){
-    this.$frame.find('> moverlap').removeAttr('on')
-  }
-  disable(){
+  freeze(){
     this.$frame.find('> moverlap').attr('on', 'true')
+  }
+  unfreeze(){
+    this.$frame.find('> moverlap').removeAttr('on')
+    this.edit()
   }
 
   events(){
-    if( !this.$$body?.length || !this.flux.$modela?.length ) return
+    if( !this.$$body?.length || !this.flux.$viewport?.length ) return
 
     /**
      * Listen to View components or any editable tag
@@ -222,6 +223,8 @@ export default class Frame extends EventEmitter {
     .on('input', '[contenteditable]', async () => await this.pushHistoryStack( true ) )
     // .on('keydown', onUserAction )
     // .on('paste', onUserAction )
+
+    this.$frame.find('> moverlap').on('dblclick', () => this.flux.canvas.focus( this.key ) )
   }
 
   /**

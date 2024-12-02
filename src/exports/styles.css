@@ -27,7 +27,7 @@
   --me-input-color: rgba(235, 235, 240, 0.7);
 }
 
-modela {
+viewport {
   position: relative;
   width: 100vw;
   height: 100vh;
@@ -40,7 +40,7 @@ modela {
   background-image: linear-gradient(to right, #ccc 1px, transparent 1px),
                     linear-gradient(to bottom, #ccc 1px, transparent 1px); */
 }
-modela moverlap {
+viewport moverlap {
   position: absolute;
   display: none;
   width: 100%;
@@ -48,31 +48,31 @@ modela moverlap {
   top: 0;
   left: 0;
 }
-modela moverlap[on] { display: block }
-modela mcanvas {
+viewport moverlap[on] { display: block }
+viewport mcanvas {
   position: absolute;
   z-index: 1;
   transform-origin: 0 0;
   box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
   touch-action: none;
 }
-modela snapguide {
+viewport snapguide {
   position: absolute;
   z-index: 10;
   background-color: rgba(0, 0, 255, 0.5);
   z-index: 999;
   pointer-events: none;
 }
-modela snapguide[horizontal] {
+viewport snapguide[horizontal] {
   height: 1px;
   width: 100%;
 }
-modela snapguide[vertical] {
+viewport snapguide[vertical] {
   width: 1px;
   height: 100%;
 }
 
-modela mcanvas > mframe {
+viewport mcanvas > mframe {
   position: absolute;
   display: block;
   background-color: #fff;
@@ -80,11 +80,11 @@ modela mcanvas > mframe {
   cursor: pointer;
   pointer-events: auto;
 }
-modela mcanvas > mframe[component] {
+viewport mcanvas > mframe[component] {
   resize: both;
   overflow: auto;
 }
-modela mcanvas mframe mul {
+viewport mcanvas mframe mul {
   display: none;
   align-items: center;
   justify-content: space-around;
@@ -92,24 +92,24 @@ modela mcanvas mframe mul {
   right: 0;
   margin-top: -2.5rem;
 }
-modela mcanvas mframe mul:active {
+viewport mcanvas mframe mul:active {
   color: red!important;
 }
-modela mcanvas mframe:hover mul {
+viewport mcanvas mframe:hover mul {
   display: flex;
 }
-modela mcanvas mframe mul mli {
+viewport mcanvas mframe mul mli {
   padding: 4px;
   cursor: pointer;
 }
-modela mcanvas mframe mblock {
+viewport mcanvas mframe mblock {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-modela mcanvas mframe mblock > iframe {
+viewport mcanvas mframe mblock > iframe {
   width:100%;
   height:100%;
   border:none;
@@ -117,7 +117,7 @@ modela mcanvas mframe mblock > iframe {
   transition: 300ms;
 }
 
-modela,
+viewport,
 [mv-panel],
 [mv-toolbar],
 [mv-form-input] * {
@@ -135,30 +135,31 @@ modela,
   -moz-osx-font-smoothing: grayscale;
 }
 
-modela,
+viewport,
 [mv-panel],
 [mv-toolbar] {
   font-size: var(--me-font-size);
 }
 
 mul,
+mblock,
 mglobal { display: block; }
 micon,
 mlabel,
 minline { display: inline; }
 mli { display: inherit; }
 
-modela mglobal,
-modela mglobal > [show],
-modela mglobal > [backdrop],
-modela mglobal > [container] {
+viewport mglobal,
+viewport mglobal > [show],
+viewport mglobal > [backdrop],
+viewport mglobal > [container] {
   position: fixed;
   z-index: 201;
 }
-modela mglobal {
+viewport mglobal {
   z-index: 201;
 }
-modela mglobal > [show] {
+viewport mglobal > [show] {
   left: 0;
   top: calc(50% - 40px);
   margin: 2px;
@@ -166,10 +167,10 @@ modela mglobal > [show] {
   border-radius: 0 100px 100px 0;
   transition: ease-in-out var(--me-active-transition);
 }
-modela mglobal > [show]:hover { 
+viewport mglobal > [show]:hover { 
   background-color: var(--me-primary-color-fade);
 }
-modela mglobal > [show] micon {
+viewport mglobal > [show] micon {
   padding: 5px 0;
   cursor: pointer;
   color: var(--me-trigger-text-color);
@@ -178,14 +179,14 @@ modela mglobal > [show] micon {
   backdrop-filter: var(--me-backdrop-filter);
   font-size: var(--me-icon-size)!important;
 }
-modela mglobal > [backdrop] {
+viewport mglobal > [backdrop] {
   display: none;
   width: 100vw;
   height: 100vh;
   left: 0;
   top: 0;
 }
-modela mglobal > [container] {
+viewport mglobal > [container] {
   left: -100%;
   min-width: 25vw;
   margin: 15px;
@@ -197,9 +198,9 @@ modela mglobal > [container] {
   background-color: rgba(225, 225, 225, .6);
   box-shadow: var(--me-box-shadow);
 }
-modela mglobal.active > [backdrop] { display: block; }
-modela mglobal:hover > [container],
-modela mglobal.active > [container] { left: 0; }
+viewport mglobal.active > [backdrop] { display: block; }
+viewport mglobal:hover > [container],
+viewport mglobal.active > [container] { left: 0; }
 
 
 /* Editing toolbars */
@@ -215,7 +216,7 @@ modela mglobal.active > [container] { left: 0; }
   left: var(--me-edge-padding);
   bottom: var(--me-edge-padding);
 }
-modela mframe mul,
+viewport mframe mul,
 [mv-toolbar] > mblock > mul {
   list-style: none;
   margin: 0;
@@ -239,7 +240,7 @@ modela mframe mul,
   margin: 0 6px;
 }
 [mv-toolbar] mli,
-modela mframe mul mli {
+viewport mframe mul mli {
   padding: 6px;
   margin: 4px;
   display: inline-flex;
@@ -249,7 +250,7 @@ modela mframe mul mli {
   transition: var(--me-active-transition);
 }
 [mv-toolbar] mli:not(.label),
-modela mframe mul > mli:not(.label) {
+viewport mframe mul > mli:not(.label) {
   cursor: pointer;
 }
 [mv-toolbar] mli[active] {
@@ -262,12 +263,12 @@ modela mframe mul > mli:not(.label) {
 [mv-toolbar] [meta],
 [mv-toolbar] [dismiss],
 [mv-toolbar] mli:not(.label,[disabled]):hover,
-modela mframe mul > mli:not(.label,[disabled]):hover {
+viewport mframe mul > mli:not(.label,[disabled]):hover {
   background-color: var(--me-secondary-color-fade);
 }
 [mv-toolbar] mli.label > micon,
 [mv-toolbar] mli.label > mlabel,
-modela mframe mul mli.label > mlabel {
+viewport mframe mul mli.label > mlabel {
   cursor: default;
   text-wrap: nowrap;
   padding-left: 10px;
@@ -276,7 +277,7 @@ modela mframe mul mli.label > mlabel {
 }
 [mv-toolbar] mli.label > micon { padding-left: 0; }
 [mv-toolbar] mli micon,
-modela mframe mul mli micon {
+viewport mframe mul mli micon {
   font-size: var(--me-icon-size)!important;
 }
 [mv-toolbar] [options="sub"],
@@ -544,11 +545,11 @@ modela mframe mul mli micon {
   cursor: pointer;
 }
 @media (prefers-color-scheme: light) {
-  modela {
+  viewport {
     /* color: #213547;
     background-color: #ffffff; */
   }
-  modela .modela-button {
+  viewport .modela-button {
     background-color: var(--me-primary-color);
     /* color: #fff; */
   }

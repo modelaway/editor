@@ -1,7 +1,7 @@
 import type { EventEmitter } from 'events'
 import type I18N from '../modules/i18n'
 import type Assets from '../modules/assets'
-import type Controls from '../modules/workspace'
+import type Controls from '../modules/viewport'
 import type Functions from '../modules/functions'
 import type Stylesheet from '../modules/stylesheet'
 import type { RJQuery, RJQueryStatic } from '../lib/frame.window'

@@ -270,7 +270,7 @@ function Demo5(){
   },
   handler: Handler<any, State> = {
     onMount(){
-      this.getEl().css({ color: 'green' })
+      this.getNode().css({ color: 'green' })
       
       console.log('State: ', this.state.initial )
     }

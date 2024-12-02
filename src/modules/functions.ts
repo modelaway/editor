@@ -22,7 +22,7 @@ export default class Functions {
   selectFile( options: SelectFileOptions ): Promise<InputFiles[]> {
     return new Promise( resolve => {
       const $input = $(createSelectFileInput( options ))
-      // this.flux.$modela?.append( $input )
+      // this.flux.$viewport?.append( $input )
 
       $input
       /**

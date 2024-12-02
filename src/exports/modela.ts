@@ -2,7 +2,7 @@ import type { FloatingInput } from '../modules/factory/floating'
 
 import jQuery from 'jquery'
 import Store from '../modules/store'
-import Frames from '../modules/frames'
+import Canvas from '../modules/canvas'
 import Assets from '../modules/assets'
 import Plugins from '../modules/plugins'
 import Workspace from '../modules/workspace'
@@ -76,7 +76,7 @@ export default class Modela {
   public settings: ModelaSettings = {}
 
   public $root: JQuery<HTMLElement> | null = null
-  public $modela: JQuery<HTMLElement> | null = null
+  public $viewport: JQuery<HTMLElement> | null = null
 
   /**
    * Initialize internationalization handler
@@ -112,9 +112,9 @@ export default class Modela {
   public fn: Functions
 
   /**
-   * Manage frames
+   * Manage canvas
    */
-  public frames: Frames
+  public canvas: Canvas
 
   /**
    * Initialize modela workspace
@@ -160,7 +160,7 @@ export default class Modela {
     /**
      * Initialize views manager
      */
-    this.frames = new Frames( this )
+    this.canvas = new Canvas( this )
 
     /**
      * Initialize plugins support

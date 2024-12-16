@@ -1,22 +1,33 @@
-import type Modela from '../exports/modela'
-import type { Plugin, PluginConfig, PluginFactory } from '../types/plugin'
+import $, { type Cash } from 'cash-dom'
+import type Modela from '../../exports/modela'
 
 import EventEmitter from 'events'
-import Stylesheet from './stylesheet'
-import { CONTROL_SNAP_THRESHOLD } from './constants'
+import Stylesheet from '../stylesheet'
+import {
+  CONTROL_SNAP_THRESHOLD,
+  CONTROL_ZOOM_MIN_SCALE,
+  CONTROL_ZOOM_SCALE_STEP,
+  CONTROL_ZOOOM_EVEN_SCALE,
+  CONTROL_ZOOM_DEFAULT_SCALE
+} from '../constants'
 
-const css = `
-rz-wrapper {
+const
+WRAPPER_TAG = 'rzwrapper',
+WRAPPER_SIZE = 10,
+WRAPPER_BORDER_WIDTH = 1,
+
+css = `
+${WRAPPER_TAG} {
   display: inline-block;
-  border: 1px dashed #007bff; /* Frame border */
+  border: ${WRAPPER_BORDER_WIDTH}px solid #007bff; /* Frame border */
   box-sizing: border-box;
 
   /* Handles (pseudo-elements) */
   .handle {
     content: '';
     position: absolute;
-    width: 10px; /* Adjust handle size */
-    height: 10px;
+    width: ${WRAPPER_SIZE}px; /* Adjust handle size */
+    height: ${WRAPPER_SIZE}px;
     background: #007bff;
     cursor: pointer;
 
@@ -33,9 +44,8 @@ rz-wrapper {
 
 snapguide {
   position: absolute;
-  z-index: 10;
-  background-color: rgba(0, 0, 255, 0.5);
   z-index: 999;
+  background-color: rgba(0, 0, 255, 0.5);
   pointer-events: none;
 
   &[horizontal] {
@@ -50,10 +60,9 @@ snapguide {
 `
 
 export type HandleOptions = {
-  viewport: JQuery
-  canvas: JQuery
   target: string
-  target_element: string
+  
+  createElement(): Cash
 
   MIN_WIDTH: number
   MIN_HEIGHT: number
@@ -65,12 +74,13 @@ export default class Handle extends EventEmitter {
   private options: HandleOptions
   
   public isMoving = false
+  public isPanning = false
   public isCreating = false
   public isResizing = false
   
-  private $handle?: JQuery
-  private $wrapper?: JQuery
-  private $newContent?: JQuery
+  private $handle?: Cash
+  private $wrapper?: Cash
+  private $newElement?: Cash
 
   private $vsnapguide = $('<snapguide vertical></snapguide>')
   private $hsnapguide = $('<snapguide horizontal></snapguide>')
@@ -82,17 +92,27 @@ export default class Handle extends EventEmitter {
   private startWidth?: number
   private startHeight?: number
 
+  /**
+   * Default zoom scale
+   */
+  public scale = CONTROL_ZOOM_DEFAULT_SCALE
+  /**
+   * Initial canvas by default scale
+   */
+  private canvasOffset = { x: 0, y: 0 }
+  /**
+   * Initial paning position by default scale
+   */
+  private startPan = { x: 0, y: 0 }
+
   constructor( flux: Modela, options?: HandleOptions ){
     super()
     this.flux = flux
 
-    console.log( options )
-
     this.options = {
-      viewport: $('body'),
-      canvas: $('body'),
       target: '.content',
-      target_element: '<div class="content"></div>',
+      
+      createElement(){ return $('<div class="content"></div>') },
 
       MIN_WIDTH: 50,
       MIN_HEIGHT: 50,
@@ -103,10 +123,12 @@ export default class Handle extends EventEmitter {
     this.style = new Stylesheet('handle', $('head'), { css, meta: true })
   }
 
-  private snapguide( $wrapper: JQuery, newLeft: number, newTop: number, newWidth?: number, newHeight?: number ){
+  private snapguide( $wrapper: Cash, newLeft: number, newTop: number, newWidth?: number, newHeight?: number ){
+    if( !this.flux.canvas.$?.length ) return
+
     const
-    wrapperWidth = newWidth || $wrapper.width() as number,
-    wrapperHeight = newHeight || $wrapper.height() as number,
+    wrapperWidth = newWidth || parseFloat( $wrapper.css('width') as string ),
+    wrapperHeight = newHeight || parseFloat( $wrapper.css('height') as string ),
     newRight = newLeft + wrapperWidth,
     newBottom = newTop + wrapperHeight
 
@@ -120,18 +142,19 @@ export default class Handle extends EventEmitter {
     hsnapTop = 0,
     vsnapLeft = 0
 
-    this.options.canvas
+    this.flux.canvas.$
     .find( this.options.target )
     .not( $wrapper.find( this.options.target ) )
     .each( function(){
       const
       $other = $(this),
-      otherLeft = parseFloat( $other.css('left') ),
-      otherTop = parseFloat( $other.css('top') ),
-      otherRight = otherLeft + ($other?.width() as number),
-      otherBottom = otherTop + ($other?.height() as number),
+      otherLeft = parseFloat( $other.css('left') as string ),
+      otherTop = parseFloat( $other.css('top') as string ),
+      otherRight = otherLeft + parseFloat( $other.css('width') as string ),
+      otherBottom = otherTop + parseFloat( $other.css('height') as string ),
 
-      otherRect = $other[0].getBoundingClientRect()
+      otherRect = $other[0]?.getBoundingClientRect()
+      if( !otherRect ) return
 
       // Snap to other elements' left and right edges
       if( Math.abs( newLeft - otherLeft ) < CONTROL_SNAP_THRESHOLD ){
@@ -176,14 +199,14 @@ export default class Handle extends EventEmitter {
 
       this.$vsnapguide
       .css({ left: `${vsnapLeft}px`, top: 0 })
-      .appendTo( this.options.viewport )
+      .appendTo( this.flux.$viewport )
     }
     else if( closestRight !== null ){
       newLeft = closestRight - wrapperWidth
 
       this.$vsnapguide
       .css({ left: `${vsnapLeft}px`, top: 0 })
-      .appendTo( this.options.viewport )
+      .appendTo( this.flux.$viewport )
     }
     else this.$vsnapguide.remove()
 
@@ -192,51 +215,54 @@ export default class Handle extends EventEmitter {
 
       this.$hsnapguide
       .css({ left: 0, top: `${hsnapTop}px` })
-      .appendTo( this.options.viewport )
+      .appendTo( this.flux.$viewport )
     }
     else if( closestBottom !== null ){
       newTop = closestBottom - wrapperHeight
 
       this.$hsnapguide
       .css({ left: 0, top: `${hsnapTop}px` })
-      .appendTo( this.options.viewport )
+      .appendTo( this.flux.$viewport )
     }
     else this.$hsnapguide.remove()
 
     return { newLeft, newTop }
   }
-  private activate(){
-    const $content = $(this)
-
+  private activate( e: any, $target: Cash ){
     // Prevent duplicate wrapping
-    if( $content.data('is-wrapped') ) return
+    if( !e.altKey || $target.data('is-wrapped') ) return
 
     const
     // Extract essential styles from the content
     originalStyles = {
-      position: $content.css('position'),
-      zIndex: $content.css('z-index'),
-      marginTop: $content.css('margin-top'),
-      marginLeft: $content.css('margin-left'),
-      marginBottom: $content.css('margin-bottom'),
-      marginRight: $content.css('margin-right'),
-      top: $content.position().top,
-      left: $content.position().left
+      position: $target.css('position'),
+      zIndex: $target.css('z-index'),
+      marginTop: $target.css('margin-top'),
+      marginLeft: $target.css('margin-left'),
+      marginBottom: $target.css('margin-bottom'),
+      marginRight: $target.css('margin-right'),
+      top: parseFloat( $target.css('top') as string ) || $target.position()?.top,
+      left: parseFloat( $target.css('left') as string ) || $target.position()?.left
     },
     // Create a wrapper with the same essential styles
-    $wrapper = $('<rz-wrapper/>').css({
-      // @ts-ignore
-      position: ['fixed', 'absolute'].includes( originalStyles.position ) ? originalStyles.position : 'relative',
+    // @ts-ignore
+    $wrapper = $(`<${WRAPPER_TAG}></${WRAPPER_TAG}>`).css({
+      position: originalStyles.position 
+                && ['fixed', 'absolute'].includes( originalStyles.position ) ? 
+                    originalStyles.position
+                    : 'relative',
       zIndex: originalStyles.zIndex,
       top: originalStyles.top,
       left: originalStyles.left,
-      width: $content.outerWidth(),
-      height: $content.outerHeight(),
-      boxSizing: 'border-box'
+      width: $target.outerWidth(),
+      height: $target.outerHeight(),
+      boxSizing: 'border-box',
+      // borderWidth: `${WRAPPER_BORDER_WIDTH * scaleQuo}px`
     })
+    // .find('.handle').css({ width: `${WRAPPER_SIZE * scaleQuo}px`, height: `${WRAPPER_SIZE * scaleQuo}px` })
 
     // Temporarily overlay the content
-    $content
+    $target
     .data('is-wrapped', true )
     .data('original-style', originalStyles )
     .css({
@@ -248,10 +274,10 @@ export default class Handle extends EventEmitter {
     // Add the wrapper at the same level
     .before( $wrapper )
 
-    $wrapper.append( $content as any)
+    $wrapper.append( $target as any)
 
     // Add resizing handles
-    const handles = ['fixed', 'absolute'].includes( originalStyles.position ) ?
+    const handles = originalStyles.position && ['fixed', 'absolute'].includes( originalStyles.position ) ?
                 /**
                  * Resize from every side and angle 
                  * of the element
@@ -268,28 +294,29 @@ export default class Handle extends EventEmitter {
   }
   private deactivate( e: any ){
     if( $(e.target).is( this.options.target )
-        || $(e.target).closest('rz-wrapper').length ) return
+        || $(e.target).closest( WRAPPER_TAG ).length ) return
 
     const
     self = this,
-    $wrappers = this.options.canvas.find('rz-wrapper')
+    $wrappers = this.flux.canvas.$?.find( WRAPPER_TAG )
     
-    $wrappers.each( function(){
+    $wrappers?.each( function(){
       const
       $wrapper = $(this),
-      $content = $wrapper.find( self.options.target ),
-
-      newWidth = $wrapper.width(),
-      newHeight = $wrapper.height(),
+      $target = $wrapper.find( self.options.target ),
+      
+      newWidth = $wrapper.css('width'),
+      newHeight = $wrapper.css('height'),
       newTop = $wrapper.css('top'),
       newLeft = $wrapper.css('left'),
-      originalStyles = $content.data('original-style')
+      originalStyles = $target.data('original-style')
 
       if( !originalStyles ) return
       
-      $content.css({
-        width: `${newWidth}px`,
-        height: `${newHeight}px`,
+      // @ts-ignore
+      $target.css({
+        width: newWidth,
+        height: newHeight,
         position: originalStyles.position,
         top: ['fixed', 'absolute'].includes( originalStyles.position ) ? newTop : '',
         left: ['fixed', 'absolute'].includes( originalStyles.position ) ? newLeft : '',
@@ -300,7 +327,7 @@ export default class Handle extends EventEmitter {
       })
 
       // Restore hierarchy
-      $content
+      $target
       .data('is-wrapped', false )
       .insertBefore( $wrapper )
       
@@ -308,34 +335,56 @@ export default class Handle extends EventEmitter {
       $wrapper.remove()
     })
   }
-  private startResize( e: any ){
+  private startResizing( e: any, $handle: Cash ){
     e.preventDefault()
 
-    this.$handle = $(this) as any
-    this.$wrapper = this.$handle?.closest('rz-wrapper')
+    this.$handle = $handle
+    this.$wrapper = this.$handle?.closest( WRAPPER_TAG )
 
     this.isResizing = true
     this.cursorX = e.pageX
     this.cursorY = e.pageY
 
-    this.startWidth = this.$wrapper?.width() as number
-    this.startHeight = this.$wrapper?.height() as number
+    this.startWidth = parseFloat( this.$wrapper?.css('width') as string )
+    this.startHeight = parseFloat( this.$wrapper?.css('height') as string )
     
     this.startTop = parseFloat( this.$wrapper?.css('top') as string ) || 0
     this.startLeft = parseFloat( this.$wrapper?.css('left') as string ) || 0
   }
-  private startCreate( e: any ){
+  private startPanning( e: any ){
+    /**
+     * Do not initialize panning on: 
+     * - resize `.handle`
+     * - target element
+     * - wrapper element
+     */
+    if( this.$handle?.length
+        || $(e.target).is( this.options.target )
+        || $(e.target).closest( this.options.target ).length
+        || $(e.target).closest( WRAPPER_TAG ).length )
+      return
+
+    e.cancelable && e.preventDefault()
+    
+    this.isPanning = true
+    this.flux.$viewport?.css('cursor', 'grabbing')
+
+    this.startPan.x = e.pageX - this.canvasOffset.x
+    this.startPan.y = e.pageY - this.canvasOffset.y
+  }
+  private startDragging( e: any ){
     e.preventDefault()
 
     // Move resizable frame
-    if( $(e.target).closest('rz-wrapper').length ){
-      const $this = $(e.target).closest('rz-wrapper')
+    if( $(e.target).closest( WRAPPER_TAG ).length ){
+      const $this = $(e.target).closest( WRAPPER_TAG )
 
       /**
        * Relative-like content element cannot be 
        * moved by drag
        */
-      if( !['fixed', 'absolute'].includes( $this.css('position') ) ) return
+      const position = $this.css('position')
+      if( !position || !['fixed', 'absolute'].includes( position ) ) return
       
       this.$wrapper = $this
 
@@ -348,33 +397,28 @@ export default class Handle extends EventEmitter {
 
       return
     }
-
-    // Create new content element
-    if( !$(e.target).is( this.options.target ) ){
-      this.isCreating = true
-      this.cursorX = e.pageX
-      this.cursorY = e.pageY
-      
-      // Create a new content element
-      this.$newContent = $(this.options.target_element).css({
-        top: this.cursorY,
-        left: this.cursorX,
-        width: 0,
-        height: 0,
-        boxSizing: 'border-box'
-      })
-
-      // Append content to the body
-      this.options.canvas.append( this.$newContent )
-    }
   }
   private handling( e: any ){
-    if( this.isCreating && this.$newContent?.length ){
+    // Panning canvas
+    if( this.isPanning ){
+      e.preventDefault()
+
+      this.canvasOffset.x = e.pageX - this.startPan.x
+      this.canvasOffset.y = e.pageY - this.startPan.y
+
+      this.flux.canvas.$?.css('transform', `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.scale})`)
+
+      return
+    }
+
+    // Creating new target
+    if( !this.isPanning  && this.isCreating && this.$newElement?.length ){
+console.log('isCreating')
       /**
        * Calculate new dimensions and adjust top/left 
        * if dragging upward/leftward
        */
-      this.$newContent.css({
+      this.$newElement.css({
         width: Math.abs( e.pageX - this.cursorX ),
         height: Math.abs( e.pageY - this.cursorY ),
         left: e.pageX < this.cursorX ? e.pageX : this.cursorX,
@@ -384,7 +428,8 @@ export default class Handle extends EventEmitter {
       return
     }
 
-    if( !this.isCreating && this.isResizing ){
+    // Resizing target
+    if( !this.isPanning && !this.isCreating && this.isResizing ){
       if( !this.$wrapper?.length 
           || this.startWidth === undefined 
           || this.startHeight === undefined ) return
@@ -437,9 +482,10 @@ export default class Handle extends EventEmitter {
         newHeight = this.startHeight +( e.pageY - this.cursorY )
 
       const guide = this.snapguide( this.$wrapper, newLeft, newTop, newWidth, newHeight )
-
-      newTop = guide.newTop
-      newLeft = guide.newLeft
+      if( guide ){
+        newTop = guide.newTop
+        newLeft = guide.newLeft
+      }
 
       // Update frame styles
       this.$wrapper.css({
@@ -452,9 +498,10 @@ export default class Handle extends EventEmitter {
       return
     }
     
-    if( !this.isCreating && !this.isResizing && this.isMoving && this.$wrapper?.length ){
+    // Moving target
+    if( !this.isPanning && !this.isCreating && !this.isResizing && this.isMoving && this.$wrapper?.length ){
       const
-      scaleQuo = 1 /  this.flux.workspace.scale ,
+      scaleQuo = 1 / this.scale,
 
       deltaX = ( e.pageX - this.cursorX ) * scaleQuo,
       deltaY = ( e.pageY - this.cursorY ) * scaleQuo
@@ -466,9 +513,10 @@ export default class Handle extends EventEmitter {
       newLeft = this.startLeft + deltaX
 
       const guide = this.snapguide( this.$wrapper, newLeft, newTop )
-
-      newTop = guide.newTop
-      newLeft = guide.newLeft
+      if( guide ){
+        newTop = guide.newTop
+        newLeft = guide.newLeft
+      }
       
       // Move frame to new position
       this.$wrapper.css({ top: `${newTop}px`, left: `${newLeft}px` })
@@ -476,43 +524,141 @@ export default class Handle extends EventEmitter {
       return
     }
   }
+  private zooming( e: any ){
+    /**
+     * Only zoom when holding Ctrl/Alt
+     */
+    if( !e.ctrlKey && !e.altKey ) return
+    e.cancelable && e.preventDefault()
+
+    const 
+    cursorPosition: Origin = {
+      x: e.pageX,
+      y: e.pageY
+    },
+    delta = e.deltaY > 0 ? -CONTROL_ZOOM_SCALE_STEP : CONTROL_ZOOM_SCALE_STEP
+    
+    // Next scale
+    this.zoomTo( this.scale + delta, cursorPosition )
+  }
+  private creating( e: any ){
+    /**
+     * Ignore dblclick trigger on:
+     * - target element
+     * - wrapper element
+     */
+    if( $(e.target).is( this.options.target )
+        || $(e.target).closest( this.options.target ).length
+        || $(e.target).closest( WRAPPER_TAG ).length )
+      return
+
+    this.isCreating = true
+    this.cursorX = e.pageX
+    this.cursorY = e.pageY
+
+    this.flux.canvas.addFrame({
+      position: {
+        top: `${this.cursorY}px`,
+        left: `${this.cursorX}px`
+      },
+      size: {
+        width: `${this.options.MIN_WIDTH}px`,
+        height: `${this.options.MIN_HEIGHT}px`
+      }
+    })
+  }
   private stopAll( e: any ){
     if( this.isCreating ){
       this.isCreating = false
 
       // Remove tiny elements
-      this.$newContent?.length
-      && ( (this.$newContent.width() as number) < this.options.MIN_WIDTH 
-            || (this.$newContent.height() as number) < this.options.MIN_HEIGHT) 
-      && this.$newContent.remove()
+      this.$newElement?.length
+      && ( parseFloat( this.$newElement.css('width') as string) < this.options.MIN_WIDTH 
+            || (this.$newElement.height() as number) < this.options.MIN_HEIGHT) 
+      && this.$newElement.remove()
     }
 
     if( this.isResizing ) this.isResizing = false
+    if( this.isPanning ) this.isPanning = false
     if( this.isMoving ) this.isMoving = false
 
+    this.flux.$viewport?.css('cursor', 'grab')
+
     // Hide snap guides
-    this.options.canvas.find('.snapguide').remove()
+    this.flux.$viewport?.find('snapguide').remove()
     
     this.$handle = undefined
     this.$wrapper = undefined
   }
 
+  zoomTo( scale: number, origin: Origin ){
+    if( !this.flux.canvas.$?.length
+        || scale <= CONTROL_ZOOM_MIN_SCALE ) return
+    
+    const
+    // Calculate ffset for infinite zoom
+    zoomRatio = scale / this.scale,
+
+    rect = this.flux.canvas.$[0]?.getBoundingClientRect()
+    if( !rect ) return
+
+    const
+    offsetX = ( origin.x - rect.left ) * ( CONTROL_ZOOOM_EVEN_SCALE - zoomRatio ),
+    offsetY = ( origin.y - rect.top ) * ( CONTROL_ZOOOM_EVEN_SCALE - zoomRatio )
+
+    this.scale = scale
+    this.canvasOffset.x += offsetX
+    this.canvasOffset.y += offsetY
+
+    this.flux.canvas.$.css('transform', `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.scale})`)
+  }
   apply(){
-    console.log('--', this.options.canvas )
-    this.options.canvas
-    .on('click', this.options.target, this.activate.bind(this) )
+    if( !this.flux.$viewport?.length || !this.flux.canvas.$?.length )
+      return
+
+    const self = this
+
+    /**
+     * Initial canvas state
+     */
+    this.flux.canvas.$.css({
+      left: '50%',
+      top: '50%',
+      transform: `translate(-50%, -50%) scale(${this.scale})`
+    })
+
+    /**
+     * Canvas related control events
+     */
+    this.flux.canvas.$
+    .on('click', this.options.target, function( this: Cash, e: Cash ){ self.activate( e, $(this) ) } )
+
+    /**
+     * Create new target element in the canvas
+     */
+    .on('dblclick', this.creating.bind(this) )
 
     /**
      * Handle resizing logic
      */
-    .on('mousedown', '.handle', this.startResize.bind(this) )
+    .on('mousedown', '.handle', function( this: Cash, e: Cash ){ self.startResizing( e, $(this) ) } )
+
+    this.flux.$viewport
+    /**
+     * Handle canvas drag-in-drop panning
+     */
+    .on('mousedown', function( e: Cash ){ self.startPanning( e ) } )
+    /**
+     * Handle canvas zoom effect with scroll
+     */
+    .on('wheel', this.zooming.bind(this) )
 
     /**
      * Mouse down on body to start creating a 
      * new content element
      */
     $(document)
-    .on('mousedown', this.startCreate.bind(this) )
+    .on('mousedown', this.startDragging.bind(this) )
     .on('mousemove', this.handling.bind(this) )
     .on('mouseup', this.stopAll.bind(this) )
     /**
@@ -524,7 +670,7 @@ export default class Handle extends EventEmitter {
     /**
      * Remove event listeners
      */
-    this.options.canvas.off()
+    this.flux.canvas.$?.off()
     // $(document).off('mousedown mousemove mouseup click')
 
     /**

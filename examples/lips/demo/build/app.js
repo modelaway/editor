@@ -36,7 +36,7 @@ var j=Object.create;var{defineProperty:R,getPrototypeOf:k,getOwnPropertyNames:q}
     <button on-click="() => state.initial = 10">Reinitialize</button>
     <button title="Undo"
             style="background: black;color: white" 
-            on-click="() => destroy()">Destroy</button>
+            on-click="() => self.destroy()">Destroy</button>
     <br>
     <profile></profile>
     <footer></footer>
@@ -44,4 +44,4 @@ var j=Object.create;var{defineProperty:R,getPrototypeOf:k,getOwnPropertyNames:q}
 </main>
 `;export{D as state,F as handler,G as default,E as context,B as _static};
 
-//# debugId=1CA866A47C189F6C64756e2164756e21
+//# debugId=264C54A22619E22F64756e2164756e21

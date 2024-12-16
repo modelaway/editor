@@ -1,4 +1,6 @@
 import type Frame from './frame'
+
+import $, { type Cash } from 'cash-dom'
 import Stylesheet from './stylesheet'
 import {
   CSS_CUSTOM_VARIABLES
@@ -18,12 +20,12 @@ export default class CSS {
   }
 
   declare( nsp: string, settings?: StyleSettings ){
-    if( !this.frame.$$head?.length ) return
-    return new Stylesheet( nsp, this.frame.$$head, settings )
+    // if( !this.frame.$$head?.length ) return
+    return new Stylesheet( nsp, $('head'), settings )
   }
 
   setVariables( updates?: ObjectType<string | ObjectType<string>> ){
-    if( !this.frame.$$head?.length ) return
+    // if( !this.frame.$$head?.length ) return
 
     /**
      * Apply properties updates to the variables
@@ -56,7 +58,7 @@ export default class CSS {
 
     this.variables ?
             this.variables.load( settings )
-            : this.variables = new Stylesheet('variables', this.frame.$$head, settings )
+            : this.variables = new Stylesheet('variables', $('head'), settings )
 
     return this.variables
   }

@@ -21,24 +21,6 @@ export const VIEW_ACTIVE_SELECTOR = 'vactive'
 export const VIEW_CAPTION_SELECTOR = 'vcaption'
 export const VIEW_TYPES_ALLOWED_SELECTOR = 'vtypes-allowed'
 
-/**
- * Frames related
- */
-export const FRAME_BLANK_DOCUMENT = `<!DOCTYPE html>
-  <html lang="en">
-    <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta name="description" content="Blank Modela Frame Document">
-      <title>Blank Frame</title>
-      <script type="module">
-        import { connect } from '${new URL('../dist/client.min.js', import.meta.url ).href}'
-        try { await connect() }
-        catch( error ){ console.debug('Failed to connect to modela:', error ) }
-      </script>
-    </head>
-    <body></body>
-  </html>`
 export const FRAME_DEFAULT_MARGIN = 140 // Pixel (px)
 
 /**

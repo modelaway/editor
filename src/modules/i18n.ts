@@ -1,3 +1,4 @@
+import $, { type Cash } from 'cash-dom'
 import { LANGUAGE_DICTIONARIES } from './constants'
 
 export default class I18N {
@@ -12,7 +13,7 @@ export default class I18N {
   /**
    * 
    */
-  translate( text: string, lang?: string ){
+  translate( text: string, lang?: string | null ){
     // No translation required
     if( lang && this.currentLang == lang )
       return { text, lang: this.currentLang }
@@ -40,7 +41,7 @@ export default class I18N {
     return { text, lang: this.currentLang }
   }
 
-  propagate( $node: JQuery<HTMLElement>, attribute: 'mlang' | 'lang' = 'mlang' ){
+  propagate( $node: Cash, attribute: 'mlang' | 'lang' = 'mlang' ){
     const self = this
     function apply( this: HTMLElement ){
       const

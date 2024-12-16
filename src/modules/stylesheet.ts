@@ -1,5 +1,5 @@
-
-import type { FrameQuery } from '../lib/frame.window'
+import { type Cash } from 'cash-dom'
+// import type { FrameQuery } from '../lib/frame.window'
 // import * as Sass from 'sass'
 import { CompileResult } from 'sass'
 import {
@@ -12,9 +12,9 @@ let Sass: any
 export default class Stylesheet {
   private nsp: string
   private settings: StyleSettings
-  private $head: JQuery<HTMLElement> | FrameQuery
+  private $head: Cash
 
-  constructor( nsp: string, $head: JQuery<HTMLElement> | FrameQuery, settings?: StyleSettings ){
+  constructor( nsp: string, $head: Cash, settings?: StyleSettings ){
     if( typeof nsp !== 'string' ) 
       throw new Error('Undefined or invalid styles attachement element(s) namespace')
     

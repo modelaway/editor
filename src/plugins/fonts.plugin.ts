@@ -1,4 +1,4 @@
-import type Frame from '../modules/frame'
+import type Frame from '../modules/frame--'
 import type Stylesheet from '../modules/stylesheet'
 import type { Plugin, PluginConfig, PluginFactory } from '../types/plugin'
 

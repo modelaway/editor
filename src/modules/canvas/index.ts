@@ -1,34 +1,37 @@
-import type Modela from '../exports/modela'
-import type { FrameOption } from '../types/frame'
+import $, { type Cash } from 'cash-dom'
+import type Modela from '../../exports/modela'
+import type { FrameOption } from '../../types/frame'
 
-import Frame from './frame'
+import Frame from '../frame'
 import Handle from './handle'
 import EventEmitter from 'events'
-import { 
-  CONTROL_ZOOOM_EVEN_SCALE,
-  FRAME_BLANK_DOCUMENT,
-  FRAME_DEFAULT_MARGIN
-} from './constants'
+import {
+  FRAME_DEFAULT_MARGIN,
+  CONTROL_FRAME_SELECTOR
+} from '../constants'
 
 export default class Canvas extends EventEmitter {
   private flux: Modela
   private handle?: Handle
   private list: ObjectType<Frame> = {}
   private currentFrame?: Frame
-  
+
+  $?: Cash
+
   constructor( flux: Modela ){
     super()
     this.flux = flux
   }
   enable(){
+    // Initial
+    this.$ = this.flux.$viewport?.find(':scope > mcanvas')
+    
     this.handle = new Handle( this.flux, {
-      viewport: this.flux.$viewport as JQuery<HTMLElement>,
-      canvas: this.flux.workspace.$canvas as JQuery<HTMLElement>,
-      target: 'mframe',
-      target_element: '<div class="content"></div>',
+      target: `div[${CONTROL_FRAME_SELECTOR}]`,
+      createElement: () => { return $(`<div></div>`) },
 
-      MIN_WIDTH: 0,
-      MIN_HEIGHT: 0
+      MIN_WIDTH: 10,
+      MIN_HEIGHT: 10
     })
 
     this.handle.apply()
@@ -44,14 +47,12 @@ export default class Canvas extends EventEmitter {
   has( key: string ){
     return this.list[ key ] && this.list[ key ].key === key
   }
-
   /**
    * Return frame mounted in editor context
    */
   get( key: string ){
     return this.list[ key ]
   }
-
   /**
    * Record frame
    */
@@ -75,7 +76,7 @@ export default class Canvas extends EventEmitter {
         'options.redo.disabled': redoCount < 1
       }
 
-      this.flux.workspace.Toolbar?.subInput( updates )
+      this.flux.editor.Toolbar?.subInput( updates )
 
       /**
        * Send content change signal for every history
@@ -91,11 +92,13 @@ export default class Canvas extends EventEmitter {
 
     this.list[ frame.key ] = frame
   }
+  remove( index: string ){
+    this.list[ index ].delete()
+  }
 
   active(){
     return this.currentFrame?.active ? this.currentFrame : undefined
   }
-
   /**
    * Loop operation on all active frames
    */
@@ -106,14 +109,7 @@ export default class Canvas extends EventEmitter {
     Object.values( this.list ).map( fn )
   }
 
-  add( options: FrameOption ){
-    /**
-     * Create blank iframe using default HTML 
-     * Document skeleton
-     */
-    if( !options.source && !options.content )
-      options.content = FRAME_BLANK_DOCUMENT
-    
+  addFrame( options: FrameOption ){
     /**
      * Position the new frame next to the last frame
      * by the right side.
@@ -125,9 +121,9 @@ export default class Canvas extends EventEmitter {
 
       if( lastFrame ){
         const
-        _left = parseFloat( lastFrame.$frame.css('left') ),
-        _top = parseFloat( lastFrame.$frame.css('top') ),
-        _width = lastFrame.$frame.width() as number
+        _left = parseFloat( lastFrame.$frame.css('left') as string ),
+        _top = parseFloat( lastFrame.$frame.css('top') as string ),
+        _width = parseFloat( lastFrame.$frame.css('width') as string )
 
         options.position = {
           left: `${_left + _width + FRAME_DEFAULT_MARGIN}px`,
@@ -156,35 +152,31 @@ export default class Canvas extends EventEmitter {
     // Dismiss any active view in current active frame
     this.active()?.views.dismissAll()
     // Dismiss current active frame
-    this.currentFrame?.dismiss()
+    // this.currentFrame?.dismiss()
 
     // Restore global toolbar without frame control
-    this.flux.workspace.watch( false )
+    this.flux.editor.watch( false )
   }
   focus( key: string ){
-    if( !this.has( key ) ) return
-    this.currentFrame = this.get( key )
+    // if( !this.has( key ) ) return
+    // this.currentFrame = this.get( key )
 
-    // Unfreeze targeted/current frame only
-    this.each( frame => frame.freeze() )
-    this.currentFrame.unfreeze()
+    // // Unfreeze targeted/current frame only
+    // this.each( frame => frame.freeze() )
+    // this.currentFrame.unfreeze()
     
-    /**
-     * Pan frame to viewport & activate contextual controls
-     */
-    const rect = this.currentFrame.$frame[0].getBoundingClientRect()
-    const origin = {
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2
-    }
+    // /**
+    //  * Pan frame to viewport & activate contextual controls
+    //  */
+    // const rect = this.currentFrame.$frame[0]?.getBoundingClientRect()
+    // if( !rect ) return
 
-    console.log( origin )
+    // const origin = {
+    //   x: rect.left + rect.width / 2,
+    //   y: rect.top + rect.height / 2
+    // }
 
-    this.flux.workspace.zoomTo( CONTROL_ZOOOM_EVEN_SCALE, origin )
-    this.flux.workspace.watch( true )
-  }
-
-  remove( index: string ){
-    this.list[ index ].delete()
+    // this.zoomTo( CONTROL_ZOOOM_EVEN_SCALE, origin )
+    // this.flux.editor.watch( true )
   }
 }

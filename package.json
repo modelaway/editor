@@ -24,14 +24,13 @@
   },
   "dependencies": {
     "boxicons": "^2.1.4",
+    "cash-dom": "^8.1.5",
     "diff-match-patch": "^1.0.5",
     "events": "^3.3.0",
-    "jquery": "^3.7.1",
     "sass": "^1.77.2"
   },
   "devDependencies": {
-    "@types/diff-match-patch": "^1.0.36",
-    "@types/jquery": "^3.5.30"
+    "@types/diff-match-patch": "^1.0.36"
   },
   "directories": {
     "dist": "dist/",

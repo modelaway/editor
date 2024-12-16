@@ -1,5 +1,5 @@
 import type IOF from './custom.iframe.io'
-import $ from 'jquery'
+import $, { type Cash } from 'cash-dom'
 import { generateKey } from '../modules/utils'
 
 export type FrameWindowDOM = ( selector: string ) => Promise<FrameQuery>
@@ -31,7 +31,7 @@ type Response = {
 type EventListener = ( $this: FrameQuery, e?: FrameQueryEvent ) => void
 type QueryState = {
   selector?: string
-  $element: JQuery<HTMLElement | Event> 
+  $element: Cash
 }
 
 export class FrameQuery {
@@ -41,12 +41,12 @@ export class FrameQuery {
   /**
    * Store remote state index to be 
    * use as selector when element is
-   * remotely mount as JQuery object.
+   * remotely mount as Cash object.
    */
   private index?: string
 
   /**
-   * The number of elements in the jQuery object.
+   * The number of elements in the Cash object.
    */
   public length = 0
 
@@ -113,7 +113,7 @@ export class FrameQuery {
   }
 
   /**
-   * Retrieve the DOM elements matched by the jQuery object.
+   * Retrieve the DOM elements matched by the Cash object.
    */
   // async get( arg: string ){
   //   return await this.call({ fn: 'get', arg: [ arg ], canreturn: true })
@@ -259,7 +259,7 @@ export class FrameQuery {
   /**
    * Get all following siblings of each element up to but 
    * not including the element matched by the selector, 
-   * DOM node, or jQuery object passed.
+   * DOM node, or cash object passed.
    */
   async nextUntil( arg?: string ){
     const props = await this.call({ fn: 'nextUntil', arg: [ arg ], canreturn: true, instance: true }) as FrameQueryProps
@@ -319,7 +319,7 @@ export class FrameQuery {
   }
 
   /**
-   * Iterate over a jQuery object, executing a function for 
+   * Iterate over a cash object, executing a function for 
    * each matched element.
    */
   async each( fn: EventListener ){
@@ -350,7 +350,7 @@ export class FrameQuery {
 
   /**
    * Get the descendants of each element in the current set 
-   * of matched elements, filtered by a selector, jQuery 
+   * of matched elements, filtered by a selector, cash 
    * object, or element.
    */
   async find( arg: string ){
@@ -841,7 +841,7 @@ const State: { [index: string]: QueryState } = {}
 
 export default ( channel: IOF ) => {
   /**
-   * Frame JQuery element initialization event listener
+   * Frame Cash element initialization event listener
    */
   function onInit( selector: string, callback?: ( error: string | boolean, props?: FrameQueryProps ) => void ){
     try {
@@ -859,12 +859,12 @@ export default ( channel: IOF ) => {
       let index
       if( $element.length ){
         /**
-         * Hold initialized JQuery element in momery
+         * Hold initialized Cash element in momery
          * for any upcoming operations.
          * 
          * - Helps provide initial properties to remote
          * - Facilitate virtual operation on the matched 
-         *   JQuery element (even before to add to the DOM)
+         *   Cash element (even before to add to the DOM)
          * 
          * NOTE: Keep static index for static elements like: 
          *       `window`, `document`, `body`, ...
@@ -891,7 +891,7 @@ export default ( channel: IOF ) => {
         throw new Error('Undefined selector index')
 
       /**
-       * Use a state element or create new jquery element
+       * Use a state element or create new cash element
        * 
        * - state element are usually for cloned elements, ...
        */
@@ -938,7 +938,7 @@ export default ( channel: IOF ) => {
        * Loop through matched elements
        */
       else if( ['each', 'filter'].includes( fn ) )
-        $element[ fn ]( function( this: Event ){
+        $element[ fn ]( function( this: Cash ){
           const
           $this = $(this),
           targetIndex = String( generateKey() )
@@ -948,7 +948,7 @@ export default ( channel: IOF ) => {
         })
 
       /**
-       * Invoke JQuery static method on provided element 
+       * Invoke Cash static method on provided element 
        * index as argument.
        */
       else if( arg && /^[0-9]+$/.test( arg[0] ) ){
@@ -958,10 +958,10 @@ export default ( channel: IOF ) => {
         value = $element[ fn ]( State[ arg[0] ].$element )
       }
       
-      // Invoke JQuery static method on selected element
+      // Invoke Cash static method on selected element
       else value = $element[ fn ]( ...arg )
 
-      // Create new jQuery element instance
+      // Create new cash element instance
       if( instance ){
         const instanceIndex = String( generateKey() )
         if( value.length )

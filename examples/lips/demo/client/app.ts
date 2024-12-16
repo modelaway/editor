@@ -48,7 +48,7 @@ export default `
     <button on-click="() => state.initial = 10">Reinitialize</button>
     <button title="Undo"
             style="background: black;color: white" 
-            on-click="() => destroy()">Destroy</button>
+            on-click="() => self.destroy()">Destroy</button>
     <br>
     <profile></profile>
     <footer></footer>

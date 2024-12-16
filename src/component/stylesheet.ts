@@ -1,6 +1,6 @@
 import type { TObject, StyleSettings } from '.'
 
-import $ from 'jquery'
+import $, { type Cash } from 'cash-dom'
 // import * as Sass from 'sass'
 import { CompileResult } from 'sass'
 
@@ -9,7 +9,7 @@ let Sass: any
 export default class Stylesheet {
   private nsp: string
   private settings: StyleSettings
-  private $head: JQuery<HTMLElement>
+  private $head: Cash
 
   constructor( nsp: string, settings?: StyleSettings ){
     if( typeof nsp !== 'string' ) 

@@ -18,7 +18,8 @@ type Route = RouteDef & {
 type Static = {
   global: boolean
   routes: Route[]
-  currentPath: string
+  defaultPath: string | null
+  currentPath: string | null
   currentRoute: Route | null
   params: TObject<any>
   query: TObject<any>
@@ -27,7 +28,8 @@ type Static = {
 export const _static: Static = {
   global: false,
   routes: [],
-  currentPath: '/',
+  defaultPath: null,
+  currentPath: null,
   currentRoute: null,
   params: {},
   query: {}
@@ -60,10 +62,9 @@ export const handler: Handler<Input, undefined, Static> = {
     if( this.input.global )
       this.static.global = this.input.global
 
-    let defaultPath
     this.static.routes = this.input.routes.map( ({ path, template, default: _default }) => {
       if( _default )
-        defaultPath = path
+        this.static.defaultPath = path
 
       const
       // Retrieve pathname variables
@@ -83,16 +84,14 @@ export const handler: Handler<Input, undefined, Static> = {
 
     if( this.input.global ){
       const cpathname = window.location.pathname
-      defaultPath = defaultPath
-                    && cpathname == '/' 
-                    && cpathname !== defaultPath ?
-                            // Default path different root path `/`
-                            defaultPath
-                            // Use first route as default
-                            : cpathname ? cpathname + window.location.search : this.static.routes[0].path
+      this.static.defaultPath = this.static.defaultPath
+                                && cpathname == '/' 
+                                && cpathname !== this.static.defaultPath ?
+                                        // Default path different root path `/`
+                                        this.static.defaultPath
+                                        // Use first route as default
+                                        : cpathname ? cpathname + window.location.search : this.static.routes[0].path
     }
-
-    this.navigate( defaultPath )
   },
   onMount(){
     if( this.input.global ){
@@ -103,6 +102,11 @@ export const handler: Handler<Input, undefined, Static> = {
     
       window.addEventListener('popstate', e => e.state && this.navigate( e.state.path, true ) )
     }
+
+    /**
+     * Auto-navigate to specified default path
+     */
+    this.static.defaultPath && this.navigate( this.static.defaultPath )
   },
 
   navigate( path: string, back?: boolean ){
@@ -160,14 +164,14 @@ export const handler: Handler<Input, undefined, Static> = {
     // Input passed routing arguments
     route.template.input = { params, query }
 
-    const 
+    const
     page = this.lips?.render( path, route.template )
     if( !page ){
       this.emit('not-found', path )
       return
     }
-
-    this.getEl().empty().append( page.getEl() )
+    
+    this.getNode().empty().append( page.getNode() )
   },
   match( path ){
     const params: any = {}

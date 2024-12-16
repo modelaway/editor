@@ -8,7 +8,7 @@ import type {
   ComponentOptions
 } from '.'
 
-import $ from 'jquery'
+import $, { type Cash } from 'cash-dom'
 import I18N from './i18n'
 import Benchmark from './benchmark'
 import Stylesheet from './stylesheet'
@@ -19,7 +19,7 @@ import { effect, signal } from './signal'
 import * as Router from './router'
 
 function preprocessTemplate( str: string ){
-  return str.trim()
+  return (str || '').trim()
             .replace(/<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
             .replace(/<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
             .replace(/<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">');
@@ -29,9 +29,9 @@ $.fn.extend({
   attrs: function(){
     const 
     obj: any = {},
-    elem = (this as any)[0]
+    elem = this[0]
 
-    elem && $.each( elem.attributes, function(){ obj[ this.name ] = this.value })
+    elem && $.each( elem.attributes, function( this: any ){ obj[ this.name ] = this.value })
 
     return obj
   },
@@ -165,7 +165,7 @@ export default class Lips<Context = any> {
 
 export class Component<Input = void, State = void, Static = void, Context = void> {
   private template: string
-  private $?: JQuery
+  private $?: Cash
   public input: Input
   public state: State
   public static: Static
@@ -177,7 +177,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
   private __components: TObject<Component> = {}
   private __events: TObject<EventListener[]> = {}
   private __once_events: TObject<EventListener[]> = {}
-  private __attachableEvents: { $node: JQuery, _event: string, instruction: string, scope?: TObject<any> }[] = []
+  private __attachableEvents: { $node: Cash, _event: string, instruction: string, scope?: TObject<any> }[] = []
 
   /**
    * Nexted Component Count (NCC) in tree
@@ -195,14 +195,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
   // Internal Update Clock (IUC)
   private IUC: NodeJS.Timeout
   private IUC_BEAT = 5 // ms
-
-  private let: TObject<any> = {}
-  private async: TObject<any> = {}
-  private for?: {
-    index: number
-    key?: string
-    each?: any
-  }
 
   public lips?: Lips
   private benchmark: Benchmark
@@ -413,7 +405,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
   getNode(){
     if( !this.$ )
-      throw new Error('Component is not rendered')
+      throw new Error('getNode() is expected to be call after component get rendered')
 
     return this.$
   }
@@ -421,15 +413,15 @@ export class Component<Input = void, State = void, Static = void, Context = void
     return this.$?.find( selector )
   }
 
-  render( $nodes?: JQuery, scope: TObject<any> = {} ){
+  render( $nodes?: Cash, scope: TObject<any> = {} ){
     const self = this
     /**
-     * Initialize an empty jQuery object to 
+     * Initialize an empty cash object to 
      * act like a DocumentFragment
      */
     let _$ = $()
 
-    function execLet( $node: JQuery ){
+    function execLet( $node: Cash ){
       const attributes = ($node as any).attrs()
       if( !attributes ) return 
       
@@ -446,9 +438,9 @@ export class Component<Input = void, State = void, Static = void, Context = void
       self.benchmark.inc('elementCount')
     }
 
-    function execFor( $node: JQuery ){
+    function execFor( $node: Cash ){
       const
-      $contents = $node.contents() as JQuery,
+      $contents = $node.contents() as Cash,
       _in = self.__evaluate__( $node.attr('in') as string, scope )
 
       let
@@ -501,7 +493,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
       return $fragment
     }
 
-    function execSwitch( $node: JQuery ){
+    function execSwitch( $node: Cash ){
       const by = $node.attr('by')
       let $fragment = $()
 
@@ -512,7 +504,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
         $node.children().each( function(){
           const
           $child = $(this),
-          $contents = $child.contents() as JQuery,
+          $contents = $child.contents(),
           _is = $child.attr('is')
 
           if( matched || !_is ) return
@@ -535,10 +527,10 @@ export class Component<Input = void, State = void, Static = void, Context = void
       return $fragment
     }
 
-    function execIf( $node: JQuery ){
+    function execIf( $node: Cash ){
       const 
       $fragment = $(),
-      $ifContents = $node.contents() as JQuery,
+      $ifContents = $node.contents(),
       condition = $node.attr('by')
 
       // Evaluate the primary <if(condition)>
@@ -549,7 +541,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
         // Check for <else-if(condition)> and <else>
         let $sibling = $node.nextAll('else-if, else').first()
         while( $sibling.length > 0 ){
-          const $contents = $sibling.contents() as JQuery
+          const $contents = $sibling.contents()
 
           if( $sibling.is('else-if') ){
             const elseIfCondition = $sibling.attr('by') as string
@@ -571,7 +563,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
       return $fragment
     }
 
-    function execAsync( $node: JQuery ){
+    function execAsync( $node: Cash ){
       const attr = $node.attr('await') as string
       if( !attr )
         throw new Error('Undefined async <await> attribute')
@@ -583,13 +575,12 @@ export class Component<Input = void, State = void, Static = void, Context = void
       let $fragment = $()
 
       // Initially append preload content
-      const preloadContent = $preload.contents() as JQuery
-      if( preloadContent.length ){
+      const preloadContent = $preload.contents()
+      if( preloadContent.length )
         $fragment = $fragment.add( self.render( preloadContent, scope ) )
-      }
-
+        
       // Replace the original node with the fragment in the DOM
-      $node.replaceWith( $fragment )
+      // $node.replaceWith( $fragment )
 
       const
       [ fn, ...args ] = attr.trim().split(/\s*,\s*/),
@@ -602,13 +593,13 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
       _await( ..._args )
       .then( ( response: any ) => {
-        const resolveContent = $resolve?.contents() as JQuery
+        const resolveContent = $resolve?.contents()
         
         resolveContent.length
         && $fragment.replaceWith( self.render( resolveContent, { ...scope, response } ) )
       })
       .catch( ( error: unknown ) => {
-        const catchContent = $catch?.contents() as JQuery
+        const catchContent = $catch?.contents()
 
         catchContent.length
         && $fragment.replaceWith( self.render( catchContent, { ...scope, error } ) )
@@ -622,7 +613,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
       return $fragment
     }
 
-    function execComponent( $node: JQuery ){
+    function execComponent( $node: Cash ){
       const name = $node.prop('tagName')?.toLowerCase() as string
       if( !name )
         throw new Error('Invalid component')
@@ -667,14 +658,14 @@ export class Component<Input = void, State = void, Static = void, Context = void
       })
 
       /**
-       * Also inject component body into inputs
-       * as `__innerHtml`
+       * Also inject component slotted body into inputs
+       * as `__slot__`
        */
       const
-      nodeContents = $node.contents() as JQuery
+      nodeContents = $node.contents()
       if( nodeContents ){
         const $el = self.render( nodeContents, scope )
-        input.__innerHtml = $el.html() || $el.text()
+        input.__slot__ = $el.html()
       }
     
       /**
@@ -693,7 +684,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
         // Replace the original node with the fragment in the DOM
         $fragment = $fragment.add( self.__components[ __key__ ].getNode() )
-        $node.replaceWith( $fragment )
+        // $node.replaceWith( $fragment )
       }
       /**
        * Render the whole component for first time
@@ -716,7 +707,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
         
         $fragment = $fragment.add( component.getNode() )
         // Replace the original node with the fragment in the DOM
-        $node.replaceWith( $fragment )
+        // $node.replaceWith( $fragment )
         self.__components[ __key__ ] = component
 
         // Listen to this nexted component's events
@@ -733,12 +724,12 @@ export class Component<Input = void, State = void, Static = void, Context = void
       return $fragment
     }
 
-    function execElement( $node: JQuery ){
+    function execElement( $node: Cash ){
       if( !$node.length || !$node.prop('tagName') ) return $node
 
       const
       $fnode = $(`<${$node.prop('tagName').toLowerCase()}/>`),
-      $contents = $node.contents() as JQuery
+      $contents = $node.contents()
 
       $contents.length && $fnode.append( self.render( $contents, scope ) )
 
@@ -832,7 +823,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
       return $fnode
     }
 
-    function parse( $node: JQuery ){
+    function parse( $node: Cash ){
       if( $node.get(0)?.nodeType === Node.TEXT_NODE )
         return document.createTextNode( self.__interpolate__( $node.text(), scope ) )
 
@@ -861,12 +852,15 @@ export class Component<Input = void, State = void, Static = void, Context = void
       return $nodes
     }
     
-    // Process nodes
-    $nodes = $nodes || $(this.template)
-    $nodes.each( function(){
-      const $node = parse( $(this) as JQuery )
-      if( $node ) _$ = _$.add( $node )
-    } )
+    try {
+      // Process nodes
+      $nodes = $nodes || $(this.template)
+      $nodes.each( function(){
+        const $node = parse( $(this) )
+        if( $node ) _$ = _$.add( $node )
+      } )
+    }
+    catch( error ){ console.error('Rendering Failed --', error ) }
 
     /**
      * BENCHMARK: Tracking total occurence of recursive rendering
@@ -907,7 +901,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
   private __interpolate__( str: string, scope?: TObject<any> ){
     return str.replace(/{\s*([^{}]+)\s*}/g, ( _, expr) => this.__evaluate__( expr, scope ) )
   }
-  private __attachEvent__( element: JQuery | Component, _event: string, instruction: string, scope?: TObject<any> ){
+  private __attachEvent__( element: Cash | Component, _event: string, instruction: string, scope?: TObject<any> ){
     /**
      * Execute function script directly attach 
      * as the listener.
@@ -946,7 +940,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
       })
     }
   }
-  private __detachEvent__( element: JQuery | Component, _event: string ){
+  private __detachEvent__( element: Cash | Component, _event: string ){
     element.off( _event )
   }
 
@@ -989,19 +983,19 @@ export class Component<Input = void, State = void, Static = void, Context = void
     clearInterval( this.IUC )
   }
 
-  appendTo( arg: JQuery<HTMLElement> | string ){
+  appendTo( arg: Cash | string ){
     const $to = typeof arg == 'string' ? $(arg) : arg
     this.$?.length && $to.append( this.$ )
 
     return this
   }
-  prependTo( arg: JQuery<HTMLElement> | string ){
+  prependTo( arg: Cash | string ){
     const $to = typeof arg == 'string' ? $(arg) : arg
     this.$?.length && $to.prepend( this.$ )
 
     return this
   }
-  replaceWith( arg: JQuery<HTMLElement> | string ){
+  replaceWith( arg: Cash | string ){
     const $with = typeof arg == 'string' ? $(arg) : arg
     this.$?.length && $with.replaceWith( this.$ )
 

@@ -1,17 +1,16 @@
 import type { FloatingInput } from '../modules/factory/floating'
+import $, { type Cash } from 'cash-dom'
 
-import jQuery from 'jquery'
+import I18N from '../modules/i18n'
 import Store from '../modules/store'
+import Editor from '../modules/editor'
 import Canvas from '../modules/canvas'
 import Assets from '../modules/assets'
 import Plugins from '../modules/plugins'
-import Workspace from '../modules/workspace'
 import Functions from '../modules/functions'
 import { debug } from '../modules/utils'
-import I18N from '../modules/i18n'
 import { Component } from '../component/lips'
 
-window.$ = jQuery
 window.mlang = {
   default: 'en-US',
   current: window.navigator.language
@@ -75,8 +74,8 @@ export default class Modela {
   }
   public settings: ModelaSettings = {}
 
-  public $root: JQuery<HTMLElement> | null = null
-  public $viewport: JQuery<HTMLElement> | null = null
+  public $root: Cash | null = null
+  public $viewport: Cash | null = null
 
   /**
    * Initialize internationalization handler
@@ -117,9 +116,9 @@ export default class Modela {
   public canvas: Canvas
 
   /**
-   * Initialize modela workspace
+   * Initialize modela editor
    */
-  public workspace: Workspace
+  public editor: Editor
   /**
    * Floating block component
    */
@@ -168,9 +167,9 @@ export default class Modela {
     this.plugins = new Plugins( this )
 
     /**
-     * Initialize modela workspace
+     * Initialize modela editor
      */
-    this.workspace = new Workspace( this )
+    this.editor = new Editor( this )
   }
 
   mount( selector: string ){
@@ -183,8 +182,8 @@ export default class Modela {
     if( !this.$root.length )
       throw new Error(`Root <${selector}> element not found`)
     
-    // Enable modela workspace
-    this.workspace.enable()
+    // Enable modela editor
+    this.editor.enable()
   }
 
   dismiss(){
@@ -193,8 +192,8 @@ export default class Modela {
       return
     }
 
-    // Remove workspace
-    this.workspace?.destroy()
+    // Remove editor
+    this.editor?.destroy()
     // Drop store functions
     this.store?.drop()
     

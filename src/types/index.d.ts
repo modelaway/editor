@@ -1,10 +1,14 @@
-
 type ObjectType<T> = { [index: string]: T }
 
 type ClipBoard = {
   type: string
-  key?: string
+  key?: string | null
   value?: any
+}
+
+type Origin = {
+  x: number
+  y: number
 }
 
 type InputOptions = {

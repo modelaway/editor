@@ -2,6 +2,7 @@ import type Modela from '../exports/modela'
 import type { ViewComponent } from '../types/view'
 import type { FrameQuery } from '../lib/frame.window'
 import { debug } from './utils'
+import { Cash } from 'cash-dom'
 
 type StoreMemory = {
   views: ObjectType<ViewComponent>,
@@ -33,7 +34,7 @@ export default class Store {
     this.STORE.views[ view.name ] = view
     debug('view component registered - ', view.name )
   }
-  async getView( name: string, $$node?: FrameQuery ): Promise<ViewComponent | null> {
+  getView( name: string, $node?: Cash ): ViewComponent | null {
     /**
      * Get view component by name or HTML nodeName
      * 
@@ -61,11 +62,11 @@ export default class Store {
      * 
      * Useful mostly for custom view lookup
      */
-    if( $$node?.length ){
+    if( $node?.length ){
       const possibleMatches = compArray.filter( each => (new RegExp(`^${name}.`).test( each.node )) )
       if( possibleMatches.length )
         for( const each of possibleMatches )
-          if( await $$node.is( each.node ) )
+          if( $node.is( each.node ) )
             return { ...each }
     }
     

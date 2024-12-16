@@ -23,9 +23,7 @@ export type ViewportInput = {
 export default ( input: ViewportInput ) => {
   const template = `<viewport>
     <mcanvas></mcanvas>
-    <snapguide horizontal></snapguide>
-    <snapguide vertical></snapguide>
-
+    
     ${createGlobal()}
   </viewport>`
 

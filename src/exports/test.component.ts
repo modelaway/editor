@@ -237,7 +237,7 @@ function Demo5(){
     `,
     
     default: `<div>
-      <span html=input.__innerHtml></span>: 
+      <span html=input.__slot__></span>: 
       <span text="state.count"></span>
       <br>
       <button on-click="handleClick">Count</button>

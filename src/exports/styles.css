@@ -72,19 +72,19 @@ viewport snapguide[vertical] {
   height: 100%;
 }
 
-viewport mcanvas > mframe {
+viewport mcanvas > div[mv-frame] {
   position: absolute;
   display: block;
   background-color: #fff;
   /* border: 1px solid var(--me-border-color); */
-  cursor: pointer;
+  cursor: default!important;
   pointer-events: auto;
 }
-viewport mcanvas > mframe[component] {
+viewport mcanvas > div[mv-frame][component] {
   resize: both;
   overflow: auto;
 }
-viewport mcanvas mframe mul {
+viewport mcanvas div[mv-frame] mul {
   display: none;
   align-items: center;
   justify-content: space-around;
@@ -92,24 +92,24 @@ viewport mcanvas mframe mul {
   right: 0;
   margin-top: -2.5rem;
 }
-viewport mcanvas mframe mul:active {
+viewport mcanvas div[mv-frame] mul:active {
   color: red!important;
 }
-viewport mcanvas mframe:hover mul {
+viewport mcanvas div[mv-frame]:hover mul {
   display: flex;
 }
-viewport mcanvas mframe mul mli {
+viewport mcanvas div[mv-frame] mul mli {
   padding: 4px;
   cursor: pointer;
 }
-viewport mcanvas mframe mblock {
+viewport mcanvas div[mv-frame] mblock {
   width: 100%;
   height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
 }
-viewport mcanvas mframe mblock > iframe {
+viewport mcanvas div[mv-frame] mblock > iframe {
   width:100%;
   height:100%;
   border:none;
@@ -216,7 +216,7 @@ viewport mglobal.active > [container] { left: 0; }
   left: var(--me-edge-padding);
   bottom: var(--me-edge-padding);
 }
-viewport mframe mul,
+viewport div[mv-frame] mul,
 [mv-toolbar] > mblock > mul {
   list-style: none;
   margin: 0;
@@ -240,7 +240,7 @@ viewport mframe mul,
   margin: 0 6px;
 }
 [mv-toolbar] mli,
-viewport mframe mul mli {
+viewport div[mv-frame] mul mli {
   padding: 6px;
   margin: 4px;
   display: inline-flex;
@@ -250,7 +250,7 @@ viewport mframe mul mli {
   transition: var(--me-active-transition);
 }
 [mv-toolbar] mli:not(.label),
-viewport mframe mul > mli:not(.label) {
+viewport div[mv-frame] mul > mli:not(.label) {
   cursor: pointer;
 }
 [mv-toolbar] mli[active] {
@@ -263,12 +263,12 @@ viewport mframe mul > mli:not(.label) {
 [mv-toolbar] [meta],
 [mv-toolbar] [dismiss],
 [mv-toolbar] mli:not(.label,[disabled]):hover,
-viewport mframe mul > mli:not(.label,[disabled]):hover {
+viewport div[mv-frame] mul > mli:not(.label,[disabled]):hover {
   background-color: var(--me-secondary-color-fade);
 }
 [mv-toolbar] mli.label > micon,
 [mv-toolbar] mli.label > mlabel,
-viewport mframe mul mli.label > mlabel {
+viewport div[mv-frame] mul mli.label > mlabel {
   cursor: default;
   text-wrap: nowrap;
   padding-left: 10px;
@@ -277,7 +277,7 @@ viewport mframe mul mli.label > mlabel {
 }
 [mv-toolbar] mli.label > micon { padding-left: 0; }
 [mv-toolbar] mli micon,
-viewport mframe mul mli micon {
+viewport div[mv-frame] mul mli micon {
   font-size: var(--me-icon-size)!important;
 }
 [mv-toolbar] [options="sub"],

@@ -4,6 +4,32 @@ import ModelaNativesLoader from '../../dist/natives.loader.min.js'
 import i18n from './i18n.plugin.js'
 import cardView from './card.view.js'
 
+const dummyFrameContent = `<div class="th--dark" id="root">
+    <main class="position-relative w-100 vh-100 theme-bg">
+      <div class="row m-0 position-relative top-0 vh-100">
+        <div class="col-8 theme-bg-secondary d-md-block d-none"></div>
+        <div class="col p-0">
+          <div class="w-100 h-100 theme-bg">
+            <section
+              style="height:50%;background-image:url(./bg-circles.3c284014.png);background-size:contain">
+            </section>
+            <section style="height:50%" class="position-absolute bottom-0 w-100 d-flex align-items-center px-md-2">
+              <div style="padding-bottom:6rem" class="w-100 px-3"><img width="120px"
+                  src="./small.png"><br><br>
+                <p class="font-medium-2 font-weight-300 py-50"><span data-lang="en-US"
+                    style="color:inherit;"></span>Mobile money, Bank, e-Wallet, and international transfers just like
+                  you want.</p>
+              </div>
+              <div class="position-absolute bottom-0 p-3"><button
+                  class="btn btn-primary btn-xl btn-block round px-4"><span data-lang="en-US" style="color:inherit;">Get
+                    Started</span></button></div>
+            </section>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>`
+
 // In-build `Fonts` plugin configuration
 const fontPluginConfig = {
   autoload: true,
@@ -51,26 +77,18 @@ editor.plugins.register( i18n, i18nConfig )
 editor.mount('body')
 
 // Add a desktop frame to the board
-editor.frames.add({
-  source: 'http://127.0.0.1:3000/publications/@modela/examples/test/index.html',
-  title: 'Frame Test',
-  // position: { top: 'calc(50% - 50vh)', left: 'calc(50% - 50vw)' }
-})
-// Add a tablet frame to the board
-editor.frames.add({
-  source: 'http://127.0.0.1:3000/publications/@modela/examples/wigo/index.html',
-  title: 'Frame Test',
-  device: 'tablet'
+editor.canvas.addFrame({
+  content: dummyFrameContent,
+  title: 'Frame Test'
 })
 // Add a mobile frame to the board
-editor.frames.add({
-  source: 'http://127.0.0.1:3000/publications/@modela/examples/wigo/index.html',
+editor.canvas.addFrame({
+  content: dummyFrameContent,
   title: 'Frame Test',
-  device: 'mobile',
-  // position: { top: 'calc(50% - 50vh)', left: 'calc(50% + 60vw)' }
+  device: 'mobile'
 })
 // Add empty tablet frame to the board
-editor.frames.add({
+editor.canvas.addFrame({
   // source: 'http://127.0.0.1:3000/publications/@modela/examples/wigo/index.html',
   title: 'Empty Frame Test',
   device: 'tablet'

@@ -2,6 +2,7 @@ import type Modela from '../exports/modela'
 import type { FrameQuery } from '../lib/frame.window'
 import type { ViewBlockProperties } from '../types/view'
 
+import $, { type Cash } from 'cash-dom'
 import { createSelectFileInput } from './factory'
 import { debug } from './utils'
 
@@ -85,8 +86,8 @@ export default class Functions {
    * Extract an element style attribute value
    * into an object.
    */
-  async extractStyle( $$this: FrameQuery ){
-    const styleStr = await $$this.attr('style')
+  extractStyle( $this: Cash ){
+    const styleStr = $this.attr('style')
     if( !styleStr ) return {}
 
     const styles: ObjectType<string> = {}

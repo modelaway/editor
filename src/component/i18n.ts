@@ -1,7 +1,5 @@
 import type { LanguageDictionary } from '.'
 
-import $ from 'jquery'
-
 export default class I18N {
   private default = window.navigator.language
   private LANGUAGE_DICTIONARIES: ObjectType<LanguageDictionary> = {}

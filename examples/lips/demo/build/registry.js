@@ -1,4 +1,4 @@
-var q=Object.create;var{defineProperty:v,getPrototypeOf:r,getOwnPropertyNames:t}=Object;var u=Object.prototype.hasOwnProperty;var J=(a,d,b)=>{b=a!=null?q(r(a)):{};const e=d||!a||!a.__esModule?v(b,"default",{value:a,enumerable:!0}):b;for(let g of t(a))if(!u.call(e,g))v(e,g,{get:()=>a[g],enumerable:!0});return e};var K=(a)=>{return import.meta.require(a)};var x=(a,d)=>{for(var b in d)v(a,b,{get:d[b],enumerable:!0,configurable:!0,set:(e)=>d[b]=()=>e})};var h={};x(h,{stylesheet:()=>{{return B}},state:()=>{{return z}},handler:()=>{{return A}},default:()=>{{return D}},context:()=>{{return y}},_static:()=>{{return w}}});var w={limit:12},y=["lang"],z={count:0},A={onInput(){this.state.count=Number(this.input.initial)},handleClick(a){if(this.state.count>=this.static.limit)return;this.state.count++,this.emit("update",this.state.count)}},B=`
+var q=Object.create;var{defineProperty:x,getPrototypeOf:t,getOwnPropertyNames:u}=Object;var w=Object.prototype.hasOwnProperty;var J=(a,b,r)=>{r=a!=null?q(t(a)):{};const d=b||!a||!a.__esModule?x(r,"default",{value:a,enumerable:!0}):r;for(let v of u(a))if(!w.call(d,v))x(d,v,{get:()=>a[v],enumerable:!0});return d};var K=(a)=>{return import.meta.require(a)};var g=(a,b)=>{for(var r in b)x(a,r,{get:b[r],enumerable:!0,configurable:!0,set:(d)=>b[r]=()=>d})};var h={};g(h,{stylesheet:()=>{{return C}},state:()=>{{return A}},handler:()=>{{return B}},default:()=>{{return D}},context:()=>{{return z}},_static:()=>{{return y}}});var y={limit:12},z=["lang"],A={count:0},B={onInput(){this.state.count=Number(this.input.initial)},handleClick(a){if(this.state.count>=this.static.limit)return;this.state.count++,this.emit("update",this.state.count)}},C=`
   span { font: 14px arial; color: blue; }
 `,D=`<div>
   <span html=input.__innerHtml></span>: 
@@ -8,7 +8,7 @@ var q=Object.create;var{defineProperty:v,getPrototypeOf:r,getOwnPropertyNames:t}
     <span text="Count"></span>
     (<span text=context.lang></span>)
   </button>
-</div>`;var j={};x(j,{stylesheet:()=>{{return F}},default:()=>{{return G}},context:()=>{{return E}}});var E=["getUser"],F=`
+</div>`;var j={};g(j,{stylesheet:()=>{{return F}},default:()=>{{return G}},context:()=>{{return E}}});var E=["getUser"],F=`
   * { font-family: helvetica }
 `,G=`
 <async await="context.getUser, 'Peter Giligous'">
@@ -25,8 +25,8 @@ var q=Object.create;var{defineProperty:v,getPrototypeOf:r,getOwnPropertyNames:t}
   </resolve>
   <catch><span text=error></span></catch>
 </async>
-`;var k={};x(k,{default:()=>{{return I}},_static:()=>{{return H}}});var H={content:"Nexted counter component"},I=`<p>
+`;var k={};g(k,{default:()=>{{return I}},_static:()=>{{return H}}});var H={content:"Nexted counter component"},I=`<p>
   <small style="color:gray" text=static.content>...</small>
 </p>`;var M=(a)=>{a.register("counter",h),a.register("profile",j),a.register("footer",k)};export{M as default};
 
-//# debugId=FD48C591CCE16F0564756e2164756e21
+//# debugId=791CC06412CEBA7164756e2164756e21

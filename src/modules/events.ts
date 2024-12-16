@@ -1,18 +1,19 @@
-import type Workspace from './workspace'
+import { type Cash } from 'cash-dom'
+import type Editor from './editor'
+
 import {
   CONTROL_FLOATING_SELECTOR,
   CONTROL_TOOLBAR_SELECTOR,
   CONTROL_PANEL_SELECTOR,
-  CONTROL_FRAME_SELECTOR,
-  FRAME_BLANK_DOCUMENT
+  CONTROL_FRAME_SELECTOR
 } from './constants'
 import { debug } from './utils'
 
 /**
  * Global event listener of tab components 
- * in the workspace.
+ * in the editor.
  */
-export function onTab( $this: JQuery<HTMLElement>, ws: Workspace ){
+export function onTab( $this: Cash, ws: Editor ){
   debug('tab event --', $this.attr('tab'), $this.attr('params') )
 
   /**
@@ -31,9 +32,9 @@ export function onTab( $this: JQuery<HTMLElement>, ws: Workspace ){
 }
 
 /**
- * Workspace component display trigger events
+ * Editor component display trigger events
  */
-export function onShow( $this: JQuery<HTMLElement>, ws: Workspace ){
+export function onShow( $this: Cash, ws: Editor ){
   debug('show event --', $this.attr('show'), $this.attr('params') )
 
   const
@@ -120,9 +121,9 @@ export function onShow( $this: JQuery<HTMLElement>, ws: Workspace ){
 
 /**
  * Global apply event: To trigger `name` and `value`
- * application from workspace to views
+ * application from editor to views
  */
-export function onApply( $this: JQuery<HTMLElement>, ws: Workspace ){
+export function onApply( $this: Cash, ws: Editor ){
   debug('apply event --', $this.attr('apply'), $this.attr('params') )
 
   const frame = ws.flux.canvas.active()
@@ -150,9 +151,9 @@ export function onApply( $this: JQuery<HTMLElement>, ws: Workspace ){
 }
 
 /**
- * Global workspace action event listener
+ * Global editor action event listener
  */
-export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
+export function onAction( $this: Cash, ws: Editor ){
   debug('action event --', $this.attr('action'), $this.attr('params') )
   /**
    * Lookup the DOM from the main parent perspective
@@ -171,7 +172,7 @@ export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
         device: 'default'
       }
       
-      ws.flux.canvas.add( options )
+      ws.flux.canvas.addFrame( options )
     } break
     // Focus a frame for edit
     // case 'frame.focus': ws.flux.canvas.focus( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
@@ -291,7 +292,7 @@ export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
       nextToView = frame.views.get( nextViewKey as string )
 
       // Duplicated view next to specified pasting view position
-      nextToView && frame.views.duplicate( ws.clipboard.key as string, nextToView.$$ )
+      nextToView && frame.views.duplicate( ws.clipboard.key as string, nextToView.$ )
       // Remove visible floating active
       // ws.flux.$root?.find(`[${CONTROL_FLOATING_SELECTOR}]`).remove()
 
@@ -301,9 +302,9 @@ export function onAction( $this: JQuery<HTMLElement>, ws: Workspace ){
 }
 
 /**
- * Global workspace component dismissing event listener
+ * Global editor component dismissing event listener
  */
-export function onDismiss( $this: JQuery<HTMLElement>, ws: Workspace ){
+export function onDismiss( $this: Cash, ws: Editor ){
   debug('dismiss event --', $this.attr('dismiss') )
 
   /**
@@ -338,7 +339,7 @@ export function onDismiss( $this: JQuery<HTMLElement>, ws: Workspace ){
  * Custom event defined by view, triggered global
  * and forwared to views.
  */
-export function onCustomListener( $this: JQuery<HTMLElement>, ws: Workspace ){
+export function onCustomListener( $this: Cash, ws: Editor ){
   debug('custom on-* event --', $this.attr('on'), $this.attr('params') )
 
   const

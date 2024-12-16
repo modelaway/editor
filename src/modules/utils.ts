@@ -1,9 +1,10 @@
+import type { Cash } from 'cash-dom'
 
 declare global {
-  interface Window {
-    $: typeof jQuery
-    jQuery: typeof jQuery
-  }
+  // interface Window {
+  //   $: typeof Cash
+  //   Cash: typeof Cash
+  // }
   interface String {
     toCapitalCase: () => string
   }
@@ -89,7 +90,7 @@ export const str2Obj = ( str: string ): ObjectType<any> => {
  */
 let AUTO_DISMISS_TRACKERS: ObjectType<any> = {}
 
-export const autoDismiss = ( id: string, $this: JQuery<HTMLElement>, delay?: number ) => {
+export const autoDismiss = ( id: string, $this: Cash, delay?: number ) => {
   // Cancel previous auto-dismiss-delay
   clearTimeout( AUTO_DISMISS_TRACKERS[ id ] )
   AUTO_DISMISS_TRACKERS[ id ] = setTimeout( () => $this.remove(), (delay || 5) * 1000 )

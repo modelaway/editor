@@ -1,12 +1,12 @@
-import type Frame from './frame'
-import type { AddViewTriggerType, ViewComponent } from '../types/view'
+import type Frame from '../frame'
+import type { AddViewTriggerType, ViewComponent } from '../../types/view'
 
 import $, { type Cash } from 'cash-dom'
 import View from './view'
 import {
   VIEW_KEY_SELECTOR,
   VIEW_NAME_SELECTOR
-} from './constants'
+} from '../constants'
 
 export default class Views {
   private frame: Frame

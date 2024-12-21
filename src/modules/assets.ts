@@ -1,10 +1,7 @@
-// import type Modela from './modela'
 import { debug } from './utils'
 
 export default class Assets {
   private ASSETS: ObjectType<AssetData> = {}
-
-  // constructor(){}
 
   add( assets: AssetData ){
     if( !assets )

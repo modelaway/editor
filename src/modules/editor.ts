@@ -1,6 +1,6 @@
 import $, { type Cash } from 'cash-dom'
 import type Modela from '../exports/modela'
-import type { Component } from '../component/lips'
+import type { Component } from '../lib/lips/lips'
 
 import * as Event from './events'
 import Viewport, { ViewportInput } from './factory/viewport'

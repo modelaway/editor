@@ -1,4 +1,4 @@
-import { Component } from '../../component/lips'
+import { Component } from '../../lib/lips/lips'
 import {
   VIEW_ALLEY_SELECTOR,
   VIEW_REF_SELECTOR

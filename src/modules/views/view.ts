@@ -1,9 +1,9 @@
-import type Frame from './frame'
-import type { AddViewTriggerType, ViewBlockProperties, ViewComponent, ViewBridge } from '../types/view'
+import type Frame from '../frame'
+import type { AddViewTriggerType, ViewBlockProperties, ViewComponent, ViewBridge } from '../../types/view'
 
 import $, { type Cash } from 'cash-dom'
 import EventEmitter from 'events'
-import State from './state'
+import State from '../state'
 import {
   VIEW_KEY_SELECTOR,
   VIEW_NAME_SELECTOR,
@@ -21,16 +21,16 @@ import {
   CONTROL_TOOLBAR_MARGIN,
   VIEW_REF_SELECTOR,
   CONTROL_FLOATING_MARGIN
-} from './constants'
-import Stylesheet from './stylesheet'
-import { Component } from '../component/lips'
-import Alley from './factory/alley'
-import Panel, { PanelInput } from './factory/panel'
-import Finder, { FinderInput } from './factory/finder'
-import Toolbar, { ToolbarInput } from './factory/toolbar'
-import Floating, { FloatingInput } from './factory/floating'
-import SearchResult, { SearchResultInput } from './factory/searchResult'
-import { debug, hashKey } from './utils'
+} from '../constants'
+import Stylesheet from '../stylesheet'
+import Alley from '../factory/alley'
+import { Component } from '../../lib/lips/lips'
+import Panel, { PanelInput } from '../factory/panel'
+import Finder, { FinderInput } from '../factory/finder'
+import Toolbar, { ToolbarInput } from '../factory/toolbar'
+import Floating, { FloatingInput } from '../factory/floating'
+import SearchResult, { SearchResultInput } from '../factory/searchResult'
+import { debug, hashKey } from '../utils'
 // import { FrameQuery } from '../lib/frame.window'
 
 export default class View {

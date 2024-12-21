@@ -1,6 +1,6 @@
-import type { Template, Handler } from '../component'
+import type { Template, Handler } from '../lib/lips'
 
-import Lips, { Component } from '../component/lips'
+import Lips, { Component } from '../lib/lips/lips'
 import english from '../languages/en.json'
 import french from '../languages/fr.json'
 

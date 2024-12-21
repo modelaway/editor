@@ -1,6 +1,4 @@
 import { type Cash } from 'cash-dom'
-// import type { FrameQuery } from '../lib/frame.window'
-// import * as Sass from 'sass'
 import { CompileResult } from 'sass'
 import {
   VIEW_NAME_SELECTOR,

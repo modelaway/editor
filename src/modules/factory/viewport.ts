@@ -1,4 +1,4 @@
-import { Component } from '../../component/lips'
+import { Component } from '../../lib/lips/lips'
 
 export const createGlobal = () => {
   const globalBlock = `<mblock container>

@@ -1,4 +1,4 @@
-import type { FloatingInput } from '../modules/factory/floating'
+// import type { FloatingInput } from '../modules/factory/floating'
 import $, { type Cash } from 'cash-dom'
 
 import I18N from '../modules/i18n'
@@ -9,7 +9,7 @@ import Assets from '../modules/assets'
 import Plugins from '../modules/plugins'
 import Functions from '../modules/functions'
 import { debug } from '../modules/utils'
-import { Component } from '../component/lips'
+// import { Component } from '../lib/lips/lips'
 
 window.mlang = {
   default: 'en-US',
@@ -122,7 +122,7 @@ export default class Modela {
   /**
    * Floating block component
    */
-  public Floating?: Component<FloatingInput>
+  // public Floating?: Component<FloatingInput>
 
   constructor( settings = {} ){
 
@@ -186,7 +186,7 @@ export default class Modela {
     this.editor.enable()
   }
 
-  dismiss(){
+  unmount(){
     if( !this.enabled ){
       debug('Modela functions disabled')
       return

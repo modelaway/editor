@@ -1,4 +1,4 @@
-import { Component } from '../../component/lips'
+import { Component } from '../../lib/lips/lips'
 import {
   CONTROL_LANG_SELECTOR,
   CONTROL_FLOATING_SELECTOR

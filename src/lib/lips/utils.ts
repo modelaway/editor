@@ -47,9 +47,49 @@ export function isEquals( aObject: ObjectType<any>, bObject: ObjectType<any> ){
 
   return true
 }
+
 export function uniqueObject( obj: any ){
   if( typeof obj !== 'object' )
     return obj
 
   return JSON.parse( JSON.stringify( obj ) )
+}
+
+/**
+ * Operate a deep assign on a object.
+ * 
+ * NOTE: Create object or subset of that object
+ * if doesn't exist in the original object
+ * 
+ * return modified object
+ */
+export const deepAssign = ( original: ObjectType<any>, toSet: ObjectType<any> ) => {
+  if( typeof original !== 'object'
+      || typeof toSet !== 'object'
+      || !Object.keys( toSet ).length )
+    throw new Error('Invalid deep assign arguments')
+
+  function doset( obj: ObjectType<any>, sequence: string, value: any ){
+    const
+    keys = sequence.split('.'),
+    key = keys.shift()
+
+    if( !key ) return
+
+    if( !(key in obj) && keys.length )
+      obj[ key ] = {}
+
+    if( typeof obj === 'object' && keys.length ){
+      obj = obj[ key ]
+      return doset( obj, keys.join('.'), value )
+    }
+
+    obj[ key ] = value
+  }
+
+  const modified = JSON.parse( JSON.stringify( original ) )
+  for( const each in toSet )
+    doset( modified, each, toSet[ each ] )
+
+  return modified
 }

@@ -1,5 +1,5 @@
 import $, { type Cash } from 'cash-dom'
-import type Modela from '../../exports/modela'
+import type Editor from '../editor'
 import type { FrameOption } from '../../types/frame'
 
 import Frame from '../frame'
@@ -11,25 +11,23 @@ import {
 } from '../constants'
 
 export default class Canvas extends EventEmitter {
-  private flux: Modela
-  private handle?: Handle
+  private editor: Editor
   private list: ObjectType<Frame> = {}
   private currentFrame?: Frame
 
-  $?: Cash
+  public $?: Cash
+  public handle?: Handle
 
-  constructor( flux: Modela ){
+  constructor( editor: Editor ){
     super()
-    this.flux = flux
+    this.editor = editor
   }
   enable(){
     // Initial
-    this.$ = this.flux.$viewport?.find(':scope > mcanvas')
+    this.$ = this.editor.$viewport?.find(':scope > mcanvas')
     
-    this.handle = new Handle( this.flux, {
+    this.handle = new Handle( this.editor, {
       target: `div[${CONTROL_FRAME_SELECTOR}]`,
-      createElement: () => { return $(`<div></div>`) },
-
       MIN_WIDTH: 100,
       MIN_HEIGHT: 100
     })
@@ -68,7 +66,7 @@ export default class Canvas extends EventEmitter {
         'options.redo.disabled': redoCount < 1
       }
 
-      this.flux.editor.Toolbar?.subInput( updates )
+      // this.editor.editor.Toolbar?.subInput( updates )
 
       /**
        * Send content change signal for every history
@@ -127,7 +125,7 @@ export default class Canvas extends EventEmitter {
       else options.position = { left: `0px`, top: `0px` }
     }
 
-    this.currentFrame = new Frame( this.flux, options )
+    this.currentFrame = new Frame( this.editor, options )
 
     /**
      * Record new frame

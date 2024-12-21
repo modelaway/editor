@@ -69,7 +69,7 @@ export default class Views {
    * Add view component via editor contxt to the DOM
    */
   async add( name: string, to: string, triggerType?: AddViewTriggerType ){
-    const vc = this.frame.flux.store.getView( name )
+    const vc = this.frame.editor.store.getView( name )
     if( !vc )
       throw new Error(`Unknown <${name}> view`)
 
@@ -97,7 +97,6 @@ export default class Views {
    * Target: Native HTML tags or custom views
    */
   lookup( $currentTarget: Cash, e?: Event ){
-    console.log('-- exec lookup', $currentTarget )
     /**
      * Inspect inert view
      */
@@ -122,7 +121,7 @@ export default class Views {
       let cname = $currentTarget.attr( VIEW_NAME_SELECTOR )
                   || $currentTarget.prop('nodeName').toLowerCase()
 
-      let vc = this.frame.flux.store.getView( cname, $currentTarget )
+      let vc = this.frame.editor.store.getView( cname, $currentTarget )
       if( !vc ) return
 
       // Stop event propagation when there's a view match
@@ -171,7 +170,7 @@ export default class Views {
     let cname = $node.attr( VIEW_NAME_SELECTOR )
                 || $node.prop('nodeName').toLowerCase()
 
-    const vc = this.frame.flux.store.getView( cname )
+    const vc = this.frame.editor.store.getView( cname )
     if( vc?.name ){
       /**
        * View component's name can be the same as its HTML 

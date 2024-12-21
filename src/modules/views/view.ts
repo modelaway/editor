@@ -91,9 +91,9 @@ export default class View {
     this.bridge = {
       state: new State(),
       events: new EventEmitter(),
-      assets: frame.flux.assets,
-      fn: frame.flux.fn,
-      i18n: frame.flux.i18n,
+      assets: frame.editor.assets,
+      fn: frame.editor.fn,
+      i18n: frame.editor.i18n,
       css: undefined,
       $: undefined
     }
@@ -123,7 +123,7 @@ export default class View {
        */
       if( this.bridge.css ){
         // this.bridge.css.custom = async () => (await this.frame.remote?.customCSSProps() as ObjectType<string>)
-        this.bridge.css.style = async () => this.frame.flux.fn.extractStyle( this.$ as Cash )
+        this.bridge.css.style = async () => this.frame.editor.fn.extractStyle( this.$ as Cash )
       }
     }
     catch( error: any ){ debug( error.message ) }
@@ -132,7 +132,7 @@ export default class View {
      * Attach a next alley to the new view element
      */
     try {
-      if( this.frame.flux.settings.enableAlleys
+      if( this.frame.editor.settings.enableAlleys
           && !this.$.next(`[${VIEW_ALLEY_SELECTOR}="${this.key}"]`).length ){
         
         /**
@@ -227,7 +227,7 @@ export default class View {
 
     if( !this.vc ){
       // Set view specifications
-      this.set( this.frame.flux.store.getView( name ) )
+      this.set( this.frame.editor.store.getView( name ) )
       // Initialize view properties
       this.initialize()
     }
@@ -284,7 +284,7 @@ export default class View {
     /**
      * Extract defined view blocks props
      */
-    const renderingProps = this.frame.flux.fn.extractProperties( element )
+    const renderingProps = this.frame.editor.fn.extractProperties( element )
     this.inject( renderingProps )
 
     // Set view specifications
@@ -369,7 +369,7 @@ export default class View {
         each.caption && this.$.data( VIEW_CAPTION_SELECTOR, each.caption )
         each.allowedViewTypes && this.$.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
         each.addView
-        && this.frame.flux.settings.enableAlleys
+        && this.frame.editor.settings.enableAlleys
         && this.$.append( Alley().getNode() as any )
 
         return
@@ -383,7 +383,7 @@ export default class View {
       each.caption && $block.data( VIEW_CAPTION_SELECTOR, each.caption )
       each.allowedViewTypes && $block.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
       each.addView
-      && this.frame.flux.settings.enableAlleys
+      && this.frame.editor.settings.enableAlleys
       && $block.append( Alley().getNode() as any )
     } )
   }
@@ -426,10 +426,10 @@ export default class View {
    * Show view's editing toolbar
    */
   showToolbar(){
-    if( !this.frame.flux.$viewport || !this.key || !this.$ )
+    if( !this.frame.editor.$viewport || !this.key || !this.$ )
       throw new Error('Invalid method called')
 
-    if( this.frame.flux.$viewport.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`).length ) 
+    if( this.frame.editor.$viewport.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`).length ) 
       return
 
     const
@@ -453,10 +453,10 @@ export default class View {
       settings,
       position: { left: `${x}px`, top: `${y}px` }
     })
-    let $toolbar = this.Toolbar.appendTo( this.frame.flux.$viewport ).getNode()
+    let $toolbar = this.Toolbar.appendTo( this.frame.editor.$viewport ).getNode()
 
     const
-    tHeight = $toolbar.find('> [container]').height() || 0,
+    tHeight = $toolbar.find(':scope > [container]').height() || 0,
     dueYPosition = tHeight + (CONTROL_TOOLBAR_MARGIN * 2)
     
     const
@@ -484,10 +484,10 @@ export default class View {
     this.bridge.events.emit('show.toolbar')
   }
   showPanel(){
-    if( !this.frame.flux.$viewport || !this.key || !this.$ ) 
+    if( !this.frame.editor.$viewport || !this.key || !this.$ ) 
       throw new Error('Invalid method called')
 
-    if( this.frame.flux.$viewport.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}"]`).length ) 
+    if( this.frame.editor.$viewport.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}"]`).length ) 
       return
 
     const { caption, panel } = this.get() as ViewComponent
@@ -502,11 +502,11 @@ export default class View {
       key: this.key,
       options: panel( this.bridge )
     })
-    let $panel = this.Panel.appendTo( this.frame.flux.$viewport ).getNode()
+    let $panel = this.Panel.appendTo( this.frame.editor.$viewport ).getNode()
 
     const
-    pWidth = $panel.find('> [container]').width() || 0,
-    pHeight = $panel.find('> [container]').height() || 0,
+    pWidth = $panel.find(':scope > [container]').width() || 0,
+    pHeight = $panel.find(':scope > [container]').height() || 0,
     // Window dimensions
     wWidth = $(window).width() || 0,
     wHeight = $(window).height() || 0,
@@ -544,10 +544,10 @@ export default class View {
     this.bridge.events.emit('show.panel')
   }
   showFloating(){
-    if( !this.frame.flux.$viewport || !this.key || !this.$ )
+    if( !this.frame.editor.$viewport || !this.key || !this.$ )
       throw new Error('Invalid method called')
 
-    if( this.frame.flux.$viewport.find(`[${CONTROL_FLOATING_SELECTOR}="${this.key}"]`).length ) 
+    if( this.frame.editor.$viewport.find(`[${CONTROL_FLOATING_SELECTOR}="${this.key}"]`).length ) 
       return
     
     const triggers = ['addpoint']
@@ -555,7 +555,7 @@ export default class View {
      * Show paste-view trigger point when a pending
      * copy of view is in the clipboard.
      */
-    if( this.frame.flux.editor.clipboard?.type == 'view' )
+    if( this.frame.editor.clipboard?.type == 'view' )
       triggers.push('paste')
 
     const
@@ -566,45 +566,45 @@ export default class View {
     // Calculate floating position
     let { x, y } = this.frame.getTopography( $alley )
 
-    let $floating: Cash
-    // Insert new floating point to the DOM
-    if( !this.frame.flux.Floating ){
-      this.frame.flux.Floating = Floating({ key: this.key, type: 'view', triggers })
-      $floating = this.frame.flux.Floating.appendTo( this.frame.flux.$viewport ).getNode()
-    }
-    // Change key of currently floating point to new trigger's key
-    else {
-      this.frame.flux.Floating?.setInput({ key: this.key, type: 'view', triggers })
-      $floating = this.frame.flux.Floating.getNode()
-    }
+    // let $floating: Cash
+    // // Insert new floating point to the DOM
+    // if( !this.frame.editor.Floating ){
+    //   this.frame.editor.Floating = Floating({ key: this.key, type: 'view', triggers })
+    //   $floating = this.frame.editor.Floating.appendTo( this.frame.editor.$viewport ).getNode()
+    // }
+    // // Change key of currently floating point to new trigger's key
+    // else {
+    //   this.frame.editor.Floating?.setInput({ key: this.key, type: 'view', triggers })
+    //   $floating = this.frame.editor.Floating.getNode()
+    // }
 
-    const
-    tWidth = !$discret.length && $floating.find('> mul').width() || 0,
-    dueXPosition = tWidth + CONTROL_FLOATING_MARGIN
+    // const
+    // tWidth = !$discret.length && $floating.find('> mul').width() || 0,
+    // dueXPosition = tWidth + CONTROL_FLOATING_MARGIN
 
-    /**
-     * Not enough space at the left, position at the right
-     */
-    if( ( x - dueXPosition ) >= 15 )
-      x -= dueXPosition
+    // /**
+    //  * Not enough space at the left, position at the right
+    //  */
+    // if( ( x - dueXPosition ) >= 15 )
+    //   x -= dueXPosition
     
-    $floating.css({ left: `${x}px`, top: `${y}px` })
+    // $floating.css({ left: `${x}px`, top: `${y}px` })
   }
   showViewFinder( $trigger: Cash ){
-    if( !this.frame.flux.$viewport || !this.key || !this.$ )
+    if( !this.frame.editor.$viewport || !this.key || !this.$ )
       throw new Error('Invalid method called')
 
     /**
      * Put finder panel in position
      */
-    let { x, y } = this.frame.flux.editor.getTopography( $trigger )
+    let { x, y } = this.frame.getTopography( $trigger )
 
-    this.Finder = Finder({ key: this.key as string, list: this.frame.flux.store.searchView() })
-    let $finder = this.Finder.appendTo( this.frame.flux.$viewport ).getNode()
+    this.Finder = Finder({ key: this.key as string, list: this.frame.editor.store.searchView() })
+    let $finder = this.Finder.appendTo( this.frame.editor.$viewport ).getNode()
 
     const
-    pWidth = $finder.find('> [container]').width() || 0,
-    pHeight = $finder.find('> [container]').height() || 0,
+    pWidth = $finder.find(':scope > [container]').width() || 0,
+    pHeight = $finder.find(':scope > [container]').height() || 0,
     // Window dimensions
     wWidth = $(window).width() || 0,
     wHeight = $(window).height() || 0
@@ -648,7 +648,7 @@ export default class View {
        */
       if( query.length == 1 ) return
 
-      const list = self.frame.flux.store.searchView( query )
+      const list = self.frame.editor.store.searchView( query )
       if( !_searchResults ){
         _searchResults = SearchResult({ list })
 

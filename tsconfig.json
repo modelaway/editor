@@ -5,7 +5,7 @@
   "files": [
     "src/exports/modela.ts",
     "src/exports/client.ts",
-    "src/exports/natives.loader.ts",
+    "src/modules/natives.loader.ts",
     "src/types/index.d.ts"
   ],
   "compilerOptions": {

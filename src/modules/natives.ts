@@ -1,4 +1,4 @@
-import type Modela from './modela'
+import type Editor from './editor'
 import { ViewComponent } from '../types/view'
 
 import Text from '../natives/Text'
@@ -19,14 +19,14 @@ type NativeOptions = {
   views?: string[]
 }
 
-export default function ModelaNativesLoader( modela: Modela, options?: NativeOptions ){
+export function Loader( editor: Editor, options?: NativeOptions ){
   /**
-   * Modela object instance is required to load
+   * Editor object instance is required to load
    * the anything in-build into the editor.
    */
-  if( !modela
-      || !modela.store 
-      || typeof modela.store.addView !== 'function' )
+  if( !editor
+      || !editor.store 
+      || typeof editor.store.addView !== 'function' )
     return
 
   return {
@@ -40,7 +40,7 @@ export default function ModelaNativesLoader( modela: Modela, options?: NativeOpt
             && options.views.length
             && !options.views.includes( view.name ) ) return
           
-        modela.store.addView( view )
+        editor.store.addView( view )
       } )
 
       /**
@@ -58,7 +58,7 @@ export default function ModelaNativesLoader( modela: Modela, options?: NativeOpt
             && options.views.length
             && !options.views.includes( view.name ) ) return
           
-        modela.store.removeView( view.name )
+        editor.store.removeView( view.name )
       } )
 
       /**

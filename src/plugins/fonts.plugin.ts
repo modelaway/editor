@@ -48,15 +48,15 @@ export default class Fonts implements Plugin {
      *       before all built-in and external plugins
      *       are loaded into the editor.
      */
-    factory.flux.plugins.on('load', () => this.factory.flux.canvas.each( this.apply.bind(this) ) )
+    factory.editor.plugins.on('load', () => this.factory.editor.canvas.each( this.apply.bind(this) ) )
     /**
      * Make fonts available in every new frames 
      * as soon as added to the canvas.
      */
-    factory.flux.canvas.on('frame.add', this.apply.bind(this) )
+    factory.editor.canvas.on('frame.add', this.apply.bind(this) )
   }
   discard(){
-    this.factory.flux.canvas.each( frame => frame.styles.removeRules('fonts') )
+    this.factory.editor.canvas.each( frame => frame.styles.removeRules('fonts') )
   }
 
   private async apply( frame: Frame ){
@@ -108,7 +108,7 @@ export default class Fonts implements Plugin {
     delete this.fonts[ name ]
 
     // Refresh imported fonts in every frame's DOM
-    this.factory.flux.canvas.each( frame => {
+    this.factory.editor.canvas.each( frame => {
       frame.styles.removeRules('fonts')
       frame.styles.addRules( Object.values( this.fonts ).join('\n'), { key: 'fonts' })
     } )

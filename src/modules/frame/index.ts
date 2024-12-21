@@ -1,4 +1,4 @@
-import type Modela from '../../exports/modela'
+import type Editor from '../editor'
 import type { FrameOption } from '../../types/frame'
 
 import $, { type Cash } from 'cash-dom'
@@ -23,13 +23,106 @@ const createFrame = ( key: string, position?: FrameOption['position'] ) => {
   return `<div ${CONTROL_FRAME_SELECTOR}="${key}" style="top:${position?.top || '0px'};left:${position?.left || '0px'}"></div>`
 }
 
+type EventType = keyof HTMLElementEventMap;
+
+interface EventOptions {
+  stopPropagation?: boolean;
+  preventDefault?: boolean;
+}
+
+interface Topography {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  bottom?: number;
+  right?: number;
+}
+interface TopographyOptions {
+  includeMargins?: boolean
+}
+
+class ShadowDOMEvents {
+  private listeners: Map<string, EventListener> = new Map()
+  private root: ShadowRoot
+
+  constructor( shadowRoot: ShadowRoot ){
+    this.root = shadowRoot;
+  }
+
+  on<E extends EventType>(
+    _event: E,
+    selectorOrCallback: string | EventListener,
+    callbackOrOptions?: EventListener | EventOptions,
+    options: EventOptions = {}
+  ): this {
+    if( !this.root ) return this
+
+    // Handle overloaded parameters
+    let 
+    selector: string | undefined,
+    callback: EventListener
+    
+    if( typeof selectorOrCallback === 'function' ){
+      callback = selectorOrCallback
+      options = callbackOrOptions as EventOptions || {}
+    }
+    else {
+      selector = selectorOrCallback
+      callback = callbackOrOptions as EventListener
+    }
+
+    if( typeof callback !== 'function' ) return this
+
+    // Create the event listener
+    const wrappedCallback = ( e: Event ) => {
+      options.stopPropagation && e.stopPropagation()
+      options.preventDefault && e.preventDefault()
+
+      if( !selector ){
+        callback.bind( e.target )( e )
+        return
+      }
+
+      e.target instanceof Element 
+      && e.target.matches( selector )
+      && callback.bind( e.target )( e )
+    }
+
+    // Store the listener for cleanup
+    const key = `${_event}-${selector || ''}`
+    this.listeners.set( key, wrappedCallback )
+    
+    // Attach the listener
+    this.root.addEventListener( _event, wrappedCallback, true )
+
+    return this
+  }
+
+  off<E extends EventType>( _event: E, selector?: string ): this {
+    if( !this.root ) return this
+
+    const
+    key = `${_event}-${selector || ''}`,
+    listener = this.listeners.get( key )
+    
+    if( listener ){
+      this.root.removeEventListener( _event, listener, true )
+      this.listeners.delete( key )
+    }
+
+    return this
+  }
+}
+
 export default class Frame extends EventEmitter {
   public key: string
-  public flux: Modela
+  public editor: Editor
   public $frame: Cash
 
   public $: Cash
   public styles: FrameStyle
+  private DOM: ShadowDOMEvents
 
   /**
    * Initialize history manager
@@ -41,9 +134,9 @@ export default class Frame extends EventEmitter {
    */
   public views = new Views( this )
 
-  constructor( flux: Modela, options: FrameOption ){
+  constructor( editor: Editor, options: FrameOption ){
     super()
-    this.flux = flux
+    this.editor = editor
 
     // Generate new key for the new frame
     this.key = generateKey()
@@ -53,7 +146,9 @@ export default class Frame extends EventEmitter {
     if( !element ) throw new Error('Frame node creation failed unexpectedly')
  
     const shadow = element.attachShadow({ mode: 'open' })
-    
+    if( !element.shadowRoot )
+      throw new Error('Frame shadow root creation failed unexpectedly')
+ 
     /**
      * Initialize frame styles manager with 
      * shadow root :host stylesheet
@@ -62,8 +157,9 @@ export default class Frame extends EventEmitter {
 
     // Append initial content
     options.content && $(shadow).append( options.content )
- 
+
     this.$ = $(element.shadowRoot)
+    this.DOM = new ShadowDOMEvents( element.shadowRoot )
 
     /**
      * No explicit size is considered a default 
@@ -74,7 +170,7 @@ export default class Frame extends EventEmitter {
             : this.setDeviceSize( options.device || 'default')
 
     // Add frame to the board
-    this.flux.canvas.$?.append( this.$frame )
+    this.editor.canvas.$?.append( this.$frame )
 
     this.controls()
     
@@ -91,14 +187,14 @@ export default class Frame extends EventEmitter {
   private controls(){
     // Define initial :root css variables (Custom properties)
     this.styles.setVariables()
-    // Inject modela css patch into frame content <head>
+    // Inject editor css patch into frame content <head>
     // this.css.declare('patch', PATCH_CSS_SETTINGS )
     
     /**
      * Propagate view control over the existing content
      */
     this.$.length
-    && this.flux.settings.autoPropagate
+    && this.editor.settings.autoPropagate
     && this.views.propagate( this.$ )
 
     // Activate all inert add-view alleys
@@ -122,26 +218,22 @@ export default class Frame extends EventEmitter {
   // }
 
   events(){
-    if( !this.$?.length || !this.flux.$viewport?.length ) return
+    if( !this.$?.length || !this.editor.$viewport?.length ) return
     const self = this
 
     /**
      * Listen to View components or any editable tag
      */
-    const selectors = `${this.flux.settings.viewOnly ? VIEW_IDENTIFIER : ''}:not([${VIEW_ALLEY_SELECTOR}],[${CONTROL_PANEL_SELECTOR}] *)`
-    this.flux.settings.hoverSelect ?
-              this.$.on('mouseover', selectors, this.views.lookup.bind( this.views ) )
-              : this.$.on('click', selectors, this.views.lookup.bind( this.views ) )
+    const selectors = `${this.editor.settings.viewOnly ? VIEW_IDENTIFIER : ''}:not([${VIEW_ALLEY_SELECTOR}],[${CONTROL_PANEL_SELECTOR}] *)`
+    this.editor.settings.hoverSelect ?
+              this.DOM.on('mouseover', selectors, function( this: Cash ){ self.views.lookup.bind( self.views )( $(this) ) })
+              : this.DOM.on('click', selectors, function( this: Cash ){ self.views.lookup.bind( self.views )( $(this) ) })
 
-    this.$.on('click', '*', ( e ) => console.log('-- click', e.target ) )
-    console.log('-- selectors', selectors )
-
-    this.$
+    this.DOM
     /**
      * Show toolbar options
      */
     .on('click', `[${VIEW_ACTIVE_SELECTOR}]`, function( this: Cash ){
-      console.log('hello')
       const key = $(this).attr( VIEW_KEY_SELECTOR )
       debug('toolbar event --', key )
 
@@ -189,7 +281,7 @@ export default class Frame extends EventEmitter {
    * - inert: Disable add-view alleys
    */
   enableAlleys( status = 'active' ){
-    if( !this.flux.settings.enableAlleys ) return
+    if( !this.editor.settings.enableAlleys ) return
     $(`[${VIEW_ALLEY_SELECTOR}]`).attr('status', status )
   }
 
@@ -217,32 +309,52 @@ export default class Frame extends EventEmitter {
    * Return an element dimension and position 
    * situation in the DOM
    */
-  getTopography( $elem: Cash ){
-    if( !$elem.length )
+  getTopography( $elem: Cash, options: TopographyOptions = { includeMargins: false } ): Topography {
+    if( !$elem.length || !$elem[0] )
       throw new Error('Invalid method call. Expected a valid element')
-    
+
     const
-    defaultOffset = { left: CONTROL_EDGE_MARGIN, top: CONTROL_EDGE_MARGIN },
-    frameOffset = this.$?.offset() || defaultOffset
+    element: any = $elem[0],
+    rect = element.getBoundingClientRect(), 
+    style = window.getComputedStyle( element )
 
     /**
-     * View position coordinates in the DOM base on
-     * which related triggers will be positionned.
-     */
-    let { left, top } = $elem.offset() || defaultOffset
+      * Calculate position coordinates relative to viewport
+      * accounting for margins and transforms if requested
+      */
+    let
+    { left, top } = { left: rect.left || CONTROL_EDGE_MARGIN, top: rect.top || CONTROL_EDGE_MARGIN },
+    marginLeft = 0,
+    marginTop = 0,
+    marginRight = 0, 
+    marginBottom = 0
 
-    top += frameOffset.top
-    left += frameOffset.left
+    // Add margins if requested
+    if( options.includeMargins ){
+      marginLeft = parseFloat( style.marginLeft ) || 0
+      marginTop = parseFloat( style.marginTop ) || 0
+      marginRight = parseFloat( style.marginRight ) || 0 
+      marginBottom = parseFloat( style.marginBottom ) || 0
 
-    // Determite position of element relative to top window
-    // top -= $(window).scrollTop() || 0
-    // left -= $(window).scrollLeft() || 0
+      left += marginLeft
+      top += marginTop
+    }
+
+    // Add scroll offsets for absolute positioning if not fixed
+    const
+    scrollLeft = window.scrollX || document.documentElement.scrollLeft,
+    scrollTop = window.scrollY || document.documentElement.scrollTop
+
+    left += scrollLeft
+    top += scrollTop
 
     return {
-      x: left || CONTROL_EDGE_MARGIN,
+      x: left || CONTROL_EDGE_MARGIN ,
       y: top || CONTROL_EDGE_MARGIN,
-      width: $elem.width() || 0,
-      height: $elem.height() || 0
+      width: rect.width + marginLeft + marginRight || 0,
+      height: rect.height + marginTop + marginBottom || 0,
+      right: left + rect.width + marginRight,
+      bottom: top + rect.height + marginBottom
     }
   }
   

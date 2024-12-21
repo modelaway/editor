@@ -1,4 +1,4 @@
-import type Modela from '../exports/modela'
+import type Editor from './editor'
 import type { Plugin, PluginFactory, PluginInstance } from '../types/plugin'
 
 import EventEmitter from 'events'
@@ -9,15 +9,12 @@ export default class Plugins extends EventEmitter {
   private factory: PluginFactory
   private list: ObjectType<ObjectType<Plugin>> = {}
 
-  constructor( flux: Modela ){
+  constructor( editor: Editor ){
     super()
 
     this.factory = {
-      /**
-       * Initialize internationalization handler
-       */
       constants,
-      flux,
+      editor,
       bx
     }
 
@@ -25,9 +22,9 @@ export default class Plugins extends EventEmitter {
      * Auto register in-build plugins specified in 
      * modela settings.
      */
-    Array.isArray( flux.settings.plugins )
-    && flux.settings.plugins.length
-    && Promise.all( flux.settings.plugins.map( this.load.bind(this) ) )
+    Array.isArray( editor.settings.plugins )
+    && editor.settings.plugins.length
+    && Promise.all( editor.settings.plugins.map( this.load.bind(this) ) )
               .then( () => this.emit('load') )
               .catch( ( error: unknown ) => this.emit('error', error ) )
   }

@@ -1,5 +1,5 @@
 import $, { type Cash } from 'cash-dom'
-import type Modela from '../../exports/modela'
+import type Editor from '../editor'
 
 import EventEmitter from 'events'
 import Stylesheet from '../stylesheet'
@@ -61,15 +61,12 @@ snapguide {
 
 export type HandleOptions = {
   target: string
-  
-  createElement(): Cash
-
   MIN_WIDTH: number
   MIN_HEIGHT: number
 }
 
 export default class Handle extends EventEmitter {
-  private flux: Modela
+  private editor: Editor
   private style: Stylesheet
   private options: HandleOptions
   
@@ -103,15 +100,12 @@ export default class Handle extends EventEmitter {
    */
   private startPan = { x: 0, y: 0 }
 
-  constructor( flux: Modela, options?: HandleOptions ){
+  constructor( editor: Editor, options?: HandleOptions ){
     super()
-    this.flux = flux
+    this.editor = editor
 
     this.options = {
       target: '.content',
-      
-      createElement(){ return $('<div class="content"></div>') },
-
       MIN_WIDTH: 50,
       MIN_HEIGHT: 50,
       
@@ -123,7 +117,7 @@ export default class Handle extends EventEmitter {
   }
 
   private snapguide( $wrapper: Cash, newLeft: number, newTop: number, newWidth?: number, newHeight?: number ){
-    if( !this.flux.canvas.$?.length ) return
+    if( !this.editor.canvas.$?.length ) return
 
     const
     wrapperWidth = newWidth || parseFloat( $wrapper.css('width') as string ),
@@ -141,7 +135,7 @@ export default class Handle extends EventEmitter {
     hsnapTop = 0,
     vsnapLeft = 0
 
-    this.flux.canvas.$
+    this.editor.canvas.$
     .find( this.options.target )
     .not( $wrapper.find( this.options.target ) )
     .each( function(){
@@ -198,14 +192,14 @@ export default class Handle extends EventEmitter {
 
       this.$vsnapguide
       .css({ left: `${vsnapLeft}px`, top: 0 })
-      .appendTo( this.flux.$viewport )
+      .appendTo( this.editor.$viewport )
     }
     else if( closestRight !== null ){
       newLeft = closestRight - wrapperWidth
 
       this.$vsnapguide
       .css({ left: `${vsnapLeft}px`, top: 0 })
-      .appendTo( this.flux.$viewport )
+      .appendTo( this.editor.$viewport )
     }
     else this.$vsnapguide.remove()
 
@@ -214,21 +208,21 @@ export default class Handle extends EventEmitter {
 
       this.$hsnapguide
       .css({ left: 0, top: `${hsnapTop}px` })
-      .appendTo( this.flux.$viewport )
+      .appendTo( this.editor.$viewport )
     }
     else if( closestBottom !== null ){
       newTop = closestBottom - wrapperHeight
 
       this.$hsnapguide
       .css({ left: 0, top: `${hsnapTop}px` })
-      .appendTo( this.flux.$viewport )
+      .appendTo( this.editor.$viewport )
     }
     else this.$hsnapguide.remove()
 
     return { newLeft, newTop }
   }
   private create( e: any ){
-    if( !this.flux.canvas.$?.length ) return
+    if( !this.editor.canvas.$?.length ) return
 
     /**
      * Ignore dblclick trigger on:
@@ -240,13 +234,13 @@ export default class Handle extends EventEmitter {
         || $(e.target).closest( WRAPPER_TAG ).length )
       return
 
-    const rect = this.flux.canvas.$.get(0)?.getBoundingClientRect()
+    const rect = this.editor.canvas.$.get(0)?.getBoundingClientRect()
     if( !rect ) return
       
     this.cursorX = ( e.pageX - rect.left ) / this.scale
     this.cursorY = ( e.pageY - rect.top ) / this.scale
     
-    this.flux.canvas.addFrame({
+    this.editor.canvas.addFrame({
       position: {
         top: `${this.cursorY}px`,
         left: `${this.cursorX}px`
@@ -327,7 +321,7 @@ export default class Handle extends EventEmitter {
 
     const
     self = this,
-    $wrappers = this.flux.canvas.$?.find( WRAPPER_TAG )
+    $wrappers = this.editor.canvas.$?.find( WRAPPER_TAG )
     
     $wrappers?.each( function(){
       const
@@ -396,7 +390,7 @@ export default class Handle extends EventEmitter {
     e.cancelable && e.preventDefault()
     
     this.isPanning = true
-    this.flux.$viewport?.css('cursor', 'grabbing')
+    this.editor.$viewport?.css('cursor', 'grabbing')
 
     this.startPan.x = e.pageX - this.canvasOffset.x
     this.startPan.y = e.pageY - this.canvasOffset.y
@@ -435,7 +429,7 @@ export default class Handle extends EventEmitter {
       this.canvasOffset.x = e.pageX - this.startPan.x
       this.canvasOffset.y = e.pageY - this.startPan.y
 
-      this.flux.canvas.$?.css('transform', `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.scale})`)
+      this.editor.canvas.$?.css('transform', `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.scale})`)
 
       return
     }
@@ -558,24 +552,24 @@ export default class Handle extends EventEmitter {
     if( this.isPanning ) this.isPanning = false
     if( this.isMoving ) this.isMoving = false
 
-    this.flux.$viewport?.css('cursor', 'grab')
+    this.editor.$viewport?.css('cursor', 'grab')
 
     // Hide snap guides
-    this.flux.$viewport?.find('snapguide').remove()
+    this.editor.$viewport?.find('snapguide').remove()
     
     this.$handle = undefined
     this.$wrapper = undefined
   }
 
   zoomTo( scale: number, origin: Origin ){
-    if( !this.flux.canvas.$?.length
+    if( !this.editor.canvas.$?.length
         || scale <= CONTROL_ZOOM_MIN_SCALE ) return
     
     const
     // Calculate ffset for infinite zoom
     zoomRatio = scale / this.scale,
 
-    rect = this.flux.canvas.$[0]?.getBoundingClientRect()
+    rect = this.editor.canvas.$[0]?.getBoundingClientRect()
     if( !rect ) return
 
     const
@@ -586,10 +580,10 @@ export default class Handle extends EventEmitter {
     this.canvasOffset.x += offsetX
     this.canvasOffset.y += offsetY
 
-    this.flux.canvas.$.css('transform', `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.scale})`)
+    this.editor.canvas.$.css('transform', `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.scale})`)
   }
   apply(){
-    if( !this.flux.$viewport?.length || !this.flux.canvas.$?.length )
+    if( !this.editor.$viewport?.length || !this.editor.canvas.$?.length )
       return
 
     const self = this
@@ -597,7 +591,7 @@ export default class Handle extends EventEmitter {
     /**
      * Initial canvas state
      */
-    this.flux.canvas.$.css({
+    this.editor.canvas.$.css({
       left: '50%',
       top: '50%',
       transform: `translate(-50%, -50%) scale(${this.scale})`
@@ -606,7 +600,7 @@ export default class Handle extends EventEmitter {
     /**
      * Canvas related control events
      */
-    this.flux.canvas.$
+    this.editor.canvas.$
     .on('click', this.options.target, function( this: Cash, e: Cash ){ self.activate( e, $(this) ) } )
 
     /**
@@ -614,7 +608,7 @@ export default class Handle extends EventEmitter {
      */
     .on('mousedown', '.handle', function( this: Cash, e: Cash ){ self.startResizing( e, $(this) ) } )
 
-    this.flux.$viewport
+    this.editor.$viewport
     /**
      * Create new target element in the canvas
      */
@@ -641,7 +635,7 @@ export default class Handle extends EventEmitter {
     /**
      * Remove event listeners
      */
-    this.flux.canvas.$?.off()
+    this.editor.canvas.$?.off()
     // $(document).off('mousedown mousemove mouseup click')
 
     /**

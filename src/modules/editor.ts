@@ -1,36 +1,206 @@
 import $, { type Cash } from 'cash-dom'
-import type Modela from '../exports/modela'
-import type { Component } from '../lib/lips/lips'
 
-import * as Event from './events'
-import Viewport, { ViewportInput } from './factory/viewport'
-import Toolbar, { ToolbarInput } from './factory/toolbar'
-import {
-  CONTROL_EDGE_MARGIN,
-  GLOBAL_CONTROL_OPTIONS
-} from './constants'
+import I18N from './i18n'
+import Store from './store'
+import Canvas from './canvas'
+import Assets from './assets'
+import Plugins from './plugins'
+import Functions from './functions'
+import { debug } from './utils'
+import Viewport from './factory/viewport'
+import Toolbar from './factory/toolbar'
+import { GLOBAL_CONTROL_OPTIONS } from './constants'
+
+window.mlang = {
+  default: 'en-US',
+  current: window.navigator.language
+}
 
 export default class Editor {
-  readonly flux: Modela
+  /**
+   * State set to enable external methods to 
+   * respond to API calls or not.
+   * 
+   * 1. Manually set Modela interface calls off
+   * 2. Help avoid unnecessary crashing of Modela 
+   *    when it got dismissed but its instance methods
+   *    still get called.
+   */
+  private enabled = true
 
-  Viewport?: Component<ViewportInput>
-  Toolbar?: Component<ToolbarInput>
+  /**
+   * Defined modela UI display language
+   */
+  public lang: ModelaLanguage = window.mlang
 
-  // $vsnapguide?: Cash
-  // $hsnapguide?: Cash
+  /**
+   * Default editor settings: Crucial in case user
+   * want to reset settings to default.
+   */
+  private defaultSettings: ModelaSettings = {
+    /**
+     * Current display language
+     */
+    lang: undefined,
 
-  $global?: Cash
-  $toolbar?: Cash
+    /**
+     * Listen to click event on only element that
+     * has `.view` class name.
+     * 
+     * `.view` class name identify view components
+     * 
+     * Default: Any `html` tag/element editable by modela
+     */
+    viewOnly: false,
+
+    /**
+     * Enable selection of view when overed by a cursor
+     * 
+     * Default: false
+     */
+    hoverSelect: true,
+
+    /**
+     * Allow alley to indicate where to add
+     * new views.
+     */
+    enableAlleys: true,
+
+    /**
+     * Automatically lookup and apply view rules
+     * across the document elements on document load
+     */
+    autoPropagate: false
+  }
+  public settings: ModelaSettings = {}
+
+  public $root?: Cash
+  public $global?: Cash
+  public $viewport?: Cash
 
   /**
    * Copy element clipboard
    */
-  clipboard: ClipBoard | null = null
+  public clipboard: ClipBoard | null = null
 
-  constructor( flux: Modela ){
-    this.flux = flux
+  /**
+   * Initialize internationalization handler
+   */
+  public i18n: I18N
+
+  /**
+   * Manage store elements
+   * 
+   * - view components
+   * - templates
+   * - etc
+   */
+  public store: Store
+
+  /**
+   * Manage store elements
+   * 
+   * - view components
+   * - templates
+   * - etc
+   */
+  public assets: Assets
+
+  /**
+   * Manage plugins
+   */
+  public plugins: Plugins
+
+  /**
+   * Utility functions
+   */
+  public fn: Functions
+
+  /**
+   * Manage canvas
+   */
+  public canvas: Canvas
+
+  /**
+   * Floating block component
+   */
+  // public Floating?: Component<FloatingInput>
+
+  constructor( settings = {} ){
+
+    this.settings = { ...this.defaultSettings, ...settings }
+
+    // Set default language as current language
+    if( this.settings.lang )
+      window.mlang.current = this.settings.lang
+
+    /**
+     * Manage store manager
+     * 
+     * - view components
+     * - templates
+     * - etc
+     */
+    this.store = new Store( this )
+
+    /**
+     * Manage global assets manager
+     */
+    this.assets = new Assets()
+
+    /**
+     * Initialize history manager
+     */
+    this.i18n = new I18N()
+
+    /**
+     * Initialize utility functions
+     */
+    this.fn = new Functions( this )
+
+    /**
+     * Initialize views manager
+     */
+    this.canvas = new Canvas( this )
+
+    /**
+     * Initialize plugins support
+     */
+    this.plugins = new Plugins( this )
   }
-  
+
+  mount( selector: string ){
+    if( !this.enabled ){
+      debug('Modela functions disabled')
+      return
+    }
+
+    this.$root = $(selector)
+    if( !this.$root.length )
+      throw new Error(`Root <${selector}> element not found`)
+    
+    // Enable modela editor
+    this.enable()
+  }
+
+  unmount(){
+    if( !this.enabled ){
+      debug('Modela functions disabled')
+      return
+    }
+
+    // Disable editor
+    this.disable()
+    // Drop store functions
+    this.store?.drop()
+    
+    /**
+     * Prevent any other functions still available
+     * via API to respond to calls.
+     */
+    this.enabled = false
+  }
+
   /**
    * Enable control actions' event listeners
    */
@@ -39,109 +209,28 @@ export default class Editor {
      * Create modela viewport layer and apply translation 
      * to text contents
      */
-    this.Viewport = Viewport({})
-    $('body').prepend( this.Viewport.getNode() )
+    const viewport = Viewport({})
+    $('body').prepend( viewport.getNode() )
 
-    this.flux.$viewport = this.Viewport.getNode()
-    if( !this.flux.$viewport?.length )
+    this.$viewport = viewport.getNode()
+    if( !this.$viewport?.length )
       throw new Error('Unexpected error occured')
 
-    this.Toolbar = Toolbar({ key: 'global', options: GLOBAL_CONTROL_OPTIONS })
-    this.Toolbar.appendTo( this.flux.$viewport )
+    const toolbar = Toolbar({ key: 'global', options: GLOBAL_CONTROL_OPTIONS })
+    toolbar.appendTo( this.$viewport )
 
-    // this.$vsnapguide = this.Viewport.find(':scope > snapguide[vertical]')?.hide()
-    // this.$hsnapguide = this.Viewport.find(':scope > snapguide[horizontal]')?.hide()
+    this.$global = viewport.find(':scope > mglobal')
 
-    this.$global = this.Viewport.find(':scope > mglobal')
-
-    // Initialize event listeners
-    this.events()
     // Enable canvas controls
-    this.flux.canvas.enable()
-    this.watch()
+    this.canvas.enable()
   }
 
-  events(){
-    if( !this.flux.$viewport?.length ) return
+  disable(){
+    this.$viewport?.off()
+    this.$viewport?.remove()
 
-    const self = this
-    function handler( fn: Function ){
-      return function( this: Cash ){
-        typeof fn === 'function' && fn( $(this), self )
-      }
-    }
-    
-    this.flux.$viewport
-    /**
-     * Tab event trigger
-     */
-    .on('click', '[tab]', handler( Event.onTab ) )
-    /**
-     * Show event trigger
-     */
-    .on('click', '[show]', handler( Event.onShow ) )
-    /**
-     * Apply event trigger
-     */
-    .on('click', '[apply]', handler( Event.onApply ) )
-    /**
-     * Action event trigger
-     */
-    .on('click', '[action]', handler( Event.onAction ) )
-    /**
-     * Dismiss event trigger
-     */
-    .on('click', '[dismiss]', handler( Event.onDismiss ) )
-    /**
-     * Custom `on-*` event trigger
-     */
-    .on('click', '[on]', handler( Event.onCustomListener ) )
-  }
+    this.$root?.off()
 
-  watch( target: boolean = false ){
-    const updates = {
-      'options.undo.hidden': !target,
-      'options.redo.hidden': !target,
-      'options.overview.hidden': !target,
-      'options.add-frame.hidden': target,
-      'options.styles.extra': target,
-      'options.assets.extra': target
-    }
-    
-    this.Toolbar?.subInput( updates )
-  }
-  destroy(){
-    this.flux.$viewport?.off()
-    this.flux.$viewport?.remove()
-
-    this.flux.$root?.off()
-
-    this.flux.canvas.disable()
-  }
-
-  /**
-   * Return an element dimension and position 
-   * situation in the DOM
-   */
-  getTopography( $elem: Cash ){
-    if( !$elem.length )
-      throw new Error('Invalid method call. Expected a valid element')
-    
-    /**
-     * View position coordinates in the DOM base on
-     * which related triggers will be positionned.
-     */
-    let { left, top } = $elem.offset() || { left: CONTROL_EDGE_MARGIN, top: CONTROL_EDGE_MARGIN }
-
-    // Determite position of element relative to window only
-    // top -= $(window).scrollTop() || 0
-    // left -= $(window).scrollLeft() || 0
-      
-    return { 
-      x: left,
-      y: top,
-      width: $elem.width() || 0,
-      height: $elem.height() || 0
-    }
+    this.canvas.disable()
   }
 }

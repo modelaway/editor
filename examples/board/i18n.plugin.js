@@ -5,9 +5,9 @@ export default class i18n {
 
   constructor( factory, config ){
     // console.log('-- config', config )
-    this.lang = factory.flux.lang
+    this.lang = factory.editor.lang
 
-    factory.flux.i18n.translate = this.translate.bind(this)
+    factory.editor.i18n.translate = this.translate.bind(this)
   }
 
   translate( text, lang ){

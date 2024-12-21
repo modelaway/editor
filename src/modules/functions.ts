@@ -1,4 +1,4 @@
-import type Modela from '../exports/modela'
+import type Editor from './editor'
 import type { FrameQuery } from '../lib/frame.window'
 import type { ViewBlockProperties } from '../types/view'
 
@@ -7,10 +7,10 @@ import { createSelectFileInput } from './factory'
 import { debug } from './utils'
 
 export default class Functions {
-  private readonly flux: Modela
+  private readonly editor: Editor
 
-  constructor( flux: Modela ){
-    this.flux = flux
+  constructor( editor: Editor ){
+    this.editor = editor
 
     this.selectFile = this.selectFile.bind( this )
   }
@@ -23,7 +23,7 @@ export default class Functions {
   selectFile( options: SelectFileOptions ): Promise<InputFiles[]> {
     return new Promise( resolve => {
       const $input = $(createSelectFileInput( options ))
-      // this.flux.$viewport?.append( $input )
+      // this.editor.$viewport?.append( $input )
 
       $input
       /**

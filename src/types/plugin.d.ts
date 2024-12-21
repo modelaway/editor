@@ -1,10 +1,10 @@
-import Modela from '../exports/modela'
+import Editor from '../modules/editor'
 import * as bx from '../modules/factory'
 import * as constants from '../modules/constants'
 
 export interface PluginFactory {
   constants: typeof constants
-  flux: Modela
+  editor: Editor
   bx: typeof bx
 }
 export type PluginConfig = ObjectType<any>

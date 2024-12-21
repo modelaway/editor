@@ -13,7 +13,7 @@ import { debug } from './utils'
  * Global event listener of tab components 
  * in the editor.
  */
-export function onTab( $this: Cash, ws: Editor ){
+export function onTab( $this: Cash, editor: Editor ){
   debug('tab event --', $this.attr('tab'), $this.attr('params') )
 
   /**
@@ -34,7 +34,7 @@ export function onTab( $this: Cash, ws: Editor ){
 /**
  * Editor component display trigger events
  */
-export function onShow( $this: Cash, ws: Editor ){
+export function onShow( $this: Cash, editor: Editor ){
   debug('show event --', $this.attr('show'), $this.attr('params') )
 
   const
@@ -48,14 +48,14 @@ export function onShow( $this: Cash, ws: Editor ){
     case 'styles':
     case 'assets':
     case 'settings': {
-      ws.$global?.addClass('active')
+      editor.$global?.addClass('active')
 
       // TODO: Open global tabs by `$this.attr('params')` value
 
     } break
 
     // Show main canvas overview
-    case 'overview': ws.flux.canvas.overview(); break
+    // case 'overview': editor.canvas.overview(); break
 
     // Show extra options
     case 'extra-toolbar': {
@@ -78,20 +78,20 @@ export function onShow( $this: Cash, ws: Editor ){
     } break 
 
     case 'panel': {
-      const frame = ws.flux.canvas.active()
+      const frame = editor.canvas.active()
       if( !frame ) return
 
       const key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
       if( !key ) return
 
-      const view = frame.views.get( key )
+      const view = frame.vieeditor.get( key )
       if( !view ) return
       
       view.showPanel()
     } break
 
     case 'finder': {
-      const frame = ws.flux.canvas.active()
+      const frame = editor.canvas.active()
       if( !frame ) return
 
       /**
@@ -105,7 +105,7 @@ export function onShow( $this: Cash, ws: Editor ){
       const view = frame.views.get( key )
       if( !view ) return
       
-      ws.clipboard = {
+      editor.clipboard = {
         type: 'finder',
         value: key ? 'discret' : 'alley',
         key
@@ -113,7 +113,7 @@ export function onShow( $this: Cash, ws: Editor ){
 
       switch( $this.attr('params') ){
         case 'view': view.showViewFinder( $trigger ); break
-        // case 'layout': showLayoutFinder( $trigger, ws ); break
+        // case 'layout': showLayoutFinder( $trigger, editor ); break
       }
     } break
   }
@@ -123,10 +123,10 @@ export function onShow( $this: Cash, ws: Editor ){
  * Global apply event: To trigger `name` and `value`
  * application from editor to views
  */
-export function onApply( $this: Cash, ws: Editor ){
+export function onApply( $this: Cash, editor: Editor ){
   debug('apply event --', $this.attr('apply'), $this.attr('params') )
 
-  const frame = ws.flux.canvas.active()
+  const frame = editor.canvas.active()
   if( !frame ) return
   
   const
@@ -153,7 +153,7 @@ export function onApply( $this: Cash, ws: Editor ){
 /**
  * Global editor action event listener
  */
-export function onAction( $this: Cash, ws: Editor ){
+export function onAction( $this: Cash, editor: Editor ){
   debug('action event --', $this.attr('action'), $this.attr('params') )
   /**
    * Lookup the DOM from the main parent perspective
@@ -172,19 +172,19 @@ export function onAction( $this: Cash, ws: Editor ){
         device: 'default'
       }
       
-      ws.flux.canvas.addFrame( options )
+      editor.canvas.addFrame( options )
     } break
     // Focus a frame for edit
-    // case 'frame.focus': ws.flux.canvas.focus( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
+    // case 'frame.focus': editor.canvas.focus( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
     // Delete a frame
-    case 'frame.delete': ws.flux.canvas.remove( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
+    case 'frame.delete': editor.canvas.remove( $trigger.attr( CONTROL_FRAME_SELECTOR ) as string ); break
 
     /**
      * -------------- History navigation controls --------------
      */
     // Undo history
     case 'undo': {
-      const frame = ws.flux.canvas.active()
+      const frame = editor.canvas.active()
       if( !frame ) return
 
       // Revert to last history stack
@@ -193,7 +193,7 @@ export function onAction( $this: Cash, ws: Editor ){
     } break
     // Redo history
     case 'redo': {
-      const frame = ws.flux.canvas.active()
+      const frame = editor.canvas.active()
       if( !frame ) return
       
       // Restore a reverted history stack
@@ -209,7 +209,7 @@ export function onAction( $this: Cash, ws: Editor ){
     case 'screen-mode.mobile':
     case 'screen-mode.desktop':
     case 'screen-mode.default': {
-      const frame = ws.flux.canvas.active()
+      const frame = editor.canvas.active()
       if( !frame ) return
 
       const [ _, device ] = $this.attr('action')?.split('.') || []
@@ -223,67 +223,67 @@ export function onAction( $this: Cash, ws: Editor ){
     case 'add-view': {
       const name = $this.attr('params')
       if( !name 
-          || ws.clipboard?.type !== 'finder'
-          || !ws.clipboard.key ) return
+          || editor.clipboard?.type !== 'finder'
+          || !editor.clipboard.key ) return
 
-      const frame = ws.flux.canvas.active()
+      const frame = editor.canvas.active()
       if( !frame ) return
       
       // Use finder initiation trigger key as destination
-      frame.views.add( name, ws.clipboard.key, ws.clipboard.value )
+      frame.vieeditor.add( name, editor.clipboard.key, editor.clipboard.value )
       // Clear clipboard
-      ws.clipboard = null
+      editor.clipboard = null
 
-      onDismiss( $this, ws )
+      onDismiss( $this, editor )
     } break
     // Move view up
     case 'view.move-up': {
-      const frame = ws.flux.canvas.active()
+      const frame = editor.canvas.active()
       if( !frame ) return
       
       frame.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'up' )
     } break
     // Move view down
     case 'view.move-down': {
-      const frame = ws.flux.canvas.active()
+      const frame = editor.canvas.active()
       if( !frame ) return
       
       frame.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'down' )
     } break
     // Move view
     case 'view.move': {
-      const frame = ws.flux.canvas.active()
+      const frame = editor.canvas.active()
       if( !frame ) return
       
       frame.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'any' )
     } break
     // Duplicate view
     case 'view.duplicate': {
-      const frame = ws.flux.canvas.active()
+      const frame = editor.canvas.active()
       if( !frame ) return
       
       frame.views.duplicate( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string )
     } break
     // Delete view
     case 'view.delete': {
-      const frame = ws.flux.canvas.active()
+      const frame = editor.canvas.active()
       if( !frame ) return
       
       frame.views.remove( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string )
     } break
     // Copy to clipboard
     case 'view.copy': {
-      ws.clipboard = {
+      editor.clipboard = {
         type: $this.attr('params') as ClipBoard['type'],
         key: $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
       }
     } break
     // Paste clipboard content
     case 'view.paste': {
-      if( !ws.clipboard?.key || ws.clipboard.type !== 'view' )
+      if( !editor.clipboard?.key || editor.clipboard.type !== 'view' )
         return
 
-      const frame = ws.flux.canvas.active()
+      const frame = editor.canvas.active()
       if( !frame ) return
 
       // Paste view
@@ -292,11 +292,11 @@ export function onAction( $this: Cash, ws: Editor ){
       nextToView = frame.views.get( nextViewKey as string )
 
       // Duplicated view next to specified pasting view position
-      nextToView && frame.views.duplicate( ws.clipboard.key as string, nextToView.$ )
+      nextToView && frame.views.duplicate( editor.clipboard.key as string, nextToView.$ )
       // Remove visible floating active
-      // ws.flux.$root?.find(`[${CONTROL_FLOATING_SELECTOR}]`).remove()
+      // editor.$root?.find(`[${CONTROL_FLOATING_SELECTOR}]`).remove()
 
-      ws.clipboard = null
+      editor.clipboard = null
     } break
   }
 }
@@ -304,7 +304,7 @@ export function onAction( $this: Cash, ws: Editor ){
 /**
  * Global editor component dismissing event listener
  */
-export function onDismiss( $this: Cash, ws: Editor ){
+export function onDismiss( $this: Cash, editor: Editor ){
   debug('dismiss event --', $this.attr('dismiss') )
 
   /**
@@ -314,7 +314,7 @@ export function onDismiss( $this: Cash, ws: Editor ){
   const $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`)
   
   switch( $this.attr('dismiss') ){
-    case 'global': ws.$global?.removeClass('active'); break
+    case 'global': editor.$global?.removeClass('active'); break
     
     // Dismiss extra options
     case 'extra-toolbar': {
@@ -339,7 +339,7 @@ export function onDismiss( $this: Cash, ws: Editor ){
  * Custom event defined by view, triggered global
  * and forwared to views.
  */
-export function onCustomListener( $this: Cash, ws: Editor ){
+export function onCustomListener( $this: Cash, editor: Editor ){
   debug('custom on-* event --', $this.attr('on'), $this.attr('params') )
 
   const
@@ -348,7 +348,7 @@ export function onCustomListener( $this: Cash, ws: Editor ){
    * make it easier to find different options blocks
    */
   $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`),
-  frame = ws.flux.canvas.active()
+  frame = editor.canvas.active()
   if( !frame ) return
 
   const key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )

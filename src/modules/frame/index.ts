@@ -1,12 +1,11 @@
-import type Modela from '../exports/modela'
-import type { FrameOption } from '../types/frame'
+import type Modela from '../../exports/modela'
+import type { FrameOption } from '../../types/frame'
 
 import $, { type Cash } from 'cash-dom'
 import EventEmitter from 'events'
-import CSS from './css'
-import Views from './views'
-import History from './history'
-import { debug, generateKey } from './utils'
+import Views from '../views'
+import History from '../history'
+import { debug, generateKey } from '../utils'
 import {
   MEDIA_SCREENS,
   CONTROL_EDGE_MARGIN,
@@ -14,33 +13,28 @@ import {
   VIEW_IDENTIFIER,
   VIEW_REF_SELECTOR,
   VIEW_KEY_SELECTOR,
-  PATCH_CSS_SETTINGS,
   VIEW_ACTIVE_SELECTOR,
   VIEW_ALLEY_SELECTOR,
   CONTROL_FRAME_SELECTOR
-} from './constants'
+} from '../constants'
+import FrameStyle from './style'
 
 const createFrame = ( key: string, position?: FrameOption['position'] ) => {
   return `<div ${CONTROL_FRAME_SELECTOR}="${key}" style="top:${position?.top || '0px'};left:${position?.left || '0px'}"></div>`
 }
 
 export default class Frame extends EventEmitter {
-  // private chn?: IOF
   public key: string
   public flux: Modela
   public $frame: Cash
 
   public $: Cash
+  public styles: FrameStyle
 
   /**
    * Initialize history manager
    */
   public history = new History()
-
-  /**
-   * Initialize global css manager
-   */
-  public css = new CSS( this )
 
   /**
    * Initialize views manager
@@ -57,22 +51,28 @@ export default class Frame extends EventEmitter {
 
     const element = this.$frame.get(0)
     if( !element ) throw new Error('Frame node creation failed unexpectedly')
-
-    const 
-    shadow = element.attachShadow({ mode: 'open' }),
-    hostSheet = new CSSStyleSheet()
-
-    hostSheet.replaceSync(`:host { width: 100%; height: 100%; }`)
-    shadow.adoptedStyleSheets = [ hostSheet ]
+ 
+    const shadow = element.attachShadow({ mode: 'open' })
+    
+    /**
+     * Initialize frame styles manager with 
+     * shadow root :host stylesheet
+     */
+    this.styles = new FrameStyle( shadow, `:host { width: 100%; height: 100%; }`)
 
     // Append initial content
     options.content && $(shadow).append( options.content )
  
-    // shadow.innerHTML = FRAME_BLANK_DOCUMENT
     this.$ = $(element.shadowRoot)
 
-    // Use default frame screen resolution
-    this.resize( options.device || 'default')
+    /**
+     * No explicit size is considered a default 
+     * frame with the default screen resolution.
+     */
+    options.size ? 
+            this.$frame.css( options.size )
+            : this.setDeviceSize( options.device || 'default')
+
     // Add frame to the board
     this.flux.canvas.$?.append( this.$frame )
 
@@ -90,7 +90,7 @@ export default class Frame extends EventEmitter {
 
   private controls(){
     // Define initial :root css variables (Custom properties)
-    // this.css.setVariables()
+    this.styles.setVariables()
     // Inject modela css patch into frame content <head>
     // this.css.declare('patch', PATCH_CSS_SETTINGS )
     
@@ -114,12 +114,12 @@ export default class Frame extends EventEmitter {
     this.emit('load')
   }
 
-  freeze(){
-    // this.$frame.find(':scope > moverlap').attr('on', 'true')
-  }
-  unfreeze(){
-    // this.$frame.find(':scope > moverlap').removeAttr('on')
-  }
+  // freeze(){
+  //   // this.$frame.find(':scope > moverlap').attr('on', 'true')
+  // }
+  // unfreeze(){
+  //   // this.$frame.find(':scope > moverlap').removeAttr('on')
+  // }
 
   events(){
     if( !this.$?.length || !this.flux.$viewport?.length ) return
@@ -170,27 +170,6 @@ export default class Frame extends EventEmitter {
     // .on('keydown', onUserAction )
     // .on('paste', onUserAction )
   }
-
-  resize( device: string ){
-    if( device === 'default' ){
-      const 
-      screenWidth = $(window).width(),
-      screenHeight = $(window).height()
-      
-      this.$frame.css({ width: `${screenWidth}px`, height: `${screenHeight}px` })
-
-      this.emit('screen-mode.change', device )
-      return
-    }
-
-    const mediaScrean = MEDIA_SCREENS[ device ] || Object.values( MEDIA_SCREENS ).filter( each => (each.device == device || each.type.id == device) )[0]
-    if( !mediaScrean ) return
-
-    const { width, height } = mediaScrean
-    this.$frame.css({ width, height })
-
-    this.emit('screen-mode.change', device )
-  }
   delete(){
     // Disable add-view alleys
     this.enableAlleys('inert')
@@ -214,6 +193,26 @@ export default class Frame extends EventEmitter {
     $(`[${VIEW_ALLEY_SELECTOR}]`).attr('status', status )
   }
 
+  setDeviceSize( device: string ){
+    if( device === 'default' ){
+      const 
+      screenWidth = $(window).width(),
+      screenHeight = $(window).height()
+      
+      this.$frame.css({ width: `${screenWidth}px`, height: `${screenHeight}px` })
+
+      this.emit('screen-mode.change', device )
+      return
+    }
+
+    const mediaScrean = MEDIA_SCREENS[ device ] || Object.values( MEDIA_SCREENS ).filter( each => (each.device == device || each.type.id == device) )[0]
+    if( !mediaScrean ) return
+
+    const { width, height } = mediaScrean
+    this.$frame.css({ width, height })
+
+    this.emit('screen-mode.change', device )
+  }
   /**
    * Return an element dimension and position 
    * situation in the DOM
@@ -246,7 +245,7 @@ export default class Frame extends EventEmitter {
       height: $elem.height() || 0
     }
   }
-
+  
   /**
    * Retrieve frame's body content.
    */

@@ -1,13 +1,17 @@
 import type Modela from '../exports/modela'
 import type { Plugin, PluginFactory, PluginInstance } from '../types/plugin'
+
+import EventEmitter from 'events'
 import * as bx from './factory'
 import * as constants from './constants'
 
-export default class Plugins {
+export default class Plugins extends EventEmitter {
   private factory: PluginFactory
   private list: ObjectType<ObjectType<Plugin>> = {}
 
   constructor( flux: Modela ){
+    super()
+
     this.factory = {
       /**
        * Initialize internationalization handler
@@ -23,7 +27,9 @@ export default class Plugins {
      */
     Array.isArray( flux.settings.plugins )
     && flux.settings.plugins.length
-    && flux.settings.plugins.forEach( this.load.bind(this) )
+    && Promise.all( flux.settings.plugins.map( this.load.bind(this) ) )
+              .then( () => this.emit('load') )
+              .catch( ( error: unknown ) => this.emit('error', error ) )
   }
   
   /**

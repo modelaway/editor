@@ -30,8 +30,8 @@ export default class Canvas extends EventEmitter {
       target: `div[${CONTROL_FRAME_SELECTOR}]`,
       createElement: () => { return $(`<div></div>`) },
 
-      MIN_WIDTH: 10,
-      MIN_HEIGHT: 10
+      MIN_WIDTH: 100,
+      MIN_HEIGHT: 100
     })
 
     this.handle.apply()
@@ -60,14 +60,6 @@ export default class Canvas extends EventEmitter {
     if( !frame.key ) return
 
     /**
-     * Attach frame event listeners
-     */
-    frame
-    .on('add', () => this.emit('frame.add', this.currentFrame ) )
-    .on('load', () => this.emit('frame.load', this.currentFrame ) )
-    .on('dismiss', () => this.emit('frame.dismiss', this.currentFrame ) )
-
-    /**
      * Listen to each frames' history navigation events
      */
     const historyNavigator = ( undoCount: number, redoCount: number ) => {
@@ -91,14 +83,15 @@ export default class Canvas extends EventEmitter {
     .on('history.redo', historyNavigator.bind(this) )
 
     this.list[ frame.key ] = frame
+    this.emit('frame.add', frame )
   }
   remove( index: string ){
+    const frame = this.get( index )
+
     this.list[ index ].delete()
+    this.emit('frame.dismiss', frame )
   }
 
-  active(){
-    return this.currentFrame?.active ? this.currentFrame : undefined
-  }
   /**
    * Loop operation on all active frames
    */
@@ -142,41 +135,5 @@ export default class Canvas extends EventEmitter {
     this.set( this.currentFrame )
 
     return this.currentFrame
-  }
-
-  overview(){
-    // Remove active floating
-    this.flux.Floating?.destroy()
-    this.flux.Floating = undefined
-
-    // Dismiss any active view in current active frame
-    this.active()?.views.dismissAll()
-    // Dismiss current active frame
-    // this.currentFrame?.dismiss()
-
-    // Restore global toolbar without frame control
-    this.flux.editor.watch( false )
-  }
-  focus( key: string ){
-    // if( !this.has( key ) ) return
-    // this.currentFrame = this.get( key )
-
-    // // Unfreeze targeted/current frame only
-    // this.each( frame => frame.freeze() )
-    // this.currentFrame.unfreeze()
-    
-    // /**
-    //  * Pan frame to viewport & activate contextual controls
-    //  */
-    // const rect = this.currentFrame.$frame[0]?.getBoundingClientRect()
-    // if( !rect ) return
-
-    // const origin = {
-    //   x: rect.left + rect.width / 2,
-    //   y: rect.top + rect.height / 2
-    // }
-
-    // this.zoomTo( CONTROL_ZOOOM_EVEN_SCALE, origin )
-    // this.flux.editor.watch( true )
   }
 }

@@ -1,5 +1,4 @@
-import type Frame from '../modules/frame--'
-import type Stylesheet from '../modules/stylesheet'
+import type Frame from '../modules/frame'
 import type { Plugin, PluginConfig, PluginFactory } from '../types/plugin'
 
 type Font = {
@@ -18,7 +17,6 @@ export default class Fonts implements Plugin {
 
   private config: PluginConfig
   private factory: PluginFactory
-  private sheets: Stylesheet[] = []
 
   constructor( factory: PluginFactory, config?: PluginConfig ){
     if( typeof config !== 'object' )
@@ -42,34 +40,35 @@ export default class Fonts implements Plugin {
     && this.config.custom.forEach( this.addCustomFont.bind(this) )
 
     /**
-     * Apply fonts to each frame once loaded
+     * Apply fonts to each existing frames after
+     * all plugins get loaded.
+     * 
+     * NOTE: This is necessary to apply fonts with 
+     *       certainty to all frames created in canvas 
+     *       before all built-in and external plugins
+     *       are loaded into the editor.
      */
-    factory.flux.canvas.on('frame.load', this.apply.bind(this) )
+    factory.flux.plugins.on('load', () => this.factory.flux.canvas.each( this.apply.bind(this) ) )
+    /**
+     * Make fonts available in every new frames 
+     * as soon as added to the canvas.
+     */
+    factory.flux.canvas.on('frame.add', this.apply.bind(this) )
   }
   discard(){
-    /**
-     * Do something before to get discarded
-     */
+    this.factory.flux.canvas.each( frame => frame.styles.removeRules('fonts') )
   }
 
   private async apply( frame: Frame ){
     /**
-     * Declare font css handler on all frames
+     * Auto-load fonts css on all frames
      */
-    const sheet = await frame.css.declare('fonts')
-    if( !sheet ) return
-    
-    this.sheets.push( sheet )
-
-    // Auto-load
-    this.config.autoload && await sheet.load({
-      css: Object.values( this.fonts ).join('\n'),
-      meta: true
-    })
+    this.config.autoload
+    && await frame.styles.addRules( Object.values( this.fonts ).join('\n'), { key: 'fonts' })
 
     // Apply defined font css rules to global custom variables
     typeof this.config.cssrule == 'object'
-    && frame.css?.setVariables( this.config.cssrule )
+    && frame.styles.setVariables( this.config.cssrule )
   }
 
   /**
@@ -96,19 +95,6 @@ export default class Fonts implements Plugin {
     return this
   }
 
-  /**
-   * Load fonts into the DOM
-   */
-  async load(){
-    await Promise.all( this.sheets.map( async each => {
-      const settings = {
-        css: Object.values( this.fonts ).join('\n'),
-        meta: true
-      }
-
-      await each.load( settings )
-    } ) )
-  }
   list(){
     return Object.keys( this.fonts )
   }
@@ -121,7 +107,10 @@ export default class Fonts implements Plugin {
 
     delete this.fonts[ name ]
 
-    // Refresh imported fonts in the DOM
-    this.load()
+    // Refresh imported fonts in every frame's DOM
+    this.factory.flux.canvas.each( frame => {
+      frame.styles.removeRules('fonts')
+      frame.styles.addRules( Object.values( this.fonts ).join('\n'), { key: 'fonts' })
+    } )
   }
 }

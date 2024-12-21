@@ -121,7 +121,7 @@ viewport,
 [mv-panel],
 [mv-toolbar],
 [mv-form-input] * {
-  font-family: Urbanist, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1;
   font-weight: 600;
 

@@ -75,12 +75,10 @@ export default class Handle extends EventEmitter {
   
   public isMoving = false
   public isPanning = false
-  public isCreating = false
   public isResizing = false
   
   private $handle?: Cash
   private $wrapper?: Cash
-  private $newElement?: Cash
 
   private $vsnapguide = $('<snapguide vertical></snapguide>')
   private $hsnapguide = $('<snapguide horizontal></snapguide>')
@@ -121,6 +119,7 @@ export default class Handle extends EventEmitter {
     }
 
     this.style = new Stylesheet('handle', $('head'), { css, meta: true })
+    this.zoomTo( 0, { x: 0, y: 0 })
   }
 
   private snapguide( $wrapper: Cash, newLeft: number, newTop: number, newWidth?: number, newHeight?: number ){
@@ -227,6 +226,36 @@ export default class Handle extends EventEmitter {
     else this.$hsnapguide.remove()
 
     return { newLeft, newTop }
+  }
+  private create( e: any ){
+    if( !this.flux.canvas.$?.length ) return
+
+    /**
+     * Ignore dblclick trigger on:
+     * - target element
+     * - wrapper element
+     */
+    if( $(e.target).is( this.options.target )
+        || $(e.target).closest( this.options.target ).length
+        || $(e.target).closest( WRAPPER_TAG ).length )
+      return
+
+    const rect = this.flux.canvas.$.get(0)?.getBoundingClientRect()
+    if( !rect ) return
+      
+    this.cursorX = ( e.pageX - rect.left ) / this.scale
+    this.cursorY = ( e.pageY - rect.top ) / this.scale
+    
+    this.flux.canvas.addFrame({
+      position: {
+        top: `${this.cursorY}px`,
+        left: `${this.cursorX}px`
+      },
+      size: {
+        width: `${this.options.MIN_WIDTH}px`,
+        height: `${this.options.MIN_HEIGHT}px`
+      }
+    })
   }
   private activate( e: any, $target: Cash ){
     // Prevent duplicate wrapping
@@ -411,25 +440,8 @@ export default class Handle extends EventEmitter {
       return
     }
 
-    // Creating new target
-    if( !this.isPanning  && this.isCreating && this.$newElement?.length ){
-console.log('isCreating')
-      /**
-       * Calculate new dimensions and adjust top/left 
-       * if dragging upward/leftward
-       */
-      this.$newElement.css({
-        width: Math.abs( e.pageX - this.cursorX ),
-        height: Math.abs( e.pageY - this.cursorY ),
-        left: e.pageX < this.cursorX ? e.pageX : this.cursorX,
-        top: e.pageY < this.cursorY ? e.pageY : this.cursorY
-      })
-
-      return
-    }
-
     // Resizing target
-    if( !this.isPanning && !this.isCreating && this.isResizing ){
+    if( !this.isPanning && this.isResizing ){
       if( !this.$wrapper?.length 
           || this.startWidth === undefined 
           || this.startHeight === undefined ) return
@@ -499,7 +511,7 @@ console.log('isCreating')
     }
     
     // Moving target
-    if( !this.isPanning && !this.isCreating && !this.isResizing && this.isMoving && this.$wrapper?.length ){
+    if( !this.isPanning && !this.isResizing && this.isMoving && this.$wrapper?.length ){
       const
       scaleQuo = 1 / this.scale,
 
@@ -541,43 +553,7 @@ console.log('isCreating')
     // Next scale
     this.zoomTo( this.scale + delta, cursorPosition )
   }
-  private creating( e: any ){
-    /**
-     * Ignore dblclick trigger on:
-     * - target element
-     * - wrapper element
-     */
-    if( $(e.target).is( this.options.target )
-        || $(e.target).closest( this.options.target ).length
-        || $(e.target).closest( WRAPPER_TAG ).length )
-      return
-
-    this.isCreating = true
-    this.cursorX = e.pageX
-    this.cursorY = e.pageY
-
-    this.flux.canvas.addFrame({
-      position: {
-        top: `${this.cursorY}px`,
-        left: `${this.cursorX}px`
-      },
-      size: {
-        width: `${this.options.MIN_WIDTH}px`,
-        height: `${this.options.MIN_HEIGHT}px`
-      }
-    })
-  }
   private stopAll( e: any ){
-    if( this.isCreating ){
-      this.isCreating = false
-
-      // Remove tiny elements
-      this.$newElement?.length
-      && ( parseFloat( this.$newElement.css('width') as string) < this.options.MIN_WIDTH 
-            || (this.$newElement.height() as number) < this.options.MIN_HEIGHT) 
-      && this.$newElement.remove()
-    }
-
     if( this.isResizing ) this.isResizing = false
     if( this.isPanning ) this.isPanning = false
     if( this.isMoving ) this.isMoving = false
@@ -634,16 +610,15 @@ console.log('isCreating')
     .on('click', this.options.target, function( this: Cash, e: Cash ){ self.activate( e, $(this) ) } )
 
     /**
-     * Create new target element in the canvas
-     */
-    .on('dblclick', this.creating.bind(this) )
-
-    /**
      * Handle resizing logic
      */
     .on('mousedown', '.handle', function( this: Cash, e: Cash ){ self.startResizing( e, $(this) ) } )
 
     this.flux.$viewport
+    /**
+     * Create new target element in the canvas
+     */
+    .on('dblclick', this.create.bind(this) )
     /**
      * Handle canvas drag-in-drop panning
      */
@@ -653,10 +628,6 @@ console.log('isCreating')
      */
     .on('wheel', this.zooming.bind(this) )
 
-    /**
-     * Mouse down on body to start creating a 
-     * new content element
-     */
     $(document)
     .on('mousedown', this.startDragging.bind(this) )
     .on('mousemove', this.handling.bind(this) )

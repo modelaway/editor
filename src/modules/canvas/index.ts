@@ -60,28 +60,36 @@ export default class Canvas extends EventEmitter {
     /**
      * Listen to each frames' history navigation events
      */
-    const historyNavigator = ( undoCount: number, redoCount: number ) => {
-      const updates = { 
-        'options.undo.disabled': undoCount < 1,
-        'options.redo.disabled': redoCount < 1
-      }
+    // const historyNavigator = ( undoCount: number, redoCount: number ) => {
+    //   const updates = { 
+    //     'options.undo.disabled': undoCount < 1,
+    //     'options.redo.disabled': redoCount < 1
+    //   }
 
-      // this.editor.editor.Toolbar?.subInput( updates )
+    //   // this.editor.editor.Toolbar?.subInput( updates )
 
-      /**
-       * Send content change signal for every history
-       * navigation action.
-       */
-      frame.emit('content.change')
-    }
+    //   /**
+    //    * Send content change signal for every history
+    //    * navigation action.
+    //    */
+    //   frame.emit('content.change')
+    // }
 
-    frame.history
-    .on('history.record', historyNavigator.bind(this) )
-    .on('history.undo', historyNavigator.bind(this) )
-    .on('history.redo', historyNavigator.bind(this) )
+    frame.on('content.changed', ( action: string ) => {
+      this.editor.history.push({
+        entity: { type: 'frame', key: frame.key },
+        event: 'content.changed',
+        action
+      })
+    })
+
+    // frame.history
+    // .on('history.record', historyNavigator.bind(this) )
+    // .on('history.undo', historyNavigator.bind(this) )
+    // .on('history.redo', historyNavigator.bind(this) )
 
     this.list[ frame.key ] = frame
-    this.emit('frame.add', frame )
+    this.emit('frame.added', frame )
   }
   remove( index: string ){
     const frame = this.get( index )

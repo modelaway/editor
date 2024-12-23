@@ -4,7 +4,6 @@ import type { FrameOption } from '../../types/frame'
 import $, { type Cash } from 'cash-dom'
 import EventEmitter from 'events'
 import Views from '../views'
-import History from '../history'
 import { debug, generateKey } from '../utils'
 import {
   MEDIA_SCREENS,
@@ -17,7 +16,7 @@ import {
   VIEW_ALLEY_SELECTOR,
   CONTROL_FRAME_SELECTOR
 } from '../constants'
-import FrameStyle from './style'
+import FrameStyles from './styles'
 
 const createFrame = ( key: string, position?: FrameOption['position'] ) => {
   return `<div ${CONTROL_FRAME_SELECTOR}="${key}" style="top:${position?.top || '0px'};left:${position?.left || '0px'}"></div>`
@@ -121,13 +120,8 @@ export default class Frame extends EventEmitter {
   public $frame: Cash
 
   public $: Cash
-  public styles: FrameStyle
+  public styles: FrameStyles
   private DOM: ShadowDOMEvents
-
-  /**
-   * Initialize history manager
-   */
-  public history = new History()
 
   /**
    * Initialize views manager
@@ -153,7 +147,7 @@ export default class Frame extends EventEmitter {
      * Initialize frame styles manager with 
      * shadow root :host stylesheet
      */
-    this.styles = new FrameStyle( shadow, `:host { width: 100%; height: 100%; }`)
+    this.styles = new FrameStyles( shadow, `:host { width: 100%; height: 100%; }`)
 
     // Append initial content
     options.content && $(shadow).append( options.content )
@@ -200,9 +194,12 @@ export default class Frame extends EventEmitter {
     // Activate all inert add-view alleys
     this.enableAlleys('active')
     
-    // Set initial content as first history stack
-    const initialContent = this.$.html()
-    initialContent && this.history.initialize( initialContent )
+    // Push initial content as history stack
+    const initialContent = this.getContent()
+    initialContent && this.emit('content.changed', initialContent )
+    
+    // Push new history stack after view content changed
+    this.views.on('view.changed', () => this.emit('content.changed', this.getContent() ) )
 
     // Initialize control events
     this.events()
@@ -210,12 +207,14 @@ export default class Frame extends EventEmitter {
     this.emit('load')
   }
 
-  // freeze(){
-  //   // this.$frame.find(':scope > moverlap').attr('on', 'true')
-  // }
-  // unfreeze(){
-  //   // this.$frame.find(':scope > moverlap').removeAttr('on')
-  // }
+  freeze(){
+    this.$frame.attr('frozen', 'true')
+    this.emit('frame.changed', 'freeze')
+  }
+  unfreeze(){
+    this.$frame.removeAttr('frozen')
+    this.emit('frame.changed', 'unfreeze')
+  }
 
   events(){
     if( !this.$?.length || !this.editor.$viewport?.length ) return
@@ -258,7 +257,7 @@ export default class Frame extends EventEmitter {
       view?.showFloating()
     } )
 
-    .on('input', '[contenteditable]', () => this.pushHistoryStack( true ) )
+    .on('input', '[contenteditable]', () => this.emit('content.change', this.getContent() ) )
     // .on('keydown', onUserAction )
     // .on('paste', onUserAction )
   }
@@ -271,7 +270,7 @@ export default class Frame extends EventEmitter {
     // Remove frame element from the DOM
     this.$frame.remove()
 
-    this.emit('frame.delete')
+    this.emit('frame.deleted')
   }
 
   /**
@@ -369,20 +368,5 @@ export default class Frame extends EventEmitter {
    */
   setContent( content: string, root = false ){
     this.$?.html( content )
-  }
-
-  /**
-   * Record/push current frame window content as
-   * latest history stack.
-   */
-  pushHistoryStack( TDR = false ){
-    const currentContent = this.getContent()
-    if( currentContent === undefined ) return 
-    
-    TDR ? 
-      // Throttling & Deboucing Recording
-      this.history.lateRecord( currentContent )
-      // No delay recording
-      : this.history.record( currentContent )
   }
 }

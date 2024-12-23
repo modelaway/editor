@@ -15,14 +15,13 @@ import {
   CONTROL_PANEL_SELECTOR,
   CONTROL_TOOLBAR_SELECTOR,
   CONTROL_FLOATING_SELECTOR,
+  CONTROL_FLOATING_MARGIN,
   
   CONTROL_EDGE_MARGIN,
   CONTROL_PANEL_MARGIN,
   CONTROL_TOOLBAR_MARGIN,
-  VIEW_REF_SELECTOR,
-  CONTROL_FLOATING_MARGIN
+  VIEW_REF_SELECTOR
 } from '../constants'
-import Stylesheet from '../stylesheet'
 import Alley from '../factory/alley'
 import { Component } from '../../lib/lips/lips'
 import Panel, { PanelInput } from '../factory/panel'
@@ -33,17 +32,12 @@ import SearchResult, { SearchResultInput } from '../factory/searchResult'
 import { debug, hashKey } from '../utils'
 // import { FrameQuery } from '../lib/frame.window'
 
-export default class View {
+export default class View extends EventEmitter {
   /**
    * Access to frame's instance and 
    * relative functional classes.
    */
   private readonly frame: Frame
-
-  /**
-   * View's styles application handler
-   */
-  private styles?: Stylesheet 
 
   /**
    * Remote Cash element object of the view.
@@ -86,8 +80,9 @@ export default class View {
   private Finder?: Component<FinderInput>
 
   constructor( frame: Frame ){
+    super()
+
     this.frame = frame
-    
     this.bridge = {
       state: new State(),
       events: new EventEmitter(),
@@ -110,9 +105,10 @@ export default class View {
        * Initialize default styles of the view
        */
       const { name, styles } = this.get()
-      if( name && typeof styles === 'function' )
-        this.styles =
-        this.bridge.css = new Stylesheet( name, $('head'), styles( this.bridge ) )
+      if( name && typeof styles === 'function' ){
+        const cssText = styles( this.bridge ).css
+        cssText && this.frame.styles.addRules( cssText, { key: this.key as string, scope: true } )
+      }
 
       /**
        * Override bridge primary css interface methods
@@ -121,10 +117,10 @@ export default class View {
        *             in the document stylesheets
        * - .style() returns style properties of this view
        */
-      if( this.bridge.css ){
-        // this.bridge.css.custom = async () => (await this.frame.remote?.customCSSProps() as ObjectType<string>)
-        this.bridge.css.style = async () => this.frame.editor.fn.extractStyle( this.$ as Cash )
-      }
+      // if( this.bridge.css ){
+      //   // this.bridge.css.custom = async () => (await this.frame.remote?.customCSSProps() as ObjectType<string>)
+      //   this.bridge.css.style = async () => this.frame.editor.fn.extractStyle( this.$ as Cash )
+      // }
     }
     catch( error: any ){ debug( error.message ) }
 
@@ -153,14 +149,11 @@ export default class View {
     this.bridge.$ = this.$
 
     // Give away control to view component
-    const takeover = this.get('takeover')
+    const takeover = this.getSpec('takeover')
     typeof takeover == 'function' && takeover( this.bridge )
 
     this.bridge.events.emit('mounted')
     debug('view initialized')
-
-    // Record history stack
-    this.frame.pushHistoryStack()
 
     /**
      * Override bridge primary fn interface methods
@@ -178,7 +171,7 @@ export default class View {
 
         this.Toolbar?.subInput( _updates )
       }
-      this.bridge.fn.pushHistoryStack = () => this.frame.pushHistoryStack()
+      this.bridge.fn.pushHistoryStack = () => this.emit('view.changed')
     }
   }
 
@@ -190,11 +183,17 @@ export default class View {
     this.vc = this.vc ? { ...this.vc, ...values } : values
     debug('view component - ', this.vc )
   }
-  get( type?: keyof ViewComponent ): any {
+  get(): ViewComponent {
     if( !this.vc )
       throw new Error('Invalid method called')
 
-    return type ? this.vc[ type ] : this.vc
+    return this.vc
+  }
+  getSpec( type: keyof ViewComponent ): any {
+    if( !this.vc )
+      throw new Error('Invalid method called')
+
+    return this.vc[ type ]
   }
 
   /**
@@ -202,7 +201,7 @@ export default class View {
    * context view using native views cognition
    * process.
    */
-  async inspect( $this: Cash, name: string, activate = false ){
+  inspect( $this: Cash, name: string, activate = false ){
     debug('current target - ', $this.length )
 
     this.$ = $this
@@ -217,7 +216,7 @@ export default class View {
       /**
        * Generate and assign view tracking key
        */
-      this.key = await hashKey()
+      this.key = hashKey()
 
       this.$.attr({
         [VIEW_KEY_SELECTOR]: this.key, // Set view key
@@ -238,7 +237,7 @@ export default class View {
   /**
    * Mount new view comopnent into the DOM
    */
-  async mount( vc: ViewComponent, to: string, triggerType: AddViewTriggerType = 'self' ){
+  mount( vc: ViewComponent, to: string, triggerType: AddViewTriggerType = 'self' ){
     if( !this.frame.$ ) return
 
     /**
@@ -246,7 +245,7 @@ export default class View {
      * sure the destination view is within editor control
      * scope.
      */
-    const $to = await this.frame.$.find(`[${triggerType == 'alley' ? VIEW_REF_SELECTOR : VIEW_KEY_SELECTOR}="${to}"]`)
+    const $to = this.frame.$.find(`[${triggerType == 'alley' ? VIEW_REF_SELECTOR : VIEW_KEY_SELECTOR}="${to}"]`)
     if( !$to.length )
       throw new Error(`Invalid destination view - <key:${to}>`)
     
@@ -274,7 +273,7 @@ export default class View {
      * Generate and assign tracking key to the 
      * new view
      */
-    this.key = await hashKey()
+    this.key = hashKey()
 
     this.$.attr({
       [VIEW_KEY_SELECTOR]: this.key, // Set view key
@@ -298,7 +297,7 @@ export default class View {
    * Create a clone/duplicate of an extisin view
    * in the editor context.
    */
-  async mirror( viewInstance: View, $nextTo?: Cash ){
+  mirror( viewInstance: View, $nextTo?: Cash ){
     /**
      * Argument must be a new instance of view class
      */
@@ -335,7 +334,7 @@ export default class View {
     /**
      * Generate and assign view tracking key
      */
-    this.key = await hashKey()
+    this.key = hashKey()
     this.$.attr( VIEW_KEY_SELECTOR, this.key )
 
     // Clone view specifications
@@ -410,16 +409,12 @@ export default class View {
      * viwe element if there are no other instances of 
      * this view in the DOM.
      */
-    this.styles?.clear()
+    this.frame.styles.removeRules( this.key as string )
 
     this.$ = undefined
     this.vc = undefined
     this.key = undefined
-    this.styles = undefined
     this.$parent = undefined
-
-    // Record history stack
-    this.frame.pushHistoryStack()
   }
 
   /**
@@ -660,7 +655,7 @@ export default class View {
       else _searchResults.subInput({ list })
     })
   }
-  async showMovable(){
+  showMovable(){
 
 
     // Fire show movable listeners
@@ -725,9 +720,6 @@ export default class View {
 
       default: this.showMovable()
     }
-
-    // Record history stack
-    this.frame.pushHistoryStack()
   }
   dismiss(){
     // Unhighlight triggered views
@@ -743,7 +735,7 @@ export default class View {
      * Fire dismiss function provided with 
      * view component.
      */
-    const dismiss = this.get('dismiss')
+    const dismiss = this.getSpec('dismiss')
     typeof dismiss === 'function' && dismiss( this.bridge )
   }
   trigger(){

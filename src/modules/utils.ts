@@ -1,10 +1,6 @@
 import type { Cash } from 'cash-dom'
 
 declare global {
-  // interface Window {
-  //   $: typeof Cash
-  //   Cash: typeof Cash
-  // }
   interface String {
     toCapitalCase: () => string
   }
@@ -36,15 +32,22 @@ export const generateKey = () => {
  * @returns A promise that resolves to the SHA-1 hash 
  *          as a hexadecimal string of `generateKey()`.
  */
-export const hashKey = async () => {
+export const hashKey = () => {
   const
   key = generateKey(),
-  hashBuffer = await crypto.subtle.digest( 'SHA-1', new TextEncoder().encode( key ) )
-
-  return Array.from( new Uint8Array( hashBuffer ) )
-              .map( b => b.toString(16).padStart( 2, '0' ) )
-              .join('')
-              .substring( 0, 7 )
+  timestamp = Date.now(),
+  random = crypto.getRandomValues(new Uint32Array(1))[0],
+  base = 36,
+  hash = Array.from( `${key}${timestamp}${random}` )
+    .reduce(( h, c ) => 
+      ( ( h * base + c.charCodeAt(0) ) ^ random ) >>> 0
+    , 5381 )
+    
+  return hash
+          .toString(16)
+          .replace(/[^0-9a-f]/gi, '0')
+          .padStart(7, '0')
+          .substring(0, 7)
 }
 
 /**

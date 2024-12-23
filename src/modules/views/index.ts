@@ -2,13 +2,14 @@ import type Frame from '../frame'
 import type { AddViewTriggerType, ViewComponent } from '../../types/view'
 
 import $, { type Cash } from 'cash-dom'
+import EventEmitter from 'events'
 import View from './view'
 import {
   VIEW_KEY_SELECTOR,
   VIEW_NAME_SELECTOR
 } from '../constants'
 
-export default class Views {
+export default class Views extends EventEmitter {
   private frame: Frame
 
   /**
@@ -22,6 +23,7 @@ export default class Views {
   private currentView?: View
 
   constructor( frame: Frame ){
+    super()
     this.frame = frame
   }
 
@@ -68,13 +70,18 @@ export default class Views {
   /**
    * Add view component via editor contxt to the DOM
    */
-  async add( name: string, to: string, triggerType?: AddViewTriggerType ){
+  add( name: string, to: string, triggerType?: AddViewTriggerType ){
     const vc = this.frame.editor.store.getView( name )
     if( !vc )
       throw new Error(`Unknown <${name}> view`)
 
     this.currentView = new View( this.frame )
-    await this.currentView.mount( vc as ViewComponent, to, triggerType )
+    this.currentView.mount( vc as ViewComponent, to, triggerType )
+
+    /**
+     * Relay every view update event to its frame
+     */
+    this.currentView.on('view.changed', ( ...args: any[] ) => this.emit('view.changed', ...args ) )
 
     /**
      * Set this view in global namespace
@@ -112,7 +119,7 @@ export default class Views {
       this.currentView = this.get( key )
       if( !this.currentView ) return
 
-      this.currentView.inspect( $currentTarget, this.currentView.get('name'), true )
+      this.currentView.inspect( $currentTarget, this.currentView.getSpec('name'), true )
     }
 
     // Inspect new view
@@ -163,7 +170,6 @@ export default class Views {
    * Target: Native HTML tags or custom views
    */
   propagate( $node: Cash ){
-    console.log( $node )
     if( !$node.length ) return
 
     // Identify view component name or its HTML nodeName

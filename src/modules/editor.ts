@@ -5,6 +5,7 @@ import Store from './store'
 import Canvas from './canvas'
 import Assets from './assets'
 import Plugins from './plugins'
+import History from './history'
 import Functions from './functions'
 import { debug } from './utils'
 import Viewport from './factory/viewport'
@@ -84,6 +85,18 @@ export default class Editor {
   public clipboard: ClipBoard | null = null
 
   /**
+   * Manage history stack throughout every 
+   * editor's components.
+   * 
+   * - canvas
+   * - frames
+   * - views
+   * - store
+   * - etc
+   */
+  public history: History
+
+  /**
    * Initialize internationalization handler
    */
   public i18n: I18N
@@ -121,18 +134,17 @@ export default class Editor {
    */
   public canvas: Canvas
 
-  /**
-   * Floating block component
-   */
-  // public Floating?: Component<FloatingInput>
-
   constructor( settings = {} ){
-
     this.settings = { ...this.defaultSettings, ...settings }
 
     // Set default language as current language
     if( this.settings.lang )
       window.mlang.current = this.settings.lang
+
+    /**
+     * Manage history stack of all actions
+     */
+    this.history = new History()
 
     /**
      * Manage store manager
@@ -228,7 +240,6 @@ export default class Editor {
   disable(){
     this.$viewport?.off()
     this.$viewport?.remove()
-
     this.$root?.off()
 
     this.canvas.disable()

@@ -65,11 +65,34 @@ interface RecordOptions {
   cursorState?: CursorState
 }
 
+interface HistoryEntry {
+  entity: {
+    type: string
+    key?: string
+  }
+  event: string
+  action?: string
+  content?: string
+  metadata?: Record<string, unknown>
+}
+
+interface EntityStack {
+  entityType: string
+  entityKey?: string
+  stacks: Stack[]
+  redoStacks: Stack[]
+  lastContent?: string
+}
+
 interface HistorySnapshot {
   content: string
   timestamp: number
   checksum: string
   cursorState?: CursorState
+  entity: {
+    type: string
+    key?: string
+  }
 }
 
 interface MemoryStats {
@@ -101,8 +124,14 @@ interface SyncOptions {
   batchSize: number
 }
 
-type Stack = {
-  content: string
+interface Stack {
+  content?: string
+  event: string
+  action?: string
+  entity: {
+    type: string
+    key?: string
+  }
   diff: DiffResult | null
   timestamp: number
   id: string
@@ -138,8 +167,8 @@ interface HistoryState {
 interface HistoryEventMap {
   'history.init': () => void
   'history.record': ( state: HistoryState ) => void
-  'history.undo': ( state: HistoryState, change: { from: string, to: string } ) => void
-  'history.redo': ( state: HistoryState, change: { from: string, to: string } ) => void
+  'history.undo': ( state: HistoryState, change: { from: Stack, to: Stack } ) => void
+  'history.redo': ( state: HistoryState, change: { from: Stack, to: Stack } ) => void
   'history.error': ( error: Error ) => void
   'history.snapshot': ( snapshot: HistorySnapshot ) => void
   'history.sync': ( syncState: { local: Stack, remote: Stack } ) => void
@@ -151,8 +180,8 @@ export default class History extends EventEmitter {
   private readonly options: HistoryOptions
   private initialized: boolean = false
 
-  private stacks: Stack[] = []
-  private redoStacks: Stack[] = []
+  private entityStacks: Map<string, EntityStack> = new Map()
+  private linearHistory: string[] = []
   private snapshots: HistorySnapshot[] = []
   private recoveryPoints: Map<string, RecoveryPoint> = new Map()
   
@@ -167,7 +196,7 @@ export default class History extends EventEmitter {
 
   private syncTimeout?: ReturnType<typeof setTimeout>
 
-  public lateRecord: ( content: string, options?: RecordOptions ) => void
+  public lateRecord: ( entry: HistoryEntry, options?: RecordOptions ) => void
 
   constructor( options?: Partial<HistoryOptions> ){
     super()
@@ -183,12 +212,9 @@ export default class History extends EventEmitter {
       maxSnapshotSize: 10,
       enableNetworkSync: false,
       enableContentValidation: true,
-
-      // Custom options
       ...options
     }
 
-    // Validate options
     if( this.options.maxHistorySize <= 0 ) 
       throw new HistoryError('maxHistorySize must be greater than 0')
     if( this.options.throttleLimit <= 0 ) 
@@ -196,15 +222,9 @@ export default class History extends EventEmitter {
     if( this.options.debounceWait <= 0 ) 
       throw new HistoryError('debounceWait must be greater than 0')
 
-    /**
-     * Record state efficiently by managing the frequency 
-     * and timing of state saving.
-     */
     this.lateRecord = throttleAndDebounce( 
-      async ( content: string, options?: RecordOptions ) => {
-        try { 
-          await this.record( content, options ) 
-        }
+      async ( entry: HistoryEntry, options?: RecordOptions ) => {
+        try { await this.push( entry, options ) }
         catch( error ){
           this.emit('history.error', error instanceof Error ? error : new Error( String( error ) ) )
         }
@@ -216,37 +236,65 @@ export default class History extends EventEmitter {
     this.options.enableNetworkSync && this.initializeSync()
   }
 
+  private getEntityId( entity: { type: string, key?: string } ): string {
+    return `${entity.type}${entity.key ? `:${entity.key}` : ''}`
+  }
+
   private getMemoryStats(): MemoryStats {
-    const totalSize = this.stacks.reduce( ( size, stack ) => {
-      return size + ( stack.compressed 
-        ? LZString.compress( stack.content ).length 
-        : stack.content.length )
-    }, 0 )
+    let 
+    totalSize = 0,
+    stackCount = 0,
+    compressedCount = 0
+
+    for( const entityStack of this.entityStacks.values() ){
+      stackCount += entityStack.stacks.length
+      
+      for( const stack of entityStack.stacks ){
+        if( stack.content ){
+          totalSize += stack.compressed 
+            ? LZString.compress( stack.content ).length 
+            : stack.content.length
+        }
+        
+        stack.compressed && compressedCount++
+      }
+    }
 
     return {
       totalSize,
-      stackCount: this.stacks.length,
-      averageStackSize: totalSize / this.stacks.length,
-      compressionRatio: this.stacks.filter( s => s.compressed ).length / this.stacks.length
+      stackCount,
+      averageStackSize: stackCount > 0 ? totalSize / stackCount : 0,
+      compressionRatio: stackCount > 0 ? compressedCount / stackCount : 0
     }
   }
 
+  private getStackFromLinearHistory( key: string ): Stack | null {
+    const [ entityId, timestamp ] = key.split(':')
+    const entityStack = this.entityStacks.get( entityId )
+    
+    if( !entityStack ) return null
+    
+    return entityStack.stacks.find( s => s.timestamp.toString() === timestamp ) || null
+  }
+
   private getState(): HistoryState {
+    const lastEntry = this.linearHistory.length > 0 
+      ? this.getStackFromLinearHistory( this.linearHistory[ this.linearHistory.length - 1 ] )
+      : null
+
     return {
-      stackSize: this.stacks.length,
-      redoStackSize: this.redoStacks.length,
-      canUndo: this.stacks.length > 1,
-      canRedo: this.redoStacks.length > 0,
-      lastChangeTimestamp: this.stacks[ this.stacks.length - 1 ]?.timestamp || 0,
+      stackSize: this.linearHistory.length,
+      redoStackSize: Array.from( this.entityStacks.values() )
+        .reduce( ( total, stack ) => total + stack.redoStacks.length, 0 ),
+      canUndo: this.linearHistory.length > 1,
+      canRedo: Array.from( this.entityStacks.values() )
+        .some( stack => stack.redoStacks.length > 0 ),
+      lastChangeTimestamp: lastEntry?.timestamp || 0,
       memoryStats: this.getMemoryStats(),
       performanceMetrics: { ...this.performanceMetrics }
     }
   }
 
-  /**
-   * Enhanced checksum calculation using multiple algorithms
-   * for better integrity verification
-   */
   private calculateChecksum( content: string ): string {
     if( !this.options.enableContentValidation ) 
       return ''
@@ -254,14 +302,9 @@ export default class History extends EventEmitter {
     const startTime = performance.now()
 
     try {
-      // Convert string to UTF-8 encoded array
-      const
-      encoder = new TextEncoder(),
-      data = encoder.encode( content )
+      const encoder = new TextEncoder()
+      const data = encoder.encode( content )
       
-      /**
-       * CRC32 implementation for basic error detection
-       */
       const crc32 = ( data: Uint8Array ): number => {
         let crc = -1
         const poly = 0xEDB88320
@@ -275,9 +318,6 @@ export default class History extends EventEmitter {
         return ~crc >>> 0
       }
 
-      /**
-       * FNV-1a implementation for fast hash generation
-       */
       const fnv1a = ( data: Uint8Array ): bigint => {
         const 
         FNV_PRIME = BigInt(16777619),
@@ -293,9 +333,6 @@ export default class History extends EventEmitter {
         return hash
       }
 
-      /**
-       * Modified Adler-32 for streaming content
-       */
       const adler32 = ( data: Uint8Array ): number => {
         const MOD_ADLER = 65521
         let a = 1, b = 0
@@ -308,7 +345,6 @@ export default class History extends EventEmitter {
         return ( b << 16 ) | a
       }
 
-      // Calculate checksums using different algorithms
       const checksums = {
         crc32: crc32( data ).toString( 16 ).padStart( 8, '0' ),
         fnv1a: fnv1a( data ).toString( 16 ).padStart( 16, '0' ),
@@ -318,7 +354,6 @@ export default class History extends EventEmitter {
 
       this.performanceMetrics.checksumTime = performance.now() - startTime
 
-      // Combine all checksums with version identifier
       return `2.${checksums.crc32}-${checksums.fnv1a}-${checksums.adler32}-${checksums.length}`
     }
     catch( error ){
@@ -327,9 +362,6 @@ export default class History extends EventEmitter {
     }
   }
 
-  /**
-   * Validate checksum against content
-   */
   private validateChecksum( content: string, checksum?: string ): boolean {
     if( !this.options.enableContentValidation || !checksum ) 
       return true
@@ -351,9 +383,6 @@ export default class History extends EventEmitter {
     }
   }
 
-  /**
-   * Compare two checksums for equivalence
-   */
   private compareChecksums( checksum1?: string, checksum2?: string ): boolean {
     if( !this.options.enableContentValidation || !checksum1 || !checksum2 )
       return true
@@ -362,8 +391,8 @@ export default class History extends EventEmitter {
   }
 
   private async compressStack( stack: Stack ): Promise<void> {
-    if( stack.compressed
-        || stack.content.length < this.options.compressionThreshold )
+    if( !stack.content || stack.compressed || 
+        stack.content.length < this.options.compressionThreshold )
       return
 
     const startTime = performance.now()
@@ -380,8 +409,8 @@ export default class History extends EventEmitter {
     }
   }
 
-  private async decompressStack( stack: Stack ): Promise<string> {
-    if( !stack.compressed )
+  private async decompressStack( stack: Stack ): Promise<string | undefined> {
+    if( !stack.content || !stack.compressed )
       return stack.content
 
     const startTime = performance.now()
@@ -398,18 +427,22 @@ export default class History extends EventEmitter {
   }
 
   private createSnapshot(): HistorySnapshot {
-    const lastState = this.stacks[ this.stacks.length - 1 ]
-    if( !lastState )
+    const lastKey = this.linearHistory[ this.linearHistory.length - 1 ]
+    if( !lastKey ) 
       throw new HistoryError('No state available for snapshot')
+
+    const lastState = this.getStackFromLinearHistory( lastKey )
+    if( !lastState || !lastState.content ) 
+      throw new HistoryError('Invalid state for snapshot')
 
     const snapshot: HistorySnapshot = {
       content: lastState.content,
       timestamp: Date.now(),
       checksum: this.calculateChecksum( lastState.content ),
-      cursorState: lastState.cursorState
+      cursorState: lastState.cursorState,
+      entity: lastState.entity
     }
 
-    // Validate snapshot content integrity if enabled
     if( this.options.enableContentValidation 
         && !this.validateChecksum( lastState.content, snapshot.checksum ) )
       throw new HistoryError('Snapshot content integrity check failed')
@@ -427,10 +460,9 @@ export default class History extends EventEmitter {
       return
 
     const sync = async () => {
-      // Implement your network sync logic here
       this.emit('history.sync', {
-        local: this.stacks[ this.stacks.length - 1 ],
-        remote: {} as Stack // Replace with actual remote state
+        local: this.getStackFromLinearHistory( this.linearHistory[ this.linearHistory.length - 1 ] ),
+        remote: {} as Stack
       })
 
       this.syncTimeout = setTimeout( sync, this.options.syncOptions?.syncInterval || 5000 )
@@ -439,50 +471,60 @@ export default class History extends EventEmitter {
     sync()
   }
 
-  /**
-   * Initial content as initial history state
-   */
-  initialize( content: string ){
+  initialize( entry: HistoryEntry ){
     if( this.initialized && !this.options.allowMultipleInit )
       throw new HistoryError('History already initialized')
 
-    const checksum = this.calculateChecksum( content )
+    const checksum = entry.content 
+      ? this.calculateChecksum( entry.content )
+      : undefined
     
-    // Validate initial content if enabled
-    if( this.options.enableContentValidation && !this.validateChecksum( content, checksum ) )
+    if( entry.content 
+        && this.options.enableContentValidation 
+        && !this.validateChecksum( entry.content, checksum ) )
       throw new HistoryError('Initial content integrity check failed')
 
-    this.stacks = [{
-      content,
+    const entityId = this.getEntityId( entry.entity )
+    const stack: Stack = {
+      content: entry.content,
+      event: entry.event,
+      action: entry.action,
+      entity: entry.entity,
       diff: null,
       timestamp: Date.now(),
       id: crypto.randomUUID(),
-      checksum
-    }]
-    
-    this.redoStacks = []
+      checksum,
+      metadata: entry.metadata
+    }
+
+    this.entityStacks.set( entityId, {
+      entityType: entry.entity.type,
+      entityKey: entry.entity.key,
+      stacks: [ stack ],
+      redoStacks: [],
+      lastContent: entry.content
+    })
+
+    this.linearHistory = [ `${entityId}:${stack.timestamp}` ]
     this.initialized = true
     
-    this.createSnapshot()
+    entry.content && this.createSnapshot()
     this.emit('history.init')
   }
 
   can( action: 'undo' | 'redo' ){
     return action === 'undo' 
-                    ? this.stacks.length > 1 
-                    : this.redoStacks.length > 0
+      ? this.linearHistory.length > 1 
+      : Array.from( this.entityStacks.values() )
+          .some( stack => stack.redoStacks.length > 0 )
   }
 
-  /**
-   * Calculate the diff between two states asynchronously
-   */
   private async calculateDiff( oldContent: string, newContent: string, region?: Range ): Promise<DiffResult> {
     const startTime = performance.now()
     
     try {
       let diffContent = newContent
       if( region )
-        // Only diff the changed region
         diffContent = oldContent.slice( 0, region.start )
                       + newContent.slice( region.start, region.end )
                       + oldContent.slice( region.end )
@@ -512,14 +554,10 @@ export default class History extends EventEmitter {
     }
   }
 
-  /**
-   * Apply the diff to get the new content
-   */
   private applyDiff( content: string, diffResult: DiffResult ){
     const startTime = performance.now()
     
     try {
-      // First validate the base content hasn't been modified
       if( this.options.enableContentValidation 
           && diffResult.baseChecksum 
           && !this.validateChecksum( content, diffResult.baseChecksum ) )
@@ -538,63 +576,74 @@ export default class History extends EventEmitter {
     }
   }
 
-  /**
-   * Record the current state with delta encoding
-   */
-  async record( content: string, options: RecordOptions = { shouldRecord: true } ){
+  async push( entry: HistoryEntry, options: RecordOptions = { shouldRecord: true } ){
     const startTime = performance.now()
 
     if( !this.initialized ){
-      this.initialize( content )
+      this.initialize( entry )
       return
     }
 
     if( !options.shouldRecord ) return
 
-    const lastState = this.stacks[ this.stacks.length - 1 ]
-    if( !lastState )
-      throw new HistoryError('No previous state found')
-
-    const lastContent = await this.decompressStack( lastState )
-    // Don't record if content hasn't changed
-    if( lastContent === content ) return
+    const entityId = this.getEntityId( entry.entity )
+    let entityStack = this.entityStacks.get( entityId )
+    
+    if( !entityStack ){
+      entityStack = {
+        entityType: entry.entity.type,
+        entityKey: entry.entity.key,
+        stacks: [],
+        redoStacks: [],
+        lastContent: undefined
+      }
+      this.entityStacks.set( entityId, entityStack )
+    }
 
     try {
-      const diff = await this.calculateDiff( lastContent, content )
-      const checksum = this.calculateChecksum( content )
+      let diff: DiffResult | null = null
 
-      // Memory management: remove oldest entry if needed
+      if( entry.content && entityStack.lastContent )
+        diff = await this.calculateDiff( entityStack.lastContent, entry.content )
+
+      const checksum = entry.content 
+        ? this.calculateChecksum( entry.content )
+        : undefined
+
+      if( entry.content 
+          && this.options.enableContentValidation 
+          && !this.validateChecksum( entry.content, checksum ) )
+        throw new HistoryError('Content integrity check failed')
+
       this.options.maxHistorySize 
-      && this.stacks.length >= this.options.maxHistorySize
-      && this.stacks.shift()
+        && entityStack.stacks.length >= this.options.maxHistorySize
+        && entityStack.stacks.shift()
 
       const newStack: Stack = {
-        content,
+        content: entry.content,
+        event: entry.event,
+        action: entry.action,
+        entity: entry.entity,
         diff,
         timestamp: Date.now(),
         id: crypto.randomUUID(),
         cursorState: options.cursorState,
-        metadata: options.metadata,
+        metadata: { ...entry.metadata, ...options.metadata },
         checksum
       }
 
-      // Validate content integrity before storing
-      if( this.options.enableContentValidation 
-          && !this.validateChecksum( content, checksum ) )
-        throw new HistoryError('Content integrity check failed')
+      if( entry.content )
+        await this.compressStack( newStack )
 
-      // Compress if content exceeds threshold
-      await this.compressStack( newStack )
+      entityStack.stacks.push( newStack )
+      entityStack.lastContent = entry.content
+      entityStack.redoStacks = []
 
-      this.stacks.push( newStack )
-      
-      /**
-       * Clear the redo stack whenever a new change is made
-       */
-      this.redoStacks = []
+      this.linearHistory.push( `${entityId}:${newStack.timestamp}` )
 
-      // Create snapshot if needed
-      this.stacks.length % this.options.snapshotInterval === 0 && this.createSnapshot()
+      this.linearHistory.length % this.options.snapshotInterval === 0 
+        && entry.content 
+        && this.createSnapshot()
 
       this.performanceMetrics.lastOperationTime = performance.now() - startTime
       this.emit('history.record', this.getState() )
@@ -604,17 +653,14 @@ export default class History extends EventEmitter {
     }
   }
 
-  /**
-   * Record multiple changes at once
-   */
-  async batchRecord( contents: string[], options: RecordOptions = { shouldRecord: true } ){
+  async batchPush( entries: HistoryEntry[], options: RecordOptions = { shouldRecord: true } ){
     const startTime = performance.now()
 
     if( !options.shouldRecord ) return
 
     try {
-      for( const content of contents )
-        await this.record( content, { 
+      for( const entry of entries )
+        await this.push( entry, { 
           ...options, 
           shouldRecord: true 
         })
@@ -626,20 +672,21 @@ export default class History extends EventEmitter {
     }
   }
 
-  /**
-   * Create a recovery point
-   */
   createRecoveryPoint( id: string, metadata: Record<string, unknown> = {} ){
-    const lastState = this.stacks[ this.stacks.length - 1 ]
-    if( !lastState )
+    const lastKey = this.linearHistory[ this.linearHistory.length - 1 ]
+    if( !lastKey )
       throw new HistoryError('No state available for recovery point')
+
+    const lastState = this.getStackFromLinearHistory( lastKey )
+    if( !lastState )
+      throw new HistoryError('Failed to retrieve last state')
 
     const recoveryPoint: RecoveryPoint = {
       checkpoint: { ...lastState },
       metadata,
       validation: () => {
-        const currentState = this.stacks[ this.stacks.length - 1 ]
-        return currentState && this.compareChecksums( currentState.checksum, lastState.checksum )
+        const currentState = this.getStackFromLinearHistory( this.linearHistory[ this.linearHistory.length - 1 ] )
+        return currentState ? this.compareChecksums( currentState.checksum, lastState.checksum ) : false
       }
     }
 
@@ -648,9 +695,6 @@ export default class History extends EventEmitter {
     return id
   }
 
-  /**
-   * Restore to a recovery point
-   */
   async restoreRecoveryPoint( id: string ){
     const recoveryPoint = this.recoveryPoints.get( id )
     if( !recoveryPoint )
@@ -658,13 +702,16 @@ export default class History extends EventEmitter {
 
     const content = await this.decompressStack( recoveryPoint.checkpoint )
     
-    // Validate recovery point content integrity
-    if( this.options.enableContentValidation 
+    if( content 
+        && this.options.enableContentValidation 
         && !this.validateChecksum( content, recoveryPoint.checkpoint.checksum ) )
       throw new HistoryError('Recovery point content integrity check failed')
 
-    await this.record( content, { 
-      shouldRecord: true,
+    await this.push({
+      entity: recoveryPoint.checkpoint.entity,
+      event: 'recovery',
+      action: 'restore',
+      content,
       metadata: {
         recoveryPointId: id,
         ...recoveryPoint.metadata
@@ -672,117 +719,134 @@ export default class History extends EventEmitter {
     })
   }
 
-  /**
-   * Undo
-   */
-  async undo( options: RecordOptions = { shouldRecord: true } ){
-    if( this.stacks.length <= 1 )
+  async undo(){
+    if( this.linearHistory.length <= 1 )
       throw new HistoryError('Nothing to undo')
 
-    const currentState = this.stacks.pop()
-    if( !currentState )
+    const currentKey = this.linearHistory.pop()
+    if( !currentKey )
       throw new HistoryError('Failed to retrieve current state')
+
+    const [ entityId, timestamp ] = currentKey.split(':')
+    const entityStack = this.entityStacks.get( entityId )
+    if( !entityStack )
+      throw new HistoryError('Entity stack not found')
+
+    const currentState = entityStack.stacks.pop()
+    if( !currentState )
+      throw new HistoryError('Failed to get current state from entity stack')
 
     const currentContent = await this.decompressStack( currentState )
 
-    // Validate current state before pushing to redo stack
-    if( this.options.enableContentValidation 
+    if( currentContent 
+        && this.options.enableContentValidation 
         && !this.validateChecksum( currentContent, currentState.checksum ) )
       throw new HistoryError('Current state integrity check failed')
 
-    this.redoStacks.push( currentState )
+    entityStack.redoStacks.push( currentState )
 
-    const previousState = this.stacks[ this.stacks.length - 1 ]
+    const previousState = entityStack.stacks[ entityStack.stacks.length - 1 ]
     if( !previousState )
       throw new HistoryError('Failed to retrieve previous state')
 
     const previousContent = await this.decompressStack( previousState )
 
-    // Validate previous state before returning
-    if( this.options.enableContentValidation 
+    if( previousContent 
+        && this.options.enableContentValidation 
         && !this.validateChecksum( previousContent, previousState.checksum ) )
       throw new HistoryError('Previous state integrity check failed')
 
+    entityStack.lastContent = previousContent
+
     this.emit('history.undo', this.getState(), {
-      from: currentContent,
-      to: previousContent
+      from: currentState,
+      to: previousState
     })
 
-    return previousContent
+    return previousState
   }
 
-  /**
-   * Redo
-   */
-  async redo( options: RecordOptions = { shouldRecord: true } ){
-    if( this.redoStacks.length < 1 )
+  async redo(){
+    if( this.linearHistory.length < 1 )
+      throw new HistoryError('No base state to redo from')
+
+    const lastKey = this.linearHistory[ this.linearHistory.length - 1 ]
+    const [ entityId ] = lastKey.split(':')
+    const entityStack = this.entityStacks.get( entityId )
+    
+    if( !entityStack || entityStack.redoStacks.length < 1 )
       throw new HistoryError('Nothing to redo')
 
-    const nextState = this.redoStacks.pop()
+    const nextState = entityStack.redoStacks.pop()
     if( !nextState )
       throw new HistoryError('Failed to retrieve next state')
 
-    if( !nextState.diff )
-      throw new HistoryError('Invalid redo state: missing diff')
-
-    const previousState = this.stacks[ this.stacks.length - 1 ]
+    const previousState = entityStack.stacks[ entityStack.stacks.length - 1 ]
     if( !previousState )
       throw new HistoryError('Failed to retrieve previous state')
 
-    const previousContent = await this.decompressStack( previousState )
-    
-    // Validate base content before applying redo
-    if( this.options.enableContentValidation ){
-      if( nextState.diff.baseChecksum 
+    if( nextState.content ){
+      const previousContent = await this.decompressStack( previousState )
+      if( !previousContent )
+        throw new HistoryError('Failed to get previous content')
+
+      if( this.options.enableContentValidation 
+          && nextState.diff?.baseChecksum 
           && !this.validateChecksum( previousContent, nextState.diff.baseChecksum ) )
         throw new HistoryError('Base content changed, cannot redo')
+
+      const content = nextState.diff 
+        ? this.applyDiff( previousContent, nextState.diff )
+        : nextState.content
+
+      if( this.options.enableContentValidation 
+          && nextState.checksum 
+          && !this.validateChecksum( content, nextState.checksum ) )
+        throw new HistoryError('Redo result integrity check failed')
+
+      entityStack.lastContent = content
     }
 
-    const content = this.applyDiff( previousContent, nextState.diff )
-    
-    // Validate resulting content after redo
-    if( this.options.enableContentValidation 
-        && nextState.checksum 
-        && !this.validateChecksum( content, nextState.checksum ) )
-      throw new HistoryError('Redo result integrity check failed')
-
-    this.stacks.push( nextState )
+    entityStack.stacks.push( nextState )
+    this.linearHistory.push( `${entityId}:${nextState.timestamp}` )
 
     this.emit('history.redo', this.getState(), {
-      from: previousContent,
-      to: content
+      from: previousState,
+      to: nextState
     })
 
-    return content
+    return nextState
   }
 
-  /**
-   * Get current history statistics
-   */
   getStats(){
     return this.getState()
   }
 
-  /**
-   * Clear all history
-   */
   clear(){
-    const lastState = this.stacks[ this.stacks.length - 1 ]
-    if( lastState ){
-      this.stacks = [ lastState ]
-      this.redoStacks = []
-      this.snapshots = []
-      this.recoveryPoints.clear()
-      this.emit('history.record', this.getState() )
+    const lastKey = this.linearHistory[ this.linearHistory.length - 1 ]
+    if( lastKey ){
+      const [ entityId ] = lastKey.split(':')
+      const lastState = this.getStackFromLinearHistory( lastKey )
+      
+      if( lastState ){
+        this.entityStacks = new Map([[ entityId, {
+          entityType: lastState.entity.type,
+          entityKey: lastState.entity.key,
+          stacks: [ lastState ],
+          redoStacks: [],
+          lastContent: lastState.content
+        }]])
+        
+        this.linearHistory = [ lastKey ]
+        this.snapshots = []
+        this.recoveryPoints.clear()
+        this.emit('history.record', this.getState() )
+      }
     }
   }
 
-  /**
-   * Clean up resources
-   */
   destroy(){
     this.syncTimeout && clearTimeout( this.syncTimeout )
-    
     this.removeAllListeners()
     this.clear()
   }

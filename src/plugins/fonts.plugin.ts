@@ -53,7 +53,7 @@ export default class Fonts implements Plugin {
      * Make fonts available in every new frames 
      * as soon as added to the canvas.
      */
-    factory.editor.canvas.on('frame.add', this.apply.bind(this) )
+    factory.editor.canvas.on('frame.added', this.apply.bind(this) )
   }
   discard(){
     this.factory.editor.canvas.each( frame => frame.styles.removeRules('fonts') )

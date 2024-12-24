@@ -19,8 +19,8 @@ Button: ViewComponent = {
   },
   takeover( view ){
     view.events
-    .on('show.toolbar', () => {})
-    .on('show.panel', () => {})
+    .on('toolbar.show', () => {})
+    .on('panel.show', () => {})
   },
   dismiss( view ){}
 }

@@ -246,7 +246,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
     this.input
     && Object.keys( this.input ).length
     && typeof this.onInput == 'function'
-    && this.onInput.bind(this)()
+    && this.onInput.bind(this)( this.input )
 
     this.IUC = setInterval( () => {
       /**
@@ -384,7 +384,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
      * Triggered anytime component recieve new input
      */
     typeof this.onInput == 'function'
-    && this.onInput.bind(this)()
+    && this.onInput.bind(this)( this.input )
   }
   /**
    * Inject grain/partial input to current component 
@@ -807,9 +807,9 @@ export class Component<Input = void, State = void, Static = void, Context = void
              * Very useful case where the attribute don't necessarily
              * have values by default.
              */
-            res != '?' ?
-                $fnode.attr( attr, res )
-                : $fnode.removeAttr( attr )
+            res === undefined || res === false
+                              ? $fnode.removeAttr( attr )
+                              : $fnode.attr( attr, res )
           }
         }
       })
@@ -924,7 +924,14 @@ export class Component<Input = void, State = void, Static = void, Context = void
      *       level before any assignment.
      */
     else {
-      const [ fn, ...args ] = instruction.split(/\s*,\s*/)
+      let [ fn, ...args ] = instruction.split(/\s*,\s*/)
+      
+      /**
+       * Evaluate whether `fn` is a function name
+       * of an expression resulting in a function 
+       * name.
+       */
+      fn = this.__evaluate__( fn, scope )
       if( typeof this[ fn ] !== 'function' ) return
         // throw new Error(`Undefined <${fn}> ${_event} event method`)
 

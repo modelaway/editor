@@ -105,7 +105,7 @@ export default class Functions {
   /**
    * Apply grain update to toolbar options
    */
-  updateToolbar( updates: ObjectType<any> ){
+  syncToolbar( updates: ObjectType<any>, fn?: () => void ){
     throw new Error('Method not available')
   }
 

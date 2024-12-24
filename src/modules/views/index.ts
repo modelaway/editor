@@ -2,14 +2,13 @@ import type Frame from '../frame'
 import type { AddViewTriggerType, ViewComponent } from '../../types/view'
 
 import $, { type Cash } from 'cash-dom'
-import EventEmitter from 'events'
 import View from './view'
 import {
   VIEW_KEY_SELECTOR,
   VIEW_NAME_SELECTOR
 } from '../constants'
 
-export default class Views extends EventEmitter {
+export default class Views {
   private frame: Frame
 
   /**
@@ -23,7 +22,7 @@ export default class Views extends EventEmitter {
   private currentView?: View
 
   constructor( frame: Frame ){
-    super()
+    // super()
     this.frame = frame
   }
 
@@ -47,6 +46,12 @@ export default class Views extends EventEmitter {
    */
   set( view: View ){
     if( !view.key ) return
+
+    /**
+     * Relay every view update event to its frame
+     */
+    view.on('view.changed', ( ...args: any[] ) => this.frame.emit('view.changed', ...args ) )
+
     this.list[ view.key ] = view
   }
 
@@ -77,11 +82,6 @@ export default class Views extends EventEmitter {
 
     this.currentView = new View( this.frame )
     this.currentView.mount( vc as ViewComponent, to, triggerType )
-
-    /**
-     * Relay every view update event to its frame
-     */
-    this.currentView.on('view.changed', ( ...args: any[] ) => this.emit('view.changed', ...args ) )
 
     /**
      * Set this view in global namespace

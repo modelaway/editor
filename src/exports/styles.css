@@ -15,15 +15,16 @@
 
   --me-edge-padding: .9rem;
 
-  --me-border-radius: 5px;
+  --me-border-radius: 15px;
+  --me-border-radius-inside: 10px;
   --me-border-color: rgba(0, 0, 20, .15);
   --me-trigger-text-color: #fff;
-  --me-active-text-color: #20035b;
+  --me-active-text-color: #038fcc;
   --me-disabled-text-color: #a6a6a6;
   --me-active-transition: 250ms;
   --me-slide-transition: 400ms;
   --me-backdrop-filter: blur(24px);
-  --me-box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, 0.4);
+  --me-box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, 0.3);
   --me-input-color: rgba(235, 235, 240, 0.7);
 }
 
@@ -184,7 +185,7 @@ viewport mglobal > [show] micon {
   padding: 5px 0;
   cursor: pointer;
   color: var(--me-trigger-text-color);
-  border-radius: var(--me-border-radius);
+  border-radius: var(--me-border-radius-inside);
   background-color: var(--me-primary-color-transparent);
   backdrop-filter: var(--me-backdrop-filter);
   font-size: var(--me-icon-size)!important;
@@ -220,6 +221,7 @@ viewport mglobal.active > [container] { left: 0; }
   z-index: 200;
   width: 0px;
   user-select: none;
+  cursor: default;
   /* pointer-events: none; */
 }
 [mv-toolbar="global"] {
@@ -230,9 +232,10 @@ viewport div[mv-frame] mul,
 [mv-toolbar] > mblock > mul {
   list-style: none;
   margin: 0;
-  padding: 1px;
+  padding: 5px;
   border-radius: var(--me-border-radius);
-  background-color: var(--me-secondary-color-transparent);
+  background-color: #fff;
+  box-shadow: var(--me-box-shadow);
   backdrop-filter: var(--me-backdrop-filter);
   transition: var(--me-active-transition);
 }
@@ -252,11 +255,11 @@ viewport div[mv-frame] mul,
 [mv-toolbar] mli,
 viewport div[mv-frame] mul mli {
   padding: 6px;
-  margin: 4px;
+  margin: 2px;
   display: inline-flex;
   align-items: center;
-  color: var(--me-trigger-text-color);
-  border-radius: var(--me-border-radius);
+  /* color: var(--me-trigger-text-color); */
+  border-radius: var(--me-border-radius-inside);
   transition: var(--me-active-transition);
 }
 [mv-toolbar] mli:not(.label),
@@ -274,7 +277,7 @@ viewport div[mv-frame] mul > mli:not(.label) {
 [mv-toolbar] [dismiss],
 [mv-toolbar] mli:not(.label,[disabled]):hover,
 viewport div[mv-frame] mul > mli:not(.label,[disabled]):hover {
-  background-color: var(--me-secondary-color-fade);
+  background-color: var(--me-secondary-color-transparent);
 }
 [mv-toolbar] mli.label > micon,
 [mv-toolbar] mli.label > mlabel,
@@ -289,14 +292,6 @@ viewport div[mv-frame] mul mli.label > mlabel {
 [mv-toolbar] mli micon,
 viewport div[mv-frame] mul mli micon {
   font-size: var(--me-icon-size)!important;
-}
-[mv-toolbar] [options="sub"],
-[mv-toolbar] [options="extra"] {
-  display: none;
-}
-[mv-toolbar] [options="sub"].active,
-[mv-toolbar] [options="extra"].active {
-  display: inherit;
 }
 
 /* Empty view block */
@@ -353,7 +348,7 @@ viewport div[mv-frame] mul mli micon {
 [mv-panel] > [container] > .header > mblock [dismiss] {
   position: absolute;
   right: 0;
-  margin: 0.4rem;
+  /* margin: 0.4rem; */
 }
 [mv-panel] > [container] > .header > [options="tabs"] {
   list-style: none;
@@ -368,7 +363,7 @@ viewport div[mv-frame] mul mli micon {
   align-items: center;
   cursor: pointer;
   color: var(--me-secondary-color);
-  border-radius: var(--me-border-radius);
+  border-radius: var(--me-border-radius-inside);
   transition: var(--me-active-transition);
 }
 [mv-panel] > [container] > .header [dismiss],
@@ -421,7 +416,7 @@ viewport div[mv-frame] mul mli micon {
 [mv-panel] .listset mul mli > micon:first-child {
   background-color: var(--me-primary-color-fade);
   padding: 4px;
-  border-radius: var(--me-border-radius);
+  border-radius: var(--me-border-radius-inside);
 }
 [mv-panel] .listset mul mli minline:not(.value) {
   padding: 0 .8rem;
@@ -534,7 +529,7 @@ viewport div[mv-frame] mul mli micon {
 }
 [mv-form-input="radio"] label::before,
 [mv-form-input="checkbox"] label::before {
-  border-radius: var(--me-border-radius);
+  border-radius: var(--me-border-radius-inside);
 }
 [type="radio"]:checked ~ label::after,
 [type="checkbox"]:checked ~ label::after {

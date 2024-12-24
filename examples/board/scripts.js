@@ -16,7 +16,7 @@ const dummyFrameContent = `<div class="th--dark" id="root">
             <section style="height:50%" class="position-absolute bottom-0 w-100 d-flex align-items-center px-md-2">
               <div style="padding-bottom:6rem" class="w-100 px-3"><img width="120px"
                   src="./small.png"><br><br>
-                <p class="font-medium-2 font-weight-300 py-50"><span data-lang="en-US"
+                <p class="font-medium-2 font-weight-300 py-50" style="font-family:Urbanist;"><span data-lang="en-US"
                     style="color:inherit;"></span>Mobile money, Bank, e-Wallet, and international transfers just like
                   you want.</p>
               </div>

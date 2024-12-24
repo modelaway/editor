@@ -266,8 +266,8 @@ const Text: ViewComponent = {
 
     // Interaction events
     view.events
-    .on('show.toolbar', () => {})
-    .on('show.panel', () => {})
+    .on('toolbar.show', () => {})
+    .on('panel.show', () => {})
 
     .on('view.styles', async data => await view.$?.css( data ) )
     .on('global.styles', async data => await view.$?.css( data ) )

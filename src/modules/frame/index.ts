@@ -199,7 +199,7 @@ export default class Frame extends EventEmitter {
     initialContent && this.emit('content.changed', initialContent )
     
     // Push new history stack after view content changed
-    this.views.on('view.changed', () => this.emit('content.changed', this.getContent() ) )
+    this.on('view.changed', () => this.emit('content.changed', this.getContent() ) )
 
     // Initialize control events
     this.events()

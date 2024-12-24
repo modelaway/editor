@@ -1,3 +1,6 @@
+import type EventEmitter from 'events'
+import type { Handler } from '../../lib/lips'
+
 import { Component } from '../../lib/lips/lips'
 import {
   CONTROL_LANG_SELECTOR,
@@ -17,195 +20,322 @@ export type ToolbarInput = {
     top: string
   }
 }
-export default ( input: ToolbarInput ) => {
-  const factory = ({ key, options, settings, position }: ToolbarInput ) => {
-    if( typeof options !== 'object' )
-      throw new Error('Invalid Toolbar Arguments')
+export type ToolbarState = {
+  default: ObjectType<ToolbarOption> | null
+  extra: ObjectType<ToolbarOption> | null
+  subOption: ObjectType<ToolbarOption> | null
+  detached: ObjectType<ToolbarOption> | null
+  showExtra: boolean
+}
+export interface ToolbarHook { 
+  events?: EventEmitter
+  metacall?: ( key: string, option: ToolbarOption ) => void
+}
 
-    // Apply settings
-    settings = {
-      editing: false,
-      detached: false,
-      ...settings
-    }
+export default ( input: ToolbarInput, hook?: ToolbarHook ) => {
+  // input.options = {
+  //   bold: { 
+  //     icon: 'bx bx-bold',
+  //     title: 'Bold',
+  //     event: {
+  //       type: 'apply',
+  //       params: 'BINARY_SWITCH',
+  //       shortcut: 'command + alt + b'
+  //     },
+  //     active: true
+  //   },
+  //   italic: { 
+  //     icon: 'bx bx-italic',
+  //     title: 'Italic',
+  //     event: {
+  //       type: 'apply',
+  //       params: 'BINARY_SWITCH',
+  //       shortcut: 'command + alt + i'
+  //     }
+  //   },
+  //   underline: { 
+  //     icon: 'bx bx-underline',
+  //     title: 'Underline',
+  //     event: {
+  //       type: 'apply',
+  //       params: 'BINARY_SWITCH',
+  //       shortcut: 'command + alt + u'
+  //     }
+  //   },
+  //   strikethrough: {
+  //     icon: 'bx bx-strikethrough',
+  //     title: 'Stike',
+  //     event: {
+  //       type: 'apply',
+  //       params: 'BINARY_SWITCH',
+  //       shortcut: 'command + alt + s'
+  //     }
+  //   },
+  //   alignment: { 
+  //     icon: 'bx bx-align-justify',
+  //     title: 'Alignment',
+  //     sub: {
+  //       left: {
+  //         icon: 'bx bx-align-left',
+  //         title: 'Align Left',
+  //         event: {
+  //           type: 'apply',
+  //           params: true
+  //         },
+  //         active: true
+  //       },
+  //       center: {
+  //         icon: 'bx bx-align-middle',
+  //         title: 'Align Center',
+  //         event: {
+  //           type: 'apply',
+  //           params: true
+  //         }
+  //       },
+  //       right: {
+  //         icon: 'bx bx-align-right',
+  //         title: 'Align Right',
+  //         event: {
+  //           type: 'apply',
+  //           params: true
+  //         }
+  //       },
+  //       justify: {
+  //         icon: 'bx bx-align-justify',
+  //         title: 'Align Justify',
+  //         event: {
+  //           type: 'apply',
+  //           params: true
+  //         }
+  //       }
+  //     }
+  //   },
+  //   'font-color': {
+  //     icon: 'bx bx-font-color',
+  //     title: 'Font Color',
+  //     event: {
+  //       type: 'apply',
+  //       params: 'BINARY_SWITCH',
+  //       shortcut: 'command + alt + c'
+  //     },
+  //     extra: true
+  //   },
+  //   view: {
+  //     icon: 'bx bx-square-rounded',
+  //     title: 'View',
+  //     sub: {
+  //       copy: { 
+  //         icon: 'bx bx-copy',
+  //         title: 'Copy',
+  //         event: {
+  //           type: 'action',
+  //           params: 'view',
+  //           shortcut: 'command + c'
+  //         }
+  //       },
+  //       'move-up': { 
+  //         icon: 'bx bx-upvote',
+  //         title: 'Move up',
+  //         event: {
+  //           type: 'action',
+  //           params: 'view',
+  //           shortcut: 'command + up'
+  //         }
+  //       },
+  //       'move-down': { 
+  //         icon: 'bx bx-downvote',
+  //         title: 'Move down',
+  //         event: {
+  //           type: 'action',
+  //           params: 'view',
+  //           shortcut: 'command + down'
+  //         }
+  //       },
+  //       move: { 
+  //         icon: 'bx bx-move',
+  //         title: 'Move',
+  //         event: {
+  //           type: 'action',
+  //           params: 'view'
+  //         }
+  //       },
+  //       duplicate: { 
+  //         icon: 'bx bx-duplicate',
+  //         title: 'Duplicate',
+  //         event: {
+  //           type: 'action',
+  //           params: 'view',
+  //           shortcut: 'command + shift + d'
+  //         }
+  //       },
+  //       delete: { 
+  //         icon: 'bx bx-trash',
+  //         title: 'Delete',
+  //         event: {
+  //           type: 'action',
+  //           params: 'view',
+  //           shortcut: 'command + alt + d'
+  //         }
+  //       }
+  //     },
+  //   },
+  //   panel: {
+  //     icon: 'bx bx-grid-alt',
+  //     title: 'Attributes',
+  //     event: {
+  //       type: 'show',
+  //       params: 'BINARY_SWITCH',
+  //       shortcut: 'command + alt + a'
+  //     },
+  //     detached: true,
+  //     disabled: false
+  //   }
+  // }
 
-    let 
-    mainOptions = '',
-    extraOptions = '',
-    subOptions: string[] = []
+  const state: ToolbarState = {
+    default: null,
+    extra: null,
+    subOption: null,
+    detached: null,
 
-    const
-    composeSubLi = ( parentAttr?: string ) => {
-      return ([ attr, { icon, title, event, disabled, active }]: [ attr: string, tset: ToolbarOption ] ) => {
-        let attrs = ''
-        
-        // Trigger event type & params attributes
-        if( event ){
-          if( event.type && attr ) attrs += ` ${event.type}="${parentAttr ? `${parentAttr}.` : ''}${attr}"`
-          if( event.params ) attrs += ` params="${event.params}"`
+    showExtra: false
+  }
+
+  const handler: Handler<ToolbarInput, ToolbarState> = {
+    onInput({ options }: ToolbarInput ){
+      if( !options ) return
+
+      Object
+      .entries( options )
+      .filter( ([key, { hidden }]) => (!hidden) )
+      .forEach( ([ key, option ]) => {
+        if( option.extra ){
+          if( !this.state.extra ) 
+            this.state.extra = {}
+          
+          this.state.extra[ key ] = option
         }
+        else if( option.detached ){
+          if( !this.state.detached ) 
+            this.state.detached = {}
 
-        // Add title attributes
-        if( active ) attrs += ` active`
-        if( disabled ) attrs += ` disabled`
-        if( title ) attrs += ` title="${title}"`
+          this.state.detached[ key ] = option
+        }
+        else {
+          if( !this.state.default ) 
+            this.state.default = {}
 
-        return `<mli ${attrs} title="${title}" ${CONTROL_LANG_SELECTOR}><micon class="${icon}"></micon></mli>`
-      }
+          this.state.default[ key ] = option
+        }
+      } )
     },
-    composeLi = ([ attr, { icon, label, title, event, disabled, active, extra, sub, meta }]: [ attr: string, tset: ToolbarOption ]) => {
-      let attrs = ''
-      
-      // Option has sub options
-      if( sub && Object.keys( sub ).length ){
-        attrs += ` show="sub-toolbar" params=key`
+    onShowExtraOptions( status ){ this.state.showExtra = status },
+    onShowSubOptions( key, option ){ this.state.subOption = key && { ...option, key } },
+    onHandleOption( key, option ){
+      if( !hook ) return
 
-        // Create a sub options
-        subOptions.push(`
-                        <mblock options="sub" extends=key>
-                          <mli dismiss="sub-toolbar" title="Back" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-chevron-left"></micon></mli>
-                          <mli class="label"><micon class=each.icon></micon><mlabel ${CONTROL_LANG_SELECTOR} text="each.label || each.icon.title"></mlabel></mli>
-                          
-                          ${Object.entries( sub ).map( composeSubLi( attr ) ).join('')}
-                        </mblock>`)
-      }
-
-      // Trigger event type & params attributes
-      else if( event ){
-        if( event.type && attr ) attrs += ` ${event.type}="${attr}"`
-        if( event.params ) attrs += ` params="${event.params}"`
-      }
-
-      // Add title attributes
-      if( meta ) attrs += ` meta`
-      if( active ) attrs += ` active`
-      if( disabled ) attrs += ` disabled`
-      if( label ) attrs += ` class="label"`
-      if( title ) attrs += ` title="${title}"`
-
-      const optionLi = `<mli ${attrs} ${CONTROL_LANG_SELECTOR}><micon class="${icon}"></micon>${label ? `<mlabel ${CONTROL_LANG_SELECTOR}>${label}</mlabel>` : ''}</mli>`
-      extra ?
-        extraOptions += optionLi
-        : mainOptions += optionLi
+      option.meta
+          ? typeof hook.metacall == 'function' && hook.metacall( key, option )
+          : hook.events?.emit('toolbar.handle', key, option )
     }
-    
-    /**
-     * Attach meta options to every editable view.
-     */
-    const 
-    metaOptions: ObjectType<ToolbarOption> = {},
-    detachedOptions: ObjectType<ToolbarOption> = {},
-    isVisible = ([ key, option ]: [string, ToolbarOption]) => (!option.hidden)
+  }
 
-    Object
-    .entries( VIEW_CONTROL_OPTIONS )
-    .filter( isVisible )
-    .map( ([attr, option]) => {
-      if( option.meta ) metaOptions[ attr ] = option
-      if( settings?.detached && option.detached ) detachedOptions[ attr ] = option
-    } )
-
-    if( settings.editing && Object.keys( metaOptions ).length )
-      options = { ...options, ...metaOptions }
-
-    // Generate HTML menu
-    Object
-    .entries( options )
-    .filter( isVisible )
-    .map( composeLi )
-
-    // if( !mainOptions )
-    //   throw new Error('Undefined main options')
-
-    // let optionalAttrs = ''
-    // if( settings.editing ) 
-    //   optionalAttrs += ' class="editing"'
-    
-    // if( typeof position == 'object' )
-    //   optionalAttrs += ` style="left:${position.left};top:${position.top};"`
-
-    return `<mblock ${CONTROL_TOOLBAR_SELECTOR}="${key}"
-                    class="input.settings.editing ? 'editing' : '?'"
-                    style="typeof input.position == 'object' ? { left: input.position.left, top: input.position.top } : '?'">
+  const template = `
+    <mblock ${CONTROL_TOOLBAR_SELECTOR}=input.key
+            class="input.settings.editing ? 'editing' : '?'"
+            style="typeof input.position == 'object' ? { left: input.position.left, top: input.position.top } : '?'">
       <mblock container>
         <mul>
-          <let options="Object.values( input.options ).filter( option => (!option.hidden))"></let>
-          <let prime_options="options.filter( option => (!option.extra) )"></let>
-          <let extra_options="options.filter( option => (option.extra))"></let>
-          <let sub_options="options.filter( option => (option.sub))"></let>
+          <if( !state.subOption )>
+            <mblock options="main">
+              <for in=state.default>
+                <mli active=each.active
+                      class="each.label && 'label'"
+                      title=each.title
+                      disabled=each.disabled
+                      ${CONTROL_LANG_SELECTOR}
+                      on-click="each.sub ? 'onShowSubOptions' : 'onHandleOption', key, each">
+                  <micon class="each.icon"></micon>
 
-          <mblock options="main">
-            <for in=prime_options>
-              <mli meta="!each.meta && '?'"
-                    active="!each.active && '?'"
-                    class="each.label ? 'label' : '?'"
-                    title="each.title ? each.title : '?'"
-                    disable="!each.disabled && '?'"
-                    ${CONTROL_LANG_SELECTOR}>
-                <micon class="each.icon"></micon>
-                <if( each.label )>
-                  <mlabel ${CONTROL_LANG_SELECTOR} text=each.label></mlabel>
-                </if>
-              </mli>
-            </for>
-
-            <if( extra_options.length )>
-              <mli show="extra-toolbar" title="Extra options" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-dots-horizontal-rounded"></micon></mli>
-            </if>
-          </mblock>
-
-          <if( extra_options.length )>
-            <mblock options="extra">
-              <for in=extra_options>
-                <mli meta="!each.meta && '?'"
-                      active="!each.active && '?'"
-                      class="each.label ? 'label' : '?'"
-                      title="each.title ? each.title : '?'"
-                      disable="!each.disabled && '?'"
-                      ${CONTROL_LANG_SELECTOR}>
-                  <micon class=each.icon></micon>
                   <if( each.label )>
                     <mlabel ${CONTROL_LANG_SELECTOR} text=each.label></mlabel>
                   </if>
                 </mli>
               </for>
-              <mli dismiss="extra-toolbar" title="Back" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-chevron-left"></micon></mli>
-            </mblock>
-          </if>
 
-          <if( sub_options.length )>
-            <for in="Object.entries( input.options ).filter( ([key, option]) => (option.sub))">
-              <mblock options="sub" extends="each[0]">
-                <mli dismiss="sub-toolbar" title="Back" ${CONTROL_LANG_SELECTOR}>
-                  <micon class="bx bx-chevron-left"></micon>
-                </mli>
-                <mli class="label">
-                  <micon class=each[1].icon></micon>
-                  <mlabel ${CONTROL_LANG_SELECTOR} text="each[1].label || each[1].title"></mlabel>
-                </mli>
-                
-                <for in=each[1].sub>
-                  <mli active="!each.active && '?'"
-                      disable="!each.disabled && '?'"
-                      title="each.title ? each.title : '?'"
-                      ${CONTROL_LANG_SELECTOR}>
+              <if( state.extra && !state.showExtra )>
+                <mli title="Extra options" ${CONTROL_LANG_SELECTOR} on-click="onShowExtraOptions, true"><micon class="bx bx-dots-horizontal-rounded"></micon></mli>
+              </if>
+            </mblock>
+
+            <if( state.showExtra )>
+              <mblock options="extra">
+                <for in=state.extra>
+                  <mli active=each.active
+                        class="each.label && 'label'"
+                        title=each.title
+                        disabled=each.disabled
+                        ${CONTROL_LANG_SELECTOR}
+                        on-click="each.sub ? 'onShowSubOptions' : 'onHandleOption', key, each">
                     <micon class=each.icon></micon>
+
+                    <if( each.label )>
+                      <mlabel ${CONTROL_LANG_SELECTOR} text=each.label></mlabel>
+                    </if>
                   </mli>
                 </for>
+
+                <mli title="Back" ${CONTROL_LANG_SELECTOR} on-click="onShowExtraOptions, false"><micon class="bx bx-chevron-left"></micon></mli>
               </mblock>
-            </for>
+            </if>
+          </if>
+
+          <if( state.subOption )>
+            <mblock options="sub">
+              <mli title="Back" ${CONTROL_LANG_SELECTOR} on-click="onShowSubOptions, false">
+                <micon class="bx bx-chevron-left"></micon>
+              </mli>
+
+              <mli class="label">
+                <micon class=state.subOption.icon></micon>
+                <mlabel ${CONTROL_LANG_SELECTOR} text="state.subOption.label || state.subOption.title"></mlabel>
+              </mli>
+              
+              <for in=state.subOption.sub>
+                <mli active=each.active
+                      disable=each.disabled
+                      title=each.title
+                    ${CONTROL_LANG_SELECTOR}
+                    on-click="onHandleOption, state.subOption.key +'.sub.'+ key, each">
+                  <micon class=each.icon></micon>
+                </mli>
+              </for>
+            </mblock>
           </if>
         </mul>
 
-        ${Object.keys( detachedOptions ).length ? 
-              `<mul>
-                <mblock options="control">
-                  ${Object.entries( detachedOptions ).map( composeSubLi() ).join('')}
-                </mblock>
-              </mul>`: ''}
+        <if( state.detached )>
+          <mul>
+            <mblock options="detached">
+              <for in=state.detached>
+                <mli active=each.active
+                      class="each.label && 'label'"
+                      title=each.title
+                      disabled=each.disabled
+                      ${CONTROL_LANG_SELECTOR}
+                      on-click="onHandleOption, key, each">
+                  <micon class="each.icon"></micon>
+                  <if( each.label )>
+                    <mlabel ${CONTROL_LANG_SELECTOR} text=each.label></mlabel>
+                  </if>
+                </mli>
+              </for>
+            </mblock>
+          </mul>
+        </if>
       </mblock>
-    </mblock>`
-  }
+    </mblock>
+  `
 
-  return new Component<ToolbarInput>('toolbar', factory( input ), { input })
+  return new Component<ToolbarInput, ToolbarState>('toolbar', template, { input, state, handler })
 }

@@ -17,18 +17,18 @@ function throttleAndDebounce( fn: Function, throttleLimit: number, debounceWait:
   lastRan: number,
   timeout: ReturnType<typeof setTimeout>
 
-  return function( this: unknown, ...args: unknown[] ){
+  return async function( this: unknown, ...args: unknown[] ){
     const now = Date.now()
     clearTimeout( timeout )
 
     if( !lastRan || now - lastRan >= throttleLimit ){
-      fn.apply( this, args )
+      await fn.apply( this, args )
       lastRan = now
     }
     else
-      timeout = setTimeout( () => {
+      timeout = setTimeout( async () => {
         if( Date.now() - lastRan >= throttleLimit ){
-          fn.apply( this, args )
+          await fn.apply( this, args )
           lastRan = Date.now()
         }
       }, Math.max( debounceWait, throttleLimit - ( now - lastRan ) ) )
@@ -166,13 +166,107 @@ interface HistoryState {
 
 interface HistoryEventMap {
   'history.init': () => void
-  'history.record': ( state: HistoryState ) => void
-  'history.undo': ( state: HistoryState, change: { from: Stack, to: Stack } ) => void
-  'history.redo': ( state: HistoryState, change: { from: Stack, to: Stack } ) => void
-  'history.error': ( error: Error ) => void
-  'history.snapshot': ( snapshot: HistorySnapshot ) => void
-  'history.sync': ( syncState: { local: Stack, remote: Stack } ) => void
-  'history.validation': ( result: { content: string, isValid: boolean } ) => void
+  
+  'history.record': ( 
+    state: HistoryState,
+    metadata: {
+      entity: {
+        type: string
+        key?: string
+      }
+      event: string
+      action?: string
+    }
+  ) => void
+  
+  'history.undo': ( 
+    state: HistoryState, 
+    change: { 
+      from: Stack
+      to: Stack
+      entityId: string
+    }
+  ) => void
+  
+  'history.redo': ( 
+    state: HistoryState, 
+    change: { 
+      from: Stack
+      to: Stack
+      entityId: string
+    }
+  ) => void
+  
+  'history.error': ( 
+    error: Error,
+    context?: {
+      operation: 'push' | 'undo' | 'redo' | 'snapshot' | 'sync' | 'validation'
+      entityId?: string
+      metadata?: Record<string, unknown>
+    }
+  ) => void
+  
+  'history.snapshot': ( 
+    snapshot: HistorySnapshot & {
+      entityStats: {
+        entityId: string
+        stackSize: number
+        redoStackSize: number
+      }[]
+    }
+  ) => void
+  
+  'history.sync': ( 
+    syncState: { 
+      local: Stack
+      remote: Stack
+      entityId: string
+      syncTime: number
+      conflicts?: Array<{
+        entityId: string
+        localTimestamp: number
+        remoteTimestamp: number
+      }>
+    }
+  ) => void
+  
+  'history.validation': ( 
+    result: {
+      content: string
+      isValid: boolean
+      entityId?: string
+      checksumType: string
+      validationTime: number
+    }
+  ) => void
+
+  'history.entity.created': (
+    entityInfo: {
+      entityId: string
+      type: string
+      key?: string
+      timestamp: number
+    }
+  ) => void
+
+  'history.entity.cleared': (
+    entityInfo: {
+      entityId: string
+      type: string
+      key?: string
+      stacksRemoved: number
+    }
+  ) => void
+
+  'history.entity.threshold': (
+    info: {
+      entityId: string
+      type: string
+      key?: string
+      currentSize: number
+      maxSize: number
+    }
+  ) => void
 }
 
 export default class History extends EventEmitter {
@@ -196,7 +290,7 @@ export default class History extends EventEmitter {
 
   private syncTimeout?: ReturnType<typeof setTimeout>
 
-  public lateRecord: ( entry: HistoryEntry, options?: RecordOptions ) => void
+  // public lateRecord: ( entry: HistoryEntry, options?: RecordOptions ) => void
 
   constructor( options?: Partial<HistoryOptions> ){
     super()
@@ -222,16 +316,18 @@ export default class History extends EventEmitter {
     if( this.options.debounceWait <= 0 ) 
       throw new HistoryError('debounceWait must be greater than 0')
 
-    this.lateRecord = throttleAndDebounce( 
-      async ( entry: HistoryEntry, options?: RecordOptions ) => {
-        try { await this.push( entry, options ) }
-        catch( error ){
-          this.emit('history.error', error instanceof Error ? error : new Error( String( error ) ) )
-        }
-      },
-      this.options.throttleLimit,
-      this.options.debounceWait
-    )
+    // this.lateRecord = throttleAndDebounce(
+    //   async ( entry: HistoryEntry, options?: RecordOptions ) => {
+    //     try { await this.push( entry, options ) }
+    //     catch( error ){
+    //       this.emit('history.error', error instanceof Error ? error : new Error( String( error ) ) )
+    //     }
+    //   },
+    //   this.options.throttleLimit,
+    //   this.options.debounceWait
+    // )
+
+    this.push = throttleAndDebounce( this.push, this.options.throttleLimit, this.options.debounceWait )
 
     this.options.enableNetworkSync && this.initializeSync()
   }
@@ -269,10 +365,18 @@ export default class History extends EventEmitter {
   }
 
   private getStackFromLinearHistory( key: string ): Stack | null {
+    if( !key || !key.includes(':') )
+      throw new HistoryError('Invalid history key format')
+
     const [ entityId, timestamp ] = key.split(':')
+    if( !entityId || !timestamp )
+      throw new HistoryError('Invalid history key components')
+
     const entityStack = this.entityStacks.get( entityId )
-    
     if( !entityStack ) return null
+    
+    if( !entityStack.stacks.length )
+      throw new HistoryError(`Entity stack exists but is empty: ${entityId}`)
     
     return entityStack.stacks.find( s => s.timestamp.toString() === timestamp ) || null
   }
@@ -284,11 +388,9 @@ export default class History extends EventEmitter {
 
     return {
       stackSize: this.linearHistory.length,
-      redoStackSize: Array.from( this.entityStacks.values() )
-        .reduce( ( total, stack ) => total + stack.redoStacks.length, 0 ),
+      redoStackSize: Array.from( this.entityStacks.values() ).reduce( ( total, stack ) => total + stack.redoStacks.length, 0 ),
       canUndo: this.linearHistory.length > 1,
-      canRedo: Array.from( this.entityStacks.values() )
-        .some( stack => stack.redoStacks.length > 0 ),
+      canRedo: Array.from( this.entityStacks.values() ).some( stack => stack.redoStacks.length > 0 ),
       lastChangeTimestamp: lastEntry?.timestamp || 0,
       memoryStats: this.getMemoryStats(),
       performanceMetrics: { ...this.performanceMetrics }
@@ -372,11 +474,8 @@ export default class History extends EventEmitter {
         return false
 
       const newChecksum = this.calculateChecksum( content )
-      const isValid = checksum === newChecksum
 
-      this.emit('history.validation', { content, isValid })
-
-      return isValid
+      return checksum === newChecksum
     }
     catch( error ){ 
       return false 
@@ -460,9 +559,13 @@ export default class History extends EventEmitter {
       return
 
     const sync = async () => {
+      const lastStack = this.getStackFromLinearHistory( this.linearHistory[ this.linearHistory.length - 1 ] )
       this.emit('history.sync', {
-        local: this.getStackFromLinearHistory( this.linearHistory[ this.linearHistory.length - 1 ] ),
-        remote: {} as Stack
+        local: lastStack,
+        remote: {} as Stack,
+        entityId: lastStack ? this.getEntityId( lastStack.entity ) : '',
+        syncTime: Date.now(),
+        conflicts: []
       })
 
       this.syncTimeout = setTimeout( sync, this.options.syncOptions?.syncInterval || 5000 )
@@ -509,6 +612,7 @@ export default class History extends EventEmitter {
     this.initialized = true
     
     entry.content && this.createSnapshot()
+    
     this.emit('history.init')
   }
 
@@ -598,13 +702,40 @@ export default class History extends EventEmitter {
         lastContent: undefined
       }
       this.entityStacks.set( entityId, entityStack )
+      
+      this.emit('history.entity.created', {
+        entityId,
+        type: entry.entity.type,
+        key: entry.entity.key,
+        timestamp: Date.now()
+      })
+    }
+
+    // Check if entity is approaching size limit
+    if( entityStack.stacks.length >= this.options.maxHistorySize * 0.8 ){
+      this.emit('history.entity.threshold', {
+        entityId,
+        type: entry.entity.type,
+        key: entry.entity.key,
+        currentSize: entityStack.stacks.length,
+        maxSize: this.options.maxHistorySize
+      })
     }
 
     try {
+      // Validate entity information
+      if( !entry.entity || !entry.entity.type )
+        throw new HistoryError('Invalid entity information in push entry')
+        
       let diff: DiffResult | null = null
 
-      if( entry.content && entityStack.lastContent )
+      // Validate content changes against existing entity state
+      if( entry.content && entityStack.lastContent ){
+        if( typeof entry.content !== 'string' )
+          throw new HistoryError('Invalid content type in push entry')
+          
         diff = await this.calculateDiff( entityStack.lastContent, entry.content )
+      }
 
       const checksum = entry.content 
         ? this.calculateChecksum( entry.content )
@@ -632,8 +763,7 @@ export default class History extends EventEmitter {
         checksum
       }
 
-      if( entry.content )
-        await this.compressStack( newStack )
+      entry.content && await this.compressStack( newStack )
 
       entityStack.stacks.push( newStack )
       entityStack.lastContent = entry.content
@@ -642,11 +772,18 @@ export default class History extends EventEmitter {
       this.linearHistory.push( `${entityId}:${newStack.timestamp}` )
 
       this.linearHistory.length % this.options.snapshotInterval === 0 
-        && entry.content 
-        && this.createSnapshot()
+      && entry.content 
+      && this.createSnapshot()
 
       this.performanceMetrics.lastOperationTime = performance.now() - startTime
-      this.emit('history.record', this.getState() )
+      this.emit('history.record', 
+        this.getState(),
+        {
+          entity: entry.entity,
+          event: entry.event,
+          action: entry.action
+        }
+      )
     }
     catch( error ){
       throw new HistoryError(`Failed to record state: ${error instanceof Error ? error.message : String( error )}`)
@@ -660,10 +797,7 @@ export default class History extends EventEmitter {
 
     try {
       for( const entry of entries )
-        await this.push( entry, { 
-          ...options, 
-          shouldRecord: true 
-        })
+        await this.push( entry, { ...options, shouldRecord: true })
 
       this.performanceMetrics.lastOperationTime = performance.now() - startTime
     }
@@ -673,9 +807,15 @@ export default class History extends EventEmitter {
   }
 
   createRecoveryPoint( id: string, metadata: Record<string, unknown> = {} ){
+    if( !id || typeof id !== 'string' )
+      throw new HistoryError('Invalid recovery point ID')
+      
+    if( this.recoveryPoints.has( id ) )
+      throw new HistoryError('Recovery point ID already exists')
+      
     const lastKey = this.linearHistory[ this.linearHistory.length - 1 ]
     if( !lastKey )
-      throw new HistoryError('No state available for recovery point')
+      throw new HistoryError('No entity state available for recovery point')
 
     const lastState = this.getStackFromLinearHistory( lastKey )
     if( !lastState )
@@ -696,9 +836,15 @@ export default class History extends EventEmitter {
   }
 
   async restoreRecoveryPoint( id: string ){
+    if( !id || typeof id !== 'string' )
+      throw new HistoryError('Invalid recovery point ID')
+
     const recoveryPoint = this.recoveryPoints.get( id )
     if( !recoveryPoint )
       throw new HistoryError('Recovery point not found')
+      
+    if( !recoveryPoint.checkpoint || !recoveryPoint.checkpoint.entity )
+      throw new HistoryError('Invalid recovery point data structure')
 
     const content = await this.decompressStack( recoveryPoint.checkpoint )
     
@@ -725,7 +871,7 @@ export default class History extends EventEmitter {
 
     const currentKey = this.linearHistory.pop()
     if( !currentKey )
-      throw new HistoryError('Failed to retrieve current state')
+      throw new HistoryError('Failed to retrieve current entity state')
 
     const [ entityId, timestamp ] = currentKey.split(':')
     const entityStack = this.entityStacks.get( entityId )
@@ -747,7 +893,7 @@ export default class History extends EventEmitter {
 
     const previousState = entityStack.stacks[ entityStack.stacks.length - 1 ]
     if( !previousState )
-      throw new HistoryError('Failed to retrieve previous state')
+      throw new HistoryError('Failed to retrieve previous entity state')
 
     const previousContent = await this.decompressStack( previousState )
 
@@ -760,7 +906,8 @@ export default class History extends EventEmitter {
 
     this.emit('history.undo', this.getState(), {
       from: currentState,
-      to: previousState
+      to: previousState,
+      entityId: this.getEntityId( currentState.entity )
     })
 
     return previousState
@@ -812,7 +959,8 @@ export default class History extends EventEmitter {
 
     this.emit('history.redo', this.getState(), {
       from: previousState,
-      to: nextState
+      to: nextState,
+      entityId: this.getEntityId( nextState.entity )
     })
 
     return nextState
@@ -826,9 +974,18 @@ export default class History extends EventEmitter {
     const lastKey = this.linearHistory[ this.linearHistory.length - 1 ]
     if( lastKey ){
       const [ entityId ] = lastKey.split(':')
+      const entityStack = this.entityStacks.get( entityId )
       const lastState = this.getStackFromLinearHistory( lastKey )
       
       if( lastState ){
+        const stacksRemoved = entityStack?.stacks.length || 0
+
+        this.emit('history.entity.cleared', {
+          entityId,
+          type: lastState.entity.type,
+          key: lastState.entity.key,
+          stacksRemoved: stacksRemoved - 1  // -1 because we keep the last state
+        })
         this.entityStacks = new Map([[ entityId, {
           entityType: lastState.entity.type,
           entityKey: lastState.entity.key,
@@ -840,6 +997,7 @@ export default class History extends EventEmitter {
         this.linearHistory = [ lastKey ]
         this.snapshots = []
         this.recoveryPoints.clear()
+
         this.emit('history.record', this.getState() )
       }
     }

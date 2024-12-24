@@ -20,13 +20,14 @@ import {
   CONTROL_EDGE_MARGIN,
   CONTROL_PANEL_MARGIN,
   CONTROL_TOOLBAR_MARGIN,
-  VIEW_REF_SELECTOR
+  VIEW_REF_SELECTOR,
+  VIEW_CONTROL_OPTIONS
 } from '../constants'
 import Alley from '../factory/alley'
 import { Component } from '../../lib/lips/lips'
 import Panel, { PanelInput } from '../factory/panel'
 import Finder, { FinderInput } from '../factory/finder'
-import Toolbar, { ToolbarInput } from '../factory/toolbar'
+import Toolbar, { ToolbarHook, ToolbarInput, ToolbarState } from '../factory/toolbar'
 import Floating, { FloatingInput } from '../factory/floating'
 import SearchResult, { SearchResultInput } from '../factory/searchResult'
 import { debug, hashKey } from '../utils'
@@ -69,7 +70,7 @@ export default class View extends EventEmitter {
   /**
    * Toolbar block component
    */
-  private Toolbar?: Component<ToolbarInput>
+  private Toolbar?: Component<ToolbarInput, ToolbarState>
   /**
    * Toolbar block component
    */
@@ -159,7 +160,7 @@ export default class View extends EventEmitter {
      * Override bridge primary fn interface methods
      */
     if( this.bridge.fn ){
-      this.bridge.fn.updateToolbar = ( updates: ObjectType<any> ) => {
+      this.bridge.fn.syncToolbar = ( updates: ObjectType<any>, fn?: () => void ) => {
         /**
          * Attach `options.` scope to update options' keys
          */
@@ -167,9 +168,11 @@ export default class View extends EventEmitter {
 
         Object
         .entries( updates )
-        .map( ([ key, value ]) => _updates[`options.${key}`] = value)
+        .map( ([ key, value ]) => _updates[`options.${key}`] = value )
 
         this.Toolbar?.subInput( _updates )
+
+        typeof fn == 'function' && fn()
       }
       this.bridge.fn.pushHistoryStack = () => this.emit('view.changed')
     }
@@ -357,7 +360,7 @@ export default class View extends EventEmitter {
   getParent(){
     return this.$parent
   }
-
+  
   inject( props: ViewBlockProperties[] ){
     if( !Array.isArray( props ) || !props.length ) return
 
@@ -442,14 +445,32 @@ export default class View extends EventEmitter {
     // Adjust by left edges
     if( x < 15 ) x = CONTROL_EDGE_MARGIN
 
-    this.Toolbar = Toolbar({
+    /**
+     * Create and hook toolbar to view
+     * component operations.
+     */
+    const 
+    input: ToolbarInput = {
       key: this.key,
-      options,
+      /**
+       * Extend options list with default view 
+       * control options
+       */
+      options: { ...options, ...VIEW_CONTROL_OPTIONS },
       settings,
       position: { left: `${x}px`, top: `${y}px` }
-    })
+    },
+    hook: ToolbarHook = { 
+      events: this.bridge.events,
+      metacall: this.metacall.bind(this)
+    }
+    this.Toolbar = Toolbar( input, hook )
     let $toolbar = this.Toolbar.appendTo( this.frame.editor.$viewport ).getNode()
 
+    /**
+     * Position toolbar relatively to the view
+     * component.
+     */
     const
     tHeight = $toolbar.find(':scope > [container]').height() || 0,
     dueYPosition = tHeight + (CONTROL_TOOLBAR_MARGIN * 2)
@@ -476,7 +497,7 @@ export default class View extends EventEmitter {
     // Update toolbar position
     this.Toolbar.subInput({ position: { left: `${x}px`, top: `${y}px` } })
     // Fire show toolbar listeners
-    this.bridge.events.emit('show.toolbar')
+    this.bridge.events.emit('toolbar.show')
   }
   showPanel(){
     if( !this.frame.editor.$viewport || !this.key || !this.$ ) 
@@ -536,7 +557,7 @@ export default class View extends EventEmitter {
     // Update panel's position
     this.Panel.subInput({ position: { left: `${x}px`, top: `${y}px` } })
     // Fire show panel listeners
-    this.bridge.events.emit('show.panel')
+    this.bridge.events.emit('panel.show')
   }
   showFloating(){
     if( !this.frame.editor.$viewport || !this.key || !this.$ )
@@ -659,7 +680,7 @@ export default class View extends EventEmitter {
 
 
     // Fire show movable listeners
-    this.bridge.events.emit('show.movable')
+    this.bridge.events.emit('movable.show')
   }
   
   move( direction?: string ){
@@ -762,5 +783,19 @@ export default class View extends EventEmitter {
   }
   dismissParent(){
     
+  }
+
+  metacall( key: string, option: ToolbarOption ){
+    if( !this.key ) return
+
+    switch( key ){
+      case 'panel': this.showPanel(); break
+
+      case 'view.sub.delete': this.frame.views.remove( this.key ); break
+      case 'view.sub.duplicate': this.frame.views.duplicate( this.key ); break
+      case 'view.sub.move-up': this.frame.views.move( this.key, 'up'); break
+      case 'view.sub.move-down': this.frame.views.move( this.key, 'down'); break
+      case 'view.sub.copy': this.frame.editor.clipboard = { type: 'view', key: this.key }; break
+    }
   }
 }

@@ -35,8 +35,8 @@ const Image: ViewComponent = {
   },
   takeover( view ){
     view.events
-    .on('show.toolbar', () => console.log('-- event: show.toolbar') )
-    .on('show.panel', () => {})
+    .on('toolbar.show', () => console.log('-- event: toolbar.show') )
+    .on('panel.show', () => {})
 
     .on('upload', async param => {
       const files = await view.fn.selectFile({ id: '1234' })

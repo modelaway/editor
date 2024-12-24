@@ -33,9 +33,31 @@ export default class Canvas extends EventEmitter {
     })
 
     this.handle.apply()
+
+    // Listen an process history stack
+    // 'history.init'
+    // 'history.snapshot'
+    // 'history.sync'
+    // 'history.entity.created'
+    // 'history.entity.threshold'
+    // 'history.entity.cleared'
+    // 'history.record'
+    // 'history.undo'
+    // 'history.redo'
+    // 'history.error'
+    this.editor.history
+    .on('history.undo', ( data ) => {
+      console.log('undo --', data )
+    })
+    .on('history.redo', ( data ) => {
+      console.log('redo --', data )
+    })
+
+    this.emit('canvas.enabled')
   }
   disable(){
     this.handle?.discard()
+    this.emit('canvas.disabled')
   }
 
   /**
@@ -57,24 +79,6 @@ export default class Canvas extends EventEmitter {
   set( frame: Frame ){
     if( !frame.key ) return
 
-    /**
-     * Listen to each frames' history navigation events
-     */
-    // const historyNavigator = ( undoCount: number, redoCount: number ) => {
-    //   const updates = { 
-    //     'options.undo.disabled': undoCount < 1,
-    //     'options.redo.disabled': redoCount < 1
-    //   }
-
-    //   // this.editor.editor.Toolbar?.subInput( updates )
-
-    //   /**
-    //    * Send content change signal for every history
-    //    * navigation action.
-    //    */
-    //   frame.emit('content.change')
-    // }
-
     frame.on('content.changed', ( action: string ) => {
       this.editor.history.push({
         entity: { type: 'frame', key: frame.key },
@@ -83,10 +87,11 @@ export default class Canvas extends EventEmitter {
       })
     })
 
-    // frame.history
-    // .on('history.record', historyNavigator.bind(this) )
-    // .on('history.undo', historyNavigator.bind(this) )
-    // .on('history.redo', historyNavigator.bind(this) )
+    this.editor.history.push({
+      entity: { type: 'frame', key: frame.key },
+      event: 'frame.created',
+      action: 'addFrame'
+    })
 
     this.list[ frame.key ] = frame
     this.emit('frame.added', frame )

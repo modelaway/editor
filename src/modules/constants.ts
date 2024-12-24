@@ -68,7 +68,8 @@ export const VIEW_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
           type: 'action',
           params: 'view',
           shortcut: 'command + c'
-        }
+        },
+        meta: true
       },
       'move-up': { 
         icon: 'bx bx-upvote',
@@ -77,7 +78,8 @@ export const VIEW_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
           type: 'action',
           params: 'view',
           shortcut: 'command + up'
-        }
+        },
+        meta: true
       },
       'move-down': { 
         icon: 'bx bx-downvote',
@@ -86,7 +88,8 @@ export const VIEW_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
           type: 'action',
           params: 'view',
           shortcut: 'command + down'
-        }
+        },
+        meta: true
       },
       move: { 
         icon: 'bx bx-move',
@@ -94,7 +97,8 @@ export const VIEW_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
         event: {
           type: 'action',
           params: 'view'
-        }
+        },
+        meta: true
       },
       duplicate: { 
         icon: 'bx bx-duplicate',
@@ -103,7 +107,8 @@ export const VIEW_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
           type: 'action',
           params: 'view',
           shortcut: 'command + shift + d'
-        }
+        },
+        meta: true
       },
       delete: { 
         icon: 'bx bx-trash',
@@ -112,11 +117,12 @@ export const VIEW_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
           type: 'action',
           params: 'view',
           shortcut: 'command + alt + d'
-        }
+        },
+        meta: true
       }
     }
   },
-  panel: { 
+  panel: {
     icon: 'bx bx-grid-alt',
     title: 'Attributes',
     event: {
@@ -124,6 +130,7 @@ export const VIEW_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
       params: 'BINARY_SWITCH',
       shortcut: 'command + alt + a'
     },
+    meta: true,
     detached: true,
     disabled: false
   }
@@ -141,7 +148,6 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
       params: true,
       shortcut: 'command + z'
     },
-    hidden: true,
     disabled: true
   },
   redo: {
@@ -152,7 +158,6 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
       params: true,
       shortcut: 'command + y'
     },
-    hidden: true,
     disabled: true
   },
   'frame.add': {
@@ -163,16 +168,6 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
       params: true,
       shortcut: 'command + f'
     }
-  },
-  overview: {
-    icon: 'bx bx-grid-alt',
-    title: 'Board',
-    event: {
-      type: 'show',
-      params: 'overview',
-      shortcut: 'command + y'
-    },
-    hidden: true,
   },
   'screen-mode': {
     icon: 'bx bx-devices',

@@ -175,16 +175,30 @@ Paragraph: ViewComponent = {
   },
   async takeover( view ){
     view.events
-    .on('show.toolbar', () => {})
-    .on('show.panel', () => {})
+    .on('toolbar.show', () => {})
+    .on('toolbar.handle', ( key, option ) => {
+      console.log('p -- handle option --', key, option )
 
-    .on('view.styles', async data => await view.$?.css( data ) )
-    .on('global.styles', async data => await view.$?.css( data ) )
+      /**
+       * Sync toolbar with applied changes status
+       */
+      view.fn.syncToolbar({ [`${key}.active`]: !option.active }, () => {
+        toolbarOptions[ key ].active = !option.active
+      })
+      /**
+       * Push history stack for reversable actions
+       */
+      view.fn.pushHistoryStack()
+    })
+    .on('panel.show', () => {})
 
-    .on('activate', async data => await view.$?.attr('contenteditable', 'true') )
+    .on('view.styles', data => view.$?.css( data ) )
+    .on('global.styles', data => view.$?.css( data ) )
 
-    console.log( await view.css?.custom() )
-    console.log( await view.css?.style() )
+    .on('activate', data => view.$?.attr('contenteditable', 'true') )
+
+    console.log( view.css?.custom() )
+    console.log( view.css?.style() )
   },
   dismiss( view ){
     view.$?.removeAttr('contenteditable')

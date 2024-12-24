@@ -1,4 +1,5 @@
 import $, { type Cash } from 'cash-dom'
+import EventEmitter from 'events'
 
 import I18N from './i18n'
 import Store from './store'
@@ -18,6 +19,8 @@ window.mlang = {
 }
 
 export default class Editor {
+  private events = new EventEmitter()
+
   /**
    * State set to enable external methods to 
    * respond to API calls or not.
@@ -227,14 +230,35 @@ export default class Editor {
     this.$viewport = viewport.getNode()
     if( !this.$viewport?.length )
       throw new Error('Unexpected error occured')
-
-    const toolbar = Toolbar({ key: 'global', options: GLOBAL_CONTROL_OPTIONS })
+    
+    /**
+     * Initialize global toolbar
+     */
+    const 
+    toolbar = Toolbar({ key: 'global', options: GLOBAL_CONTROL_OPTIONS }, { events: this.events })
     toolbar.appendTo( this.$viewport )
 
+    this.events.on('toolbar.handle', ( key, option ) => {
+      console.log('global toolbar --', key, option )
+    })
+
+    /**
+     * 
+     */
     this.$global = viewport.find(':scope > mglobal')
 
-    // Enable canvas controls
+    /**
+     * Enable canvas controls
+     */
     this.canvas.enable()
+
+    /**
+     * List to history record stack Stats
+     */
+    this.history.on('history.record', ({ canRedo, canUndo }) => toolbar.subInput({
+      'options.undo.disabled': !canUndo,
+      'options.redo.disabled': !canRedo
+    }))
   }
 
   disable(){
@@ -243,5 +267,7 @@ export default class Editor {
     this.$root?.off()
 
     this.canvas.disable()
+
+    this.history.removeAllListeners()
   }
 }

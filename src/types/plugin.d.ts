@@ -1,5 +1,5 @@
 import Editor from '../modules/editor'
-import * as bx from '../modules/factory'
+import * as bx from '../modules/factory/components'
 import * as constants from '../modules/constants'
 
 export interface PluginFactory {

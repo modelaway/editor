@@ -359,7 +359,7 @@ export default class Handle extends EventEmitter {
     })
   }
   private startResizing( e: any, $handle: Cash ){
-    e.preventDefault()
+    // e.preventDefault()
 
     this.$handle = $handle
     this.$wrapper = this.$handle?.closest( WRAPPER_TAG )
@@ -387,7 +387,7 @@ export default class Handle extends EventEmitter {
         || $(e.target).closest( WRAPPER_TAG ).length )
       return
 
-    e.cancelable && e.preventDefault()
+    // e.cancelable && e.preventDefault()
     
     this.isPanning = true
     this.editor.$viewport?.css('cursor', 'grabbing')
@@ -396,7 +396,7 @@ export default class Handle extends EventEmitter {
     this.startPan.y = e.pageY - this.canvasOffset.y
   }
   private startDragging( e: any ){
-    e.preventDefault()
+    // e.preventDefault()
 
     // Move resizable frame
     if( $(e.target).closest( WRAPPER_TAG ).length ){
@@ -424,7 +424,7 @@ export default class Handle extends EventEmitter {
   private handling( e: any ){
     // Panning canvas
     if( this.isPanning ){
-      e.preventDefault()
+      // e.preventDefault()
 
       this.canvasOffset.x = e.pageX - this.startPan.x
       this.canvasOffset.y = e.pageY - this.startPan.y

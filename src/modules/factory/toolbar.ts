@@ -1,4 +1,3 @@
-import type EventEmitter from 'events'
 import type { Handler } from '../../lib/lips'
 
 import { Component } from '../../lib/lips/lips'
@@ -27,12 +26,8 @@ export type ToolbarState = {
   detached: ObjectType<ToolbarOption> | null
   showExtra: boolean
 }
-export interface ToolbarHook { 
-  events?: EventEmitter
-  metacall?: ( key: string, option: ToolbarOption ) => void
-}
 
-export default ( input: ToolbarInput, hook?: ToolbarHook ) => {
+export default ( input: ToolbarInput, hook?: HandlerHook ) => {
   // input.options = {
   //   bold: { 
   //     icon: 'bx bx-bold',

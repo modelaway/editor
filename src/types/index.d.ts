@@ -126,6 +126,11 @@ type PanelSection = {
 }
 type PanelSections = ObjectType<PanelSection>
 
+interface HandlerHook { 
+  events?: EventEmitter
+  metacall?: ( key: string, option?: ToolbarOption ) => void
+}
+
 interface GlobalSet {
   css: Modela['css']
   assets: Modela['assets']

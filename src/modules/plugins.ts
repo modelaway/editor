@@ -2,7 +2,7 @@ import type Editor from './editor'
 import type { Plugin, PluginFactory, PluginInstance } from '../types/plugin'
 
 import EventEmitter from 'events'
-import * as bx from './factory'
+import * as bx from './factory/components'
 import * as constants from './constants'
 
 export default class Plugins extends EventEmitter {

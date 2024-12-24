@@ -3,7 +3,7 @@ import {
   CONTROL_PANEL_SELECTOR,
   CONTROL_LANG_SELECTOR
 } from '../constants'
-import { createInput } from '.'
+import { createInput } from './components'
 
 export type FinderInput = {
   key: string

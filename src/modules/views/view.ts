@@ -25,9 +25,9 @@ import {
 } from '../constants'
 import Alley from '../factory/alley'
 import { Component } from '../../lib/lips/lips'
-import Panel, { PanelInput } from '../factory/panel'
+import Panel, { PanelInput, PanelState } from '../factory/panel'
 import Finder, { FinderInput } from '../factory/finder'
-import Toolbar, { ToolbarHook, ToolbarInput, ToolbarState } from '../factory/toolbar'
+import Toolbar, { ToolbarInput, ToolbarState } from '../factory/toolbar'
 import Floating, { FloatingInput } from '../factory/floating'
 import SearchResult, { SearchResultInput } from '../factory/searchResult'
 import { debug, hashKey } from '../utils'
@@ -74,7 +74,7 @@ export default class View extends EventEmitter {
   /**
    * Toolbar block component
    */
-  private Panel?: Component<PanelInput>
+  private Panel?: Component<PanelInput, PanelState>
   /**
    * Finder panel block component
    */
@@ -460,7 +460,7 @@ export default class View extends EventEmitter {
       settings,
       position: { left: `${x}px`, top: `${y}px` }
     },
-    hook: ToolbarHook = { 
+    hook: HandlerHook = { 
       events: this.bridge.events,
       metacall: this.metacall.bind(this)
     }
@@ -512,12 +512,18 @@ export default class View extends EventEmitter {
     // Calculate panel position
     let { x, y, width } = this.frame.getTopography( this.$ )
     debug('show view panel: ', x, y )
-
-    this.Panel = Panel({
+    
+    const
+    input = {
       caption,
       key: this.key,
       options: panel( this.bridge )
-    })
+    },
+    hook: HandlerHook = {
+      events: this.bridge.events,
+      metacall: this.metacall.bind(this)
+    }
+    this.Panel = Panel( input, hook )
     let $panel = this.Panel.appendTo( this.frame.editor.$viewport ).getNode()
 
     const
@@ -785,11 +791,18 @@ export default class View extends EventEmitter {
     
   }
 
-  metacall( key: string, option: ToolbarOption ){
+  /**
+   * REVIEW: Not very confortable with the `metacall`
+   * function being here really.
+   * 
+   * Look a moving it somewhere secure later.
+   */
+  metacall( key: string, option?: ToolbarOption ){
     if( !this.key ) return
 
     switch( key ){
       case 'panel': this.showPanel(); break
+      case 'panel.dismiss': this.Panel?.destroy(); break
 
       case 'view.sub.delete': this.frame.views.remove( this.key ); break
       case 'view.sub.duplicate': this.frame.views.duplicate( this.key ); break

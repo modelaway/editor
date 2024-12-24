@@ -3,7 +3,7 @@ import type { FrameQuery } from '../lib/frame.window'
 import type { ViewBlockProperties } from '../types/view'
 
 import $, { type Cash } from 'cash-dom'
-import { createSelectFileInput } from './factory'
+import { createSelectFileInput } from './factory/components'
 import { debug } from './utils'
 
 export default class Functions {

@@ -497,7 +497,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
       let $fragment = $()
 
       if( by ){
-        const switchValue = self.__evaluate__( by, scope )
+        const switchBy = self.__evaluate__( by, scope )
         let matched = false
 
         $node.children().each( function(){
@@ -508,10 +508,15 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
           if( matched || !_is ) return
 
-          if( $child.is('case') && self.__evaluate__( _is, scope ) === switchValue ){
-            matched = true
-            if( $contents.length )
-              $fragment = $fragment.add( self.render( $contents, scope ) )
+          if( $child.is('case') ){
+            const isValue = self.__evaluate__( _is, scope )
+
+            if( (Array.isArray( isValue ) && isValue.includes( switchBy )) || isValue === switchBy ){
+              matched = true
+
+              if( $contents.length )
+                $fragment = $fragment.add( self.render( $contents, scope ) )
+            }
           }
           else if ( $child.is('default') && !matched && $contents.length )
             $fragment = $fragment.add( self.render( $contents, scope ) )

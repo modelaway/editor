@@ -61,11 +61,5 @@ export const createListItem = ({ icon, title, value, event, sub, disabled }: Lis
     if( event.params ) attrs += ` params="${event.params}"`
   }
 
-  return `<mli ${attrs}>
-    <micon class="${icon}"></micon>
-    <minline ${CONTROL_LANG_SELECTOR}>${title}</minline>
-    ${value ? `<minline class="value" ${CONTROL_LANG_SELECTOR}>${value}</minline>` : ''}
-
-    ${sub ? `<minline class="sub-arrow"><micon class="bx bx-chevron-right"></micon></minline>` : ''}
-  </mli>`
+  return ``
 }

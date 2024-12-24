@@ -3,7 +3,7 @@ import {
   CONTROL_LANG_SELECTOR,
   VIEW_EMPTY_SELECTOR
 } from '../constants'
-import { createFormSeperator, createListItem } from '.'
+import { createFormSeperator, createListItem } from './components'
 
 export type SearchResultInput = {
   list: ObjectType<Listset>

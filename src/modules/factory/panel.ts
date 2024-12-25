@@ -1,12 +1,49 @@
 import type { ViewCaption } from '../../types/view'
 import type { Handler } from '../../lib/lips'
-import { Component } from '../../lib/lips/lips'
+import Lips, { Component } from '../../lib/lips/lips'
 import {
   CONTROL_LANG_SELECTOR,
   CONTROL_PANEL_SELECTOR,
   FORM_INPUT_SELECTOR,
   FORM_SEPERATOR_SELECTOR
 } from '../constants'
+
+function Inputs(){
+  const template = `
+    <const id="'input-'+ each.type +'-'+ (each.label || each.name).toLowerCase().replace(/\s+/g, '-')"></const>
+
+    <switch( each.type )>
+      <case is="['text', 'search']">
+        <mblock ${FORM_INPUT_SELECTOR}=each.type>
+          <!--<mlabel for=id>{each.label}</mlabel>-->
+          <input ${CONTROL_LANG_SELECTOR}
+                  id=id
+                  type=each.type
+                  name=each.name
+                  title=each.label
+                  value=each.value
+                  disabled=each.disabled
+                  pattern=each.pattern
+                  autofocus=each.autofocus
+                  placeholder="each.placeholder || each.label">
+        </mblock>
+      </case>
+
+      <case is="checkbox">
+        <mblock ${FORM_INPUT_SELECTOR}=each.type>
+          <input id=id
+                  type=each.type
+                  name=each.name
+                  disabled=each.disabled
+                  checked=each.checked>
+          <label for=id ${CONTROL_LANG_SELECTOR}>{each.label}</label>
+        </mblock>
+      </case>
+    </switch>
+  `
+
+  return { default: template  }
+}
 
 export type PanelInput = {
   key: string
@@ -96,6 +133,11 @@ export default ( input: PanelInput, hook: HandlerHook ) => {
   //   }
   // }
 
+  const lips = new Lips()
+
+  lips.register('inputs', Inputs() )
+
+
   const state = {
     activeTab: null
   }
@@ -159,36 +201,7 @@ export default ( input: PanelInput, hook: HandlerHook ) => {
                       </if>
 
                       <for in=each.fields>
-                        <let id="'input-'+ each.type +'-'+ (each.label || each.name).toLowerCase().replace(/\s+/g, '-')"></let>
-
-                        <switch( each.type )>
-                          <case is="['text', 'search']">
-                            <mblock ${FORM_INPUT_SELECTOR}=each.type>
-                              <!--<mlabel for=id>{each.label}</mlabel>-->
-                              <input ${CONTROL_LANG_SELECTOR}
-                                      id=id
-                                      type=each.type
-                                      name=each.name
-                                      title=each.label
-                                      value=each.value
-                                      disabled=each.disabled
-                                      pattern=each.pattern
-                                      autofocus=each.autofocus
-                                      placeholder="each.placeholder || each.label">
-                            </mblock>
-                          </case>
-
-                          <case is="checkbox">
-                            <mblock ${FORM_INPUT_SELECTOR}=each.type>
-                              <input id=id
-                                      type=each.type
-                                      name=each.name
-                                      disabled=each.disabled
-                                      checked=each.checked>
-                              <label for=id ${CONTROL_LANG_SELECTOR}>{each.label}</label>
-                            </mblock>
-                          </case>
-                        </switch>
+                        <inputs specs=each></inputs>
                       </for>
                     </fieldset>
                   
@@ -237,5 +250,5 @@ export default ( input: PanelInput, hook: HandlerHook ) => {
     </mblock>
   `
 
-  return new Component<PanelInput, PanelState>('panel', template, { input, state, handler })
+  return new Component<PanelInput, PanelState>('panel', template, { input, state, handler }, { lips })
 }

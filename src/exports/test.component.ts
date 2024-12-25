@@ -208,6 +208,71 @@ function Demo4(){
 function Demo5(){
   type TemplateInput = {
     initial: number
+    limit: number
+  }
+  type TemplateState = {
+    count: number
+  }
+
+  const easyCount: Template<TemplateInput, TemplateState> = {
+    state: {
+      count: 0
+    },
+    handler: {
+      onInput(){ this.state.count = Number( this.input.initial ) },
+      handleClick( e: Event ){
+        if( this.state.count >= this.input.limit )
+          return
+
+        this.state.count++
+      }
+    },
+    default: `
+      <div>
+        <span text=state.count></span>
+        <br>
+        <button on-click( handleClick )>Count</button>
+      </div>
+    `
+  }
+
+  const lips = new Lips({ debug: true })
+  lips.register('easycount', easyCount )
+
+
+  const
+  _static = {
+    vars: { type: 'UI Framework', name: 'Lips', version: '1.0.0' }
+  },
+  handler: Handler = {
+    initcount(){
+      // Do something ...
+
+      return {
+        initial: 5,
+        limit: 10
+      }
+    }
+  },
+  template = `
+    <div>
+      <easycount ...self.initcount()></easycount>
+
+      <const ...static.vars></const>
+      <ul>
+        <li>Type: {type}</li>
+        <li>Name: {name}</li>
+        <li>Version: {version}</li>
+      </ul>
+    </div>
+  `
+
+  lips.root({ default: template, _static, handler }, 'body')
+}
+
+function Demo6(){
+  type TemplateInput = {
+    initial: number
   }
   type TemplateState = {
     count: number
@@ -241,7 +306,7 @@ function Demo5(){
       <span html=input.__slot__></span>: 
       <span text=state.count></span>
       <br>
-      <button on-click=handleClick>Count</button>
+      <button on-click(handleClick)>Count</button>
     </div>`
   }
 
@@ -309,5 +374,7 @@ function Demo5(){
 // Demo1()
 // Demo2()
 // Demo3()
-Demo4()
-// Demo5()
+// Demo4()
+Demo5()
+// Demo6()
+

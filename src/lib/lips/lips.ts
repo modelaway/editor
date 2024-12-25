@@ -22,7 +22,35 @@ function preprocessTemplate( str: string ){
   return (str || '').trim()
             .replace(/<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
             .replace(/<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
-            .replace(/<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">');
+            .replace(/<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">')
+            .replace(/on-([a-zA-Z-]+)\(((?:function\s*(?:\w+\s*)?\([^)]*\)\s*{[\s\S]*?}|\([^)]*\)\s*=>[\s\S]*?|[^)]+))\)(?=[>\s])/g, ( match, event, expression ) => {
+              /**
+               * If we're dealing with complex functions, 
+               * we might need to handle nested brackets
+               */
+              if( expression.includes('{') ){
+                let 
+                openCount = 0,
+                closeCount = 0,
+                fullExpression = expression,
+                restOfString = match.slice( match.indexOf( expression ) + expression.length )
+                
+                // Handle potential nested braces
+                for( const char of restOfString ){
+                  if( char === '{' ) openCount++
+                  if( char === '}' ){
+                    closeCount++
+                    if( openCount === closeCount ) break
+                  }
+                  
+                  fullExpression += char
+                }
+                
+                return `on-${event}="${fullExpression.trim()}"`
+              }
+              
+              return `on-${event}="${expression.trim()}"`
+            })
 }
 
 $.fn.extend({
@@ -42,6 +70,8 @@ $.fn.extend({
     return tn.toLowerCase()
   }
 })
+
+const SPREAD_VAR_REGEX = /^\.\.\./
 
 export default class Lips<Context = any> {
   private debug = false
@@ -207,6 +237,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
   constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet }: ComponentScope<Input, State, Static, Context>, options?: ComponentOptions ){
     this.template = preprocessTemplate( template )
+
+    console.log( this.template )
 
     if( options?.lips ) this.lips = options.lips    
     if( options?.debug ) this.debug = options.debug
@@ -428,11 +460,25 @@ export class Component<Input = void, State = void, Static = void, Context = void
       Object
       .entries( attributes )
       .forEach( ([ key, assign ]) => {
-        if( !assign ) return
+        // Process spread assign
+        if( SPREAD_VAR_REGEX.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_REGEX, '' ) as string, scope )
+          if( typeof spreads !== 'object' )
+            throw new Error(`Invalid spread operator ${key}`)
 
-        scope[ key ] = {
-          value: self.__evaluate__( assign as string, scope ),
-          type: 'let'
+          for( const _key in spreads )
+            scope[ _key ] = {
+              value: spreads[ _key ],
+              type: 'let'
+            }
+        }
+        else {
+          if( !assign ) return
+
+          scope[ key ] = {
+            value: self.__evaluate__( assign as string, scope ),
+            type: 'let'
+          }
         }
       } )
       
@@ -449,14 +495,32 @@ export class Component<Input = void, State = void, Static = void, Context = void
       Object
       .entries( attributes )
       .forEach( ([ key, assign ]) => {
-        if( scope[ key ]?.type === 'const' )
-          throw new Error(`<const ${key}=[value]/> variable already defined`)
+        // Process spread assign
+        if( SPREAD_VAR_REGEX.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_REGEX, '' ) as string, scope )
+          if( typeof spreads !== 'object' )
+            throw new Error(`Invalid spread operator ${key}`)
 
-        if( !assign ) return
+          for( const _key in spreads ){
+            if( scope[ _key ]?.type === 'const' )
+              throw new Error(`<const ${_key}=[value]/> by spread operator ${key}. [${_key}] variable already defined`)
+          
+            scope[ _key ] = {
+              value: spreads[ _key ],
+              type: 'const'
+            }
+          }
+        }
+        else {
+          if( scope[ key ]?.type === 'const' )
+            throw new Error(`<const ${key}=[value]/> variable already defined`)
 
-        scope[ key ] = {
-          value: self.__evaluate__( assign as string, scope ),
-          type: 'const'
+          if( !assign ) return
+
+          scope[ key ] = {
+            value: self.__evaluate__( assign as string, scope ),
+            type: 'const'
+          }
         }
       } )
         
@@ -701,20 +765,33 @@ export class Component<Input = void, State = void, Static = void, Context = void
           events[ key.replace(/^on-/, '') ] = value
           return
         }
-        
-        input[ key ] = value ?
-                        self.__evaluate__( value as string, scope )
-                        /**
-                         * IMPORTANT: An attribute without a value is
-                         * considered neutral but `true` of a value by
-                         * default.
-                         * 
-                         * Eg. <counter initial=3 throttle/>
-                         * 
-                         * the `throttle` attribute is hereby an input with a
-                         * value `true`.
-                         */
-                        : true
+
+        // Process spread operator attributes
+        else if( SPREAD_VAR_REGEX.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_REGEX, '' ) as string, scope )
+          if( typeof spreads !== 'object' )
+            throw new Error(`Invalid spread operator ${key}`)
+
+          for( const _key in spreads )
+            input[ _key ] = spreads[ _key ]
+        }
+
+        // Regular input attributes
+        else {
+          input[ key ] = value ?
+                          self.__evaluate__( value as string, scope )
+                          /**
+                           * IMPORTANT: An attribute without a value is
+                           * considered neutral but `true` of a value by
+                           * default.
+                           * 
+                           * Eg. <counter initial=3 throttle/>
+                           * 
+                           * the `throttle` attribute is hereby an input with a
+                           * value `true`.
+                           */
+                          : true
+        }
       })
 
       /**
@@ -744,7 +821,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
         // Replace the original node with the fragment in the DOM
         $fragment = $fragment.add( self.__components[ __key__ ].getNode() )
-        // $node.replaceWith( $fragment )
       }
       /**
        * Render the whole component for first time
@@ -767,7 +843,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
         
         $fragment = $fragment.add( component.getNode() )
         // Replace the original node with the fragment in the DOM
-        // $node.replaceWith( $fragment )
         self.__components[ __key__ ] = component
 
         // Listen to this nexted component's events
@@ -916,8 +991,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
     try {
       // Process nodes
       $nodes = $nodes || $(this.template)
-
-      console.log( $nodes )
       $nodes.each( function(){
         const $node = parse( $(this) )
         if( $node ) _$ = _$.add( $node )

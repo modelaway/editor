@@ -159,7 +159,7 @@ export default ( input: PanelInput, hook: HandlerHook ) => {
                       </if>
 
                       <for in=each.fields>
-                        <let id="'input-'+ each.type +'-'+ (each.label || each.name).toLowerCase().replace(/\s+/, '-')"></let>
+                        <let id="'input-'+ each.type +'-'+ (each.label || each.name).toLowerCase().replace(/\s+/g, '-')"></let>
 
                         <switch( each.type )>
                           <case is="['text', 'search']">

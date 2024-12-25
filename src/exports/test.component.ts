@@ -189,7 +189,8 @@ function Demo4(){
       </p>
 
       <p>
-        <let country="Ghana"></let>
+        <const country="Ghana"></const>
+        <const country="Kenya"></const>
 
         It borderd at west by <span text=country></span>
       </p>
@@ -238,9 +239,9 @@ function Demo5(){
     
     default: `<div>
       <span html=input.__slot__></span>: 
-      <span text="state.count"></span>
+      <span text=state.count></span>
       <br>
-      <button on-click="handleClick">Count</button>
+      <button on-click=handleClick>Count</button>
     </div>`
   }
 
@@ -308,5 +309,5 @@ function Demo5(){
 // Demo1()
 // Demo2()
 // Demo3()
-// Demo4()
-Demo5()
+Demo4()
+// Demo5()

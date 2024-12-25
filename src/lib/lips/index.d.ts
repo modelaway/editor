@@ -2,6 +2,7 @@ import type { Component } from './lips'
 
 export type TObject<T> = { [index: string]: T }
 export type LanguageDictionary = ObjectType<ObjectType<string> | string>
+export type VariableScope = TObject<{ value: any, type: 'let' | 'const' }>
 
 export interface Handler<Input = void, State = void, Static = void, Context = void> {
   [index: string]: ( this: Component<Input, State, Static, Context>, ...args: any[] ) => void

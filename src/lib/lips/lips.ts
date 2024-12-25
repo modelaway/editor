@@ -5,7 +5,8 @@ import type {
   EventListener,
   Handler,
   ComponentScope,
-  ComponentOptions
+  ComponentOptions,
+  VariableScope
 } from '.'
 
 import $, { type Cash } from 'cash-dom'
@@ -412,7 +413,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
     return this.$?.find( selector )
   }
 
-  render( $nodes?: Cash, scope: TObject<any> = {} ){
+  render( $nodes?: Cash, scope: VariableScope = {} ){
     const self = this
     /**
      * Initialize an empty cash object to 
@@ -428,7 +429,35 @@ export class Component<Input = void, State = void, Static = void, Context = void
       .entries( attributes )
       .forEach( ([ key, assign ]) => {
         if( !assign ) return
-        scope[ key ] = self.__evaluate__( assign as string, scope )
+
+        scope[ key ] = {
+          value: self.__evaluate__( assign as string, scope ),
+          type: 'let'
+        }
+      } )
+      
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
+    }
+
+    function execConst( $node: Cash ){
+      const attributes = ($node as any).attrs()
+      if( !attributes ) return 
+      
+      Object
+      .entries( attributes )
+      .forEach( ([ key, assign ]) => {
+        if( scope[ key ] )
+          throw new Error(`<const ${key}=[value]/> variable already defined`)
+
+        if( !assign ) return
+
+        scope[ key ] = {
+          value: self.__evaluate__( assign as string, scope ),
+          type: 'const'
+        }
       } )
         
       /**
@@ -456,15 +485,28 @@ export class Component<Input = void, State = void, Static = void, Context = void
         _to = parseFloat( _to )
 
         for( let x = _from; x <= _to; x++ )
-          if( $contents.length ) 
-            $fragment = $fragment.add( self.render( $contents, { index: x }) )
+          if( $contents.length ){
+            const forScope: VariableScope = {
+              ...scope,
+              index: { value: x, type: 'const' }
+            }
+
+            $fragment = $fragment.add( self.render( $contents, forScope ) )
+          }
       }
 
       else if( Array.isArray( _in ) ){
         let index = 0
         for( const each of _in ){
-          if( $contents.length )
-            $fragment = $fragment.add( self.render( $contents, { each, index }) )
+          if( $contents.length ){
+            const forScope: VariableScope = {
+              ...scope, 
+              each: { value: each, type: 'const' },
+              index: { value: index, type: 'const' }
+            }
+
+            $fragment = $fragment.add( self.render( $contents, forScope ) )
+          }
           
           index++
         }
@@ -473,12 +515,16 @@ export class Component<Input = void, State = void, Static = void, Context = void
       else if( typeof _in == 'object' ){
         let index = 0
         for( const key in _in ){
-          if( $contents.length )
-            $fragment = $fragment.add( self.render( $contents, {
-              index,
-              key,
-              each: _in[ key ]
-            }) )
+          if( $contents.length ){
+            const forScope: VariableScope = {
+              ...scope, 
+              key: { value: key, type: 'const' },
+              each: { value: _in[ key ], type: 'const' },
+              index: { value: index, type: 'const' }
+            }
+
+            $fragment = $fragment.add( self.render( $contents, forScope ) )
+          }
           
           index++
         }
@@ -597,16 +643,26 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
       _await( ..._args )
       .then( ( response: any ) => {
-        const resolveContent = $resolve?.contents()
+        const 
+        resolveContent = $resolve?.contents(),
+        responseScope: VariableScope = {
+          ...scope,
+          response: { value: response, type: 'const' }
+        }
         
         resolveContent.length
-        && $fragment.replaceWith( self.render( resolveContent, { ...scope, response } ) )
+        && $fragment.replaceWith( self.render( resolveContent, responseScope ) )
       })
       .catch( ( error: unknown ) => {
-        const catchContent = $catch?.contents()
+        const 
+        catchContent = $catch?.contents(),
+        errorScope: VariableScope = {
+          ...scope,
+          error: { value: error, type: 'const' }
+        }
 
         catchContent.length
-        && $fragment.replaceWith( self.render( catchContent, { ...scope, error } ) )
+        && $fragment.replaceWith( self.render( catchContent, errorScope ) )
       })
       
       /**
@@ -669,7 +725,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
       nodeContents = $node.contents()
       if( nodeContents ){
         const $el = self.render( nodeContents, scope )
-        input.__slot__ = $el.html()
+        input.__slot__ = $el.html() || $el.text()
       }
     
       /**
@@ -833,6 +889,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
       // Render in-build syntax components
       if( $node.is('let') ) return execLet( $node )
+      else if( $node.is('const') ) return execConst( $node )
       else if( $node.is('if') ) return execIf( $node )
       /**
        * Ignore <else-if> and <else> tags as node 
@@ -890,22 +947,35 @@ export class Component<Input = void, State = void, Static = void, Context = void
     this.$.attr('rel', this.__name__ )
   }
 
-  private __evaluate__( script: string, scope?: TObject<any> ){
+  private __evaluate__( script: string, scope?: VariableScope ){
     try {
       script = script.trim()
+      
+      if( scope ){
+        const _scope: TObject<any> = {}
+        for( const key in scope )
+          _scope[ key ] = scope[ key ].value
 
-      const
-      expression = scope ? `with( scope ){ return ${script}; }` : `return ${script}`,
-      fn = new Function('self', 'input', 'state', 'static', 'context', 'scope', expression )
+        const
+        expression = `with( scope ){ return ${script}; }`,
+        fn = new Function('self', 'input', 'state', 'static', 'context', 'scope', expression )
 
-      return fn( this, this.input, this.state, this.static, this.context, scope || {} )
+        return fn( this, this.input, this.state, this.static, this.context, _scope || {} )
+      }
+      else {
+        const 
+        expression = `return ${script}`,
+        fn = new Function('self', 'input', 'state', 'static', 'context', expression )
+
+        return fn( this, this.input, this.state, this.static, this.context )
+      }
     }
     catch( error ){ return script }
   }
-  private __interpolate__( str: string, scope?: TObject<any> ){
+  private __interpolate__( str: string, scope?: VariableScope ){
     return str.replace(/{\s*([^{}]+)\s*}/g, ( _, expr) => this.__evaluate__( expr, scope ) )
   }
-  private __attachEvent__( element: Cash | Component, _event: string, instruction: string, scope?: TObject<any> ){
+  private __attachEvent__( element: Cash | Component, _event: string, instruction: string, scope?: VariableScope ){
     /**
      * Execute function script directly attach 
      * as the listener.

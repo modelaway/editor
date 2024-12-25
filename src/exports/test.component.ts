@@ -190,7 +190,7 @@ function Demo4(){
 
       <p>
         <const country="Ghana"></const>
-        <const country="Kenya"></const>
+        <!-- <const country="Kenya"></const> -->
 
         It borderd at west by <span text=country></span>
       </p>

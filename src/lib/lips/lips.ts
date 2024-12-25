@@ -449,7 +449,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
       Object
       .entries( attributes )
       .forEach( ([ key, assign ]) => {
-        if( scope[ key ] )
+        if( scope[ key ]?.type === 'const' )
           throw new Error(`<const ${key}=[value]/> variable already defined`)
 
         if( !assign ) return
@@ -916,6 +916,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
     try {
       // Process nodes
       $nodes = $nodes || $(this.template)
+
+      console.log( $nodes )
       $nodes.each( function(){
         const $node = parse( $(this) )
         if( $node ) _$ = _$.add( $node )

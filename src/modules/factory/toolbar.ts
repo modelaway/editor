@@ -235,6 +235,23 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
     }
   }
 
+  const macros = {
+    option: `
+      <mli active=macro.active
+            class="macro.label && 'label'"
+            title=macro.title
+            disabled=macro.disabled
+            ${CONTROL_LANG_SELECTOR}
+            on-click( macro.sub ? 'onShowSubOptions' : 'onHandleOption', key, macro )>
+        <micon class=macro.icon></micon>
+
+        <if( macro.label )>
+          <mlabel ${CONTROL_LANG_SELECTOR} text=macro.label></mlabel>
+        </if>
+      </mli>
+    `
+  }
+
   const template = `
     <mblock ${CONTROL_TOOLBAR_SELECTOR}=input.key
             class="input.settings.editing ? 'editing' : '?'"
@@ -244,50 +261,28 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
           <if( !state.subOption )>
             <mblock options="main">
               <for in=state.default>
-                <mli active=each.active
-                      class="each.label && 'label'"
-                      title=each.title
-                      disabled=each.disabled
-                      ${CONTROL_LANG_SELECTOR}
-                      on-click="each.sub ? 'onShowSubOptions' : 'onHandleOption', key, each">
-                  <micon class="each.icon"></micon>
-
-                  <if( each.label )>
-                    <mlabel ${CONTROL_LANG_SELECTOR} text=each.label></mlabel>
-                  </if>
-                </mli>
+                <option ...each></option>
               </for>
 
               <if( state.extra && !state.showExtra )>
-                <mli title="Extra options" ${CONTROL_LANG_SELECTOR} on-click="onShowExtraOptions, true"><micon class="bx bx-dots-horizontal-rounded"></micon></mli>
+                <mli title="Extra options" ${CONTROL_LANG_SELECTOR} on-click( onShowExtraOptions, true )><micon class="bx bx-dots-horizontal-rounded"></micon></mli>
               </if>
             </mblock>
 
             <if( state.showExtra )>
               <mblock options="extra">
                 <for in=state.extra>
-                  <mli active=each.active
-                        class="each.label && 'label'"
-                        title=each.title
-                        disabled=each.disabled
-                        ${CONTROL_LANG_SELECTOR}
-                        on-click="each.sub ? 'onShowSubOptions' : 'onHandleOption', key, each">
-                    <micon class=each.icon></micon>
-
-                    <if( each.label )>
-                      <mlabel ${CONTROL_LANG_SELECTOR} text=each.label></mlabel>
-                    </if>
-                  </mli>
+                  <option ...each></option>
                 </for>
 
-                <mli title="Back" ${CONTROL_LANG_SELECTOR} on-click="onShowExtraOptions, false"><micon class="bx bx-chevron-left"></micon></mli>
+                <mli title="Back" ${CONTROL_LANG_SELECTOR} on-click( onShowExtraOptions, false )><micon class="bx bx-chevron-left"></micon></mli>
               </mblock>
             </if>
           </if>
 
           <if( state.subOption )>
             <mblock options="sub">
-              <mli title="Back" ${CONTROL_LANG_SELECTOR} on-click="onShowSubOptions, false">
+              <mli title="Back" ${CONTROL_LANG_SELECTOR} on-click( onShowSubOptions, false )>
                 <micon class="bx bx-chevron-left"></micon>
               </mli>
 
@@ -301,7 +296,7 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
                       disable=each.disabled
                       title=each.title
                     ${CONTROL_LANG_SELECTOR}
-                    on-click="onHandleOption, state.subOption.key +'.sub.'+ key, each">
+                    on-click( onHandleOption, state.subOption.key +'.sub.'+ key, each )>
                   <micon class=each.icon></micon>
                 </mli>
               </for>
@@ -313,17 +308,7 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
           <mul>
             <mblock options="detached">
               <for in=state.detached>
-                <mli active=each.active
-                      class="each.label && 'label'"
-                      title=each.title
-                      disabled=each.disabled
-                      ${CONTROL_LANG_SELECTOR}
-                      on-click="onHandleOption, key, each">
-                  <micon class="each.icon"></micon>
-                  <if( each.label )>
-                    <mlabel ${CONTROL_LANG_SELECTOR} text=each.label></mlabel>
-                  </if>
-                </mli>
+                <option ...each></option>
               </for>
             </mblock>
           </mul>
@@ -332,5 +317,5 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
     </mblock>
   `
 
-  return new Component<ToolbarInput, ToolbarState>('toolbar', template, { input, state, handler })
+  return new Component<ToolbarInput, ToolbarState>('toolbar', template, { input, state, handler, macros })
 }

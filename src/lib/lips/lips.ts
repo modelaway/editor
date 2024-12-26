@@ -204,6 +204,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
   private __name__: string
   private __state?: State // Partial state
   private __stylesheet?: Stylesheet
+  private __macros: TObject<string>
   private __components: TObject<Component> = {}
   private __events: TObject<EventListener[]> = {}
   private __once_events: TObject<EventListener[]> = {}
@@ -235,16 +236,15 @@ export class Component<Input = void, State = void, Static = void, Context = void
    */
   [key: string]: any
 
-  constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet }: ComponentScope<Input, State, Static, Context>, options?: ComponentOptions ){
+  constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet, macros }: ComponentScope<Input, State, Static, Context>, options?: ComponentOptions ){
     this.template = preprocessTemplate( template )
-
-    console.log( this.template )
 
     if( options?.lips ) this.lips = options.lips    
     if( options?.debug ) this.debug = options.debug
     if( options?.prekey ) this.prekey = options.prekey
 
     this.__name__ = name
+    this.__macros = macros || {}
 
     const cssOptions = {
       css: stylesheet,
@@ -261,7 +261,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
     this.state = state || {} as State
     this.static = _static || {} as Static
     this.context = {} as Context
-
+    
     handler && this.setHandler( handler )
 
     const
@@ -693,9 +693,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
       if( preloadContent.length )
         $fragment = $fragment.add( self.render( preloadContent, scope ) )
         
-      // Replace the original node with the fragment in the DOM
-      // $node.replaceWith( $fragment )
-
       const
       [ fn, ...args ] = attr.trim().split(/\s*,\s*/),
       _await = (self[ fn ] || self.__evaluate__( fn, scope )).bind(self) as any
@@ -734,6 +731,93 @@ export class Component<Input = void, State = void, Static = void, Context = void
        */
       self.benchmark.inc('elementCount')
 
+      return $fragment
+    }
+
+    function execMacro( $node: Cash ){
+      const name = $node.prop('tagName')?.toLowerCase() as string
+      if( !name )
+        throw new Error('Undefined macro')
+
+      if( !self.__macros[ name ] )
+        throw new Error('Macro component not found')
+      
+      // Initial macro input
+      const macroInput: TObject<any> = {}
+
+      /**
+       * Also inject macro slotted body into macro input
+       * as `__slot__`
+       */
+      const nodeContents = $node.contents()
+      if( nodeContents ){
+        const $el = self.render( nodeContents, scope )
+        macroInput.__slot__ = $el.html() || $el.text()
+      }
+
+      /**
+       * Parse assigned attributes to be injected into
+       * the macro as input.
+       * 
+       * Note: Macro components can also access same
+       *      state data level as the host component
+       */
+      const attrs = ($node as any).attrs()
+
+      Object
+      .entries( attrs )
+      .forEach( ([ key, value ]) => {
+        if( key == 'key' ) return
+
+        // Macro events
+        if( /^on-/.test( key ) ){
+          self.__attachableEvents.push({
+            $node,
+            _event: key.replace(/^on-/, ''),
+            instruction: value as string,
+            scope
+          })
+          
+          return
+        }
+
+        // Process spread operator attributes
+        else if( SPREAD_VAR_REGEX.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_REGEX, '' ) as string, scope )
+          if( typeof spreads !== 'object' )
+            throw new Error(`Invalid spread operator ${key}`)
+
+          for( const _key in spreads )
+            macroInput[ _key ] = spreads[ _key ]
+        }
+
+        // Regular macro input attributes
+        else {
+          macroInput[ key ] = value ?
+                          self.__evaluate__( value as string, scope )
+                          : true
+        }
+      })
+
+      /**
+       * Inject macro input into scope
+       * thread using `macro` namespace
+       */
+      scope.macro = {
+        value: macroInput,
+        type: 'const'
+      }
+
+      let $fragment = $()
+      const $macro = self.render( $( preprocessTemplate( self.__macros[ name ] ) ), scope )
+
+      $fragment = $fragment.add( $macro )
+
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
+      
       return $fragment
     }
 
@@ -805,11 +889,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
         input.__slot__ = $el.html() || $el.text()
       }
     
-      /**
-       * Specify component relationship with other 
-       * resources like `style tags`, `script tags`, 
-       * etc, using [rel] attribute
-       */
       let $fragment = $()
       
       /**
@@ -974,6 +1053,10 @@ export class Component<Input = void, State = void, Static = void, Context = void
       else if( $node.is('for') ) return execFor( $node )
       else if( $node.is('switch') ) return execSwitch( $node )
       else if( $node.is('async') ) return execAsync( $node )
+      
+      // Identify and render macro components
+      else if( $node.prop('tagName')?.toLowerCase() in self.__macros )
+        return execMacro( $node )
       
       // Identify and render custom components
       else if( self.lips && self.lips.has( $node.prop('tagName')?.toLowerCase() ) )

@@ -22,6 +22,7 @@ export type ComponentScope<Input = void, State = void, Static = void, Context = 
   _static?: Static
   handler?: Handler<Input, State, Static, Context>
   stylesheet?: string
+  macros?: TObject<string>
 }
 export type ComponentOptions = {
   debug?: boolean

@@ -4,46 +4,9 @@ import Lips, { Component } from '../../lib/lips/lips'
 import {
   CONTROL_LANG_SELECTOR,
   CONTROL_PANEL_SELECTOR,
-  FORM_INPUT_SELECTOR,
   FORM_SEPERATOR_SELECTOR
 } from '../constants'
-
-function Inputs(){
-  const template = `
-    <const id="'input-'+ each.type +'-'+ (each.label || each.name).toLowerCase().replace(/\s+/g, '-')"></const>
-
-    <switch( each.type )>
-      <case is="['text', 'search']">
-        <mblock ${FORM_INPUT_SELECTOR}=each.type>
-          <!--<mlabel for=id>{each.label}</mlabel>-->
-          <input ${CONTROL_LANG_SELECTOR}
-                  id=id
-                  type=each.type
-                  name=each.name
-                  title=each.label
-                  value=each.value
-                  disabled=each.disabled
-                  pattern=each.pattern
-                  autofocus=each.autofocus
-                  placeholder="each.placeholder || each.label">
-        </mblock>
-      </case>
-
-      <case is="checkbox">
-        <mblock ${FORM_INPUT_SELECTOR}=each.type>
-          <input id=id
-                  type=each.type
-                  name=each.name
-                  disabled=each.disabled
-                  checked=each.checked>
-          <label for=id ${CONTROL_LANG_SELECTOR}>{each.label}</label>
-        </mblock>
-      </case>
-    </switch>
-  `
-
-  return { default: template  }
-}
+import * as Helpers from './helpers'
 
 export type PanelInput = {
   key: string
@@ -134,8 +97,7 @@ export default ( input: PanelInput, hook: HandlerHook ) => {
   // }
 
   const lips = new Lips()
-
-  lips.register('inputs', Inputs() )
+  lips.register('inputs', Helpers.Inputs() )
 
 
   const state = {
@@ -201,7 +163,7 @@ export default ( input: PanelInput, hook: HandlerHook ) => {
                       </if>
 
                       <for in=each.fields>
-                        <inputs specs=each></inputs>
+                        <inputs ...each></inputs>
                       </for>
                     </fieldset>
                   

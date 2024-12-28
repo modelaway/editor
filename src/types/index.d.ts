@@ -128,7 +128,7 @@ type PanelSections = ObjectType<PanelSection>
 
 interface HandlerHook { 
   events?: EventEmitter
-  metacall?: ( key: string, option?: ToolbarOption ) => void
+  metacall?: ( key: string, data?: any ) => void
 }
 
 interface GlobalSet {
@@ -144,6 +144,7 @@ type ModelaLanguage = {
 }
 type ModelaLanguageDictionary = ObjectType<ObjectType<string> | string>
 declare interface Window {
+  msass: any
   mlang: ModelaLanguage
 }
 

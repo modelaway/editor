@@ -1,3 +1,4 @@
+import { CompileResult } from 'sass'
 import { CSS_CUSTOM_VARIABLES } from '../constants'
 
 interface StyleOptions {
@@ -30,29 +31,37 @@ export default class FrameStyle {
   }
 
   constructor( shadow: ShadowRoot, metaStyle?: string ){
+    // @ts-ignore
+    !window.msass && import('https://jspm.dev/sass').then( lib => window.msass = lib )
+
     this.shadow = shadow
     this.tempSheet = new CSSStyleSheet()
 
     /**
      * Constructable stylesheet for frame-level styles
      */
-    const sheet = new CSSStyleSheet()
-    
-    metaStyle && sheet.replaceSync( metaStyle )
-    this.shadow.adoptedStyleSheets = [ sheet ]
+    metaStyle && this.addRules( metaStyle || '', { key: 'frame' })
   }
-
+  
   /**
    * Extract @import rules from CSS text and return 
    * processed content.
    */
-  private processImports( cssText: string ): ProcessedImports {
+  private async processCSS( sheet: string ): Promise<ProcessedImports> {
+    /**
+     * Process `scss` string to `css` string first
+     */
+    const { css } = await this.compile( sheet )
+    if( !css ) throw new Error('Empty CSS sheet to compile')
+
+    /**
+     * Process all imports in a single replace operation
+     */
     const
     imports: string[] = [],
     importRegex = /@import\s+(?:url\(['"]?([^'")]+)['"]?\)|['"]([^'"]+)['"]);?\n?/g
     
-    // Process all imports in a single replace operation
-    const processedCss = cssText.replace( importRegex, ( _, urlMatch, quotedMatch ) => {
+    const processedCss = css.replace( importRegex, ( _, urlMatch, quotedMatch ) => {
       imports.push( urlMatch || quotedMatch )
       return ''
     })
@@ -85,7 +94,7 @@ export default class FrameStyle {
         const
         response = await fetch( cssUrl ),
         cssText = await response.text(),
-        { imports, cssText: processedCss } = self.processImports( cssText )
+        { imports, cssText: processedCss } = await self.processCSS( cssText )
 
         // Process all imports in parallel
         if( imports.length ){
@@ -143,12 +152,46 @@ export default class FrameStyle {
     return ruleParts.join('\n')
   }
 
+  /**
+   * Compile Sass style string to CSS string
+   */
+  compile( str: string ): Promise<CompileResult>{
+    return new Promise( ( resolve, reject ) => {
+      if( !window.msass ){
+        let 
+        waiter: any,
+        max = 1
+        
+        const exec = () => {
+          /**
+           * TEMP: Wait 8 seconds for Sass libary to load
+           */
+          if( !window.msass ){
+            if( max == 8 ){
+              clearInterval( waiter )
+              reject('Undefined Sass compiler')
+            }
+            else max++
+            
+            return
+          }
+
+          clearInterval( waiter )
+          resolve( window.msass.compileString( str ) )
+        }
+
+        waiter = setInterval( exec, 1000 )
+      }
+      else resolve( window.msass.compileString( str ) )
+    } )
+  }
+
   async addRules( cssText: string, options: StyleOptions ){
     const { key, scope = false } = options
 
     try {
       const
-      { imports, cssText: processedCss } = this.processImports( cssText ),
+      { imports, cssText: processedCss } = await this.processCSS( cssText ),
       sheet = new CSSStyleSheet()
       
       // Handle main CSS

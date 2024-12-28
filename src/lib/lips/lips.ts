@@ -1015,7 +1015,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
                            * value `true`.
                            */
                           : true
-            
+
             /**
              * (?) evaluation return signal to uset the attribute.
              * 

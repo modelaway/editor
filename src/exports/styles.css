@@ -14,6 +14,7 @@
   --me-icon-size-2: 1.6rem;
 
   --me-edge-padding: .9rem;
+  --me-alley-height: 0.8rem;
 
   --me-border-radius: 15px;
   --me-border-radius-inside: 10px;
@@ -559,4 +560,3 @@ viewport div[mv-frame] mul mli micon {
     /* color: #fff; */
   }
 }
-

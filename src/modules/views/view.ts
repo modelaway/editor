@@ -26,10 +26,9 @@ import {
 import Alley from '../factory/alley'
 import { Component } from '../../lib/lips/lips'
 import Panel, { PanelInput, PanelState } from '../factory/panel'
-import Finder, { FinderInput } from '../factory/finder'
+import Finder, { FinderInput, FinderState } from '../factory/finder'
 import Toolbar, { ToolbarInput, ToolbarState } from '../factory/toolbar'
 import Floating, { FloatingInput } from '../factory/floating'
-import SearchResult, { SearchResultInput } from '../factory/searchResult'
 import { debug, hashKey } from '../utils'
 // import { FrameQuery } from '../lib/frame.window'
 
@@ -78,7 +77,7 @@ export default class View extends EventEmitter {
   /**
    * Finder panel block component
    */
-  private Finder?: Component<FinderInput>
+  private Finder?: Component<FinderInput, FinderState>
 
   constructor( frame: Frame ){
     super()
@@ -131,17 +130,19 @@ export default class View extends EventEmitter {
     try {
       if( this.frame.editor.settings.enableAlleys
           && !this.$.next(`[${VIEW_ALLEY_SELECTOR}="${this.key}"]`).length ){
-        
+
         /**
          * Use discret placehlder to no `absolute`, `fixed` or `sticky`
          * position elements to void unnecessary stack of relative alley
          * elements around static or relative position elements.
          */
-        const freePositions = ['fixed', 'absolute', 'sticky']
+        const 
+        freePositions = ['fixed', 'absolute', 'sticky'],
+        hook = { metacall: this.metacall.bind(this) }
 
         freePositions.includes( this.$.css('position') as string ) ?
-                                      this.$.prepend( Alley({ key: this.key, discret: true }).getNode() as any )
-                                      : this.$.after( Alley({ key: this.key }) as any )
+                                      Alley({ key: this.key, discret: true }, hook ).prependTo( this.$ )
+                                      : this.$.after( Alley({ key: this.key }, hook ).getNode() )
       }
     }
     catch( error: any ){ debug( error.message ) }
@@ -372,7 +373,7 @@ export default class View extends EventEmitter {
         each.allowedViewTypes && this.$.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
         each.addView
         && this.frame.editor.settings.enableAlleys
-        && this.$.append( Alley().getNode() as any )
+        && this.$.append( Alley({}, { metacall: this.metacall.bind(this) }).getNode() as any )
 
         return
       }
@@ -386,7 +387,7 @@ export default class View extends EventEmitter {
       each.allowedViewTypes && $block.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
       each.addView
       && this.frame.editor.settings.enableAlleys
-      && $block.append( Alley().getNode() as any )
+      && $block.append( Alley({}, { metacall: this.metacall.bind(this) }).getNode() as any )
     } )
   }
   destroy(){
@@ -520,7 +521,6 @@ export default class View extends EventEmitter {
       options: panel( this.bridge )
     },
     hook: HandlerHook = {
-      events: this.bridge.events,
       metacall: this.metacall.bind(this)
     }
     this.Panel = Panel( input, hook )
@@ -621,7 +621,13 @@ export default class View extends EventEmitter {
      */
     let { x, y } = this.frame.getTopography( $trigger )
 
-    this.Finder = Finder({ key: this.key as string, list: this.frame.editor.store.searchView() })
+    const
+    input = { key: this.key as string, list: this.frame.editor.store.searchView() },
+    hook = {
+      events: this.bridge.events,
+      metacall: this.metacall.bind(this)
+    }
+    this.Finder = Finder( input, hook )
     let $finder = this.Finder.appendTo( this.frame.editor.$viewport ).getNode()
 
     const
@@ -652,35 +658,6 @@ export default class View extends EventEmitter {
       y -= pHeight
 
     $finder.css({ left: `${x}px`, top: `${y}px` })
-
-    /**
-     * Search input event listener
-     */
-    const self = this
-    let _searchResults: Component<SearchResultInput>
-
-    $finder
-    .find('input[type="search"]')
-    .on('input', function( this: Cash ){
-      const query = String( $(this).val() )
-      /**
-       * Trigger search with minimum 2 character input value
-       * but also allow empty input to redisplay default
-       * result list.
-       */
-      if( query.length == 1 ) return
-
-      const list = self.frame.editor.store.searchView( query )
-      if( !_searchResults ){
-        _searchResults = SearchResult({ list })
-
-        const $results = $finder.find('.results')
-        if( !$results.length ) return
-
-        _searchResults.appendTo( $results.empty() ).getNode()
-      }
-      else _searchResults.subInput({ list })
-    })
   }
   showMovable(){
 
@@ -758,6 +735,9 @@ export default class View extends EventEmitter {
     // Remove editing finder panel if active
     this.Finder?.destroy()
 
+    // Remove view's CSS rules 
+    this.frame.styles.removeRules( this.key as string )
+
     /**
      * Fire dismiss function provided with 
      * view component.
@@ -797,12 +777,20 @@ export default class View extends EventEmitter {
    * 
    * Look a moving it somewhere secure later.
    */
-  metacall( key: string, option?: ToolbarOption ){
+  metacall( key: string, data?: any ){
     if( !this.key ) return
 
     switch( key ){
       case 'panel': this.showPanel(); break
       case 'panel.dismiss': this.Panel?.destroy(); break
+
+      case 'finder.search':
+        /**
+         * Trigger search with minimum 2 character input value
+         */
+        data.length > 2
+        && this.Finder?.subInput({ list: this.frame.editor.store.searchView( data ) })
+        break
 
       case 'view.sub.delete': this.frame.views.remove( this.key ); break
       case 'view.sub.duplicate': this.frame.views.duplicate( this.key ); break

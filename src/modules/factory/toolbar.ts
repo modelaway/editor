@@ -238,7 +238,7 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
   const macros = {
     option: `
       <mli active=macro.active
-            class="macro.label && 'label'"
+            class="macro.label ? 'label' : false"
             title=macro.title
             disabled=macro.disabled
             ${CONTROL_LANG_SELECTOR}

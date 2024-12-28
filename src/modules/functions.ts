@@ -1,9 +1,8 @@
 import type Editor from './editor'
-import type { FrameQuery } from '../lib/frame.window'
 import type { ViewBlockProperties } from '../types/view'
 
 import $, { type Cash } from 'cash-dom'
-import { createSelectFileInput } from './factory/components'
+// import { createSelectFileInput } from './factory/components'
 import { debug } from './utils'
 
 export default class Functions {
@@ -12,7 +11,7 @@ export default class Functions {
   constructor( editor: Editor ){
     this.editor = editor
 
-    this.selectFile = this.selectFile.bind( this )
+    // this.selectFile = this.selectFile.bind( this )
   }
 
   debug = debug
@@ -20,43 +19,43 @@ export default class Functions {
   /**
    * Select file(s) from local computer
    */
-  selectFile( options: SelectFileOptions ): Promise<InputFiles[]> {
-    return new Promise( resolve => {
-      const $input = $(createSelectFileInput( options ))
-      // this.editor.$viewport?.append( $input )
+  // selectFile( options: SelectFileOptions ): Promise<InputFiles[]> {
+  //   return new Promise( resolve => {
+  //     const $input = $(createSelectFileInput( options ))
+  //     // this.editor.$viewport?.append( $input )
 
-      $input
-      /**
-       * Handle selected file(s)
-       */
-      .on('change', function( e ){
-        const input = $(e.target).get(0) as HTMLInputElement
-        if( !input
-            || !input.files
-            || !input.files.length )
-          return
+  //     $input
+  //     /**
+  //      * Handle selected file(s)
+  //      */
+  //     .on('change', function( e ){
+  //       const input = $(e.target).get(0) as HTMLInputElement
+  //       if( !input
+  //           || !input.files
+  //           || !input.files.length )
+  //         return
         
-        const files = Array.from( input.files ).map( file => ({ file, src: URL.createObjectURL( file ) }))
+  //       const files = Array.from( input.files ).map( file => ({ file, src: URL.createObjectURL( file ) }))
 
-        // Auto-remove select input from the DOM
-        $input.remove()
+  //       // Auto-remove select input from the DOM
+  //       $input.remove()
 
-        resolve( files ) 
-      })
-      .find('input')
+  //       resolve( files ) 
+  //     })
+  //     .find('input')
 
-      /**
-       * Auto-remove select input from the DOM if select 
-       * dialog get cancelled/closed
-       */
-      .on('cancel', () => $input.remove() )
+  //     /**
+  //      * Auto-remove select input from the DOM if select 
+  //      * dialog get cancelled/closed
+  //      */
+  //     .on('cancel', () => $input.remove() )
 
-      /**
-       * Automatically open select dialog
-       */
-      .trigger('click')
-    } )
-  }
+  //     /**
+  //      * Automatically open select dialog
+  //      */
+  //     .trigger('click')
+  //   } )
+  // }
 
   /**
    * Define view block props as HTML comment.

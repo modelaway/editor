@@ -14,7 +14,8 @@ import {
   VIEW_KEY_SELECTOR,
   VIEW_ACTIVE_SELECTOR,
   VIEW_ALLEY_SELECTOR,
-  CONTROL_FRAME_SELECTOR
+  CONTROL_FRAME_SELECTOR,
+  PATCH_CSS_SETTINGS
 } from '../constants'
 import FrameStyles from './styles'
 
@@ -147,7 +148,7 @@ export default class Frame extends EventEmitter {
      * Initialize frame styles manager with 
      * shadow root :host stylesheet
      */
-    this.styles = new FrameStyles( shadow, `:host { width: 100%; height: 100%; }`)
+    this.styles = new FrameStyles( shadow, PATCH_CSS_SETTINGS )
 
     // Append initial content
     options.content && $(shadow).append( options.content )

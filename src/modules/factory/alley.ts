@@ -1,3 +1,4 @@
+import type { Handler } from '../../lib/lips'
 import { Component } from '../../lib/lips/lips'
 import {
   VIEW_ALLEY_SELECTOR,
@@ -12,10 +13,20 @@ export type AlleyInput = {
   key?: string
   discret?: boolean
 }
-export default ( input: AlleyInput = {} ) => {
-  const factory = ({ key, discret }: AlleyInput ) => {
-    return `<mblock ${VIEW_ALLEY_SELECTOR}="${generateKey()}" ${VIEW_REF_SELECTOR}="${key}" status="active" ${discret ? 'discret' : ''}></mblock>`
+export default ( input: AlleyInput = {}, hook: HandlerHook ) => {
+  const handler: Handler<AlleyInput> = {
+    onHandleAlley(){
+
+    }
   }
 
-  return new Component<AlleyInput>('alley', factory( input ), { input })
+  const template = `
+    <mblock ${VIEW_ALLEY_SELECTOR}="${generateKey()}" 
+            ${VIEW_REF_SELECTOR}=input.key
+            status="active"
+            discret=input.discret
+            on-click( onHandleAlley )></mblock>
+  `
+
+  return new Component<AlleyInput>('alley', template, { input, handler })
 }

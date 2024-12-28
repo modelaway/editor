@@ -887,46 +887,35 @@ export const MEDIA_SCREENS: ObjectType<MediaScreen> = {
   }
 }
 
-export const PATCH_CSS_SETTINGS: StyleSettings = {
-  css: ` 
-    :root {
-      --me-bg-color: rgba(100, 100, 102, 0.9);
-      --me-active-bg-color: rgba(200, 200, 200, .4);
-      --me-active-border-radius: 3px;
-      --me-active-transition: 250ms;
-      --me-alley-height: 0.8rem;
-      --me-box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, 0.4);
-      --me-icon-size: 1.3rem;
+export const PATCH_CSS_SETTINGS = `
+  :host {
+    width: 100%;
+    height: 100%;
+  }
+  
+  [valley] {
+    display: inline-block;
+    width: 100%;
+    height: 5px;
+
+    &[status="active"]:hover {
+      outline: 0;
+      background: rgba(150, 150, 150, .3);
+      transition: var(--me-active-transition);
     }
-
-    [mv-alley] {
-      display: inline-block;
-      width: 100%;
-      height: var(--me-alley-height);
-
-      &[status="active"]:hover {
-        outline: 0;
-        background: var(--me-active-bg-color);
-        border-radius: var(--me-active-border-radius);
-        transition: var(--me-active-transition);
-      }
-
-      &[discret] {
-        --radius: .3rem;
-        position: absolute;
-        display: block;
-        z-index: 50;
-        left: calc(50% - 0.15rem);
-        top: 100%;
-        width: var(--radius);
-        height: var(--radius);
-        cursor: pointer;
-        margin-top: -0.15rem;
-        border-radius: 50%;
-        background-color: var(--me-bg-color);
-        box-shadow: var(--me-box-shadow);
-      }
+    &[discret] {
+      --radius: .3rem;
+      position: absolute;
+      display: block;
+      z-index: 50;
+      left: calc(50% - 0.15rem);
+      top: 100%;
+      width: var(--radius);
+      height: var(--radius);
+      cursor: pointer;
+      margin-top: -0.15rem;
+      background-color: var(--me-secondary-color-fade);
+      box-shadow: var(--me-box-shadow);
     }
-  `,
-  meta: true
-}
+  }
+`

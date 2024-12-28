@@ -5,8 +5,6 @@ import {
   VIEW_STYLE_SELECTOR
 } from './constants'
 
-let Sass: any
-
 export default class Stylesheet {
   private nsp: string
   private settings: StyleSettings
@@ -17,7 +15,7 @@ export default class Stylesheet {
       throw new Error('Undefined or invalid styles attachement element(s) namespace')
     
     // @ts-ignore
-    !Sass && import('https://jspm.dev/sass').then( lib => Sass = lib )
+    !window.msass && import('https://jspm.dev/sass').then( lib => window.msass = lib )
 
     /**
      * Unique namespace identifier of targeted 
@@ -51,7 +49,7 @@ export default class Stylesheet {
    */
   compile( str: string ): Promise<CompileResult>{
     return new Promise( ( resolve, reject ) => {
-      if( !Sass ){
+      if( !window.msass ){
         let 
         waiter: any,
         max = 1
@@ -60,7 +58,7 @@ export default class Stylesheet {
           /**
            * TEMP: Wait 8 seconds for Sass libary to load
            */
-          if( !Sass ){
+          if( !window.msass ){
             if( max == 8 ){
               clearInterval( waiter )
               reject('Undefined Sass compiler')
@@ -71,12 +69,12 @@ export default class Stylesheet {
           }
 
           clearInterval( waiter )
-          resolve( Sass.compileString( str ) )
+          resolve( window.msass.compileString( str ) )
         }
 
         waiter = setInterval( exec, 1000 )
       }
-      else resolve( Sass.compileString( str ) )
+      else resolve( window.msass.compileString( str ) )
     } )
   }
 

@@ -1,12 +1,13 @@
 import type { ViewCaption } from '../../types/view'
 import type { Handler } from '../../lib/lips'
+
 import Lips, { Component } from '../../lib/lips/lips'
+import * as Helpers from './helpers'
 import {
   CONTROL_LANG_SELECTOR,
   CONTROL_PANEL_SELECTOR,
   FORM_SEPERATOR_SELECTOR
 } from '../constants'
-import * as Helpers from './helpers'
 
 export type PanelInput = {
   key: string
@@ -99,7 +100,6 @@ export default ( input: PanelInput, hook: HandlerHook ) => {
   const lips = new Lips()
   lips.register('inputs', Helpers.Inputs() )
 
-
   const state = {
     activeTab: null
   }
@@ -123,6 +123,60 @@ export default ( input: PanelInput, hook: HandlerHook ) => {
       typeof hook.metacall == 'function' && hook.metacall('panel.dismiss')
     }
   }
+
+  const macros = {
+    mfset: `
+      <mblock>
+        <for in=macro.fieldsets>
+          <fieldset>
+            <if( each.label )>
+              <mlabel ${CONTROL_LANG_SELECTOR}>{each.label}</mlabel>
+            </if>
+
+            <for in=each.fields>
+              <inputs ...each></inputs>
+            </for>
+          </fieldset>
+        
+          <if( each.separate )>
+            <mblock ${FORM_SEPERATOR_SELECTOR}></mblock>
+          </if>
+        </for>
+      </mblock>
+    `,
+    mlset: `
+       <mblock>
+        <for in=macro.listsets>
+          <mblock class="listset">
+            <if( each.label )>
+              <mlabel ${CONTROL_LANG_SELECTOR}>{each.label}</mlabel>
+            </if>
+
+            <mul>
+              <for in=each.items>
+                <mli class="each.disabled ? 'disabled' : false">
+                  <micon class=each.icon></micon>
+                  <minline ${CONTROL_LANG_SELECTOR}>{each.title}</minline>
+
+                  <if( each.value )>
+                    <minline class="value" ${CONTROL_LANG_SELECTOR}>{each.value}</minline>
+                  </if>
+
+                  <if( each.sub )>
+                    <minline class="sub-arrow"><micon class="bx bx-chevron-right"></micon></minline>
+                  </if>
+                </mli>
+              </for>
+            </mul>
+          
+            <if( each.separate )>
+              <mblock ${FORM_SEPERATOR_SELECTOR}></mblock>
+            </if>
+          </mblock>
+        </for>
+      </mblock>
+    `
+  }
   
   const template = `
     <mblock ${CONTROL_PANEL_SELECTOR}="input.key"
@@ -135,7 +189,9 @@ export default ( input: PanelInput, hook: HandlerHook ) => {
             <mlabel ${CONTROL_LANG_SELECTOR}>{input.caption.title}</mlabel>
 
             <!-- Dismiss control panel -->
-            <span dismiss="panel"  title="Dismiss" ${CONTROL_LANG_SELECTOR} on-click="onDismiss"><micon class="bx bx-x"></micon></span>
+            <span dismiss="panel"  title="Dismiss" ${CONTROL_LANG_SELECTOR} on-click="onDismiss">
+              <micon class="bx bx-x"></micon>
+            </span>
           </mblock>
 
           <mul options="tabs">
@@ -155,55 +211,11 @@ export default ( input: PanelInput, hook: HandlerHook ) => {
           <for in=input.options>
             <mblock section="attributes" class="state.activeTab === key && 'active'">
               <if( each.fieldsets )>
-                <mblock>
-                  <for in=each.fieldsets>
-                    <fieldset>
-                      <if( each.label )>
-                        <mlabel ${CONTROL_LANG_SELECTOR}>{each.label}</mlabel>
-                      </if>
-
-                      <for in=each.fields>
-                        <inputs ...each></inputs>
-                      </for>
-                    </fieldset>
-                  
-                    <if( each.separate )>
-                      <mblock ${FORM_SEPERATOR_SELECTOR}></mblock>
-                    </if>
-                  </for>
-                </mblock>
+                <mfset fieldsets=each.fieldsets></mfset>
               </if>
 
               <if( each.listsets )>
-                <mblock>
-                  <for in=each.listsets>
-                    <mblock class="listset">
-                      <if( each.label )>
-                        <mlabel ${CONTROL_LANG_SELECTOR}>{each.label}</mlabel>
-                      </if>
-
-                      <mul>
-                        <for in=each.items>
-                          <mli class="each.disabled ? 'disabled' : false">
-                            <micon class=each.icon></micon>
-                            <minline ${CONTROL_LANG_SELECTOR}>{each.title}</minline>
-                            <if( each.value )>
-                              <minline class="value" ${CONTROL_LANG_SELECTOR}>{each.value}</minline>
-                            </if>
-
-                            <if( each.sub )>
-                              <minline class="sub-arrow"><micon class="bx bx-chevron-right"></micon></minline>
-                            </if>
-                          </mli>
-                        </for>
-                      </mul>
-                    
-                      <if( each.separate )>
-                        <mblock ${FORM_SEPERATOR_SELECTOR}></mblock>
-                      </if>
-                    </mblock>
-                  </for>
-                </mblock>
+                <mlset listsets=each.listsets></mlset>
               </if>
             </mblock>
           </for>
@@ -212,5 +224,5 @@ export default ( input: PanelInput, hook: HandlerHook ) => {
     </mblock>
   `
 
-  return new Component<PanelInput, PanelState>('panel', template, { input, state, handler }, { lips })
+  return new Component<PanelInput, PanelState>('panel', template, { input, state, handler, macros }, { lips })
 }

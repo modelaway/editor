@@ -3,6 +3,7 @@ import type { Template, Handler } from '../lib/lips'
 import Lips, { Component } from '../lib/lips/lips'
 import english from '../languages/en.json'
 import french from '../languages/fr.json'
+import LayerX from '../modules/factory/layerx'
 
 function Demo1(){
   type Input = {
@@ -371,10 +372,119 @@ function Demo6(){
   }, 5000 )
 }
 
+function DemoLayerX(){
+  /**
+   * Example implementation of LayerX component
+   */
+  document.addEventListener('DOMContentLoaded', function initializeLayerX() {
+    // Create DOM observer for syncing
+    const observer = new MutationObserver((mutations) => {
+      const changes: DOMChange[] = mutations.map(mutation => {
+        const target = mutation.target as HTMLElement
+        const parentTarget = mutation.target.parentElement
+
+        // Helper to get DOM reference path
+        const getRefPath = (el: Element): string => {
+          const path = []
+          let current = el
+          while (current && current !== document.body) {
+            path.unshift(current.id || current.tagName.toLowerCase())
+            current = current.parentElement as Element
+          }
+          return path.join('/')
+        }
+
+        switch (mutation.type) {
+          case 'childList':
+            if (mutation.addedNodes.length) {
+              return {
+                type: 'add',
+                target: getRefPath(mutation.addedNodes[0] as Element),
+                parentTarget: parentTarget ? getRefPath(parentTarget) : undefined,
+                position: {
+                  x: target.offsetLeft,
+                  y: target.offsetTop,
+                  z: Array.from(parentTarget?.children || []).indexOf(target)
+                }
+              }
+            }
+            if (mutation.removedNodes.length) {
+              return {
+                type: 'remove',
+                target: getRefPath(mutation.removedNodes[0] as Element)
+              }
+            }
+            break
+
+          case 'attributes':
+            return {
+              type: 'modify',
+              target: getRefPath(target),
+              attributes: {
+                [mutation.attributeName as string]: target.getAttribute(mutation.attributeName as string) || undefined
+              }
+            }
+
+          default:
+            return null
+        }
+
+        return null
+      }).filter(Boolean) as DOMChange[]
+
+      // Update LayerX component
+      if (changes.length) {
+        console.log('update--', changes )
+        layerXComponent?.subInput({ mutations: changes })
+      }
+    })
+
+    const 
+    layerXComponent = LayerX({ key: '0' }).appendTo('main'),
+    canvas = document.getElementById('canvas')
+
+    if( !canvas )
+      throw new Error('Canvas element not found')
+    
+    // Start observing the design canvas
+    observer.observe( canvas, {
+      childList: true,
+      attributes: true,
+      subtree: true,
+      attributeFilter: ['style', 'class', 'id']
+    })
+
+    // Example: Add some elements to the canvas
+    // Add a rectangle
+    const rect = document.createElement('div')
+    rect.id = 'rect-1'
+    rect.style.cssText = 'position: absolute; width: 100px; height: 100px; background: blue; left: 50px; top: 50px;'
+    canvas.appendChild(rect)
+
+    // Add a group with circles
+    const group = document.createElement('div')
+    group.id = 'group-1'
+    group.style.cssText = 'position: absolute; left: 200px; top: 50px;'
+    
+    const circle1 = document.createElement('div')
+    circle1.id = 'circle-1'
+    circle1.style.cssText = 'position: absolute; width: 50px; height: 50px; background: red; border-radius: 50%;'
+    
+    const circle2 = document.createElement('div')
+    circle2.id = 'circle-2'
+    circle2.style.cssText = 'position: absolute; width: 50px; height: 50px; background: green; border-radius: 50%; left: 60px;'
+    
+    group.appendChild(circle1)
+    group.appendChild(circle2)
+    canvas.appendChild(group)
+  })
+}
+
 // Demo1()
 // Demo2()
 // Demo3()
 // Demo4()
-Demo5()
-// Demo6()
+// Demo5()
+Demo6()
+// DemoLayerX()
 

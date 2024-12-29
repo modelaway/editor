@@ -1,4 +1,4 @@
-import { uniqueObject } from './utils'
+import { deepClone } from './utils'
 
 export default class Benchmark {
   private debug: boolean
@@ -26,7 +26,7 @@ export default class Benchmark {
     this.stats[ trace ] = value
   }
   reset(){
-    return this.stats = uniqueObject( this.initialStats )
+    return this.stats = deepClone( this.initialStats )
   }
   log(){
     this.debug && console.table( this.stats )

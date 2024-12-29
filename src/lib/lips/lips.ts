@@ -13,17 +13,30 @@ import $, { type Cash } from 'cash-dom'
 import I18N from './i18n'
 import Benchmark from './benchmark'
 import Stylesheet from './stylesheet'
-import { isEquals, uniqueObject, deepAssign } from './utils'
+import { isDiff, deepClone, deepAssign } from './utils'
 import { effect, signal } from './signal'
 
 import * as Router from './router'
 
+/**
+ * Cache regex patterns
+ */
+const REGEX = {
+  SPREAD_VAR_PATTERN: /^\.\.\./,
+  IF_PATTERN: /<if\(\s*(.*?)\s*\)>/g,
+  ELSE_IF_PATTERN: /<else-if\(\s*(.*?)\s*\)>/g,
+  SWITCH_PATTERN: /<switch\(\s*(.*?)\s*\)>/g,
+  EVENT_PATTERN: /on-([a-zA-Z-]+)\(((?:function\s*(?:\w+\s*)?\([^)]*\)\s*{[\s\S]*?}|\([^)]*\)\s*=>[\s\S]*?|[^)]+))\)(?=[>\s])/g,
+  INTERPOLATION: /{\s*([^{}]+)\s*}/g,
+  FUNCTION_PATTERN: /(\s*\w+|\s*\([^)]*\)|\s*)\s*=>\s*(\s*\{[^}]*\}|\s*[^\n;"]+)/g
+}
+
 function preprocessTemplate( str: string ){
   return (str || '').trim()
-            .replace(/<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
-            .replace(/<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
-            .replace(/<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">')
-            .replace(/on-([a-zA-Z-]+)\(((?:function\s*(?:\w+\s*)?\([^)]*\)\s*{[\s\S]*?}|\([^)]*\)\s*=>[\s\S]*?|[^)]+))\)(?=[>\s])/g, ( match, event, expression ) => {
+            .replace( REGEX.IF_PATTERN, '<if by="$1">')
+            .replace( REGEX.ELSE_IF_PATTERN, '<else-if by="$1">')
+            .replace( REGEX.SWITCH_PATTERN, '<switch by="$1">')
+            .replace( REGEX.EVENT_PATTERN, ( match, event, expression ) => {
               /**
                * If we're dealing with complex functions, 
                * we might need to handle nested brackets
@@ -70,8 +83,6 @@ $.fn.extend({
     return tn.toLowerCase()
   }
 })
-
-const SPREAD_VAR_REGEX = /^\.\.\./
 
 export default class Lips<Context = any> {
   private debug = false
@@ -289,7 +300,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
        * Merge with initial/active state.
        */
       this.state
-      && !isEquals( this.__state as TObject<any>, this.state as TObject<any> )
+      && isDiff( this.__state as TObject<any>, this.state as TObject<any> )
       && this.setState( this.state )
     }, this.IUC_BEAT )
 
@@ -300,7 +311,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
      */
     Array.isArray( context )
     && context.length
-    && this.lips?.useContext( context, ctx => !isEquals( this.context as TObject<any>, ctx ) && setContext( ctx ) )
+    && this.lips?.useContext( context, ctx => isDiff( this.context as TObject<any>, ctx ) && setContext( ctx ) )
 
     effect( () => {
       this.input = getInput()
@@ -362,7 +373,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
        * IMPORTANT: Required to check changes on the state
        *            during IUC processes.
        */
-      this.__state = uniqueObject( this.state )
+      this.__state = deepClone( this.state )
       
       /**
        * Triggered after component get mounted for
@@ -386,13 +397,13 @@ export class Component<Input = void, State = void, Static = void, Context = void
     })
   }
 
-  getState( key: string ){
-    const state = this._getState() as TObject<any>
+  getState( key: keyof State ){
+    const state = this._getState()
     
     return state && typeof state == 'object' && state[ key ]
   }
-  setState( data: any ){
-    const state = this._getState() as TObject<keyof State>
+  setState( data: State ){
+    const state = this._getState()
 
     this._setState({ ...state, ...data })
     
@@ -407,7 +418,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
      * Apply update only when new input is different 
      * from the incoming input
      */
-    if( isEquals( this.input as TObject<any>, input as TObject<any> ) )
+    if( !isDiff( this.input as TObject<any>, input as TObject<any> ) )
       return
     
     // Merge with initial/active input.
@@ -427,7 +438,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
     if( typeof data !== 'object' ) 
       return this.getNode()
     
-    this.setInput( deepAssign( this.input as TObject<any>, data ) )
+    this.setInput( deepAssign<Input>( this.input, data ) )
   }
   setHandler( list: Handler<Input, State, Static, Context> ){
     Object
@@ -461,8 +472,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
       .entries( attributes )
       .forEach( ([ key, assign ]) => {
         // Process spread assign
-        if( SPREAD_VAR_REGEX.test( key ) ){
-          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_REGEX, '' ) as string, scope )
+        if( REGEX.SPREAD_VAR_PATTERN.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( REGEX.SPREAD_VAR_PATTERN, '' ) as string, scope )
           if( typeof spreads !== 'object' )
             throw new Error(`Invalid spread operator ${key}`)
 
@@ -496,8 +507,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
       .entries( attributes )
       .forEach( ([ key, assign ]) => {
         // Process spread assign
-        if( SPREAD_VAR_REGEX.test( key ) ){
-          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_REGEX, '' ) as string, scope )
+        if( REGEX.SPREAD_VAR_PATTERN.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( REGEX.SPREAD_VAR_PATTERN, '' ) as string, scope )
           if( typeof spreads !== 'object' )
             throw new Error(`Invalid spread operator ${key}`)
 
@@ -782,8 +793,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
         }
 
         // Process spread operator attributes
-        else if( SPREAD_VAR_REGEX.test( key ) ){
-          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_REGEX, '' ) as string, scope )
+        else if( REGEX.SPREAD_VAR_PATTERN.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( REGEX.SPREAD_VAR_PATTERN, '' ) as string, scope )
           if( typeof spreads !== 'object' )
             throw new Error(`Invalid spread operator ${key}`)
 
@@ -851,8 +862,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
         }
 
         // Process spread operator attributes
-        else if( SPREAD_VAR_REGEX.test( key ) ){
-          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_REGEX, '' ) as string, scope )
+        else if( REGEX.SPREAD_VAR_PATTERN.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( REGEX.SPREAD_VAR_PATTERN, '' ) as string, scope )
           if( typeof spreads !== 'object' )
             throw new Error(`Invalid spread operator ${key}`)
 
@@ -896,7 +907,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
        * injecting updated inputs
        */
       if( self.__components[ __key__ ] ){
-        self.__components[ __key__ ].setInput( uniqueObject( input ) )
+        self.__components[ __key__ ].setInput( deepClone( input ) )
 
         // Replace the original node with the fragment in the DOM
         $fragment = $fragment.add( self.__components[ __key__ ].getNode() )
@@ -908,10 +919,10 @@ export class Component<Input = void, State = void, Static = void, Context = void
         const
         { state, _static, handler, context, default: _default, stylesheet } = self.lips.import( name ),
         component = new Component( name, _default, {
-          state: uniqueObject( state ),
-          input: uniqueObject( input ),
+          state: deepClone( state ),
+          input: deepClone( input ),
           context,
-          _static: uniqueObject( _static ),
+          _static: deepClone( _static ),
           handler,
           stylesheet
         }, {
@@ -1131,7 +1142,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
     catch( error ){ return script }
   }
   private __interpolate__( str: string, scope?: VariableScope ){
-    return str.replace(/{\s*([^{}]+)\s*}/g, ( _, expr) => this.__evaluate__( expr, scope ) )
+    return str.replace( REGEX.INTERPOLATION, ( _, expr) => this.__evaluate__( expr, scope ) )
   }
   private __attachEvent__( element: Cash | Component, _event: string, instruction: string, scope?: VariableScope ){
     /**
@@ -1142,7 +1153,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
      *  `on-click="() => console.log('Hello world')"`
      *  `on-change="e => self.onChange(e)"`
      */
-    if( /(\s*\w+|\s*\([^)]*\)|\s*)\s*=>\s*(\s*\{[^}]*\}|\s*[^\n;"]+)/g.test( instruction ) )
+    if( REGEX.FUNCTION_PATTERN.test( instruction ) )
       element.on( _event, this.__evaluate__( instruction, scope ) )
 
     /**

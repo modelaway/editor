@@ -12,7 +12,7 @@ export type LayerElement = {
   key: string
   parentKey?: string
   name: string
-  type: 'block' | 'text' | 'asset'
+  type: 'block' | 'text' | 'image' | 'video' | 'audio'
   attribute: 'element' | 'node' | 'group'
   position: {
     x: number
@@ -50,14 +50,18 @@ export class Traverser {
   /**
    * Get element type based on its structure
    */
-  private getElementType( element: Element ): 'block' | 'text' | 'asset' {
+  private getElementType( element: Element ): LayerElement['type'] {
     const tagName = (element.tagName || '').toLowerCase()
-    if( tagName === 'img' || tagName === 'video' || tagName === 'audio' )
-      return 'asset'
     
-    if( !tagName ) return 'text'
-    
-    return 'block'
+    if( tagName )
+      switch( tagName ){
+        case 'img': return 'image'
+        case 'video': 
+        case 'audio': return tagName
+        default: return 'block'
+      }
+
+    else return 'text'
   }
 
   /**
@@ -164,6 +168,7 @@ export interface LayersState {
   layers: Record<string, LayerElement>
   activeLayer: string | null
   selection: Array<string>
+  collapsed: boolean
   dragState: {
     active: boolean
     sourceKey: string | null
@@ -210,27 +215,55 @@ function dependencies(){
     },
     default: `
       <mli layer=input.key>
-        <mblock>
-          <micon class="'bx bx-show toggle'+( input.hidden ? 'bx-hide' : '' )"
+        <mblock class="layer-bar">
+          <micon class="'toggle-icon visibility bx '+( input.hidden ? 'bx-hide' : 'bx-show')"
                   on-click( onToggleVisibility, input.key )></micon>
 
-          <mblock style="{ padding: '6px 0 6px '+(15 * input.depth)+'px' }"
-                  on-click( onCollapse, input.key )>
-            <if( input.attribute === 'group' )>
-              <micon class="bx bx-folder"></micon>
-            </if>
-            <else-if( input.attribute === 'node' )>
-              <micon class="bx bx-git-repo-forked"></micon>
-            </else-if>
-            <else>
-              <micon class="bx bx-rectangle"></micon>
-            </else>
+          <minline style="{ padding: '7px 0 7px '+(20 * input.depth)+'px' }">
+            <switch( input.attribute )>
+              <case is="group">
+                <micon class="'toggle-icon bx '+( state.collapsed ? 'bx-chevron-down' : 'bx-chevron-right')"
+                        style="padding: 0 4px"
+                        on-click( onCollapse, input.key )></micon>
 
+                <micon class="ill-icon bx bx-object-horizontal-left"></micon>
+              </case>
+              <case is="node">
+                <micon class="'toggle-icon bx '+( state.collapsed ? 'bx-chevron-down' : 'bx-chevron-right')"
+                        style="padding: 0 4px"
+                        on-click( onCollapse, input.key )></micon>
+
+                <micon class="ill-icon bx bx-git-repo-forked"></micon>
+              </case>
+              <default>
+                <log( input.attribute, input.type )></log>
+                <switch( input.type )>
+                  <case is="image">
+                    <micon class="ill-icon bx bx-image-alt"></micon>
+                  </case>
+                  <case is="video">
+                    <micon class="ill-icon bx bx-play-circle"></micon>
+                  </case>
+                  <case is="audio">
+                    <micon class="ill-icon bx bx-volume-low"></micon>
+                  </case>
+                  <case is="text">
+                    <micon class="ill-icon bx bx-text"></micon>
+                  </case>
+                  <default>
+                    <micon class="ill-icon bx bx-shape-square"></micon>
+                  </default>
+                </switch>
+              </default>
+            </switch>
+            
             <mlabel>{input.name}</mlabel>
-          
-            <micon class="'bx bx-lock-open-alt toggle'+( input.locked ? ' bx-lock-alt' : '')"
-                    on-click( onToggleLock, input.key )></micon>
-          </mblock>
+
+            <if( input.locked )>
+              <micon class="toggle-icon bxs bx-lock-alt"
+                      on-click( onToggleLock, input.key )></micon>
+            </if>
+          </minline>
         </mblock>
 
         <if( input.layers && (input.attribute === 'node' || input.attribute === 'group') )>
@@ -250,6 +283,12 @@ function dependencies(){
   return lips
 }
 
+function cleanContent( html: string ){
+  return html.trim()
+            .replace(/[\n\t\r]+/g, '')
+            .replace(/\s{2,}/g, '')
+}
+
 /**
  * Element Layers management list
  */
@@ -259,6 +298,7 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
     layers: {},
     activeLayer: null,
     selection: [],
+    collapsed: false,
     dragState: {
       active: false,
       sourceKey: null,
@@ -271,27 +311,34 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
     onInput({ content, mutations }){
       if( content ){
         const tvs = new Traverser
-        this.state.layers = tvs.traverse( content )
+        this.state.layers = tvs.traverse( cleanContent( content ) )
       }
 
       if( mutations ){
 
       }
-    }
+    },
+    onCollapse(){ this.state.collapsed = !this.state.collapsed }
   }
 
   const template = `
     <mblock style="typeof input.position == 'object' && { left: input.position.left, top: input.position.top }">
-      <mblock class="layers-header">
-        <micon class="bx bx-layers"></micon>
+      <mblock class="header">
+        <micon class="bx bx-list-minus ill-icon"></micon>
         <mlabel>Layers</mlabel>
+
+        <micon class="'toggle-icon bx '+( state.collapsed ? 'bx-chevron-down' : 'bx-chevron-right')"
+                style="padding: 0 0 0 10px;"
+                on-click( onCollapse )></micon>
       </mblock>
 
-      <if( state.layers )>
-        <layerlist list=state.layers
-                    depth=1
-                    collapsed></layerlist>
-      </if>
+      <mblock class="body" style="{ display: state.collapsed ? 'block' : 'none' }">
+        <if( state.layers )>
+          <layerlist list=state.layers
+                      depth=0
+                      collapsed></layerlist>
+        </if>
+      </mblock>
     </mblock>
   `
 
@@ -299,14 +346,67 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
 }
 
 const stylesheet = `
-  position: absolute;
-  min-width: 15rem;
-  max-height: 50vh;
-  overflow: auto;
-  border: 1px solid var(--me-border-color);
+  position: fixed;
+  z-index: 200;
+  bottom: var(--me-edge-padding);
+  right: var(--me-edge-padding);
   border-radius: var(--me-border-radius);
+  background-color: var(--me-secondary-color);
+  box-shadow: var(--me-box-shadow);
+  backdrop-filter: var(--me-backdrop-filter);
+  transition: var(--me-active-transition);
+  cursor: default;
+  overflow: hidden;
+
+  .header {
+    padding: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    .ill-icon,
+    .toggle.icon { 
+      font-size: var(--me-icon-size-2);
+    }
+  }
+  .body {
+    min-width: 15rem;
+    max-height: 50vh;
+    overflow: auto;
+  }
+  .ill-icon {
+    color: gray;
+    padding-right: 10px;
+  }
+  .toggle-icon {
+    color: gray;
+    padding: 7px 8px;
+    cursor: pointer;
+    font-size: var(--me-icon-size);
+
+    &.visibility {
+      border-right: 1px solid var(--me-border-color);
+    }
+  }
 
   mli {
     border-top: 1px solid var(--me-border-color);
+
+    .layer-bar {
+      display: flex;
+      align-items: center;
+
+      &:hover {
+        background-color: var(--me-secondary-color-transparent);
+      }
+
+      > minline {
+        width: 100%;
+        display: inline-flex;
+        align-items: center;
+
+        mlabel { color: #d2d7dd; }
+      }
+    }
   }
 `

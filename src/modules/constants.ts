@@ -169,6 +169,15 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
       shortcut: 'command + f'
     }
   },
+  'frame.layers': {
+    icon: 'bx bx-list-minus',
+    title: 'Show Layers',
+    event: {
+      type: 'action',
+      params: true,
+      shortcut: 'command + l'
+    }
+  },
   'screen-mode': {
     icon: 'bx bx-devices',
     title: 'Device Screens',

@@ -474,7 +474,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
     //   return cached
     // }
 
-    
     const self = this
     /**
      * Initialize an empty cash object to 
@@ -639,17 +638,17 @@ export class Component<Input = void, State = void, Static = void, Context = void
       if( by ){
         const switchBy = self.__evaluate__( by, scope )
         let matched = false
-
+        
         $node.children().each( function(){
           const
           $child = $(this),
           $contents = $child.contents(),
           _is = $child.attr('is')
 
-          if( matched || !_is ) return
+          if( matched ) return
 
-          if( $child.is('case') ){
-            const isValue = self.__evaluate__( _is, scope )
+          if( $child.is('case') && _is !== undefined ){
+            const isValue = self.__evaluate__( _is as string, scope )
 
             if( (Array.isArray( isValue ) && isValue.includes( switchBy )) || isValue === switchBy ){
               matched = true
@@ -658,7 +657,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
                 $fragment = $fragment.add( self.render( $contents, scope ) )
             }
           }
-          else if ( $child.is('default') && !matched && $contents.length )
+          
+          if( !matched && $child.is('default') && $contents.length )
             $fragment = $fragment.add( self.render( $contents, scope ) )
         })
       }
@@ -769,8 +769,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
     function execLog( $node: Cash ){
       const args = $node.attr('args')
       if( !args ) return
-      
-      console.log( self.__evaluate__( args, scope ) )
+
+      self.__evaluate__(`console.log(${args})`, scope )
     }
 
     function execMacro( $node: Cash ){

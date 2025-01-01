@@ -11,6 +11,7 @@ import Functions from './functions'
 import { debug } from './utils'
 import Viewport from './factory/viewport'
 import Toolbar from './factory/toolbar'
+import Layers from './factory/layers'
 import { GLOBAL_CONTROL_OPTIONS } from './constants'
 
 window.mlang = {
@@ -240,6 +241,43 @@ export default class Editor {
 
     this.events.on('toolbar.handle', ( key, option ) => {
       console.log('global toolbar --', key, option )
+    })
+    
+    /**
+     * Initialize frame layers control
+     */
+    const
+    linput = {
+      key: 'layers',
+      settings: GLOBAL_CONTROL_OPTIONS,
+      content: `
+        <section class="header-block">
+          <div class="container-fluid">
+            <div class="row">
+              <div class="col-xl-4 col-lg-4 col-md-4 logo">
+                <a href="/" title="Angular, React, Sass"><img src="https://www.webrecto.com/common/images/logo.png"
+                    alt="Angular, React, Sass" title="Angular, React, Sass" /></a>
+              </div>
+              <div class="col-xl-8 col-lg-8 col-md-8 text-right">
+                <div class="header-menu">
+                  <ul>
+                    <li>Angular</li>
+                    <li>React</li>
+                    <li>NextJs</li>
+                    <li>Sass</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      `
+    },
+    layers = Layers( linput, { events: this.events })
+    layers.appendTo( this.$viewport )
+
+    this.events.on('layers.handle', ( key, option ) => {
+      console.log('layers --', key, option )
     })
 
     /**

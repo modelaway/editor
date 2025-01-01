@@ -1,7 +1,7 @@
 import type { Handler } from '../../lib/lips'
 
 import $ from 'cash-dom'
-import { Component } from '../../lib/lips/lips'
+import Lips, { Component } from '../../lib/lips/lips'
 import { VIEW_KEY_SELECTOR } from '../constants'
 
 export type LayersSettings = {
@@ -164,7 +164,6 @@ export interface LayersState {
   layers: Record<string, LayerElement>
   activeLayer: string | null
   selection: Array<string>
-  expanded: Array<string>
   dragState: {
     active: boolean
     sourceKey: string | null
@@ -177,15 +176,89 @@ export interface LayersState {
 }
 
 /**
+ * Registered dependency components
+ */
+function dependencies(){
+  const LayerListTemplate = {
+    default: `
+      <mul style="{ display: input.collapsed ? 'block' : 'none' }">
+        <for in=input.list>
+          <layeritem ...each depth=input.depth></layeritem>
+        </for>
+      </mul>
+    `
+  }
+
+  type LayerItemState = {
+    collapsed: boolean
+  }
+  type LayerLITemplateType = {
+    state: LayerItemState
+    handler: Handler<LayerElement, LayerItemState>
+    default: string
+  }
+  const LayerItemTemplate: LayerLITemplateType = {
+    state: {
+      collapsed: false
+    },
+    handler: {
+      onCollapse( key ){
+        this.state.collapsed = !this.state.collapsed
+        
+        // TODO: Track key for memoizing purpose
+      }
+    },
+    default: `
+      <mli layer=input.key>
+        <mblock>
+          <micon class="'bx bx-show toggle'+( input.hidden ? 'bx-hide' : '' )"
+                  on-click( onToggleVisibility, input.key )></micon>
+
+          <mblock style="{ padding: '6px 0 6px '+(15 * input.depth)+'px' }"
+                  on-click( onCollapse, input.key )>
+            <if( input.attribute === 'group' )>
+              <micon class="bx bx-folder"></micon>
+            </if>
+            <else-if( input.attribute === 'node' )>
+              <micon class="bx bx-git-repo-forked"></micon>
+            </else-if>
+            <else>
+              <micon class="bx bx-rectangle"></micon>
+            </else>
+
+            <mlabel>{input.name}</mlabel>
+          
+            <micon class="'bx bx-lock-open-alt toggle'+( input.locked ? ' bx-lock-alt' : '')"
+                    on-click( onToggleLock, input.key )></micon>
+          </mblock>
+        </mblock>
+
+        <if( input.layers && (input.attribute === 'node' || input.attribute === 'group') )>
+          <layerlist list=input.layers
+                      depth="input.depth + 1"
+                      collapsed=state.collapsed></layerlist>
+        </if>
+      </mli>
+    `
+  }
+
+  const lips = new Lips()
+
+  lips.register('layerlist', LayerListTemplate )
+  lips.register('layeritem', LayerItemTemplate )
+
+  return lips
+}
+
+/**
  * Element Layers management list
  */
 export default ( input: LayersInput, hook?: HandlerHook ) => {
-
+  
   const state: LayersState = {
     layers: {},
     activeLayer: null,
     selection: [],
-    expanded: [],
     dragState: {
       active: false,
       sourceKey: null,
@@ -204,56 +277,7 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
       if( mutations ){
 
       }
-    },
-
-    onToggleLayer( key ){
-      console.time('toggle')
-      
-      !this.state.expanded.includes( key )
-                  ? this.state.expanded.push( key )
-                  : this.state.expanded = this.state.expanded.filter( each => each !== key )
-      
-      console.timeEnd('toggle')
     }
-  }
-
-  const macros = {
-    layers: `
-      <mul class="layers-list" style="{'margin-left': '15px', display: macro.collapsed ? 'block' : 'none'}">
-        <for in=macro.list>
-          <layer ...each></layer>
-        </for>
-      </mul>
-    `,
-    layer: `
-      <mli layer=macro.key>
-        <micon class="'bx bx-show toggle'+( macro.hidden ? 'bx-hide' : '' )"
-                on-click( onToggleVisibility, macro.key )></micon>
-        
-        <micon class="'bx bx-lock-open-alt toggle'+( macro.locked ? ' bx-lock-alt' : '')"
-                on-click( onToggleLock, macro.key )></micon>
-
-        <let key=macro.key></let>
-        <mblock on-click( onToggleLayer, key )>
-          <if( macro.attribute === 'group' )>
-            <micon class="bx bx-folder"></micon>
-          </if>
-          <else-if( macro.attribute === 'node' )>
-            <micon class="bx bx-git-repo-forked"></micon>
-          </else-if>
-          <else>
-            <micon class="bx bx-rectangle"></micon>
-          </else>
-
-          <mlabel>{macro.name}</mlabel>
-        </mblock>
-
-        <if( macro.layers && (macro.attribute === 'node' || macro.attribute === 'group') )>
-          <layers list=macro.layers
-                  collapsed="state.expanded.includes( key )"></layers>
-        </if>
-      </mli>
-    `
   }
 
   const template = `
@@ -264,12 +288,25 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
       </mblock>
 
       <if( state.layers )>
-        <layers list=state.layers collapsed></layers>
+        <layerlist list=state.layers
+                    depth=1
+                    collapsed></layerlist>
       </if>
     </mblock>
   `
 
-  return new Component<LayersInput, LayersState>('layers', template, { input, state, handler, macros, stylesheet })
+  return new Component<LayersInput, LayersState>('layers', template, { input, state, handler, stylesheet }, { lips: dependencies() })
 }
 
-const stylesheet = ``
+const stylesheet = `
+  position: absolute;
+  min-width: 15rem;
+  max-height: 50vh;
+  overflow: auto;
+  border: 1px solid var(--me-border-color);
+  border-radius: var(--me-border-radius);
+
+  mli {
+    border-top: 1px solid var(--me-border-color);
+  }
+`

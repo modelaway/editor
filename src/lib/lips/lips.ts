@@ -315,8 +315,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
     && this.lips?.useContext( context, ctx => isDiff( this.context as TObject<any>, ctx ) && setContext( ctx ) )
 
     this.SEC = effect( () => {
-      console.time('effect')
-      
       this.input = getInput()
       this.state = getState()
       this.context = getContext()
@@ -337,7 +335,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
       /**
        * Render/Rerender component
        */
-      console.time('re*nder')
       if( this.isRendered ){
         this.detachEvents()
         this.rerender()
@@ -355,7 +352,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
         // Assign CSS relationship attribute
         this.$.attr('rel', this.__name__ )
       }
-      console.timeEnd('re*nder')
       
       /**
        * Attach/Reattach extracted events
@@ -364,9 +360,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
        * This to avoid loosing binding to attached
        * DOM element's events
        */
-      console.time('attach-events')
       this.attachEvents()
-      console.timeEnd('attach-events')
 
       /**
        * Log benchmark table
@@ -402,8 +396,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
        */
       typeof this.onRender == 'function'
       && this.onRender.bind(this)()
-
-      console.timeEnd('effect')
     })
   }
 

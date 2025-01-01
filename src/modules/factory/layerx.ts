@@ -126,6 +126,8 @@ export default (input: LayerXInput, hook?: HandlerHook) => {
     onInput({ mutations }: LayerXInput) {
       if (!mutations?.length) return
 
+      console.log( mutations )
+
       mutations.forEach(change => {
         switch (change.type) {
           case 'add':
@@ -223,6 +225,7 @@ export default (input: LayerXInput, hook?: HandlerHook) => {
         ...element.componentRef && { componentRef: element.componentRef }
       }
 
+      console.log( id, newLayer )
       this.state.layers.set(id, newLayer)
 
       if (newLayer.type === 'group') {
@@ -490,7 +493,7 @@ export default (input: LayerXInput, hook?: HandlerHook) => {
     </mblock>
   `
 
-  return new Component<LayerXInput, LayerXState>('layerx', template, { input, state, handler, stylesheet })
+  return new Component<LayerXInput, LayerXState>('layerx', template, { input, state, handler })
 }
 
 const stylesheet = `

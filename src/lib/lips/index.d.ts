@@ -5,6 +5,12 @@ export type LanguageDictionary = ObjectType<ObjectType<string> | string>
 export type VariableScope = TObject<{ value: any, type: 'let' | 'const' }>
 
 export interface Handler<Input = void, State = void, Static = void, Context = void> {
+  onCreate?: ( this: Component<Input, State, Static, Context> ) => void
+  onInput?: ( this: Component<Input, State, Static, Context>, input: Input ) => void
+  onMount?: ( this: Component<Input, State, Static, Context> ) => void
+  onRender?: ( this: Component<Input, State, Static, Context> ) => void
+  onUpdate?: ( this: Component<Input, State, Static, Context> ) => void
+
   [index: string]: ( this: Component<Input, State, Static, Context>, ...args: any[] ) => void
 }
 export type Template<Input = void, State = void, Static = void, Context = void> = {
@@ -28,6 +34,8 @@ export type ComponentOptions = {
   debug?: boolean
   prekey?: string
   lips?: Lips
+  enableTemplateCache?: boolean
+  enableSmartDiff?: boolean
 }
 export type LipsConfig = {
   context?: any

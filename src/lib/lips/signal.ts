@@ -15,9 +15,12 @@ type Subscriber = {
 type Dependency = Set<Subscriber>
 type Listener = () => unknown
 type Signal<T> = [ () => T, ( nextValue: T ) => void ]
-type Batch = {
+interface Batch {
   add( sub: Subscriber ): void
   flush(): void
+}
+export interface EffectControl {
+  dispose(): void
 }
 
 const context: Subscriber[] = []
@@ -91,7 +94,7 @@ export function signal<T>( value: T ): Signal<T> {
   return [ read, write ]
 }
 
-export function effect( fn: Listener ){
+export function effect( fn: Listener ): EffectControl {
   let isRunning = false
   
   const execute = () => {

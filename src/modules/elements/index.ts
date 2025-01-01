@@ -3,16 +3,17 @@ import type { AddViewTriggerType, ViewComponent } from '../../types/view'
 
 import $, { type Cash } from 'cash-dom'
 import View from './view'
+import Flow from './flow'
 import {
   VIEW_KEY_SELECTOR,
   VIEW_NAME_SELECTOR
 } from '../constants'
 
-export default class Views {
+export default class Elements {
   private frame: Frame
 
   /**
-   * List of actively mapped views
+   * List of actively mapped elements
    */
   public list: ObjectType<View> = {}
 
@@ -22,7 +23,6 @@ export default class Views {
   private currentView?: View
 
   constructor( frame: Frame ){
-    // super()
     this.frame = frame
   }
 
@@ -56,7 +56,7 @@ export default class Views {
   }
 
   /**
-   * Loop operation on all active views
+   * Loop operation on all active elements
    */
   each( fn: ( view: View ) => void ){
     if( typeof fn !== 'function' )
@@ -66,7 +66,7 @@ export default class Views {
   }
 
   /**
-   * Clear all views mounted in the editor context
+   * Clear all elements mounted in the editor context
    */
   clear(){
     this.list = {}
@@ -90,7 +90,7 @@ export default class Views {
   }
 
   /**
-   * Dismiss all/any active views
+   * Dismiss all/any active elements
    */
   dismissAll(){
     this.each( view => view.dismiss() )
@@ -101,7 +101,7 @@ export default class Views {
    * and mount any view that can be edited via the editor
    * context
    * 
-   * Target: Native HTML tags or custom views
+   * Target: Native HTML tags or custom elements
    */
   lookup( $currentTarget: Cash, e?: Event ){
     /**
@@ -112,7 +112,7 @@ export default class Views {
       // Stop event propagation when there's a view match
       e?.stopPropagation()
 
-      // Dismiss all active views
+      // Dismiss all active elements
       this.dismissAll()
       
       // Create new view instance or use existing.
@@ -147,7 +147,7 @@ export default class Views {
        */
       cname = vc.name
       
-      // Dismiss all active views
+      // Dismiss all active elements
       this.dismissAll()
 
       // Create new view instance or use existing.

@@ -32,6 +32,10 @@ import Floating, { FloatingInput } from '../factory/floating'
 import { debug, hashKey } from '../utils'
 // import { FrameQuery } from '../lib/frame.window'
 
+/**
+ * Help manage the basic UI elements that are 
+ * vuable by design with human eye.
+ */
 export default class View extends EventEmitter {
   /**
    * Access to frame's instance and 
@@ -202,7 +206,7 @@ export default class View extends EventEmitter {
 
   /**
    * Map out a normal HTML element to editor
-   * context view using native views cognition
+   * context view using native elements cognition
    * process.
    */
   inspect( $this: Cash, name: string, activate = false ){
@@ -792,10 +796,10 @@ export default class View extends EventEmitter {
         && this.Finder?.subInput({ list: this.frame.editor.store.searchView( data ) })
         break
 
-      case 'view.sub.delete': this.frame.views.remove( this.key ); break
-      case 'view.sub.duplicate': this.frame.views.duplicate( this.key ); break
-      case 'view.sub.move-up': this.frame.views.move( this.key, 'up'); break
-      case 'view.sub.move-down': this.frame.views.move( this.key, 'down'); break
+      case 'view.sub.delete': this.frame.elements.remove( this.key ); break
+      case 'view.sub.duplicate': this.frame.elements.duplicate( this.key ); break
+      case 'view.sub.move-up': this.frame.elements.move( this.key, 'up'); break
+      case 'view.sub.move-down': this.frame.elements.move( this.key, 'down'); break
       case 'view.sub.copy': this.frame.editor.clipboard = { type: 'view', key: this.key }; break
     }
   }

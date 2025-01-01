@@ -13,30 +13,21 @@ import $, { type Cash } from 'cash-dom'
 import I18N from './i18n'
 import Benchmark from './benchmark'
 import Stylesheet from './stylesheet'
+import ParallelExecutor from './parallel'
+import { effect, EffectControl, signal } from './signal'
 import { isDiff, deepClone, deepAssign } from './utils'
-import { effect, signal } from './signal'
 
 import * as Router from './router'
 
-/**
- * Cache regex patterns
- */
-const REGEX = {
-  SPREAD_VAR_PATTERN: /^\.\.\./,
-  IF_PATTERN: /<if\(\s*(.*?)\s*\)>/g,
-  ELSE_IF_PATTERN: /<else-if\(\s*(.*?)\s*\)>/g,
-  SWITCH_PATTERN: /<switch\(\s*(.*?)\s*\)>/g,
-  EVENT_PATTERN: /on-([a-zA-Z-]+)\(((?:function\s*(?:\w+\s*)?\([^)]*\)\s*{[\s\S]*?}|\([^)]*\)\s*=>[\s\S]*?|[^)]+))\)(?=[>\s])/g,
-  INTERPOLATION: /{\s*([^{}]+)\s*}/g,
-  FUNCTION_PATTERN: /(\s*\w+|\s*\([^)]*\)|\s*)\s*=>\s*(\s*\{[^}]*\}|\s*[^\n;"]+)/g
-}
+const SPREAD_VAR_PATTERN = /^\.\.\./
 
 function preprocessTemplate( str: string ){
   return (str || '').trim()
-            .replace( REGEX.IF_PATTERN, '<if by="$1">')
-            .replace( REGEX.ELSE_IF_PATTERN, '<else-if by="$1">')
-            .replace( REGEX.SWITCH_PATTERN, '<switch by="$1">')
-            .replace( REGEX.EVENT_PATTERN, ( match, event, expression ) => {
+            .replace( /<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
+            .replace( /<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
+            .replace( /<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">')
+            .replace( /<log\(\s*(.*?)\s*\)>/g, '<log args="$1">')
+            .replace( /on-([a-zA-Z-]+)\(((?:function\s*(?:\w+\s*)?\([^)]*\)\s*{[\s\S]*?}|\([^)]*\)\s*=>[\s\S]*?|[^)]+))\)(?=[>\s])/g, ( match, event, expression ) => {
               /**
                * If we're dealing with complex functions, 
                * we might need to handle nested brackets
@@ -206,7 +197,9 @@ export default class Lips<Context = any> {
 
 export class Component<Input = void, State = void, Static = void, Context = void> {
   private template: string
+  private macros: TObject<string>
   private $?: Cash
+
   public input: Input
   public state: State
   public static: Static
@@ -215,11 +208,13 @@ export class Component<Input = void, State = void, Static = void, Context = void
   private __name__: string
   private __state?: State // Partial state
   private __stylesheet?: Stylesheet
-  private __macros: TObject<string>
-  private __components: TObject<Component> = {}
+  private __macros: Map<string, Cash> = new Map() // Cached macros templates
+  private __components: Map<string, Component> = new Map() // Cached nexted components
   private __events: TObject<EventListener[]> = {}
   private __once_events: TObject<EventListener[]> = {}
   private __attachableEvents: { $node: Cash, _event: string, instruction: string, scope?: TObject<any> }[] = []
+
+  private __templateCache: Map<string, Cash> = new Map()
 
   /**
    * Nexted Component Count (NCC) in tree
@@ -229,6 +224,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
   private prekey = '0'
   private debug = false
   private isRendered = false
+  private enableSmartDiff = true
+  private enableTemplateCache = true
 
   private _setInput: ( input: Input ) => void
   private _setState: ( state: State ) => void
@@ -237,6 +234,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
   // Internal Update Clock (IUC)
   private IUC: NodeJS.Timeout
   private IUC_BEAT = 5 // ms
+  private SEC: EffectControl // Signal Effect Controls
+  private parallel = new ParallelExecutor
 
   public lips?: Lips
   private benchmark: Benchmark
@@ -249,13 +248,15 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
   constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet, macros }: ComponentScope<Input, State, Static, Context>, options?: ComponentOptions ){
     this.template = preprocessTemplate( template )
+    this.macros = macros || {}
 
     if( options?.lips ) this.lips = options.lips    
     if( options?.debug ) this.debug = options.debug
     if( options?.prekey ) this.prekey = options.prekey
+    if( options?.enableSmartDiff ) this.enableSmartDiff = options.enableSmartDiff
+    if( options?.enableTemplateCache ) this.enableTemplateCache = options.enableTemplateCache
 
     this.__name__ = name
-    this.__macros = macros || {}
 
     const cssOptions = {
       css: stylesheet,
@@ -300,7 +301,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
        * Merge with initial/active state.
        */
       this.state
-      && isDiff( this.__state as TObject<any>, this.state as TObject<any> )
+      && isDiff( this.__state as Record<string, any>, this.state as Record<string, any> )
       && this.setState( this.state )
     }, this.IUC_BEAT )
 
@@ -313,7 +314,9 @@ export class Component<Input = void, State = void, Static = void, Context = void
     && context.length
     && this.lips?.useContext( context, ctx => isDiff( this.context as TObject<any>, ctx ) && setContext( ctx ) )
 
-    effect( () => {
+    this.SEC = effect( () => {
+      console.time('effect')
+      
       this.input = getInput()
       this.state = getState()
       this.context = getContext()
@@ -334,9 +337,12 @@ export class Component<Input = void, State = void, Static = void, Context = void
       /**
        * Render/Rerender component
        */
-      if( this.isRendered ) this.rerender()
+      console.time('re*nder')
+      if( this.isRendered ){
+        this.detachEvents()
+        this.rerender()
+      }
       else {
-
         /**
          * Triggered before component get rendered
          * for the first time.
@@ -349,7 +355,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
         // Assign CSS relationship attribute
         this.$.attr('rel', this.__name__ )
       }
-
+      console.timeEnd('re*nder')
+      
       /**
        * Attach/Reattach extracted events
        * listeners anytime component get rendered.
@@ -357,8 +364,9 @@ export class Component<Input = void, State = void, Static = void, Context = void
        * This to avoid loosing binding to attached
        * DOM element's events
        */
-      this.detachEvents()
+      console.time('attach-events')
       this.attachEvents()
+      console.timeEnd('attach-events')
 
       /**
        * Log benchmark table
@@ -381,7 +389,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
        */
       !this.isRendered
       && typeof this.onMount == 'function'
-      && this.onMount.bind(this)()
+      && this.onMount.bind(this)( this.input )
 
       /**
        * Flag to know when element is initially or force
@@ -394,6 +402,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
        */
       typeof this.onRender == 'function'
       && this.onRender.bind(this)()
+
+      console.timeEnd('effect')
     })
   }
 
@@ -402,10 +412,9 @@ export class Component<Input = void, State = void, Static = void, Context = void
     
     return state && typeof state == 'object' && state[ key ]
   }
-  setState( data: State ){
+  setState( data: Partial<Record<keyof State, any>> ){
     const state = this._getState()
-
-    this._setState({ ...state, ...data })
+    this._setState({ ...state, ...data } as State )
     
     /**
      * Triggered anytime component state gets updated
@@ -437,7 +446,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
   subInput( data: TObject<any> ){
     if( typeof data !== 'object' ) 
       return this.getNode()
-    
+
     this.setInput( deepAssign<Input>( this.input, data ) )
   }
   setHandler( list: Handler<Input, State, Static, Context> ){
@@ -457,6 +466,23 @@ export class Component<Input = void, State = void, Static = void, Context = void
   }
 
   render( $nodes?: Cash, scope: VariableScope = {} ){
+    if( $nodes && !$nodes.length ){
+      console.warn('Undefined node element to render')
+      return $nodes
+    }
+
+    /**
+     * Try to get from cache first
+     */
+    // const
+    // cacheKey = this.getCacheKey( $nodes?.prop('outerHTML') || this.template, scope ),
+    // cached = this.getCachedTemplate( cacheKey )
+    // if( cached ){
+    //   this.benchmark.inc('cacheHit')
+    //   return cached
+    // }
+
+    
     const self = this
     /**
      * Initialize an empty cash object to 
@@ -472,8 +498,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
       .entries( attributes )
       .forEach( ([ key, assign ]) => {
         // Process spread assign
-        if( REGEX.SPREAD_VAR_PATTERN.test( key ) ){
-          const spreads = self.__evaluate__( key.replace( REGEX.SPREAD_VAR_PATTERN, '' ) as string, scope )
+        if( SPREAD_VAR_PATTERN.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
           if( typeof spreads !== 'object' )
             throw new Error(`Invalid spread operator ${key}`)
 
@@ -507,8 +533,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
       .entries( attributes )
       .forEach( ([ key, assign ]) => {
         // Process spread assign
-        if( REGEX.SPREAD_VAR_PATTERN.test( key ) ){
-          const spreads = self.__evaluate__( key.replace( REGEX.SPREAD_VAR_PATTERN, '' ) as string, scope )
+        if( SPREAD_VAR_PATTERN.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
           if( typeof spreads !== 'object' )
             throw new Error(`Invalid spread operator ${key}`)
 
@@ -543,9 +569,10 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
     function execFor( $node: Cash ){
       const
-      $contents = $node.contents() as Cash,
-      _in = self.__evaluate__( $node.attr('in') as string, scope )
+      $contents = $node.contents() as Cash
+      if( !$contents.length ) return $()
 
+      const _in = self.__evaluate__( $node.attr('in') as string, scope )
       let
       $fragment = $(),
       _from = $node.attr('from') as any,
@@ -653,9 +680,11 @@ export class Component<Input = void, State = void, Static = void, Context = void
     }
 
     function execIf( $node: Cash ){
+      const $ifContents = $node.contents()
+      if( !$ifContents.length ) return $()
+
       const 
       $fragment = $(),
-      $ifContents = $node.contents(),
       condition = $node.attr('by')
 
       // Evaluate the primary <if(condition)>
@@ -745,12 +774,19 @@ export class Component<Input = void, State = void, Static = void, Context = void
       return $fragment
     }
 
+    function execLog( $node: Cash ){
+      const args = $node.attr('args')
+      if( !args ) return
+      
+      console.log( self.__evaluate__( args, scope ) )
+    }
+
     function execMacro( $node: Cash ){
       const name = $node.prop('tagName')?.toLowerCase() as string
       if( !name )
         throw new Error('Undefined macro')
 
-      if( !self.__macros[ name ] )
+      if( !self.macros[ name ] )
         throw new Error('Macro component not found')
       
       // Initial macro input
@@ -761,7 +797,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
        * as `__slot__`
        */
       const nodeContents = $node.contents()
-      if( nodeContents ){
+      if( nodeContents && nodeContents.length ){
         const $el = self.render( nodeContents, scope )
         macroInput.__slot__ = $el.html() || $el.text()
       }
@@ -793,8 +829,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
         }
 
         // Process spread operator attributes
-        else if( REGEX.SPREAD_VAR_PATTERN.test( key ) ){
-          const spreads = self.__evaluate__( key.replace( REGEX.SPREAD_VAR_PATTERN, '' ) as string, scope )
+        else if( SPREAD_VAR_PATTERN.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
           if( typeof spreads !== 'object' )
             throw new Error(`Invalid spread operator ${key}`)
 
@@ -803,11 +839,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
         }
 
         // Regular macro input attributes
-        else {
-          macroInput[ key ] = value ?
-                          self.__evaluate__( value as string, scope )
-                          : true
-        }
+        else macroInput[ key ] = value ? self.__evaluate__( value as string, scope ) : true
       })
 
       /**
@@ -820,9 +852,19 @@ export class Component<Input = void, State = void, Static = void, Context = void
       }
 
       let $fragment = $()
-      const $macro = self.render( $( preprocessTemplate( self.__macros[ name ] ) ), scope )
 
-      $fragment = $fragment.add( $macro )
+      // First check template from cache
+      const $macroCached = self.__macros.get( name )
+      if( $macroCached?.length )
+        $fragment = $fragment.add( self.render( $macroCached, scope ) )
+      
+      else {
+        const $macro = $( preprocessTemplate( self.macros[ name ] ) )
+        $fragment = $fragment.add( self.render( $macro, scope ) )
+
+        // Cache macro template to be reused
+        self.__macros.set( name, $macro )
+      }
 
       /**
        * BENCHMARK: Tracking total elements rendered
@@ -862,8 +904,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
         }
 
         // Process spread operator attributes
-        else if( REGEX.SPREAD_VAR_PATTERN.test( key ) ){
-          const spreads = self.__evaluate__( key.replace( REGEX.SPREAD_VAR_PATTERN, '' ) as string, scope )
+        else if( SPREAD_VAR_PATTERN.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
           if( typeof spreads !== 'object' )
             throw new Error(`Invalid spread operator ${key}`)
 
@@ -895,7 +937,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
        */
       const
       nodeContents = $node.contents()
-      if( nodeContents ){
+      if( nodeContents && nodeContents.length ){
         const $el = self.render( nodeContents, scope )
         input.__slot__ = $el.html() || $el.text()
       }
@@ -903,14 +945,15 @@ export class Component<Input = void, State = void, Static = void, Context = void
       let $fragment = $()
       
       /**
-       * Update previously rendered component by
+       * Update previously cached component by
        * injecting updated inputs
        */
-      if( self.__components[ __key__ ] ){
-        self.__components[ __key__ ].setInput( deepClone( input ) )
+      const cached = self.__components.get( __key__ )
+      if( cached ){
+        cached.setInput( deepClone( input ) )
 
         // Replace the original node with the fragment in the DOM
-        $fragment = $fragment.add( self.__components[ __key__ ].getNode() )
+        $fragment = $fragment.add( cached.getNode() )
       }
       /**
        * Render the whole component for first time
@@ -933,7 +976,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
         
         $fragment = $fragment.add( component.getNode() )
         // Replace the original node with the fragment in the DOM
-        self.__components[ __key__ ] = component
+        self.__components.set( __key__, component )
 
         // Listen to this nexted component's events
         Object
@@ -1064,9 +1107,10 @@ export class Component<Input = void, State = void, Static = void, Context = void
       else if( $node.is('for') ) return execFor( $node )
       else if( $node.is('switch') ) return execSwitch( $node )
       else if( $node.is('async') ) return execAsync( $node )
+      else if( $node.is('log') ) return execLog( $node )
       
       // Identify and render macro components
-      else if( $node.prop('tagName')?.toLowerCase() in self.__macros )
+      else if( $node.prop('tagName')?.toLowerCase() in self.macros )
         return execMacro( $node )
       
       // Identify and render custom components
@@ -1077,11 +1121,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
       return execElement( $node )
     }
 
-    if( $nodes && !$nodes.length ){
-      console.warn('Undefined node element to render')
-      return $nodes
-    }
-    
     try {
       // Process nodes
       $nodes = $nodes || $(this.template)
@@ -1096,7 +1135,12 @@ export class Component<Input = void, State = void, Static = void, Context = void
      * BENCHMARK: Tracking total occurence of recursive rendering
      */
     self.benchmark.inc('renderCount')
-  
+
+    /**
+     * Cache the result before returning
+     */
+    // this.cacheTemplate( cacheKey, _$ )
+
     return _$
   }
   /**
@@ -1108,12 +1152,125 @@ export class Component<Input = void, State = void, Static = void, Context = void
       throw new Error('Component template is empty')
 
     const $clone = this.render()
-
-    this.$?.replaceWith( $clone )
-    this.$ = $clone
+    // if( this.enableSmartDiff && this.$ )
+    //   this.$ = this.updateChangedParts( this.$, $clone )
     
+    // else {
+      this.$?.replaceWith( $clone )
+      this.$ = $clone
+    // }
+
     // Reassign CSS relationship attribute
     this.$.attr('rel', this.__name__ )
+  }
+
+  /**
+   * Create a unique key based on template 
+   * and scope values
+   */
+  private getCacheKey( template: string, scope: VariableScope = {} ): string {
+    // 
+    const scopeValues = Object.entries( scope )
+                              .map(([ key, value ]) => `${key}:${JSON.stringify(value.value)}`)
+                              .join('|')
+
+    return `${template}:${scopeValues}`
+  }
+
+  private cacheTemplate( key: string, $node: Cash ): void {
+    this.enableTemplateCache && this.__templateCache.set( key, $node.clone() )
+  }
+  private getCachedTemplate( key: string ): Cash | undefined {
+    if( !this.enableTemplateCache )
+      return
+
+    return this.__templateCache.get( key )?.clone()
+  }
+  // Add benchmark tracking for optimizations
+  // private initBenchmark(): void {
+  //   this.benchmark.addMetric('cacheHit', 'Template cache hits')
+  //   this.benchmark.addMetric('diffSkip', 'Nodes skipped by smart diff')
+  // }
+
+  /**
+   * Smart Diffing Implementation
+   */
+  private nodesEqual( $old: Cash, $new: Cash ): boolean {
+    if( !this.enableSmartDiff ) return false
+    
+    // Compare tag names
+    if( $old.prop('tagName') !== $new.prop('tagName') ) return false
+    
+    // Compare attributes
+    const 
+    oldAttrs = ($old as any).attrs(),
+    newAttrs = ($new as any).attrs()
+
+    if( !this.attributesEqual( oldAttrs, newAttrs ) )return false
+    
+    // Compare text content for text nodes
+    if( $old[0]?.nodeType === Node.TEXT_NODE 
+        && $new[0]?.nodeType === Node.TEXT_NODE )
+      return $old.text() === $new.text()
+    
+    // Compare children length
+    if( $old.children().length !== $new.children().length ) return false
+    
+    return true
+  }
+
+  private attributesEqual( oldAttrs: Record<string, any>, newAttrs: Record<string, any> ): boolean {
+    const
+    oldKeys = Object.keys( oldAttrs ),
+    newKeys = Object.keys( newAttrs )
+    
+    if( oldKeys.length !== newKeys.length ) return false
+    
+    return oldKeys.every( key => {
+      // Special handling for event handlers (on-*)
+      if( key.startsWith('on-') ) return true
+
+      return oldAttrs[ key ] === newAttrs[ key ]
+    })
+  }
+
+  private updateChangedParts( $old: Cash, $new: Cash ): Cash {
+    if( !this.enableSmartDiff ) return $new
+    
+    // If nodes are equal, keep the old one
+    if( this.nodesEqual( $old, $new ) ){
+      this.benchmark.inc('diffSkip')
+      return $old
+    }
+    
+    // Update attributes if needed
+    const
+    oldAttrs = ($old as any).attrs(),
+    newAttrs = ($new as any).attrs()
+    
+    Object
+    .keys( newAttrs )
+    .forEach( key => oldAttrs[ key ] !== newAttrs[ key ] && $old.attr( key, newAttrs[ key ]) )
+    
+    // Remove attributes that are not in new node
+    Object
+    .keys( oldAttrs )
+    .forEach( key => !( key in newAttrs ) && $old.removeAttr( key ) )
+    
+    // Update children recursively
+    const
+    $oldChildren = $old.children(),
+    $newChildren = $new.children()
+    
+    $oldChildren.each( ( ch, oldChild ) => {
+      const
+      $oldChild = $(oldChild),
+      $newChild = $newChildren.eq( ch )
+      
+      $newChild.length && this.updateChangedParts( $oldChild, $newChild )
+    })
+    
+    return $old
   }
 
   private __evaluate__( script: string, scope?: VariableScope ){
@@ -1142,7 +1299,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
     catch( error ){ return script }
   }
   private __interpolate__( str: string, scope?: VariableScope ){
-    return str.replace( REGEX.INTERPOLATION, ( _, expr) => this.__evaluate__( expr, scope ) )
+    return str.replace( /{\s*([^{}]+)\s*}/g, ( _, expr) => this.__evaluate__( expr, scope ) )
   }
   private __attachEvent__( element: Cash | Component, _event: string, instruction: string, scope?: VariableScope ){
     /**
@@ -1153,7 +1310,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
      *  `on-click="() => console.log('Hello world')"`
      *  `on-change="e => self.onChange(e)"`
      */
-    if( REGEX.FUNCTION_PATTERN.test( instruction ) )
+    if( /(\s*\w+|\s*\([^)]*\)|\s*)\s*=>\s*(\s*\{[^}]*\}|\s*[^\n;"]+)/g.test( instruction ) )
       element.on( _event, this.__evaluate__( instruction, scope ) )
 
     /**
@@ -1195,41 +1352,61 @@ export class Component<Input = void, State = void, Static = void, Context = void
   }
 
   attachEvents(){
-    this.__attachableEvents.forEach( ({ $node, _event, instruction, scope }) => {
+    this.parallel.add( () => this.__attachableEvents.forEach( ({ $node, _event, instruction, scope }) => {
       $node.off( _event )
       && this.__attachEvent__( $node, _event, instruction, scope )
-    } )
+    } ) )
 
     /**
      * Also propagate to nexted component
      */
-    Object
-    .values( this.__components )
-    .forEach( component => component.attachEvents() )
+    this.parallel.add( () => Object
+                              .values( this.__components )
+                              .forEach( component => component.attachEvents() ) )
   }
   detachEvents(){
-    this.__attachableEvents.forEach( ({ $node, _event }) => this.__detachEvent__( $node, _event ) )
+    this.parallel.add( () => this.__attachableEvents.forEach( ({ $node, _event }) => this.__detachEvent__( $node, _event ) ) )
 
     /**
      * Also propagate to nexted component
      */
-    Object
-    .values( this.__components )
-    .forEach( component => component.detachEvents() )
+    this.parallel.add( () => Object
+                              .values( this.__components )
+                              .forEach( component => component.detachEvents() ) )
   }
   
   destroy(){
-    // Destroy nexted components as well
+    /**
+     * Dispose signal effect dependency of this
+     * component.
+     */
+    this.SEC.dispose()
+
+    /**
+     * Detached all events
+     */
+    this.detachEvents()
+
+    /**
+     * Destroy nexted components as well
+     */
     for( const each in this.__components ){
-      this.__components[ each ].destroy()
-      delete this.__components[ each ]
+      const component = this.__components.get( each )
+
+      component?.destroy()
+      component?.delete( each )
     }
 
-    this.detachEvents()
+    /**
+     * Clear component and its styles from 
+     * the DOM
+     */
     this.$?.remove()
     this.__stylesheet?.clear()
 
-    // Turn off IUC
+    /**
+     * Turn off this component's IUC
+     */
     clearInterval( this.IUC )
   }
 

@@ -1,4 +1,8 @@
 
+/**
+ * Optimized deep difference checker with support for Map, Set,
+ * and various JS built-in types
+ */
 export function isDiff( aObject: ObjectType<any>, bObject: ObjectType<any> ){
   // Early reference equality check
   if( aObject === bObject ) return false
@@ -9,20 +13,136 @@ export function isDiff( aObject: ObjectType<any>, bObject: ObjectType<any> ){
   // Early null check
   if( aObject === null || bObject === null ) return true
 
-  // Handle Map objects
+  // Handle Set objects with optimized comparison
+  if( aObject instanceof Set ){
+    if( !( bObject instanceof Set ) ) return true
+    if( aObject.size !== bObject.size ) return true
+    
+    // Fast path for primitive-only Sets
+    if( isPrimitiveSet( aObject ) && isPrimitiveSet( bObject ) ){
+      for( const value of aObject ){
+        if( !bObject.has( value ) ) return true
+      }
+      return false
+    }
+    
+    // For Sets with objects, use a Map to cache results
+    const compared = new Map()
+    
+    for( const aValue of aObject ){
+      let found = false
+      
+      if( typeof aValue !== 'object' ){
+        if( bObject.has( aValue ) ){
+          found = true
+        }
+      } else {
+        for( const bValue of bObject ){
+          // Skip if value types don't match
+          if( typeof bValue !== 'object' ) continue
+          
+          // Check cache first
+          const cacheKey = aValue + ':' + bValue
+          if( compared.has( cacheKey ) ){
+            found = compared.get( cacheKey )
+            if( found ) break
+            continue
+          }
+          
+          // Compare objects
+          const result = !isDiff( aValue, bValue )
+          compared.set( cacheKey, result )
+          
+          if( result ){
+            found = true
+            break
+          }
+        }
+      }
+      
+      if( !found ) return true
+    }
+    
+    return false
+  }
+
+  // Handle Map objects with optimized comparison
   if( aObject instanceof Map ){
     if( !( bObject instanceof Map ) ) return true
     if( aObject.size !== bObject.size ) return true
-    
-    // Use entries iterator for better performance with large Maps
-    const aEntries = Array.from( aObject.entries() )
-    for( let i = 0; i < aEntries.length; i++ ){
-      const [key, value] = aEntries[i]
-      if( !bObject.has( key ) ) return true
-      const bValue = bObject.get( key )
-      // Early exit on primitive comparison
-      if( value !== bValue && ( typeof value !== 'object' || isDiff( value, bValue ) ) ) return true
+
+    // Fast path for primitive-only Maps
+    if( isPrimitiveMap( aObject ) && isPrimitiveMap( bObject ) ){
+      for( const [key, aValue] of aObject ){
+        // Get is O(1) and already checks existence
+        const bValue = bObject.get( key )
+        if( bValue !== aValue ) return true
+      }
+      return false
     }
+
+    // For Maps with object keys/values
+    const compared = new Map()
+
+    for( const [aKey, aValue] of aObject ){
+      // Handle primitive keys using direct lookup
+      if( typeof aKey !== 'object' ){
+        if( !bObject.has( aKey ) ) return true
+        
+        const bValue = bObject.get( aKey )
+        
+        // Quick check for primitive values
+        if( typeof aValue !== 'object' ){
+          if( aValue !== bValue ) return true
+          continue
+        }
+
+        // Deep compare object values
+        if( typeof bValue !== 'object' || isDiff( aValue, bValue ) ) return true
+        continue
+      }
+
+      // Handle object keys
+      let keyFound = false
+      let valueMatched = false
+
+      // Compare each key deeply since keys are objects
+      for( const [bKey, bValue] of bObject ){
+        if( typeof bKey !== 'object' ) continue
+
+        // Check key comparison cache
+        const cacheKey = `${aKey}:${bKey}`
+        if( compared.has( cacheKey ) ){
+          const [keyMatch, valueMatch] = compared.get( cacheKey )
+          if( keyMatch ){
+            keyFound = true
+            valueMatched = valueMatch
+            break
+          }
+          continue
+        }
+
+        // Compare keys
+        if( !isDiff( aKey, bKey ) ){
+          keyFound = true
+          
+          // Compare values only if keys match
+          valueMatched = typeof aValue === 'object' && typeof bValue === 'object' ?
+                        !isDiff( aValue, bValue ) :
+                        aValue === bValue
+
+          // Cache both key and value comparison results
+          compared.set( cacheKey, [true, valueMatched] )
+          
+          if( valueMatched ) break
+        } else {
+          compared.set( cacheKey, [false, false] )
+        }
+      }
+
+      if( !keyFound || !valueMatched ) return true
+    }
+
     return false
   }
 
@@ -72,8 +192,20 @@ export function isDiff( aObject: ObjectType<any>, bObject: ObjectType<any> ){
       continue
     }
 
+    if( aVal instanceof RegExp ){
+      if( !( bVal instanceof RegExp ) 
+          || aVal.source !== bVal.source 
+          || aVal.flags !== bVal.flags ) return true
+      continue
+    }
+
     if( aVal instanceof Map ){
       if( !( bVal instanceof Map ) || isDiff( aVal, bVal ) ) return true
+      continue
+    }
+
+    if( aVal instanceof Set ){
+      if( !( bVal instanceof Set ) || isDiff( aVal, bVal ) ) return true
       continue
     }
 
@@ -97,6 +229,25 @@ export function isDiff( aObject: ObjectType<any>, bObject: ObjectType<any> ){
   }
 
   return false
+}
+
+// Helper to check if Set contains only primitives
+function isPrimitiveSet( set: Set<any> ): boolean {
+  for( const item of set )
+    if( typeof item === 'object' && item !== null ) 
+      return false
+  
+  return true
+}
+
+// Helper to check if Map contains only primitives for both keys and values
+function isPrimitiveMap( map: Map<any, any> ): boolean {
+  for( const [key, value] of map )
+    if( (typeof key === 'object' && key !== null) 
+        || (typeof value === 'object' && value !== null) ) 
+      return false
+
+  return true
 }
 
 export function deepClone( obj: any, seen = new WeakMap() ){

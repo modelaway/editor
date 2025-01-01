@@ -3,7 +3,7 @@ import type { FrameOption } from '../../types/frame'
 
 import $, { type Cash } from 'cash-dom'
 import EventEmitter from 'events'
-import Views from '../views'
+import Elements from '../elements'
 import { debug, generateKey } from '../utils'
 import {
   MEDIA_SCREENS,
@@ -125,9 +125,9 @@ export default class Frame extends EventEmitter {
   private DOM: ShadowDOMEvents
 
   /**
-   * Initialize views manager
+   * Initialize UI elements manager
    */
-  public views = new Views( this )
+  public elements = new Elements( this )
 
   constructor( editor: Editor, options: FrameOption ){
     super()
@@ -190,7 +190,7 @@ export default class Frame extends EventEmitter {
      */
     this.$.length
     && this.editor.settings.autoPropagate
-    && this.views.propagate( this.$ )
+    && this.elements.propagate( this.$ )
 
     // Activate all inert add-view alleys
     this.enableAlleys('active')
@@ -226,8 +226,8 @@ export default class Frame extends EventEmitter {
      */
     const selectors = `${this.editor.settings.viewOnly ? VIEW_IDENTIFIER : ''}:not([${VIEW_ALLEY_SELECTOR}],[${CONTROL_PANEL_SELECTOR}] *)`
     this.editor.settings.hoverSelect ?
-              this.DOM.on('mouseover', selectors, function( this: Cash ){ self.views.lookup.bind( self.views )( $(this) ) })
-              : this.DOM.on('click', selectors, function( this: Cash ){ self.views.lookup.bind( self.views )( $(this) ) })
+              this.DOM.on('mouseover', selectors, function( this: Cash ){ self.elements.lookup.bind( self.elements )( $(this) ) })
+              : this.DOM.on('click', selectors, function( this: Cash ){ self.elements.lookup.bind( self.elements )( $(this) ) })
 
     this.DOM
     /**
@@ -240,7 +240,7 @@ export default class Frame extends EventEmitter {
       if( !key ) return
 
       // Show toolbar
-      const view = self.views.get( key )
+      const view = self.elements.get( key )
       view?.showToolbar()
     } )
 
@@ -254,7 +254,7 @@ export default class Frame extends EventEmitter {
       if( !key ) return
 
       // Show floating
-      const view = self.views.get( key )
+      const view = self.elements.get( key )
       view?.showFloating()
     } )
 
@@ -266,8 +266,8 @@ export default class Frame extends EventEmitter {
     // Disable add-view alleys
     this.enableAlleys('inert')
 
-    // Clear views meta data
-    this.views?.clear()
+    // Clear elements meta data
+    this.elements?.clear()
     // Remove frame element from the DOM
     this.$frame.remove()
 

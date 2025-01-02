@@ -1,18 +1,20 @@
 import $, { type Cash } from 'cash-dom'
 import EventEmitter from 'events'
 
-import I18N from './i18n'
-import Store from './store'
-import Canvas from './canvas'
-import Assets from './assets'
-import Plugins from './plugins'
-import History from './history'
-import Functions from './functions'
-import { debug } from './utils'
-import Viewport from './factory/viewport'
-import Toolbar from './factory/toolbar'
-import Layers from './factory/layers'
-import { GLOBAL_CONTROL_OPTIONS } from './constants'
+import I18N from '../i18n'
+import Store from '../store'
+import Canvas from '../canvas'
+import Assets from '../assets'
+import Plugins from '../plugins'
+import History from '../history'
+import Functions from '../functions'
+import * as Controls from './controls'
+import Viewport from '../factory/viewport'
+import House, { HouseInput } from '../factory/house'
+import Toolbar, { ToolbarInput } from '../factory/toolbar'
+import Layers from '../factory/layers'
+import { debug } from '../utils'
+import { GLOBAL_CONTROL_OPTIONS } from '../constants'
 
 window.mlang = {
   default: 'en-US',
@@ -49,16 +51,6 @@ export default class Editor {
     lang: undefined,
 
     /**
-     * Listen to click event on only element that
-     * has `.view` class name.
-     * 
-     * `.view` class name identify view components
-     * 
-     * Default: Any `html` tag/element editable by modela
-     */
-    viewOnly: false,
-
-    /**
      * Enable selection of view when overed by a cursor
      * 
      * Default: false
@@ -75,18 +67,29 @@ export default class Editor {
      * Automatically lookup and apply view rules
      * across the document elements on document load
      */
-    autoPropagate: false
+    autoPropagate: false,
+
+    /**
+     * Workspace view preferences
+     */
+    viewToolbar: true,
+    viewLayers: true,
+    viewHouse: true
   }
   public settings: ModelaSettings = {}
 
   public $root?: Cash
-  public $global?: Cash
   public $viewport?: Cash
 
   /**
    * Copy element clipboard
    */
   public clipboard: ClipBoard | null = null
+
+  /**
+   * Editor's space controls
+   */
+  public controls = Controls
 
   /**
    * Manage history stack throughout every 
@@ -185,6 +188,18 @@ export default class Editor {
     this.plugins = new Plugins( this )
   }
 
+  /**
+   * Update global controls options by settings
+   * and preferences.
+   */
+  private getOptions(): Record<string, ToolbarOption> {
+
+    if( this.settings.viewLayers )
+      GLOBAL_CONTROL_OPTIONS['frame-layers'].active = true
+
+    return GLOBAL_CONTROL_OPTIONS
+  }
+
   mount( selector: string ){
     if( !this.enabled ){
       debug('Modela functions disabled')
@@ -232,24 +247,67 @@ export default class Editor {
     if( !this.$viewport?.length )
       throw new Error('Unexpected error occured')
     
-    /**
+    /**----------------------------------------------------
+     * Initialize global house
+     * ----------------------------------------------------
+     */
+    const
+    hinput: HouseInput = { 
+      key: 'global',
+      // options: this.getOptions(),
+      settings: {
+        visible: this.settings.viewHouse,
+      }
+    },
+    house = House( hinput, { events: this.events })
+    house.appendTo( this.$viewport )
+
+    this.events.on('house.handle', ( key, option ) => {
+      console.log('global house --', key, option )
+    })
+    
+    /**----------------------------------------------------
      * Initialize global toolbar
+     * ----------------------------------------------------
      */
     const 
-    toolbar = Toolbar({ key: 'global', options: GLOBAL_CONTROL_OPTIONS }, { events: this.events })
+    tinput: ToolbarInput = {
+      key: 'global',
+      options: this.getOptions(),
+      settings: {
+        visible: this.settings.viewToolbar,
+      }
+    },
+    toolbar = Toolbar( tinput, { events: this.events })
     toolbar.appendTo( this.$viewport )
 
     this.events.on('toolbar.handle', ( key, option ) => {
       console.log('global toolbar --', key, option )
+
+      switch( key ){
+        case 'frame-layers': {
+          if( !option.active ){
+            layers.getNode().show()
+            toolbar.subInput({ [`options.${key}.active`]: true })
+          }
+          else {
+            layers.getNode().hide()
+            toolbar.subInput({ [`options.${key}.active`]: false })
+          }
+        }
+      }
     })
     
-    /**
+    /**----------------------------------------------------
      * Initialize frame layers control
+     * ----------------------------------------------------
      */
     const
     linput = {
-      key: 'layers',
-      settings: GLOBAL_CONTROL_OPTIONS,
+      key: 'global',
+      settings: {
+        visible: this.settings.viewLayers,
+      },
       content: `
         <section class="header-block">
           <div class="container-fluid">
@@ -273,17 +331,12 @@ export default class Editor {
         </section>
       `
     },
-    layers = Layers( linput, { events: this.events })
+    layers = Layers( linput, { events: this.events, editor: this })
     layers.appendTo( this.$viewport )
 
     this.events.on('layers.handle', ( key, option ) => {
-      console.log('layers --', key, option )
+      console.log('frame layers --', key, option )
     })
-
-    /**
-     * 
-     */
-    this.$global = viewport.find(':scope > mglobal')
 
     /**
      * Enable canvas controls
@@ -293,10 +346,10 @@ export default class Editor {
     /**
      * List to history record stack Stats
      */
-    this.history.on('history.record', ({ canRedo, canUndo }) => toolbar.subInput({
-      'options.undo.disabled': !canUndo,
-      'options.redo.disabled': !canRedo
-    }))
+    // this.history.on('history.record', ({ canRedo, canUndo }) => toolbar.subInput({
+    //   'options.undo.disabled': !canUndo,
+    //   'options.redo.disabled': !canRedo
+    // }))
   }
 
   disable(){

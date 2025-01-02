@@ -1,4 +1,4 @@
-import type { Cash } from 'cash-dom'
+import $, { type Cash } from 'cash-dom'
 
 declare global {
   interface String {

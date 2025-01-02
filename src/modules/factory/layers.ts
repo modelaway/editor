@@ -1,11 +1,12 @@
 import type { Handler } from '../../lib/lips'
+import type { HandlerHook } from '../../types/controls'
 
 import $ from 'cash-dom'
 import Lips, { Component } from '../../lib/lips/lips'
 import { VIEW_KEY_SELECTOR } from '../constants'
 
 export type LayersSettings = {
-
+  visible?: boolean
 }
 
 export type LayerElement = {
@@ -52,7 +53,7 @@ export class Traverser {
    */
   private getElementType( element: Element ): LayerElement['type'] {
     const tagName = (element.tagName || '').toLowerCase()
-    
+
     if( tagName )
       switch( tagName ){
         case 'img': return 'image'
@@ -318,11 +319,49 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
 
       }
     },
-    onCollapse(){ this.state.collapsed = !this.state.collapsed }
+    onMount(){
+      hook?.editor?.controls.movable( this.getNode(), this.find('.header'), ( _, _event, position ) => {
+        switch( _event ){
+          case 'started':
+          case 'moving': console.log('moving --', position ); break
+          case 'stopped': {
+            this.input.position = {
+              left: `${position.left}px`,
+              top: `${position.top}px`
+            }
+            
+            hook?.events?.emit('layers.handle', 'position', position )
+          } break
+        }
+      })
+
+      // Set to default position
+      setTimeout(  () => {
+        const defPostion = hook?.editor?.controls.letPosition( this.getNode(), 'bottom-right' )
+        if( !defPostion ) return
+        
+        this.input.position = defPostion
+        this.getNode().css( defPostion )
+      }, 500 )
+    },
+    onCollapse(){ this.state.collapsed = !this.state.collapsed },
+
+    getStyle(){
+      let style: Record<string, string> = {
+        display: this.input.settings?.visible ? 'block' : 'none'
+      }
+
+      if( this.input.position ){
+        style.left = this.input.position.left
+        style.top = this.input.position.top
+      }
+      
+      return style
+    }
   }
 
   const template = `
-    <mblock style="typeof input.position == 'object' && { left: input.position.left, top: input.position.top }">
+    <mblock style=self.getStyle()>
       <mblock class="header">
         <micon class="bx bx-list-minus ill-icon"></micon>
         <mlabel>Layers</mlabel>
@@ -348,13 +387,11 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
 const stylesheet = `
   position: fixed;
   z-index: 200;
-  bottom: var(--me-edge-padding);
-  right: var(--me-edge-padding);
+  min-width: 15rem;
   border-radius: var(--me-border-radius);
   background-color: var(--me-secondary-color);
   box-shadow: var(--me-box-shadow);
   backdrop-filter: var(--me-backdrop-filter);
-  transition: var(--me-active-transition);
   cursor: default;
   overflow: hidden;
 
@@ -363,6 +400,7 @@ const stylesheet = `
     display: flex;
     align-items: center;
     justify-content: space-between;
+    user-select: none;
 
     .ill-icon,
     .toggle.icon { 
@@ -370,7 +408,7 @@ const stylesheet = `
     }
   }
   .body {
-    min-width: 15rem;
+    width: 100%;
     max-height: 50vh;
     overflow: auto;
   }

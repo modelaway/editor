@@ -1,10 +1,6 @@
 import type { TObject, StyleSettings } from '.'
-
 import $, { type Cash } from 'cash-dom'
-// import * as Sass from 'sass'
-import { CompileResult } from 'sass'
-
-let Sass: any
+import { compile, serialize, stringify, middleware } from 'stylis'
 
 export default class Stylesheet {
   private nsp: string
@@ -15,9 +11,6 @@ export default class Stylesheet {
     if( typeof nsp !== 'string' ) 
       throw new Error('Undefined or invalid styles attachement element(s) namespace')
     
-    // @ts-ignore
-    !Sass && import('https://jspm.dev/sass').then( lib => Sass = lib )
-
     /**
      * Unique namespace identifier of targeted 
      * views/elements
@@ -43,36 +36,33 @@ export default class Stylesheet {
   }
 
   /**
-   * Compile Sass style string to CSS string
+   * Process CSS string using Stylis
    */
-  compile( str: string ): Promise<CompileResult>{
-    return new Promise( ( resolve, reject ) => {
-      if( !Sass ){
-        let 
-        waiter: any,
-        max = 1
-        
-        const exec = () => {
-          /**
-           * TEMP: Wait 8 seconds for Sass libary to load
-           */
-          if( !Sass ){
-            if( max == 8 ){
-              clearInterval( waiter )
-              reject('Undefined Sass compiler')
-            }
-            else max++
-            
-            return
-          }
+  compile( str: string ): string {
+    try { return serialize( compile( str ), middleware([ stringify ]) ) } 
+    catch( error: any ){
+      throw new Error(`Style compilation failed: ${error.message}`)
+    }
+  }
 
-          clearInterval( waiter )
-          resolve( Sass.compileString( str ) )
+  /**
+   * Wait for styles to be applied
+   */
+  private waitForStyles( selector: string ): Promise<void>{
+    return new Promise( resolve => {
+      const observer = new MutationObserver( () => {
+        const element = document.querySelector( selector )
+        if( element && getComputedStyle( element ).cssText ){
+          observer.disconnect()
+          resolve()
         }
+      } )
 
-        waiter = setInterval( exec, 1000 )
-      }
-      else resolve( Sass.compileString( str ) )
+      observer.observe( document.documentElement, {
+        attributes: true,
+        childList: true,
+        subtree: true
+      } )
     } )
   }
 
@@ -80,40 +70,43 @@ export default class Stylesheet {
    * Compile and inject a style chunk in the DOM
    * using `<style mv-style="*">...</style>` tag
    */
-  private async inject( str: string ){
+  private async inject( str: string ): Promise<HTMLStyleElement>{
     if( !str )
       throw new Error('Invalid injection arguments')
 
     const selector = `rel="${this.settings.meta ? '@' : ''}${this.nsp}"`
+
     /**
      * Defined meta css properties or css by view 
      * elements by wrapping in a closure using the 
      * namespaces selector.
-     * 
-     * :root {
-     *    --font-size: 12px;
-     *    line-height: 1.5;
-     * }
-     * 
-     * [rel="<namespace>"] {
-     *    font-size: 12px;
-     *    &:hover {
-     *      color: #000; 
-     *    }
-     * }
      */
     str = this.settings.meta ? str : `[rel="${this.nsp}"] { ${str} }`
 
-    const result = await this.compile( str )
-    if( !result?.css )
-      throw new Error(`<component:${this.nsp}> css injection failed`)
-    
-    const $existStyle = await this.$head.find(`style[${selector}]`)
-    $existStyle.length ?
-          // Replace existing content
-          await $existStyle.html( result.css )
-          // Inject new style
-          : await (this.$head as any)[ this.settings.meta ? 'prepend' : 'append' ](`<style ${selector}>${result.css}</style>`)
+    try {
+      const css = this.compile( str )
+      if( !css )
+        throw new Error(`<component:${this.nsp}> css compilation failed`)
+
+      // Create new style element
+      const styleSheet = document.createElement('style')
+      styleSheet.setAttribute('rel', `${this.settings.meta ? '@' : ''}${this.nsp}` )
+      styleSheet.textContent = css
+
+      // Remove existing style if present
+      this.$head.find(`style[${selector}]`).remove()
+
+      // Insert new style element
+      this.settings.meta
+              ? document.head.prepend( styleSheet )
+              : document.head.appendChild( styleSheet )
+
+      return styleSheet
+    }
+    catch( error: any ){
+      console.log( error )
+      throw new Error(`Style injection failed: ${error.message}`)
+    }
   }
 
   /**
@@ -124,7 +117,10 @@ export default class Stylesheet {
     if( typeof this.settings !== 'object' )
       throw new Error('Undefined styles settings')
     
-    this.settings.css && await this.inject( this.settings.css )
+    if( this.settings.css ){
+      const styleElement = await this.inject( this.settings.css )
+      await this.waitForStyles(`style[rel="${this.settings.meta ? '@' : ''}${this.nsp}"]`)
+    }
   }
 
   /**
@@ -139,13 +135,13 @@ export default class Stylesheet {
    * Remove all injected styles from the DOM
    */
   async clear(){
-    (await this.$head.find(`style[rel="${this.settings.meta ? '@' : ''}${this.nsp}"]`)).remove()
+    this.$head.find(`style[rel="${this.settings.meta ? '@' : ''}${this.nsp}"]`).remove()
   }
 
   /**
    * Return css custom properties
    */
-  async custom(): Promise<TObject<string>> {
+  async custom(): Promise<TObject<string>>{
     return {}
   }
 
@@ -153,7 +149,7 @@ export default class Stylesheet {
    * Overridable function to return an element 
    * style attribute value as JSON object.
    */
-  async style(): Promise<TObject<string>> {
+  async style(): Promise<TObject<string>>{
     return {}
   }
 }

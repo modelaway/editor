@@ -477,7 +477,8 @@ export default class View extends EventEmitter {
      * component.
      */
     const
-    tHeight = $toolbar.find(':scope > [container]').height() || 0,
+    // tHeight = $toolbar.find(':scope > [container]').height() || 0,
+    tHeight = 47,
     dueYPosition = tHeight + (CONTROL_TOOLBAR_MARGIN * 2)
     
     const
@@ -485,7 +486,8 @@ export default class View extends EventEmitter {
     wHeight = $(window).height() || 0
 
     // Adjust by right edge
-    if( x > (wWidth - tHeight) ) x = wWidth - tHeight - CONTROL_EDGE_MARGIN
+    if( x > (wWidth - tHeight) )
+      x = wWidth - tHeight - CONTROL_EDGE_MARGIN
 
     /**
      * Push slightly on top of element in normal position
@@ -497,7 +499,8 @@ export default class View extends EventEmitter {
       else y -= dueYPosition
     }
     // Adjust by the bottom edges
-    if( y > (wHeight - tHeight) ) y = wHeight - tHeight - CONTROL_EDGE_MARGIN
+    if( y > (wHeight - tHeight) ) 
+      y = wHeight - tHeight - CONTROL_EDGE_MARGIN
 
     // Update toolbar position
     this.Toolbar.subInput({ position: { left: `${x}px`, top: `${y}px` } })

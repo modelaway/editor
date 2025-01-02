@@ -1,4 +1,6 @@
 import type { Handler } from '../../lib/lips'
+import type { HandlerHook } from '../../types/controls'
+
 import { Component } from '../../lib/lips/lips'
 import {
   VIEW_ALLEY_SELECTOR,

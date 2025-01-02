@@ -1,4 +1,5 @@
 import type { Handler } from '../../lib/lips'
+import type { HandlerHook } from '../../types/controls'
 
 import { Component } from '../../lib/lips/lips'
 import {
@@ -74,6 +75,19 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
       option.meta
           ? typeof hook.metacall == 'function' && hook.metacall( key, option )
           : hook.events?.emit('toolbar.handle', key, option )
+    },
+
+    getStyle(){
+      const style: Record<string, string> = {
+        display: this.input.settings?.visible ? 'block' : 'none'
+      }
+
+      if( this.input.position ){
+        style.left = this.input.position.left
+        style.top = this.input.position.top
+      }
+
+      return style
     }
   }
 
@@ -97,7 +111,7 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
   const template = `
     <mblock ${CONTROL_TOOLBAR_SELECTOR}=input.key
             class="input.settings.editing ? 'editing' : '?'"
-            style="typeof input.position == 'object' ? { left: input.position.left, top: input.position.top } : '?'">
+            style=self.getStyle()>
       <mblock container>
         <mul>
           <if( !state.subOption )>
@@ -159,5 +173,78 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
     </mblock>
   `
 
-  return new Component<ToolbarInput, ToolbarState>('toolbar', template, { input, state, handler, macros })
+  return new Component<ToolbarInput, ToolbarState>(`toolbar-${input.key}`, template, { input, state, handler, macros, stylesheet })
 }
+
+const stylesheet = `
+  position: fixed;
+  z-index: 200;
+  width: 0px;
+  cursor: default;
+  user-select: none;
+  font-size: var(--me-font-size);
+  
+  &[mv-toolbar="global"] {
+    left: var(--me-edge-padding);
+    bottom: var(--me-edge-padding);
+  }
+  > mblock > mul {
+    list-style: none;
+    margin: 0;
+    padding: 5px;
+    border-radius: var(--me-border-radius);
+    background-color: #fff;
+    box-shadow: var(--me-box-shadow);
+    backdrop-filter: var(--me-backdrop-filter);
+    transition: var(--me-active-transition);
+  }
+  
+  > mblock,
+  > mblock > mul,
+  > mblock > mul > mblock {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+  }
+
+  > mblock { padding: 6px 0; }
+  > mblock > mul:not(:first-child) {
+    margin: 0 6px;
+  }
+  mli {
+    padding: 6px;
+    margin: 2px;
+    display: inline-flex;
+    align-items: center;
+    /* color: var(--me-trigger-text-color); */
+    border-radius: var(--me-border-radius-inside);
+    transition: var(--me-active-transition);
+  }
+  mli:not(.label) {
+    cursor: pointer;
+  }
+  mli[active] {
+    color: var(--me-active-text-color);
+  }
+  mli[disabled] {
+    color: var(--me-disabled-text-color);
+    cursor: not-allowed;
+  }
+  [meta],
+  [dismiss],
+  mli:not(.label,[disabled]):hover {
+    background-color: var(--me-secondary-color-transparent);
+  }
+  mli.label > micon,
+  mli.label > mlabel {
+    cursor: default;
+    text-wrap: nowrap;
+    padding-left: 10px;
+    font-size: var(--me-font-size);
+    color: var(--me-disabled-text-color);
+  }
+  mli.label > micon { padding-left: 0; }
+  mli micon {
+    font-size: var(--me-icon-size)!important;
+  }
+`

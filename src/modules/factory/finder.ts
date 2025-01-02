@@ -1,3 +1,5 @@
+import type { HandlerHook } from '../../types/controls'
+
 import Lips, { Component } from '../../lib/lips/lips'
 import * as Helpers from './helpers'
 import {
@@ -16,7 +18,8 @@ export type SearchResult = {
 }
 export type FinderInput = {
   key: string
-  list: ObjectType<Listset> 
+  list: Record<string, Listset> 
+  results?: Record<string, SearchResult>
 }
 export type FinderState = {
   query: string

@@ -435,9 +435,11 @@ export class Component<Input = void, State = void, Static = void, Context = void
    * Inject grain/partial input to current component 
    * instead of sending a whole updated input
    */
-  subInput( data: TObject<any> ){
-    if( typeof data !== 'object' ) 
-      return this.getNode()
+  subInput( data: Record<string, any> ){
+    if( typeof data !== 'object' )
+      throw new Error('Invalid sub input data argument')
+
+    console.log( this.input, data )
 
     this.setInput( deepAssign<Input>( this.input, data ) )
   }

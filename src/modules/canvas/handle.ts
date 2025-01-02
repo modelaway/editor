@@ -381,10 +381,7 @@ export default class Handle extends EventEmitter {
      * - target element
      * - wrapper element
      */
-    if( this.$handle?.length
-        || $(e.target).is( this.options.target )
-        || $(e.target).closest( this.options.target ).length
-        || $(e.target).closest( WRAPPER_TAG ).length )
+    if( !$(e.target).is( this.editor.$viewport ) )
       return
 
     // e.cancelable && e.preventDefault()

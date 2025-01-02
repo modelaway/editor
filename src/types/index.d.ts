@@ -10,6 +10,12 @@ type Origin = {
   x: number
   y: number
 }
+type Position = {
+  left: string
+  top: string
+  right?: string
+  bottom?: string
+}
 
 type InputOptions = {
   type: 'text' | 'number' | 'checkbox' | 'radio' | 'select' | 'search'
@@ -102,8 +108,9 @@ type ToolbarOption = {
   active?: boolean
 }
 type ToolbarSettings = {
-  editing: boolean
-  detached: boolean
+  visible?: boolean
+  editing?: boolean
+  detached?: boolean
 }
 type Fieldset = {
   label?: string
@@ -125,11 +132,6 @@ type PanelSection = {
   active?: boolean
 }
 type PanelSections = ObjectType<PanelSection>
-
-interface HandlerHook { 
-  events?: EventEmitter
-  metacall?: ( key: string, data?: any ) => void
-}
 
 interface GlobalSet {
   css: Modela['css']
@@ -155,9 +157,16 @@ type ModelaPluginOption = {
 }
 type ModelaSettings = {
   lang?: string
-  viewOnly?: boolean
+
+  // Elements' manipulation settings
   hoverSelect?: boolean
   enableAlleys?: boolean
   autoPropagate?: boolean
+
   plugins?: (string | ModelaPluginOption)[]
+
+  // Workspace view preferences
+  viewToolbar?: boolean,
+  viewLayers?: boolean,
+  viewHouse?: boolean
 }

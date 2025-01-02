@@ -1,5 +1,6 @@
-import type { ViewCaption } from '../../types/view'
 import type { Handler } from '../../lib/lips'
+import type { ViewCaption } from '../../types/view'
+import type { HandlerHook } from '../../types/controls'
 
 import Lips, { Component } from '../../lib/lips/lips'
 import * as Helpers from './helpers'

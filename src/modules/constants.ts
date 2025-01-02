@@ -4,6 +4,8 @@ import french from '../languages/fr.json'
 
 export const CONTROL_ROOT = '#modela'
 
+export const EDITOR_EDGE_PADDING = '0.9rem'
+
 /**
  * Common selector use to identify view elements
  * in the DOM.
@@ -160,7 +162,7 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
     },
     disabled: true
   },
-  'frame.add': {
+  'frame-add': {
     icon: 'bx bx-plus',
     title: 'Add New Frame',
     event: {
@@ -169,7 +171,7 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
       shortcut: 'command + f'
     }
   },
-  'frame.layers': {
+  'frame-layers': {
     icon: 'bx bx-list-minus',
     title: 'Show Layers',
     event: {

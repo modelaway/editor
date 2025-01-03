@@ -42,7 +42,7 @@ export type LipsConfig = {
   debug?: boolean
 }
 export type StyleSettings = {
-  css?: string
+  sheet?: string
   meta?: boolean
   custom?: {
     enabled: boolean

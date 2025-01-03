@@ -281,7 +281,7 @@ const Text: ViewComponent = {
   
   styles( view ){
     return {
-      css: `
+      sheet: `
         min-width: 1.3rem;
         font-size: inherit;
         display: inline-block;

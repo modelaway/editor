@@ -7,8 +7,8 @@ import Canvas from '../canvas'
 import Assets from '../assets'
 import Plugins from '../plugins'
 import History from '../history'
+import Controls from './controls'
 import Functions from '../functions'
-import * as Controls from './controls'
 import Viewport from '../factory/viewport'
 import House, { HouseInput } from '../factory/house'
 import Toolbar, { ToolbarInput } from '../factory/toolbar'
@@ -89,7 +89,7 @@ export default class Editor {
   /**
    * Editor's space controls
    */
-  public controls = Controls
+  public controls: Controls
 
   /**
    * Manage history stack throughout every 
@@ -152,6 +152,11 @@ export default class Editor {
      * Manage history stack of all actions
      */
     this.history = new History()
+
+    /**
+     * Give controls to editor control views
+     */
+    this.controls = new Controls( this )
 
     /**
      * Manage store manager

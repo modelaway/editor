@@ -207,7 +207,7 @@ Paragraph: ViewComponent = {
   styles( view ){
     
     return {
-      css: `
+      sheet: `
         /* width: 100%; */
         font-size: inherit;
         content: "Loren upsum";

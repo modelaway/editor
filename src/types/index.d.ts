@@ -11,8 +11,8 @@ type Origin = {
   y: number
 }
 type Position = {
-  left: string
-  top: string
+  left?: string
+  top?: string
   right?: string
   bottom?: string
 }
@@ -70,7 +70,7 @@ type AssetData = {
 }
 
 type StyleSettings = {
-  css?: string
+  sheet?: string
   meta?: boolean
   custom?: {
     enabled: boolean

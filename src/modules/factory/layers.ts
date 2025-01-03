@@ -1,5 +1,5 @@
 import type { Handler } from '../../lib/lips'
-import type { HandlerHook } from '../../types/controls'
+import type { HandlerHook, MovableOptions } from '../../types/controls'
 
 import $ from 'cash-dom'
 import Lips, { Component } from '../../lib/lips/lips'
@@ -157,10 +157,7 @@ export class Traverser {
 export interface LayersInput {
   key: string
   settings?: LayersSettings
-  position?: {
-    left: string
-    top: string
-  }
+  position?: Position
   content?: string
   mutations?: Mutation[]
 }
@@ -319,31 +316,33 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
 
       }
     },
-    onMount(){
-      hook?.editor?.controls.movable( this.getNode(), this.find('.header'), ( _, _event, position ) => {
+    onRender(){
+      const options: MovableOptions = {
+        $handle: this.find('.header'),
+        apex: ['right', 'bottom']
+      }
+
+      this.movable = hook?.editor?.controls.movable( this.getNode(), options, ( _, _event, position ) => {
         switch( _event ){
           case 'started':
-          case 'moving': console.log('moving --', position ); break
+          case 'moving': break
           case 'stopped': {
-            this.input.position = {
-              left: `${position.left}px`,
-              top: `${position.top}px`
-            }
-            
+            this.input.position = position
             hook?.events?.emit('layers.handle', 'position', position )
           } break
         }
       })
 
       // Set to default position
-      setTimeout(  () => {
-        const defPostion = hook?.editor?.controls.letPosition( this.getNode(), 'bottom-right' )
+      !this.input.position && setTimeout( () => {
+        const defPostion = hook?.editor?.controls.letPosition( this.getNode(), 'bottom-right')
         if( !defPostion ) return
         
         this.input.position = defPostion
         this.getNode().css( defPostion )
-      }, 500 )
+      }, 5 )
     },
+    onDestroy(){ this.movable.dispose() },
     onCollapse(){ this.state.collapsed = !this.state.collapsed },
 
     getStyle(){
@@ -351,11 +350,9 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
         display: this.input.settings?.visible ? 'block' : 'none'
       }
 
-      if( this.input.position ){
-        style.left = this.input.position.left
-        style.top = this.input.position.top
-      }
-      
+      if( this.input.position )
+        style = { ...style, ...this.input.position }
+
       return style
     }
   }
@@ -387,7 +384,6 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
 const stylesheet = `
   position: fixed;
   z-index: 200;
-  min-width: 15rem;
   border-radius: var(--me-border-radius);
   background-color: var(--me-secondary-color);
   box-shadow: var(--me-box-shadow);
@@ -408,7 +404,7 @@ const stylesheet = `
     }
   }
   .body {
-    width: 100%;
+    min-width: 15rem;
     max-height: 50vh;
     overflow: auto;
   }

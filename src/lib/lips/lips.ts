@@ -258,23 +258,13 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
     this.__name__ = name
 
-    const cssOptions = {
-      css: stylesheet,
-      /**
-       * Inject root component styles into global meta
-       * style tag.
-       */
-      meta: this.__name__ === '__ROOT__'
-    }
-    this.__stylesheet = new Stylesheet( this.__name__, cssOptions )
-    this.benchmark = new Benchmark( this.debug )
-    
     this.input = input || {} as Input
     this.state = state || {} as State
     this.static = _static || {} as Static
     this.context = {} as Context
     
     handler && this.setHandler( handler )
+    stylesheet && this.setStylesheet( stylesheet )
 
     const
     [ getInput, setInput ] = signal<Input>( this.input ),
@@ -284,6 +274,13 @@ export class Component<Input = void, State = void, Static = void, Context = void
     this._setInput = setInput
     this._setState = setState
     this._getState = getState
+    
+    /**
+     * Track rendering cycle metrics to evaluate
+     * performance.
+     * 
+     */
+    this.benchmark = new Benchmark( this.debug )
     
     /**
      * Triggered an initial input is provided
@@ -447,6 +444,18 @@ export class Component<Input = void, State = void, Static = void, Context = void
     Object
     .entries( list )
     .map( ([ method, fn ]) => this[ method ] = fn.bind(this) )
+  }
+  setStylesheet( sheet?: string ){
+    const cssOptions = {
+      sheet,
+      /**
+       * Inject root component styles into global meta
+       * style tag.
+       */
+      meta: this.__name__ === '__ROOT__'
+    }
+
+    this.__stylesheet = new Stylesheet( this.__name__, cssOptions )
   }
 
   getNode(){

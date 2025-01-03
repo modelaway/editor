@@ -173,7 +173,7 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
     </mblock>
   `
 
-  return new Component<ToolbarInput, ToolbarState>(`toolbar-${input.key}`, template, { input, state, handler, macros, stylesheet })
+  return new Component<ToolbarInput, ToolbarState>('toolbar', template, { input, state, handler, macros, stylesheet })
 }
 
 const stylesheet = `

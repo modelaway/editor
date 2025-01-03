@@ -1,4 +1,5 @@
 import type Frame from '../frame'
+import type { HandlerHook } from '../../types/controls'
 import type { AddViewTriggerType, ViewBlockProperties, ViewComponent, ViewBridge } from '../../types/view'
 
 import $, { type Cash } from 'cash-dom'
@@ -30,7 +31,6 @@ import Finder, { FinderInput, FinderState } from '../factory/finder'
 import Toolbar, { ToolbarInput, ToolbarState } from '../factory/toolbar'
 import Floating, { FloatingInput } from '../factory/floating'
 import { debug, hashKey } from '../utils'
-// import { FrameQuery } from '../lib/frame.window'
 
 /**
  * Help manage the basic UI elements that are 
@@ -110,8 +110,8 @@ export default class View extends EventEmitter {
        */
       const { name, styles } = this.get()
       if( name && typeof styles === 'function' ){
-        const cssText = styles( this.bridge ).css
-        cssText && this.frame.styles.addRules( cssText, { key: this.key as string, scope: true } )
+        const sheet = styles( this.bridge ).sheet
+        sheet && this.frame.styles.addRules( sheet, { key: this.key as string, scope: true } )
       }
 
       /**
@@ -440,6 +440,7 @@ export default class View extends EventEmitter {
     options = typeof toolbar == 'function' ? toolbar( this.bridge ) : {},
     settings = {
       editing: true,
+      visible: true,
       detached: typeof panel == 'function'
     }
 
@@ -472,13 +473,14 @@ export default class View extends EventEmitter {
     this.Toolbar = Toolbar( input, hook )
     let $toolbar = this.Toolbar.appendTo( this.frame.editor.$viewport ).getNode()
 
+    console.log( $toolbar )
+
     /**
      * Position toolbar relatively to the view
      * component.
      */
     const
-    // tHeight = $toolbar.find(':scope > [container]').height() || 0,
-    tHeight = 47,
+    tHeight = $toolbar.find(':scope > [container]').height() || 0,
     dueYPosition = tHeight + (CONTROL_TOOLBAR_MARGIN * 2)
     
     const
@@ -735,12 +737,18 @@ export default class View extends EventEmitter {
   dismiss(){
     // Unhighlight triggered views
     this.$?.removeAttr( VIEW_ACTIVE_SELECTOR )
+    
     // Remove editing toolbar if active
     this.Toolbar?.destroy()
+    this.Toolbar = undefined
+
     // Remove editing control panel if active
     this.Panel?.destroy()
+    this.Panel = undefined
+
     // Remove editing finder panel if active
     this.Finder?.destroy()
+    this.Finder = undefined
 
     // Remove view's CSS rules 
     this.frame.styles.removeRules( this.key as string )

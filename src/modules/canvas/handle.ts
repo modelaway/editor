@@ -16,7 +16,7 @@ WRAPPER_TAG = 'rzwrapper',
 WRAPPER_SIZE = 10,
 WRAPPER_BORDER_WIDTH = 1,
 
-css = `
+sheet = `
 ${WRAPPER_TAG} {
   display: inline-block;
   border: ${WRAPPER_BORDER_WIDTH}px solid #007bff; /* Frame border */
@@ -112,7 +112,7 @@ export default class Handle extends EventEmitter {
       ...options
     }
 
-    this.style = new Stylesheet('handle', $('head'), { css, meta: true })
+    this.style = new Stylesheet('handle', { sheet, meta: true })
     this.zoomTo( 0, { x: 0, y: 0 })
   }
 
@@ -229,10 +229,7 @@ export default class Handle extends EventEmitter {
      * - target element
      * - wrapper element
      */
-    if( $(e.target).is( this.options.target )
-        || $(e.target).closest( this.options.target ).length
-        || $(e.target).closest( WRAPPER_TAG ).length )
-      return
+    if( !$(e.target).is( this.editor.$viewport ) ) return
 
     const rect = this.editor.canvas.$.get(0)?.getBoundingClientRect()
     if( !rect ) return
@@ -359,8 +356,6 @@ export default class Handle extends EventEmitter {
     })
   }
   private startResizing( e: any, $handle: Cash ){
-    // e.preventDefault()
-
     this.$handle = $handle
     this.$wrapper = this.$handle?.closest( WRAPPER_TAG )
 
@@ -381,10 +376,7 @@ export default class Handle extends EventEmitter {
      * - target element
      * - wrapper element
      */
-    if( !$(e.target).is( this.editor.$viewport ) )
-      return
-
-    // e.cancelable && e.preventDefault()
+    if( !$(e.target).is( this.editor.$viewport ) ) return
     
     this.isPanning = true
     this.editor.$viewport?.css('cursor', 'grabbing')
@@ -393,8 +385,6 @@ export default class Handle extends EventEmitter {
     this.startPan.y = e.pageY - this.canvasOffset.y
   }
   private startDragging( e: any ){
-    // e.preventDefault()
-
     // Move resizable frame
     if( $(e.target).closest( WRAPPER_TAG ).length ){
       const $this = $(e.target).closest( WRAPPER_TAG )
@@ -421,8 +411,6 @@ export default class Handle extends EventEmitter {
   private handling( e: any ){
     // Panning canvas
     if( this.isPanning ){
-      // e.preventDefault()
-
       this.canvasOffset.x = e.pageX - this.startPan.x
       this.canvasOffset.y = e.pageY - this.startPan.y
 
@@ -633,7 +621,7 @@ export default class Handle extends EventEmitter {
      * Remove event listeners
      */
     this.editor.canvas.$?.off()
-    // $(document).off('mousedown mousemove mouseup click')
+    $(document).off('mousedown mousemove mouseup click')
 
     /**
      * Do something before to get discarded

@@ -1,22 +1,15 @@
-import { type Cash } from 'cash-dom'
-import { CompileResult } from 'sass'
-import {
-  VIEW_NAME_SELECTOR,
-  VIEW_STYLE_SELECTOR
-} from './constants'
+import $, { type Cash } from 'cash-dom'
+import { compile, serialize, stringify, middleware } from 'stylis'
 
 export default class Stylesheet {
   private nsp: string
   private settings: StyleSettings
   private $head: Cash
 
-  constructor( nsp: string, $head: Cash, settings?: StyleSettings ){
+  constructor( nsp: string, settings?: StyleSettings ){
     if( typeof nsp !== 'string' ) 
       throw new Error('Undefined or invalid styles attachement element(s) namespace')
     
-    // @ts-ignore
-    !window.msass && import('https://jspm.dev/sass').then( lib => window.msass = lib )
-
     /**
      * Unique namespace identifier of targeted 
      * views/elements
@@ -24,57 +17,51 @@ export default class Stylesheet {
     this.nsp = nsp
 
     /**
-     * Head element of the DOM from where CSS
-     * operation will be done.
-     * 
-     * - Remote Frame DOM
-     * - Modela Control DOM
+     * Head element of the DOM in where stylesheet
+     * will be injected.
      */
-    this.$head = $head
+    this.$head = $('head')
 
     /**
      * Styles settings
      * 
-     * - css
+     * - sheet
      * - custom
      */
     this.settings = settings || {}
 
-    // Auto-load defined css rules
+    // Auto-load defined sheet rules
     this.settings && this.load( this.settings )
   }
 
   /**
-   * Compile Sass style string to CSS string
+   * Process sheet string using Stylis
    */
-  compile( str: string ): Promise<CompileResult>{
-    return new Promise( ( resolve, reject ) => {
-      if( !window.msass ){
-        let 
-        waiter: any,
-        max = 1
-        
-        const exec = () => {
-          /**
-           * TEMP: Wait 8 seconds for Sass libary to load
-           */
-          if( !window.msass ){
-            if( max == 8 ){
-              clearInterval( waiter )
-              reject('Undefined Sass compiler')
-            }
-            else max++
-            
-            return
-          }
+  compile( str: string ): string {
+    try { return serialize( compile( str ), middleware([ stringify ]) ) } 
+    catch( error: any ){
+      throw new Error(`Style compilation failed: ${error.message}`)
+    }
+  }
 
-          clearInterval( waiter )
-          resolve( window.msass.compileString( str ) )
+  /**
+   * Wait for styles to be applied
+   */
+  private waitForStyles( selector: string ): Promise<void>{
+    return new Promise( resolve => {
+      const observer = new MutationObserver( () => {
+        const element = document.querySelector( selector )
+        if( element && getComputedStyle( element ).cssText ){
+          observer.disconnect()
+          resolve()
         }
+      } )
 
-        waiter = setInterval( exec, 1000 )
-      }
-      else resolve( window.msass.compileString( str ) )
+      observer.observe( document.documentElement, {
+        attributes: true,
+        childList: true,
+        subtree: true
+      } )
     } )
   }
 
@@ -82,51 +69,85 @@ export default class Stylesheet {
    * Compile and inject a style chunk in the DOM
    * using `<style mv-style="*">...</style>` tag
    */
-  private async inject( id: string, str: string ){
-    if( !id || !str )
+  private async inject( str: string ): Promise<HTMLStyleElement>{
+    if( !str )
       throw new Error('Invalid injection arguments')
 
-    const selector = `${VIEW_STYLE_SELECTOR}="${this.settings.meta ? '@' : ''}${id}"`
+    const selector = `rel="${this.settings.meta ? '@' : ''}${this.nsp}"`
+
     /**
-     * Defined meta css properties or css by view 
+     * Defined meta sheet properties or sheet by view 
      * elements by wrapping in a closure using the 
      * namespaces selector.
-     * 
-     * :root {
-     *    --font-size: 12px;
-     *    line-height: 1.5;
-     * }
-     * 
-     * [mv-name="123456780"] {
-     *    font-size: 12px;
-     *    &:hover {
-     *      color: #000; 
-     *    }
-     * }
      */
-    str = this.settings.meta ? str : `[${VIEW_NAME_SELECTOR}="${id}"] { ${str} }`
+    str = this.settings.meta ? str : `[rel="${this.nsp}"] { ${str} }`
 
-    const result = await this.compile( str )
-    if( !result?.css )
-      throw new Error(`<view:${id}> css injection failed`)
-    
-    const $existStyle = await this.$head.find(`style[${selector}]`)
-    $existStyle.length ?
-          // Replace existing content
-          await $existStyle.html( result.css )
-          // Inject new style
-          : await (this.$head as any)[ this.settings.meta ? 'prepend' : 'append' ](`<style ${selector}>${result.css}</style>`)
+    try {
+      const sheet = this.compile( str )
+      if( !sheet )
+        throw new Error(`<component:${this.nsp}> sheet compilation failed`)
+
+      // Create new style element
+      const styleSheet = document.createElement('style')
+      styleSheet.setAttribute('rel', `${this.settings.meta ? '@' : ''}${this.nsp}` )
+      styleSheet.textContent = sheet
+
+      /**
+       * `dindex` is a deletion index to keep track of
+       * the share dependency of this style element by
+       * all components bind to it.
+       * 
+       * Every component `on-destroy` automatically
+       * cleanup it's stylesheet but on if it's rendered
+       * only once. In case of multiple renderings, the
+       * index indicate the number of current rendering instances
+       * of the component.
+       * 
+       * - on instance created, `dindex` value increases
+       * - on instance destroyed, `dindex` value decreases
+       * - on instance destroyed, when `dindex` value == 0, 
+       *   the style element is removed
+       */
+      let dindex = 0
+
+      /**
+       * Check for Existing Shared Style
+       */
+      const $ESS = this.$head.find(`style[${selector}]`)
+      if( $ESS.length ){
+        dindex = parseInt( $ESS.attr('dindex') as string ) + 1
+        $ESS.remove()
+      }
+
+      /**
+       * Assign deletion index
+       */
+      styleSheet.setAttribute('dindex', String( dindex ) )
+
+      // Insert new style element
+      this.settings.meta
+              ? document.head.prepend( styleSheet )
+              : document.head.appendChild( styleSheet )
+
+      return styleSheet
+    }
+    catch( error: any ){
+      throw new Error(`Style injection failed: ${error.message}`)
+    }
   }
 
   /**
-   * Load/inject predefined CSS to the document
+   * Load/inject predefined sheet to the document
    */
   async load( settings: StyleSettings ){
     this.settings = settings
     if( typeof this.settings !== 'object' )
       throw new Error('Undefined styles settings')
     
-    this.settings.css && await this.inject( this.nsp, this.settings.css )
+    if( this.settings.sheet ){
+      const styleElement = await this.inject( this.settings.sheet )
+      await this.waitForStyles(`style[rel="${this.settings.meta ? '@' : ''}${this.nsp}"]`)
+    }
   }
 
   /**
@@ -141,13 +162,27 @@ export default class Stylesheet {
    * Remove all injected styles from the DOM
    */
   async clear(){
-    (await this.$head.find(`style[${VIEW_STYLE_SELECTOR}="${this.settings.meta ? '@' : ''}${this.nsp}"]`)).remove()
+    const $ESS = this.$head.find(`style[rel="${this.settings.meta ? '@' : ''}${this.nsp}"]`)
+    if( !$ESS.length ) return
+    
+    /**
+     * Procedure to clear an Existing Shared Style
+     * 
+     * @note refere to the comment in `inject()` to
+     *        know more.
+     */
+    const dindex = parseInt( $ESS.attr('dindex') as string )
+    dindex === 0 ?
+          // Last instance dependency: Remove the style from DOM
+          $ESS.remove()
+          // Keep the style for active instance dependencies
+          : $ESS.attr('dindex', String( dindex - 1 ) )
   }
 
   /**
    * Return css custom properties
    */
-  async custom(): Promise<ObjectType<string>> {
+  async custom(): Promise<Record<string, string>>{
     return {}
   }
 
@@ -155,7 +190,7 @@ export default class Stylesheet {
    * Overridable function to return an element 
    * style attribute value as JSON object.
    */
-  async style(): Promise<ObjectType<string>> {
+  async style(): Promise<Record<string, string>>{
     return {}
   }
 }

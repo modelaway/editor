@@ -1,12 +1,12 @@
-import type { Handler } from '../../lib/lips'
-import type { HandlerHook } from '../../types/controls'
+import type { Handler } from '../lib/lips'
+import type { HandlerHook } from '../types/controls'
 
-import { Component } from '../../lib/lips/lips'
+import { Component } from '../lib/lips/lips'
 import {
   VIEW_ALLEY_SELECTOR,
   VIEW_REF_SELECTOR
-} from '../constants'
-import { generateKey } from '../utils'
+} from '../modules/constants'
+import { generateKey } from '../modules/utils'
 
 /**
  * Create common alley block

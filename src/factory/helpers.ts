@@ -3,7 +3,7 @@ import {
   CONTROL_LANG_SELECTOR,
   FORM_INPUT_SELECTOR,
   FORM_SEPERATOR_SELECTOR
-} from '../constants'
+} from '../modules/constants'
 
 export const Inputs = () => {
   const template = `

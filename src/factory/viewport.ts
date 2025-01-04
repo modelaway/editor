@@ -1,4 +1,4 @@
-import { Component } from '../../lib/lips/lips'
+import { Component } from '../lib/lips/lips'
 
 export type ViewportInput = {
 

@@ -1,14 +1,14 @@
-import type { Handler } from '../../lib/lips'
-import type { ViewCaption } from '../../types/view'
-import type { HandlerHook } from '../../types/controls'
+import type { Handler } from '../lib/lips'
+import type { ViewCaption } from '../types/view'
+import type { HandlerHook } from '../types/controls'
 
-import Lips, { Component } from '../../lib/lips/lips'
+import Lips, { Component } from '../lib/lips/lips'
 import * as Helpers from './helpers'
 import {
   CONTROL_LANG_SELECTOR,
   CONTROL_PANEL_SELECTOR,
   FORM_SEPERATOR_SELECTOR
-} from '../constants'
+} from '../modules/constants'
 
 export type PanelInput = {
   key: string

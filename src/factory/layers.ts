@@ -1,14 +1,13 @@
-import type { Handler } from '../../lib/lips'
-import type { HandlerHook, MovableOptions } from '../../types/controls'
+import type { Handler } from '../lib/lips'
+import type { HandlerHook, MovableOptions } from '../types/controls'
 
-import $ from 'cash-dom'
-import Lips, { Component } from '../../lib/lips/lips'
-import { VIEW_KEY_SELECTOR } from '../constants'
+import $, { type Cash } from 'cash-dom'
+import Lips, { Component } from '../lib/lips/lips'
+import { VIEW_KEY_SELECTOR } from '../modules/constants'
 
 export type LayersSettings = {
   visible?: boolean
 }
-
 export type LayerElement = {
   key: string
   parentKey?: string
@@ -30,13 +29,25 @@ export type LayerElement = {
     rel: string
   }
 }
-
+export interface LayersInput {
+  key: string
+  settings?: LayersSettings
+  position?: Position
+  content?: string
+  mutations?: Mutation[]
+}
+export interface LayersState {
+  layers: Record<string, LayerElement>
+  activeLayer: string | null
+  selection: Array<string>
+  collapsed: boolean
+}
 export type Mutation = {
   action: 'add' | 'remove' | 'reorder' | 'modify'
   element: LayerElement
 }
 
-export class Traverser {
+class Traverser {
   private layerCount: number = 0
   private zIndex: number = 0
 
@@ -154,30 +165,6 @@ export class Traverser {
   }
 }
 
-export interface LayersInput {
-  key: string
-  settings?: LayersSettings
-  position?: Position
-  content?: string
-  mutations?: Mutation[]
-}
-
-export interface LayersState {
-  layers: Record<string, LayerElement>
-  activeLayer: string | null
-  selection: Array<string>
-  collapsed: boolean
-  dragState: {
-    active: boolean
-    sourceKey: string | null
-    targetKey: string | null
-    position: {
-      x: number
-      y: number
-    } | null
-  }
-}
-
 /**
  * Registered dependency components
  */
@@ -194,25 +181,132 @@ function dependencies(){
 
   type LayerItemState = {
     collapsed: boolean
+    editable: boolean
+    newname?: string
+  }
+  type LayerItemStatic = {
+    newname: string
+    dragState: {
+      active: boolean
+      sourceKey: string | null
+      targetKey?: string | null
+      $ghost?: Cash
+      position: {
+        x: number
+        y: number
+      } | null
+    }
   }
   type LayerLITemplateType = {
     state: LayerItemState
-    handler: Handler<LayerElement, LayerItemState>
+    _static: LayerItemStatic,
+    handler: Handler<LayerElement, LayerItemState, LayerItemStatic>
     default: string
   }
   const LayerItemTemplate: LayerLITemplateType = {
     state: {
-      collapsed: false
+      collapsed: false,
+      editable: false
+    },
+    _static: {
+      newname: '',
+      dragState: {
+        active: false,
+        sourceKey: null,
+        targetKey: null,
+        position: null
+      }
     },
     handler: {
-      onCollapse( key ){
+      onCollapse( key: string ){
         this.state.collapsed = !this.state.collapsed
         
         // TODO: Track key for memoizing purpose
+      },
+      onRenameLayer( key: string, action: 'init' | 'input' | 'apply', e ){
+        switch( action ){
+          case 'init': this.state.editable = true; break
+          case 'input': this.static.newname = e.target.value || e.target.innerText; break
+          case 'apply': {
+            this.state.editable = false
+
+            // TODO: Emit event to update layer name to parent state
+            console.log('rename to --', key, this.static.newname )
+          } break
+        }
+
+        console.log( key, action, this.state )
+      },
+
+      onDragStart( key, e ){
+        // Only trigger if drag started from handle
+        if( !$(e.target).is('minline') ) return
+
+        e.preventDefault()
+        const 
+        $item = $(e.currentTarget),
+        $ghost = $item.clone()
+                      .addClass('ghost')
+                      .css({
+                        top: e.clientY,
+                        left: e.clientX
+                      })
+        
+        document.body.appendChild( $ghost[0] as Element )
+
+        this.static.dragState = {
+          active: true,
+          sourceKey: key,
+          position: {x: e.clientX, y: e.clientY},
+          $ghost
+        }
+
+        $item.addClass('dragging')
+      },
+      onDragMove( e ){
+        if( !this.static.dragState.active
+            || !this.static.dragState.position ) return
+        
+        const
+        { x, y } = this.static.dragState.position,
+        deltaX = e.clientX - x,
+        deltaY = e.clientY - y
+
+        this.static.dragState.$ghost?.css({ transform: `translate(${deltaX}px, ${deltaY}px)` })
+
+        // Find drop target
+        const
+        $target = $(document.elementFromPoint( e.clientX, e.clientY )),
+        targetKey = $target.closest('mli').attr('layer')
+        
+        if( targetKey && targetKey !== this.static.dragState.sourceKey )
+          this.static.dragState = { ...this.static.dragState, targetKey }
+      },
+      onDragEnd(){
+        if( !this.static.dragState.active ) return
+
+        const { sourceKey, targetKey, $ghost } = this.static.dragState
+        
+        sourceKey
+        && targetKey
+        && this.emit('layer.move', { source: sourceKey, target: targetKey })
+
+        $('.dragging').removeClass('dragging')
+        $ghost?.remove()
+        
+        this.static.dragState = {
+          active: false,
+          sourceKey: null,
+          targetKey: null,
+          position: null
+        }
       }
     },
     default: `
-      <mli layer=input.key>
+      <mli layer=input.key
+            on-mousedown(onDragStart, input.key )
+            on-mousemove(onDragMove)
+            on-mouseup(onDragEnd)>
         <mblock class="layer-bar">
           <micon class="'toggle-icon visibility bx '+( input.hidden ? 'bx-hide' : 'bx-show')"
                   on-click( onToggleVisibility, input.key )></micon>
@@ -255,7 +349,10 @@ function dependencies(){
               </default>
             </switch>
             
-            <mlabel>{input.name}</mlabel>
+            <mlabel contenteditable=state.editable
+                    on-blur(onRenameLayer, input.key, 'apply')
+                    on-input(onRenameLayer, input.key, 'input')
+                    on-dblclick(onRenameLayer, input.key, 'init')>{input.name}</mlabel>
 
             <if( input.locked )>
               <micon class="toggle-icon bxs bx-lock-alt"
@@ -296,13 +393,7 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
     layers: {},
     activeLayer: null,
     selection: [],
-    collapsed: false,
-    dragState: {
-      active: false,
-      sourceKey: null,
-      targetKey: null,
-      position: null
-    }
+    collapsed: false
   }
 
   const handler: Handler<LayersInput, LayersState> = {
@@ -318,7 +409,7 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
     },
     onRender(){
       const options: MovableOptions = {
-        $handle: this.find('.header'),
+        $handle: this.find('.header > minline'),
         apex: ['right', 'bottom']
       }
 
@@ -360,8 +451,10 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
   const template = `
     <mblock style=self.getStyle()>
       <mblock class="header">
-        <micon class="bx bx-list-minus ill-icon"></micon>
-        <mlabel>Layers</mlabel>
+        <minline>
+          <micon class="bx bx-list-minus ill-icon"></micon>
+          <mlabel>Layers</mlabel>
+        </minline>
 
         <micon class="'toggle-icon bx '+( state.collapsed ? 'bx-chevron-down' : 'bx-chevron-right')"
                 style="padding: 0 0 0 10px;"
@@ -397,6 +490,13 @@ const stylesheet = `
     align-items: center;
     justify-content: space-between;
     user-select: none;
+
+    minline {
+      width: 60%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: space-between;
+    }
 
     .ill-icon,
     .toggle.icon { 
@@ -439,8 +539,30 @@ const stylesheet = `
         display: inline-flex;
         align-items: center;
 
-        mlabel { color: #d2d7dd; }
+        mlabel { 
+          color: #d2d7dd;
+          
+          &[contenteditable="true"]{
+            min-width: 5rem;
+            padding: 2px 8px;
+            border: 1px solid var(--me-border-color);
+            outline: none;
+          }
+        }
       }
+    }
+
+    &.dragging {
+      opacity: 0.9;
+    }
+    
+    &.ghost {
+      position: fixed;
+      pointer-events: none;
+      z-index: 1000;
+      background: black;
+      width: 100%;
+      height: 40px;
     }
   }
 `

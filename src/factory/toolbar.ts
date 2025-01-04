@@ -1,12 +1,12 @@
-import type { Handler } from '../../lib/lips'
-import type { HandlerHook } from '../../types/controls'
+import type { Handler } from '../lib/lips'
+import type { HandlerHook } from '../types/controls'
 
-import { Component } from '../../lib/lips/lips'
+import { Component } from '../lib/lips/lips'
 import {
   CONTROL_LANG_SELECTOR,
   CONTROL_TOOLBAR_SELECTOR,
   VIEW_CONTROL_OPTIONS
-} from '../constants'
+} from '../modules/constants'
 
 /**
  * Process toolbar options into HTML content

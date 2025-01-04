@@ -1,14 +1,14 @@
-import type { HandlerHook } from '../../types/controls'
+import type { HandlerHook } from '../types/controls'
 
-import Lips, { Component } from '../../lib/lips/lips'
+import Lips, { Component } from '../lib/lips/lips'
 import * as Helpers from './helpers'
 import {
   CONTROL_PANEL_SELECTOR,
   CONTROL_LANG_SELECTOR,
   VIEW_EMPTY_SELECTOR,
   FORM_SEPERATOR_SELECTOR
-} from '../constants'
-import { Handler } from '../../lib/lips'
+} from '../modules/constants'
+import { Handler } from '../lib/lips'
 
 export type SearchResult = {
   key: string

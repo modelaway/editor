@@ -3,7 +3,7 @@ import type { Template, Handler } from '../lib/lips'
 import Lips, { Component } from '../lib/lips/lips'
 import english from '../languages/en.json'
 import french from '../languages/fr.json'
-import Layers from '../modules/factory/layers'
+import Layers from '../factory/layers'
 
 function Demo1(){
   type Input = {

@@ -138,6 +138,8 @@ export default class Controls {
       typeof effect === 'function' && effect( $block, 'moving', position )
     })
     .on('mouseup', () => {
+      if( !isMoving ) return
+      
       isMoving = false
       $block.css('cursor', 'default')
       

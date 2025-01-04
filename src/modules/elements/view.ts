@@ -24,12 +24,12 @@ import {
   VIEW_REF_SELECTOR,
   VIEW_CONTROL_OPTIONS
 } from '../constants'
-import Alley from '../factory/alley'
+import Alley from '../../factory/alley'
 import { Component } from '../../lib/lips/lips'
-import Panel, { PanelInput, PanelState } from '../factory/panel'
-import Finder, { FinderInput, FinderState } from '../factory/finder'
-import Toolbar, { ToolbarInput, ToolbarState } from '../factory/toolbar'
-import Floating, { FloatingInput } from '../factory/floating'
+import Panel, { PanelInput, PanelState } from '../../factory/panel'
+import Finder, { FinderInput, FinderState } from '../../factory/finder'
+import Toolbar, { ToolbarInput, ToolbarState } from '../../factory/toolbar'
+import Floating, { FloatingInput } from '../../factory/floating'
 import { debug, hashKey } from '../utils'
 
 /**
@@ -472,8 +472,6 @@ export default class View extends EventEmitter {
     }
     this.Toolbar = Toolbar( input, hook )
     let $toolbar = this.Toolbar.appendTo( this.frame.editor.$viewport ).getNode()
-
-    console.log( $toolbar )
 
     /**
      * Position toolbar relatively to the view

@@ -1,5 +1,5 @@
-import { Handler } from '../../lib/lips'
-import { Component } from '../../lib/lips/lips'
+import { Handler } from '../lib/lips'
+import { Component } from '../lib/lips/lips'
 
 export type HouseInput = {
   key: string

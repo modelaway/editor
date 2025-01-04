@@ -1,5 +1,5 @@
-import type { Handler } from '../../lib/lips'
-import { Component } from '../../lib/lips/lips'
+import type { Handler } from '../lib/lips'
+import { Component } from '../lib/lips/lips'
 
 /**
  * LayerX Types Definition

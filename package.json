@@ -23,13 +23,11 @@
     "test:view": "yarn build:tsc && jest test/auth.test.js"
   },
   "dependencies": {
-    "@tensorflow/tfjs": "^4.22.0",
     "boxicons": "^2.1.4",
     "cash-dom": "^8.1.5",
     "diff-match-patch": "^1.0.5",
     "events": "^3.3.0",
     "lz-string": "^1.5.0",
-    "sass": "^1.77.2",
     "stylis": "^4.3.4"
   },
   "devDependencies": {

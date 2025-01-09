@@ -1,5 +1,7 @@
 import type { Handler } from '../lib/lips'
-import type { HandlerHook, MovableOptions } from '../types/controls'
+import type { HandlerHook } from '../types/controls'
+import type { MovableOptions } from '../modules/controls/movable'
+import type { SortableOptions } from '../modules/controls/sortable'
 
 import $, { type Cash } from 'cash-dom'
 import Lips, { Component } from '../lib/lips/lips'
@@ -171,7 +173,8 @@ class Traverser {
 function dependencies(){
   const LayerListTemplate = {
     default: `
-      <mul style="{ display: input.collapsed ? 'block' : 'none' }">
+      <mul style="{ display: input.collapsed ? 'block' : 'none' }"
+            class="sortable-list">
         <for in=input.list>
           <layeritem ...each depth=input.depth></layeritem>
         </for>
@@ -205,7 +208,7 @@ function dependencies(){
   }
   const LayerItemTemplate: LayerLITemplateType = {
     state: {
-      collapsed: false,
+      collapsed: true,
       editable: false
     },
     _static: {
@@ -234,79 +237,14 @@ function dependencies(){
             console.log('rename to --', key, this.static.newname )
           } break
         }
-
-        console.log( key, action, this.state )
-      },
-
-      onDragStart( key, e ){
-        // Only trigger if drag started from handle
-        if( !$(e.target).is('minline') ) return
-
-        e.preventDefault()
-        const 
-        $item = $(e.currentTarget),
-        $ghost = $item.clone()
-                      .addClass('ghost')
-                      .css({
-                        top: e.clientY,
-                        left: e.clientX
-                      })
-        
-        document.body.appendChild( $ghost[0] as Element )
-
-        this.static.dragState = {
-          active: true,
-          sourceKey: key,
-          position: {x: e.clientX, y: e.clientY},
-          $ghost
-        }
-
-        $item.addClass('dragging')
-      },
-      onDragMove( e ){
-        if( !this.static.dragState.active
-            || !this.static.dragState.position ) return
-        
-        const
-        { x, y } = this.static.dragState.position,
-        deltaX = e.clientX - x,
-        deltaY = e.clientY - y
-
-        this.static.dragState.$ghost?.css({ transform: `translate(${deltaX}px, ${deltaY}px)` })
-
-        // Find drop target
-        const
-        $target = $(document.elementFromPoint( e.clientX, e.clientY )),
-        targetKey = $target.closest('mli').attr('layer')
-        
-        if( targetKey && targetKey !== this.static.dragState.sourceKey )
-          this.static.dragState = { ...this.static.dragState, targetKey }
-      },
-      onDragEnd(){
-        if( !this.static.dragState.active ) return
-
-        const { sourceKey, targetKey, $ghost } = this.static.dragState
-        
-        sourceKey
-        && targetKey
-        && this.emit('layer.move', { source: sourceKey, target: targetKey })
-
-        $('.dragging').removeClass('dragging')
-        $ghost?.remove()
-        
-        this.static.dragState = {
-          active: false,
-          sourceKey: null,
-          targetKey: null,
-          position: null
-        }
       }
     },
     default: `
       <mli layer=input.key
-            on-mousedown(onDragStart, input.key )
-            on-mousemove(onDragMove)
-            on-mouseup(onDragEnd)>
+            class="sortable-item"
+            data-level=input.depth>
+        <mblock class="nested-indicator"></mblock>
+
         <mblock class="layer-bar">
           <micon class="'toggle-icon visibility bx '+( input.hidden ? 'bx-hide' : 'bx-show')"
                   on-click( onToggleVisibility, input.key )></micon>
@@ -407,22 +345,64 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
 
       }
     },
-    onRender(){
-      const options: MovableOptions = {
-        $handle: this.find('.header > minline'),
+    onMount(){
+      /**
+       * Attach movable control to layer component
+       */
+      const movableOptions: MovableOptions = {
+        handle: '.header > minline',
         apex: ['right', 'bottom']
       }
+      this.movable = hook?.editor?.controls.movable<LayersInput, LayersState>( this, movableOptions )
 
-      this.movable = hook?.editor?.controls.movable( this.getNode(), options, ( _, _event, position ) => {
-        switch( _event ){
-          case 'started':
-          case 'moving': break
-          case 'stopped': {
-            this.input.position = position
-            hook?.events?.emit('layers.handle', 'position', position )
-          } break
-        }
+      this.movable.on('started', ( position: Position ) => {})
+      this.movable.on('moving', ( position: Position ) => {})
+      this.movable.on('stopped', ( position: Position ) => {
+        this.input.position = position
+        hook?.events?.emit('layers.handle', 'position', position )
       })
+
+      /**
+       * Attach sortable control to layer component
+       */
+      const sortableOptions: SortableOptions = {
+        list: 'mul',
+        item: 'mli',
+        handle: 'mli minline > mlabel',
+        // ghostClass: 'ghost',
+        // dragClass: 'dragging',
+        // selectedClass: 'selected',
+        // group: 'layers',
+        // nested: true,
+        // multiDrag: true
+      }
+      this.sortable = hook?.editor?.controls.sortable<LayersInput, LayersState>( this, sortableOptions )
+      
+      // this.sortable
+      // .on('select', ({items}) => {
+      //   this.setState({ selectedLayers: items.map(el => $(el).attr('layer')) })
+      // })
+      // .on('reorder', ({items, sourceList, targetList, level}) => {
+      //   this.emit('layer.move', {
+      //     items: items.map(i => ({
+      //       key: $(i.element).attr('layer'),
+      //       sourceIndex: i.sourceIndex,
+      //       targetIndex: i.targetIndex
+      //     })),
+      //     sourceParent: $(sourceList).closest('mli').attr('layer'),
+      //     targetParent: $(targetList).closest('mli').attr('layer'),
+      //     level
+      //   })
+      // })
+      // .on('nested', ({ items, sourceParent, targetParent, oldLevel, newLevel}) => {
+      //   this.emit('layer.nest', {
+      //     items: items.map(el => $(el).attr('layer')),
+      //     sourceParent: sourceParent && $(sourceParent).closest('mli').attr('layer'),
+      //     targetParent: $(targetParent).closest('mli').attr('layer'),
+      //     oldLevel,
+      //     newLevel
+      //   })
+      // })
 
       // Set to default position
       !this.input.position && setTimeout( () => {
@@ -432,8 +412,14 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
         this.input.position = defPostion
         this.getNode().css( defPostion )
       }, 5 )
+
     },
-    onDestroy(){ this.movable.dispose() },
+    onRender(){
+    },
+    onDestroy(){
+      this.movable.dispose()
+      this.sortable.dispose()
+    },
     onCollapse(){ this.state.collapsed = !this.state.collapsed },
 
     getStyle(){
@@ -505,7 +491,7 @@ const stylesheet = `
   }
   .body {
     min-width: 15rem;
-    max-height: 50vh;
+    height: 45vh;
     overflow: auto;
   }
   .ill-icon {
@@ -524,8 +510,9 @@ const stylesheet = `
   }
 
   mli {
+    background-color: var(--me-secondary-color);
     border-top: 1px solid var(--me-border-color);
-
+    
     .layer-bar {
       display: flex;
       align-items: center;
@@ -541,6 +528,7 @@ const stylesheet = `
 
         mlabel { 
           color: #d2d7dd;
+          user-select: none'
           
           &[contenteditable="true"]{
             min-width: 5rem;
@@ -563,6 +551,95 @@ const stylesheet = `
       background: black;
       width: 100%;
       height: 40px;
+    }
+  }
+
+  .sortable-list {
+    --td: 150ms;
+    --go: .9;
+    --pb: rgba(45,45,45,.3);
+    --sb: rgba(65,145,255,.5);
+    --hb: rgba(255,255,255,.05);
+
+    .sortable-item {
+      /* 
+      transition: all var(--td) ease;
+      transform-origin: 50% 50%;
+      animation: reorder var(--td) ease;
+
+      &:hover {
+        background: var(--hb);
+        .nested-indicator { opacity: 1 }
+      } */
+      
+      &[data-level] .nested-indicator {
+        position: absolute;
+        left: -12px;
+        width: 2px;
+        height: 100%;
+        background: var(--sb);
+        opacity: 0;
+        transition: opacity var(--td) ease;
+      }
+    }
+
+    .sortable-handle {
+      cursor: grab;
+      &:active { cursor: grabbing }
+    }
+
+    .sortable-ghost {
+      opacity: var(--go);
+      backdrop-filter: blur(2px);
+      box-shadow: var(--me-box-shadow);
+      border-radius: 4px;
+      pointer-events: none;
+      transform-origin: 50% 50%;
+      animation: ghost-appear var(--td) ease;
+    }
+
+    .sortable-placeholder {
+      background: var(--pb);
+      margin: 4px 0;
+      transition: all var(--td) ease;
+    }
+
+    .sortable-drag { opacity: 0 }
+
+    .selected {
+      background: var(--hb);
+      border-left: 2px solid var(--sb);
+    }
+
+    .level-change {
+      animation: level-shift var(--td) ease;
+    }
+  }
+
+  @keyframes ghost-appear {
+    from {
+      opacity: 0;
+      transform: scale(.95);
+    }
+    to {
+      opacity: var(--go);
+      transform: scale(1);
+    }
+  }
+
+  @keyframes reorder {
+    from { transform: scale(.98) }
+    to { transform: scale(1) }
+  }
+
+  @keyframes level-shift {
+    from {
+      transform: translateX(-10px);
+      opacity: .5;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
     }
   }
 `

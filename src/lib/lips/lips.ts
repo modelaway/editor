@@ -341,7 +341,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
          * Triggered before component get rendered
          * for the first time.
          */
-        typeof this.onCreate == 'function'
+        typeof this.onCreate == 'function' 
         && this.onCreate.bind(this)()
 
         this.$ = this.render()
@@ -391,8 +391,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
       /**
        * Triggered anytime component gets rendered
        */
-      typeof this.onRender == 'function'
-      && this.onRender.bind(this)()
+      typeof this.onRender == 'function' && this.onRender.bind(this)()
+      this.emit('render')
     })
   }
 

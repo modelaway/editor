@@ -586,42 +586,43 @@ export default class Handle extends EventEmitter {
      * Canvas related control events
      */
     this.editor.canvas.$
-    .on('click', this.options.target, function( this: Cash, e: Cash ){ self.activate( e, $(this) ) } )
+    .on('click.handle', this.options.target, function( this: Cash, e: Cash ){ self.activate( e, $(this) ) } )
 
     /**
      * Handle resizing logic
      */
-    .on('mousedown', '.handle', function( this: Cash, e: Cash ){ self.startResizing( e, $(this) ) } )
+    .on('mousedown.handle', '.handle', function( this: Cash, e: Cash ){ self.startResizing( e, $(this) ) } )
 
     this.editor.$viewport
     /**
      * Create new target element in the canvas
      */
-    .on('dblclick', this.create.bind(this) )
+    .on('dblclick.handle', this.create.bind(this) )
     /**
      * Handle canvas drag-in-drop panning
      */
-    .on('mousedown', function( e: Cash ){ self.startPanning( e ) } )
+    .on('mousedown.handle', function( e: Cash ){ self.startPanning( e ) } )
     /**
      * Handle canvas zoom effect with scroll
      */
-    .on('wheel', this.zooming.bind(this) )
+    .on('wheel.handle', this.zooming.bind(this) )
 
     $(document)
-    .on('mousedown', this.startDragging.bind(this) )
-    .on('mousemove', this.handling.bind(this) )
-    .on('mouseup', this.stopAll.bind(this) )
+    .on('mousedown.handle', this.startDragging.bind(this) )
+    .on('mousemove.handle', this.handling.bind(this) )
+    .on('mouseup.handle', this.stopAll.bind(this) )
     /**
      * 
      */
-    .on('click', this.deactivate.bind(this) )
+    .on('click.handle', this.deactivate.bind(this) )
   }
   discard(){
     /**
      * Remove event listeners
      */
-    this.editor.canvas.$?.off()
-    $(document).off('mousedown mousemove mouseup click')
+    this.editor.canvas.$?.off('.handle')
+    this.editor.$viewport?.off('.handle')
+    $(document).off('.handle')
 
     /**
      * Do something before to get discarded

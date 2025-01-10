@@ -1,7 +1,7 @@
 import type { ViewComponent } from '../types/view'
 
 const
-toolbar: ObjectType<ToolbarOption> = {},
+options: ObjectType<QuicksetOption> = {},
 
 Button: ViewComponent = {
   name: 'button',
@@ -19,8 +19,8 @@ Button: ViewComponent = {
   },
   takeover( view ){
     view.events
-    .on('toolbar.show', () => {})
-    .on('panel.show', () => {})
+    .on('quickset.show', () => {})
+    .on('menu.show', () => {})
   },
   dismiss( view ){}
 }

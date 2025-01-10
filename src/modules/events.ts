@@ -3,8 +3,8 @@ import type Editor from './editor'
 
 import {
   CONTROL_FLOATING_SELECTOR,
-  CONTROL_TOOLBAR_SELECTOR,
-  CONTROL_PANEL_SELECTOR,
+  CONTROL_QUICKSET_SELECTOR,
+  CONTROL_MENU_SELECTOR,
   CONTROL_FRAME_SELECTOR
 } from './constants'
 import { debug } from './utils'
@@ -20,7 +20,7 @@ export function onTab( $this: Cash, editor: Editor ){
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
    */
-  const $block = $this.parents(`[${CONTROL_PANEL_SELECTOR}]`)
+  const $block = $this.parents(`[${CONTROL_MENU_SELECTOR}]`)
 
   // Disable currently active tab & section
   $block.find('.active').removeClass('active')
@@ -42,7 +42,7 @@ export function onShow( $this: Cash, editor: Editor ){
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
    */
-  $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`)
+  $trigger = $this.parents(`[${CONTROL_QUICKSET_SELECTOR}],[${CONTROL_MENU_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`)
 
   switch( $this.attr('show') ){
     case 'styles':
@@ -58,13 +58,13 @@ export function onShow( $this: Cash, editor: Editor ){
     // case 'overview': editor.canvas.overview(); break
 
     // Show extra options
-    case 'extra-toolbar': {
+    case 'extra-quickset': {
       $trigger.find('[options="extra"]').addClass('active')
       $this.hide() // Hide toggle
     } break
 
     // Show sub options
-    case 'sub-toolbar': {
+    case 'sub-quickset': {
       $trigger.find(`[options="sub"][extends="${$this.attr('params')}"]`).addClass('active')
       /**
        * Hide the main options to give space to 
@@ -74,20 +74,20 @@ export function onShow( $this: Cash, editor: Editor ){
 
       // Auto-dismiss extra options if exist
       $trigger.find('[options="extra"]').removeClass('active')
-      $trigger.find('[show="extra-toolbar"]').show() // Restore toggle
+      $trigger.find('[show="extra-quickset"]').show() // Restore toggle
     } break 
 
-    case 'panel': {
+    case 'menu': {
       const frame = editor.canvas.active()
       if( !frame ) return
 
-      const key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
+      const key = $trigger.attr( CONTROL_QUICKSET_SELECTOR )
       if( !key ) return
 
       const view = frame.vieeditor.get( key )
       if( !view ) return
       
-      view.showPanel()
+      view.showMenu()
     } break
 
     case 'finder': {
@@ -134,9 +134,9 @@ export function onApply( $this: Cash, editor: Editor ){
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
    */
-  $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`),
-  key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
-        || $trigger.attr( CONTROL_PANEL_SELECTOR )
+  $trigger = $this.parents(`[${CONTROL_QUICKSET_SELECTOR}],[${CONTROL_MENU_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`),
+  key = $trigger.attr( CONTROL_QUICKSET_SELECTOR )
+        || $trigger.attr( CONTROL_MENU_SELECTOR )
         || $trigger.attr( CONTROL_FLOATING_SELECTOR )
   if( !key ) return
   
@@ -159,7 +159,7 @@ export function onAction( $this: Cash, editor: Editor ){
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
    */
-  const $trigger = $this.parents(`[${CONTROL_FRAME_SELECTOR}],[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`)
+  const $trigger = $this.parents(`[${CONTROL_FRAME_SELECTOR}],[${CONTROL_QUICKSET_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`)
   
   switch( $this.attr('action') ){
     /**
@@ -241,41 +241,41 @@ export function onAction( $this: Cash, editor: Editor ){
       const frame = editor.canvas.active()
       if( !frame ) return
       
-      frame.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'up' )
+      frame.views.move( $trigger.attr( CONTROL_QUICKSET_SELECTOR ) as string, 'up' )
     } break
     // Move view down
     case 'view.move-down': {
       const frame = editor.canvas.active()
       if( !frame ) return
       
-      frame.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'down' )
+      frame.views.move( $trigger.attr( CONTROL_QUICKSET_SELECTOR ) as string, 'down' )
     } break
     // Move view
     case 'view.move': {
       const frame = editor.canvas.active()
       if( !frame ) return
       
-      frame.views.move( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string, 'any' )
+      frame.views.move( $trigger.attr( CONTROL_QUICKSET_SELECTOR ) as string, 'any' )
     } break
     // Duplicate view
     case 'view.duplicate': {
       const frame = editor.canvas.active()
       if( !frame ) return
       
-      frame.views.duplicate( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string )
+      frame.views.duplicate( $trigger.attr( CONTROL_QUICKSET_SELECTOR ) as string )
     } break
     // Delete view
     case 'view.delete': {
       const frame = editor.canvas.active()
       if( !frame ) return
       
-      frame.views.remove( $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) as string )
+      frame.views.remove( $trigger.attr( CONTROL_QUICKSET_SELECTOR ) as string )
     } break
     // Copy to clipboard
     case 'view.copy': {
       editor.clipboard = {
         type: $this.attr('params') as ClipBoard['type'],
-        key: $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
+        key: $trigger.attr( CONTROL_QUICKSET_SELECTOR )
       }
     } break
     // Paste clipboard content
@@ -288,7 +288,7 @@ export function onAction( $this: Cash, editor: Editor ){
 
       // Paste view
       const
-      nextViewKey = $trigger.attr( CONTROL_TOOLBAR_SELECTOR ) || $trigger.attr( CONTROL_FLOATING_SELECTOR ),
+      nextViewKey = $trigger.attr( CONTROL_QUICKSET_SELECTOR ) || $trigger.attr( CONTROL_FLOATING_SELECTOR ),
       nextToView = frame.views.get( nextViewKey as string )
 
       // Duplicated view next to specified pasting view position
@@ -311,26 +311,26 @@ export function onDismiss( $this: Cash, editor: Editor ){
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
    */
-  const $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`)
+  const $trigger = $this.parents(`[${CONTROL_QUICKSET_SELECTOR}],[${CONTROL_MENU_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`)
   
   switch( $this.attr('dismiss') ){
     case 'global': editor.$global?.removeClass('active'); break
     
     // Dismiss extra options
-    case 'extra-toolbar': {
+    case 'extra-quickset': {
       $trigger.find('[options="extra"]').removeClass('active')
-      $trigger.find('[show="extra-toolbar"]').show() // Restore toggle
+      $trigger.find('[show="extra-quickset"]').show() // Restore toggle
     } break
 
     // Dismiss sub options
-    case 'sub-toolbar': {
+    case 'sub-quickset': {
       $trigger.find('[options="sub"]').removeClass('active')
       // Restore main options to default
       $trigger.find('[options="main"]').show()
     } break
 
     // Dismiss element
-    case 'panel':
+    case 'menu':
     default: $trigger.remove(); break
   }
 }
@@ -347,12 +347,12 @@ export function onCustomListener( $this: Cash, editor: Editor ){
    * Lookup the DOM from the main parent perspective
    * make it easier to find different options blocks
    */
-  $trigger = $this.parents(`[${CONTROL_TOOLBAR_SELECTOR}],[${CONTROL_PANEL_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`),
+  $trigger = $this.parents(`[${CONTROL_QUICKSET_SELECTOR}],[${CONTROL_MENU_SELECTOR}],[${CONTROL_FLOATING_SELECTOR}]`),
   frame = editor.canvas.active()
   if( !frame ) return
 
-  const key = $trigger.attr( CONTROL_TOOLBAR_SELECTOR )
-        || $trigger.attr( CONTROL_PANEL_SELECTOR )
+  const key = $trigger.attr( CONTROL_QUICKSET_SELECTOR )
+        || $trigger.attr( CONTROL_MENU_SELECTOR )
         || $trigger.attr( CONTROL_FLOATING_SELECTOR )
   if( !key ) return
 

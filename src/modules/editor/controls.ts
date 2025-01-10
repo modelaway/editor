@@ -12,6 +12,7 @@ export default class Controls {
   constructor( editor: Editor ){
     this.editor = editor
   }
+
   /**
    * 
    */
@@ -21,24 +22,42 @@ export default class Controls {
 
     const
     $viewport = this.editor.$viewport,
-    posTypes = indication.split('-'),
+    [ posX, posY ] = indication.split('-'),
     position: Position = {}
 
-    if( posTypes.length > 1 )
-      console.warn('Only two position types are allowed for control positioning')
+    if( !posY )
+      throw new Error('Invalid positioning indication')
 
-    posTypes.forEach( pos => {
+    function sidePosition( pos: string ){
       switch( pos ){
         case 'top':
         case 'left':
         case 'right':
-        case 'bottom': position[ pos ] = `${EDITOR_EDGE_PADDING}px`; break
-        case 'center': {
-          position.top = `${($viewport.height() / 2) - ($block.height() / 2)}px`
-          position.left = `${($viewport.width() / 2) - ($block.width() / 2)}px`
-        } break
+        case 'bottom': position[ pos as keyof Position ] = `${EDITOR_EDGE_PADDING}px`; break
       }
-    })
+    }
+    function centerPosition( pos: string ){
+      console.log($viewport.width() / 2, $block.width() / 2)
+      switch( pos ){
+        case 'top':
+        case 'bottom': position.left = `${($viewport.width() / 2) - ($block.width() / 2)}px`; break
+        case 'left':
+        case 'right': position.top = `${($viewport.height() / 2) - ($block.height() / 2)}px`; break
+      }
+    }
+
+    if( posX == 'center' ){
+      centerPosition( posY )
+      sidePosition( posY )
+    }
+    else if( posY == 'center' ){
+      centerPosition( posX )
+      sidePosition( posX )
+    }
+    else {
+      sidePosition( posX )
+      sidePosition( posY )
+    }
 
     /**
      * TODO: Add support for smart repositionning when 
@@ -49,10 +68,16 @@ export default class Controls {
     return position
   }
 
+  /**
+   * 
+   */
   movable<Input = void, State = void, Static = void, Context = void>( component: Component<Input, State, Static, Context>, options?: MovableOptions ){
     return new Movable<Input, State, Static, Context>( this.editor, component, options )
   }
 
+  /**
+   * 
+   */
   sortable<Input = void, State = void, Static = void, Context = void>( component: Component<Input, State, Static, Context>, options: SortableOptions ){
     return new Sortable<Input, State, Static, Context>( this.editor, component, options )
   }

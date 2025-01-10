@@ -1,6 +1,6 @@
 import type { ViewComponent } from '../types/view'
 
-const toolbar: ObjectType<ToolbarOption> = {
+const options: ObjectType<QuicksetOption> = {
   upload: {
     icon: 'bx bx-image-add',
     title: 'Add image',
@@ -35,21 +35,21 @@ const Image: ViewComponent = {
   },
   takeover( view ){
     view.events
-    .on('toolbar.show', () => console.log('-- event: toolbar.show') )
-    .on('panel.show', () => {})
+    .on('quickset.show', () => console.log('-- event: quickset.show') )
+    .on('menu.show', () => {})
 
-    .on('upload', async param => {
-      const files = await view.fn.selectFile({ id: '1234' })
-      view.fn.debug('-- async: ', files )
+    // .on('upload', async param => {
+    //   const files = await view.fn.selectFile({ id: '1234' })
+    //   view.fn.debug('-- async: ', files )
 
-      await view.$?.attr('src', files[0].src )
-      view.fn.pushHistoryStack()
-    })
+    //   await view.$?.attr('src', files[0].src )
+    //   view.fn.pushHistoryStack()
+    // })
   },
   dismiss( view ){},
 
-  toolbar(){
-    return toolbar
+  quickset(){
+    return options
   }
 }
 

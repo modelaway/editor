@@ -59,8 +59,6 @@ interface ViewComponent {
   dismiss: ( view: ViewBridge ) => void
 
   styles?: ( view: ViewBridge ) => StyleSettings
-  toolbar?: ( view: ViewBridge ) => ObjectType<ToolbarSet>
-  panel?: ( view: ViewBridge ) => PanelSections
+  quickset?: ( view: ViewBridge ) => ObjectType<QuicksetSet>
+  menu?: ( view: ViewBridge ) => MenuSections
 }
-
-type AddViewTriggerType = 'alley' | 'discret' | 'self'

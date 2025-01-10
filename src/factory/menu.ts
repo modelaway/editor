@@ -6,25 +6,25 @@ import Lips, { Component } from '../lib/lips/lips'
 import * as Helpers from './helpers'
 import {
   CONTROL_LANG_SELECTOR,
-  CONTROL_PANEL_SELECTOR,
+  CONTROL_MENU_SELECTOR,
   FORM_SEPERATOR_SELECTOR
 } from '../modules/constants'
 
-export type PanelInput = {
+export type MenuInput = {
   key: string
   caption: ViewCaption
-  options: PanelSections
+  options: MenuSections
   position?: {
     left: string
     top: string
   }
   active?: string 
 }
-export type PanelState = {
+export type MenuState = {
   activeTab: string | null
 }
 
-export default ( input: PanelInput, hook: HandlerHook ) => {
+export default ( input: MenuInput, hook: HandlerHook ) => {
   const lips = new Lips()
   lips.register('inputs', Helpers.Inputs() )
 
@@ -32,7 +32,7 @@ export default ( input: PanelInput, hook: HandlerHook ) => {
     activeTab: null
   }
 
-  const handler: Handler<PanelInput, PanelState> = {
+  const handler: Handler<MenuInput, MenuState> = {
     onInput({ options }){
       if( !options ) return
 
@@ -45,10 +45,10 @@ export default ( input: PanelInput, hook: HandlerHook ) => {
 
       option.meta
           ? typeof hook.metacall == 'function' && hook.metacall( key, option )
-          : hook.events?.emit('panel.handle', key, option )
+          : hook.events?.emit('menu.handle', key, option )
     },
     onDismiss(){
-      typeof hook.metacall == 'function' && hook.metacall('panel.dismiss')
+      typeof hook.metacall == 'function' && hook.metacall('menu.dismiss')
     }
   }
 
@@ -107,17 +107,17 @@ export default ( input: PanelInput, hook: HandlerHook ) => {
   }
   
   const template = `
-    <mblock ${CONTROL_PANEL_SELECTOR}="input.key"
+    <mblock ${CONTROL_MENU_SELECTOR}="input.key"
             style="typeof input.position == 'object' ? { left: input.position.left, top: input.position.top } : '?'">
-      <mblock dismiss="panel" backdrop on-click="onDismiss"></mblock>
+      <mblock dismiss="menu" backdrop on-click="onDismiss"></mblock>
       <mblock container>
         <mblock class="header">
           <mblock>
             <micon class=input.caption.icon></micon>
             <mlabel ${CONTROL_LANG_SELECTOR}>{input.caption.title}</mlabel>
 
-            <!-- Dismiss control panel -->
-            <span dismiss="panel"  title="Dismiss" ${CONTROL_LANG_SELECTOR} on-click="onDismiss">
+            <!-- Dismiss control menu -->
+            <span dismiss="menu"  title="Dismiss" ${CONTROL_LANG_SELECTOR} on-click="onDismiss">
               <micon class="bx bx-x"></micon>
             </span>
           </mblock>
@@ -152,5 +152,5 @@ export default ( input: PanelInput, hook: HandlerHook ) => {
     </mblock>
   `
 
-  return new Component<PanelInput, PanelState>('panel', template, { input, state, handler, macros }, { lips })
+  return new Component<MenuInput, MenuState>('menu', template, { input, state, handler, macros }, { lips })
 }

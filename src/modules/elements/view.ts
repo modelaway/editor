@@ -1,6 +1,6 @@
 import type Frame from '../frame'
 import type { HandlerHook } from '../../types/controls'
-import type { AddViewTriggerType, ViewBlockProperties, ViewComponent, ViewBridge } from '../../types/view'
+import type { ViewBlockProperties, ViewComponent, ViewBridge } from '../../types/view'
 
 import $, { type Cash } from 'cash-dom'
 import EventEmitter from 'events'
@@ -8,28 +8,23 @@ import State from '../state'
 import {
   VIEW_KEY_SELECTOR,
   VIEW_NAME_SELECTOR,
-  VIEW_ALLEY_SELECTOR,
   VIEW_ACTIVE_SELECTOR,
   VIEW_CAPTION_SELECTOR,
   VIEW_TYPES_ALLOWED_SELECTOR,
   
-  CONTROL_PANEL_SELECTOR,
-  CONTROL_TOOLBAR_SELECTOR,
-  CONTROL_FLOATING_SELECTOR,
-  CONTROL_FLOATING_MARGIN,
+  CONTROL_MENU_SELECTOR,
+  CONTROL_QUICKSET_SELECTOR,
   
   CONTROL_EDGE_MARGIN,
-  CONTROL_PANEL_MARGIN,
-  CONTROL_TOOLBAR_MARGIN,
+  CONTROL_MENU_MARGIN,
+  CONTROL_QUICKSET_MARGIN,
   VIEW_REF_SELECTOR,
   VIEW_CONTROL_OPTIONS
 } from '../constants'
-import Alley from '../../factory/alley'
 import { Component } from '../../lib/lips/lips'
-import Panel, { PanelInput, PanelState } from '../../factory/panel'
+import Menu, { MenuInput, MenuState } from '../../factory/menu'
 import Finder, { FinderInput, FinderState } from '../../factory/finder'
-import Toolbar, { ToolbarInput, ToolbarState } from '../../factory/toolbar'
-import Floating, { FloatingInput } from '../../factory/floating'
+import Quickset, { QuicksetInput, QuicksetState } from '../../factory/quickset'
 import { debug, hashKey } from '../utils'
 
 /**
@@ -71,13 +66,13 @@ export default class View extends EventEmitter {
   public bridge: ViewBridge
 
   /**
-   * Toolbar block component
+   * Quickset block component
    */
-  private Toolbar?: Component<ToolbarInput, ToolbarState>
+  private Quickset?: Component<QuicksetInput, QuicksetState>
   /**
-   * Toolbar block component
+   * Quickset block component
    */
-  private Panel?: Component<PanelInput, PanelState>
+  private Menu?: Component<MenuInput, MenuState>
   /**
    * Finder panel block component
    */
@@ -128,29 +123,6 @@ export default class View extends EventEmitter {
     }
     catch( error: any ){ debug( error.message ) }
 
-    /**
-     * Attach a next alley to the new view element
-     */
-    try {
-      if( this.frame.editor.settings.enableAlleys
-          && !this.$.next(`[${VIEW_ALLEY_SELECTOR}="${this.key}"]`).length ){
-
-        /**
-         * Use discret placehlder to no `absolute`, `fixed` or `sticky`
-         * position elements to void unnecessary stack of relative alley
-         * elements around static or relative position elements.
-         */
-        const 
-        freePositions = ['fixed', 'absolute', 'sticky'],
-        hook = { metacall: this.metacall.bind(this) }
-
-        freePositions.includes( this.$.css('position') as string ) ?
-                                      Alley({ key: this.key, discret: true }, hook ).prependTo( this.$ )
-                                      : this.$.after( Alley({ key: this.key }, hook ).getNode() )
-      }
-    }
-    catch( error: any ){ debug( error.message ) }
-
     // Make view's remove Cash object
     this.bridge.$ = this.$
 
@@ -165,7 +137,7 @@ export default class View extends EventEmitter {
      * Override bridge primary fn interface methods
      */
     if( this.bridge.fn ){
-      this.bridge.fn.syncToolbar = ( updates: ObjectType<any>, fn?: () => void ) => {
+      this.bridge.fn.syncQuickset = ( updates: ObjectType<any>, fn?: () => void ) => {
         /**
          * Attach `options.` scope to update options' keys
          */
@@ -175,7 +147,7 @@ export default class View extends EventEmitter {
         .entries( updates )
         .map( ([ key, value ]) => _updates[`options.${key}`] = value )
 
-        this.Toolbar?.subInput( _updates )
+        this.Quickset?.subInput( _updates )
 
         typeof fn == 'function' && fn()
       }
@@ -245,7 +217,7 @@ export default class View extends EventEmitter {
   /**
    * Mount new view comopnent into the DOM
    */
-  mount( vc: ViewComponent, to: string, triggerType: AddViewTriggerType = 'self' ){
+  mount( vc: ViewComponent, to: string ){
     if( !this.frame.$ ) return
 
     /**
@@ -253,7 +225,7 @@ export default class View extends EventEmitter {
      * sure the destination view is within editor control
      * scope.
      */
-    const $to = this.frame.$.find(`[${triggerType == 'alley' ? VIEW_REF_SELECTOR : VIEW_KEY_SELECTOR}="${to}"]`)
+    const $to = this.frame.$.find(`[${VIEW_KEY_SELECTOR}="${to}"]`)
     if( !$to.length )
       throw new Error(`Invalid destination view - <key:${to}>`)
     
@@ -269,13 +241,6 @@ export default class View extends EventEmitter {
 
     // Add view to the DOM
     this.$ = $(element)
-
-    switch( triggerType ){
-      case 'alley':
-      case 'discret': $to.after( this.$ ); break
-      case 'self':
-      default: $to.append( this.$ )
-    }
 
     /**
      * Generate and assign tracking key to the 
@@ -326,18 +291,10 @@ export default class View extends EventEmitter {
      * Add cloned view next to a given view element 
      * at a specific position
      */
-    if( $nextTo?.length ){
-      /**
-       * Add next to the view's attached alley 
-       * or the view itself if no alley.
-       */
-      if( $nextTo.next().is(`[${VIEW_ALLEY_SELECTOR}]`) )
-        $nextTo = $nextTo.next()
-      
-      $nextTo.after( this.$ )
-    }
-    // Append cloned view directly next to the original view
-    else viewInstance.$.parent().append( this.$ )
+    $nextTo?.length
+        ? $nextTo.after( this.$ )
+        // Append cloned view directly next to the original view
+        : viewInstance.$.parent().append( this.$ )
 
     /**
      * Generate and assign view tracking key
@@ -375,9 +332,6 @@ export default class View extends EventEmitter {
       if( !each.selector ){
         each.caption && this.$.data( VIEW_CAPTION_SELECTOR, each.caption )
         each.allowedViewTypes && this.$.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
-        each.addView
-        && this.frame.editor.settings.enableAlleys
-        && this.$.append( Alley({}, { metacall: this.metacall.bind(this) }).getNode() as any )
 
         return
       }
@@ -389,9 +343,6 @@ export default class View extends EventEmitter {
 
       each.caption && $block.data( VIEW_CAPTION_SELECTOR, each.caption )
       each.allowedViewTypes && $block.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
-      each.addView
-      && this.frame.editor.settings.enableAlleys
-      && $block.append( Alley({}, { metacall: this.metacall.bind(this) }).getNode() as any )
     } )
   }
   destroy(){
@@ -400,14 +351,6 @@ export default class View extends EventEmitter {
     
     // Dismiss controls related to the view
     this.dismiss()
-
-    try {
-      // Remove alley attached to the view
-      this.$.next(`[${VIEW_ALLEY_SELECTOR}]`).remove()
-      // Remove visible floating active
-      this.frame.$?.find(`[${CONTROL_FLOATING_SELECTOR}="${this.key}"]`)?.remove()
-    }
-    catch( error ){}
 
     // Remove element from the DOM
     this.$.remove()
@@ -426,37 +369,37 @@ export default class View extends EventEmitter {
   }
 
   /**
-   * Show view's editing toolbar
+   * Show view's editing quickset
    */
-  showToolbar(){
+  showQuickset(){
     if( !this.frame.editor.$viewport || !this.key || !this.$ )
       throw new Error('Invalid method called')
 
-    if( this.frame.editor.$viewport.find(`[${CONTROL_TOOLBAR_SELECTOR}="${this.key}"]`).length ) 
+    if( this.frame.editor.$viewport.find(`[${CONTROL_QUICKSET_SELECTOR}="${this.key}"]`).length ) 
       return
 
     const
-    { toolbar, panel } = this.get() as ViewComponent,
-    options = typeof toolbar == 'function' ? toolbar( this.bridge ) : {},
+    { quickset, menu } = this.get() as ViewComponent,
+    options = typeof quickset == 'function' ? quickset( this.bridge ) : {},
     settings = {
       editing: true,
       visible: true,
-      detached: typeof panel == 'function'
+      detached: typeof menu == 'function'
     }
 
-    // Calculate toolbar position
+    // Calculate quickset position
     let { x, y, height } = this.frame.getTopography( this.$ )
-    debug('show view toolbar: ', x, y )
+    debug('show view quickset: ', x, y )
 
     // Adjust by left edges
     if( x < 15 ) x = CONTROL_EDGE_MARGIN
 
     /**
-     * Create and hook toolbar to view
+     * Create and hook quickset to view
      * component operations.
      */
     const 
-    input: ToolbarInput = {
+    input: QuicksetInput = {
       key: this.key,
       /**
        * Extend options list with default view 
@@ -470,16 +413,16 @@ export default class View extends EventEmitter {
       events: this.bridge.events,
       metacall: this.metacall.bind(this)
     }
-    this.Toolbar = Toolbar( input, hook )
-    let $toolbar = this.Toolbar.appendTo( this.frame.editor.$viewport ).getNode()
+    this.Quickset = Quickset( input, hook )
+    let $quickset = this.Quickset.appendTo( this.frame.editor.$viewport ).getNode()
 
     /**
-     * Position toolbar relatively to the view
+     * Position quickset relatively to the view
      * component.
      */
     const
-    tHeight = $toolbar.find(':scope > [container]').height() || 0,
-    dueYPosition = tHeight + (CONTROL_TOOLBAR_MARGIN * 2)
+    tHeight = $quickset.find(':scope > [container]').height() || 0,
+    dueYPosition = tHeight + (CONTROL_QUICKSET_MARGIN * 2)
     
     const
     wWidth = $(window).width() || 0,
@@ -502,45 +445,45 @@ export default class View extends EventEmitter {
     if( y > (wHeight - tHeight) ) 
       y = wHeight - tHeight - CONTROL_EDGE_MARGIN
 
-    // Update toolbar position
-    this.Toolbar.subInput({ position: { left: `${x}px`, top: `${y}px` } })
-    // Fire show toolbar listeners
-    this.bridge.events.emit('toolbar.show')
+    // Update quickset position
+    this.Quickset.subInput({ position: { left: `${x}px`, top: `${y}px` } })
+    // Fire show quickset listeners
+    this.bridge.events.emit('quickset.show')
   }
-  showPanel(){
+  showMenu(){
     if( !this.frame.editor.$viewport || !this.key || !this.$ ) 
       throw new Error('Invalid method called')
 
-    if( this.frame.editor.$viewport.find(`[${CONTROL_PANEL_SELECTOR}="${this.key}"]`).length ) 
+    if( this.frame.editor.$viewport.find(`[${CONTROL_MENU_SELECTOR}="${this.key}"]`).length ) 
       return
 
-    const { caption, panel } = this.get() as ViewComponent
-    if( typeof panel !== 'function' ) return
+    const { caption, menu } = this.get() as ViewComponent
+    if( typeof menu !== 'function' ) return
 
-    // Calculate panel position
+    // Calculate menu position
     let { x, y, width } = this.frame.getTopography( this.$ )
-    debug('show view panel: ', x, y )
+    debug('show view menu: ', x, y )
     
     const
     input = {
       caption,
       key: this.key,
-      options: panel( this.bridge )
+      options: menu( this.bridge )
     },
     hook: HandlerHook = {
       metacall: this.metacall.bind(this)
     }
-    this.Panel = Panel( input, hook )
-    let $panel = this.Panel.appendTo( this.frame.editor.$viewport ).getNode()
+    this.Menu = Menu( input, hook )
+    let $menu = this.Menu.appendTo( this.frame.editor.$viewport ).getNode()
 
     const
-    pWidth = $panel.find(':scope > [container]').width() || 0,
-    pHeight = $panel.find(':scope > [container]').height() || 0,
+    pWidth = $menu.find(':scope > [container]').width() || 0,
+    pHeight = $menu.find(':scope > [container]').height() || 0,
     // Window dimensions
     wWidth = $(window).width() || 0,
     wHeight = $(window).height() || 0,
     
-    dueXPosition = pWidth + CONTROL_PANEL_MARGIN
+    dueXPosition = pWidth + CONTROL_MENU_MARGIN
     
     /**
      * Not enough space at the left, position at the right
@@ -551,13 +494,13 @@ export default class View extends EventEmitter {
        * over view.
        */
       if( x + width + dueXPosition < wWidth )
-        x += width + CONTROL_PANEL_MARGIN
+        x += width + CONTROL_MENU_MARGIN
     }
     // Adjust by left edges
     else x -= dueXPosition
 
     /**
-     * Display panel in window view when element 
+     * Display menu in window view when element 
      * is position to close to the bottom.
      */
     if( ( y + pHeight + CONTROL_EDGE_MARGIN ) > wHeight )
@@ -567,59 +510,12 @@ export default class View extends EventEmitter {
     else if( y < CONTROL_EDGE_MARGIN )
       y = CONTROL_EDGE_MARGIN
     
-    // Update panel's position
-    this.Panel.subInput({ position: { left: `${x}px`, top: `${y}px` } })
-    // Fire show panel listeners
-    this.bridge.events.emit('panel.show')
+    // Update menu's position
+    this.Menu.subInput({ position: { left: `${x}px`, top: `${y}px` } })
+    // Fire show menu listeners
+    this.bridge.events.emit('menu.show')
   }
-  showFloating(){
-    if( !this.frame.editor.$viewport || !this.key || !this.$ )
-      throw new Error('Invalid method called')
-
-    if( this.frame.editor.$viewport.find(`[${CONTROL_FLOATING_SELECTOR}="${this.key}"]`).length ) 
-      return
-    
-    const triggers = ['addpoint']
-    /**
-     * Show paste-view trigger point when a pending
-     * copy of view is in the clipboard.
-     */
-    if( this.frame.editor.clipboard?.type == 'view' )
-      triggers.push('paste')
-
-    const
-    $discret = this.$.find(`[${VIEW_ALLEY_SELECTOR}][discret]`),
-    $alley = $discret.length ? $discret : this.$.next(`[${VIEW_ALLEY_SELECTOR}]`)
-    if( !$alley.length ) return
-
-    // Calculate floating position
-    let { x, y } = this.frame.getTopography( $alley )
-
-    // let $floating: Cash
-    // // Insert new floating point to the DOM
-    // if( !this.frame.editor.Floating ){
-    //   this.frame.editor.Floating = Floating({ key: this.key, type: 'view', triggers })
-    //   $floating = this.frame.editor.Floating.appendTo( this.frame.editor.$viewport ).getNode()
-    // }
-    // // Change key of currently floating point to new trigger's key
-    // else {
-    //   this.frame.editor.Floating?.setInput({ key: this.key, type: 'view', triggers })
-    //   $floating = this.frame.editor.Floating.getNode()
-    // }
-
-    // const
-    // tWidth = !$discret.length && $floating.find('> mul').width() || 0,
-    // dueXPosition = tWidth + CONTROL_FLOATING_MARGIN
-
-    // /**
-    //  * Not enough space at the left, position at the right
-    //  */
-    // if( ( x - dueXPosition ) >= 15 )
-    //   x -= dueXPosition
-    
-    // $floating.css({ left: `${x}px`, top: `${y}px` })
-  }
-  showViewFinder( $trigger: Cash ){
+  showFinder( $trigger: Cash ){
     if( !this.frame.editor.$viewport || !this.key || !this.$ )
       throw new Error('Invalid method called')
 
@@ -679,54 +575,13 @@ export default class View extends EventEmitter {
 
     switch( direction ){
       case 'up': {
-        const $alley = this.$.next(`[${VIEW_ALLEY_SELECTOR}]`)
-        /**
-         * Check whether previous view above has alley then
-         * point moving anchor to after the alley (view itself).
-         */
-        let $anchor = this.$.prev(`[${VIEW_ALLEY_SELECTOR}]`).length ?
-                                    this.$.prev(`[${VIEW_ALLEY_SELECTOR}]`).prev()
-                                    : this.$.prev()
-                                       
-        /**
-         * In case this view is the last top element in its 
-         * container.
-         */
-        if( !$anchor.length ) return
-        
-        /**
-         * Move this view and its alley to the view 
-         * right above it in the same container
-         */
-        $anchor.before( this.$ )
-        $alley?.length && this.$.after( $alley )
+        let $anchor = this.$.prev()
+        $anchor.length && this.$.before( $anchor )
       } break
       
       case 'down': {
-        const $alley = this.$.next(`[${VIEW_ALLEY_SELECTOR}]`)
-
-        let $anchor = $alley?.length ?
-                          $alley.next() // View right below the alley
-                          : this.$.next()  
-        /**
-         * In case this view is the last bottom element in its 
-         * container.
-         */
-        if( !$anchor.length ) return
-
-        /**
-         * Check whether next view below has alley then
-         * point moving anchor to the alley.
-         */
-        if( $anchor.next(`[${VIEW_ALLEY_SELECTOR}]`).length )
-          $anchor = $anchor.next(`[${VIEW_ALLEY_SELECTOR}]`)
-        
-        /**
-         * Move this view and its alley to the view 
-         * right below it in the same container
-         */
-        $anchor.after( this.$ )
-        $alley?.length && this.$.after( $alley )
+        let $anchor = this.$.next()
+        $anchor.length && this.$.after( $anchor )
       } break
 
       default: this.showMovable()
@@ -736,15 +591,15 @@ export default class View extends EventEmitter {
     // Unhighlight triggered views
     this.$?.removeAttr( VIEW_ACTIVE_SELECTOR )
     
-    // Remove editing toolbar if active
-    this.Toolbar?.destroy()
-    this.Toolbar = undefined
+    // Remove editing quickset if active
+    this.Quickset?.destroy()
+    this.Quickset = undefined
 
-    // Remove editing control panel if active
-    this.Panel?.destroy()
-    this.Panel = undefined
+    // Remove editing control menu if active
+    this.Menu?.destroy()
+    this.Menu = undefined
 
-    // Remove editing finder panel if active
+    // Remove editing finder menu if active
     this.Finder?.destroy()
     this.Finder = undefined
 
@@ -794,8 +649,8 @@ export default class View extends EventEmitter {
     if( !this.key ) return
 
     switch( key ){
-      case 'panel': this.showPanel(); break
-      case 'panel.dismiss': this.Panel?.destroy(); break
+      case 'menu': this.showMenu(); break
+      case 'menu.dismiss': this.Menu?.destroy(); break
 
       case 'finder.search':
         /**

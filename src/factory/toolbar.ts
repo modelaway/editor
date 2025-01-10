@@ -1,91 +1,82 @@
-import type { Handler } from '../lib/lips'
 import type { HandlerHook } from '../types/controls'
 
+import { Handler } from '../lib/lips'
 import { Component } from '../lib/lips/lips'
-import {
-  CONTROL_LANG_SELECTOR,
-  CONTROL_TOOLBAR_SELECTOR,
-  VIEW_CONTROL_OPTIONS
-} from '../modules/constants'
+import { CONTROL_LANG_SELECTOR } from '../modules/constants'
 
-/**
- * Process toolbar options into HTML content
- */
+export type ToolbarOption = {
+  icon: string
+  title: string
+  event: {
+    type: string
+    params: true
+    shortcut: string
+  },
+  disabled?: boolean
+}
 export type ToolbarInput = {
   key: string
-  options: ObjectType<ToolbarOption>
-  settings?: ToolbarSettings
-  position?: {
-    left: string
-    top: string
+  tools?: Record<string, ToolbarOption>
+  views?: Record<string, ToolbarOption>
+  globals?: Record<string, ToolbarOption>
+  settings: {
+    visible?: boolean
   }
+  position?: string | Position
 }
-export type ToolbarState = {
-  default: ObjectType<ToolbarOption> | null
-  extra: ObjectType<ToolbarOption> | null
-  subOption: ObjectType<ToolbarOption> | null
-  detached: ObjectType<ToolbarOption> | null
-  showExtra: boolean
-}
-
 export default ( input: ToolbarInput, hook?: HandlerHook ) => {
 
-  const state: ToolbarState = {
-    default: null,
-    extra: null,
-    subOption: null,
-    detached: null,
-
-    showExtra: false
+  input.tools = {
+    cursor: {
+      icon: 'bx bx-pointer',
+      title: 'Pointer',
+      event: {
+        type: 'action',
+        params: true,
+        shortcut: 'command + z'
+      }
+    },
+    picker: {
+      icon: 'bx bx-color-fill',
+      title: 'Picker',
+      event: {
+        type: 'action',
+        params: true,
+        shortcut: 'command + y'
+      }
+    },
+    palette: {
+      icon: 'bx bx-palette',
+      title: 'Palette',
+      event: {
+        type: 'action',
+        params: true,
+        shortcut: 'command + y'
+      }
+    }
   }
 
-  const handler: Handler<ToolbarInput, ToolbarState> = {
-    onInput({ options }: ToolbarInput ){
-      if( !options ) return
-
-      Object
-      .entries( options )
-      .filter( ([key, { hidden }]) => (!hidden) )
-      .forEach( ([ key, option ]) => {
-        if( option.extra ){
-          if( !this.state.extra ) 
-            this.state.extra = {}
-          
-          this.state.extra[ key ] = option
-        }
-        else if( option.detached ){
-          if( !this.state.detached ) 
-            this.state.detached = {}
-
-          this.state.detached[ key ] = option
-        }
-        else {
-          if( !this.state.default ) 
-            this.state.default = {}
-
-          this.state.default[ key ] = option
-        }
-      } )
+  const handler: Handler<ToolbarInput> = {
+    onMount(){
+      // Set to default position
+      ;(!this.input.position || typeof this.input.position === 'string')
+      && setTimeout( () => {
+        const
+        indication = typeof this.input.position === 'string' ? this.input.position : 'top-left',
+        defPostion = hook?.editor?.controls.letPosition( this.getNode(), indication )
+        if( !defPostion ) return
+        
+        this.input.position = defPostion
+        this.getNode().css( defPostion )
+      }, 5 )
     },
-    onShowExtraOptions( status ){ this.state.showExtra = status },
-    onShowSubOptions( key, option ){ this.state.subOption = key && { ...option, key } },
-    onHandleOption( key, option ){
-      if( !hook ) return
-
-      option.meta
-          ? typeof hook.metacall == 'function' && hook.metacall( key, option )
-          : hook.events?.emit('toolbar.handle', key, option )
-    },
-
     getStyle(){
-      const style: Record<string, string> = {
+      let style: Record<string, string> = {
         display: this.input.settings?.visible ? 'block' : 'none'
       }
 
-      if( this.input.position ){
-        style.left = this.input.position.left
-        style.top = this.input.position.top
-      }
+      if( typeof this.input.position === 'object' )
+        style = { ...style, ...this.input.position }
 
       return style
     }
@@ -109,112 +100,49 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
   }
 
   const template = `
-    <mblock ${CONTROL_TOOLBAR_SELECTOR}=input.key
-            class="input.settings.editing ? 'editing' : '?'"
-            style=self.getStyle()>
-      <mblock container>
-        <mul>
-          <if( !state.subOption )>
-            <mblock options="main">
-              <for in=state.default>
-                <option ...each></option>
-              </for>
-
-              <if( state.extra && !state.showExtra )>
-                <mli title="Extra options" ${CONTROL_LANG_SELECTOR} on-click( onShowExtraOptions, true )><micon class="bx bx-dots-horizontal-rounded"></micon></mli>
-              </if>
-            </mblock>
-
-            <if( state.showExtra )>
-              <mblock options="extra">
-                <for in=state.extra>
-                  <option ...each></option>
-                </for>
-
-                <mli title="Back" ${CONTROL_LANG_SELECTOR} on-click( onShowExtraOptions, false )><micon class="bx bx-chevron-left"></micon></mli>
-              </mblock>
-            </if>
-          </if>
-
-          <if( state.subOption )>
-            <mblock options="sub">
-              <mli title="Back" ${CONTROL_LANG_SELECTOR} on-click( onShowSubOptions, false )>
-                <micon class="bx bx-chevron-left"></micon>
-              </mli>
-
-              <mli class="label">
-                <micon class=state.subOption.icon></micon>
-                <mlabel ${CONTROL_LANG_SELECTOR} text="state.subOption.label || state.subOption.title"></mlabel>
-              </mli>
-              
-              <for in=state.subOption.sub>
-                <mli active=each.active
-                      disable=each.disabled
-                      title=each.title
-                    ${CONTROL_LANG_SELECTOR}
-                    on-click( onHandleOption, state.subOption.key +'.sub.'+ key, each )>
-                  <micon class=each.icon></micon>
-                </mli>
-              </for>
-            </mblock>
-          </if>
-        </mul>
-
-        <if( state.detached )>
-          <mul>
-            <mblock options="detached">
-              <for in=state.detached>
-                <option ...each></option>
-              </for>
-            </mblock>
+    <mblock style=self.getStyle() backdrop>
+      <mblock>
+        <if( input.tools )>
+          <mul options="tools">
+            <for in=input.tools>
+              <option ...each></option>
+            </for>
           </mul>
         </if>
+
+
       </mblock>
+
+      <mblock container></mblock>
     </mblock>
   `
 
-  return new Component<ToolbarInput, ToolbarState>('toolbar', template, { input, state, handler, macros, stylesheet })
+  return new Component<ToolbarInput>('toolbar', template, { input, handler, macros, stylesheet } )
 }
 
 const stylesheet = `
   position: fixed;
   z-index: 200;
-  width: 0px;
+  height: 100%;
   cursor: default;
   user-select: none;
-  font-size: var(--me-font-size);
-  
-  &[mv-toolbar="global"] {
-    left: var(--me-edge-padding);
-    bottom: var(--me-edge-padding);
-  }
+  margin: auto 0;
+
+  > mblock { height: 100%; }
   > mblock > mul {
-    list-style: none;
+    height: 100%;
     margin: 0;
-    padding: 5px;
+    padding: 3px;
     border-radius: var(--me-border-radius);
     background-color: #fff;
     box-shadow: var(--me-box-shadow);
     backdrop-filter: var(--me-backdrop-filter);
     transition: var(--me-active-transition);
   }
-  
-  > mblock,
-  > mblock > mul,
-  > mblock > mul > mblock {
-    display: flex;
-    align-items: center;
-    justify-content: space-around;
-  }
-
-  > mblock { padding: 6px 0; }
-  > mblock > mul:not(:first-child) {
-    margin: 0 6px;
-  }
   mli {
-    padding: 6px;
+    padding: 8px;
     margin: 2px;
-    display: inline-flex;
+    display: flex;
     align-items: center;
     /* color: var(--me-trigger-text-color); */
     border-radius: var(--me-border-radius-inside);
@@ -223,28 +151,27 @@ const stylesheet = `
   mli:not(.label) {
     cursor: pointer;
   }
-  mli[active] {
-    color: var(--me-active-text-color);
-  }
   mli[disabled] {
     color: var(--me-disabled-text-color);
     cursor: not-allowed;
   }
-  [meta],
-  [dismiss],
-  mli:not(.label,[disabled]):hover {
-    background-color: var(--me-secondary-color-transparent);
+  mli[active] {
+    background-color: var(--me-primary-color);
+    color: #fff;
+  }
+  mli:not(.label,[disabled],[active]):hover {
+    background-color: var(--me-primary-color-transparent);
   }
   mli.label > micon,
   mli.label > mlabel {
     cursor: default;
     text-wrap: nowrap;
     padding-left: 10px;
-    font-size: var(--me-font-size);
+    font-size: var(--me-font-size-2);
     color: var(--me-disabled-text-color);
   }
   mli.label > micon { padding-left: 0; }
   mli micon {
-    font-size: var(--me-icon-size)!important;
+    font-size: var(--me-icon-size-2)!important;
   }
 `

@@ -34,7 +34,7 @@ export type LayerElement = {
 export interface LayersInput {
   key: string
   settings?: LayersSettings
-  position?: Position
+  position?: string | Position
   content?: string
   mutations?: Mutation[]
 }
@@ -405,14 +405,16 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
       // })
 
       // Set to default position
-      !this.input.position && setTimeout( () => {
-        const defPostion = hook?.editor?.controls.letPosition( this.getNode(), 'bottom-right')
+      ;(!this.input.position || typeof this.input.position === 'string')
+      && setTimeout( () => {
+        const
+        indication = typeof this.input.position === 'string' ? this.input.position : 'bottom-right',
+        defPostion = hook?.editor?.controls.letPosition( this.getNode(), indication )
         if( !defPostion ) return
         
         this.input.position = defPostion
         this.getNode().css( defPostion )
       }, 5 )
-
     },
     onRender(){
     },
@@ -427,7 +429,7 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
         display: this.input.settings?.visible ? 'block' : 'none'
       }
 
-      if( this.input.position )
+      if( typeof this.input.position === 'object' )
         style = { ...style, ...this.input.position }
 
       return style
@@ -492,6 +494,7 @@ const stylesheet = `
   .body {
     min-width: 15rem;
     height: 45vh;
+    padding-top: 1px;
     overflow: auto;
   }
   .ill-icon {
@@ -512,6 +515,8 @@ const stylesheet = `
   mli {
     background-color: var(--me-secondary-color);
     border-top: 1px solid var(--me-border-color);
+    border-bottom: 1px solid var(--me-border-color);
+    margin: -1px 0;
     
     .layer-bar {
       display: flex;
@@ -528,7 +533,7 @@ const stylesheet = `
 
         mlabel { 
           color: #d2d7dd;
-          user-select: none'
+          user-select: none;
           
           &[contenteditable="true"]{
             min-width: 5rem;
@@ -562,11 +567,11 @@ const stylesheet = `
     --hb: rgba(255,255,255,.05);
 
     .sortable-item {
-      /* 
       transition: all var(--td) ease;
       transform-origin: 50% 50%;
       animation: reorder var(--td) ease;
 
+      /* 
       &:hover {
         background: var(--hb);
         .nested-indicator { opacity: 1 }
@@ -604,7 +609,7 @@ const stylesheet = `
       transition: all var(--td) ease;
     }
 
-    .sortable-drag { opacity: 0 }
+    .sortable-drag { opacity: 0; }
 
     .selected {
       background: var(--hb);

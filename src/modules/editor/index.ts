@@ -10,8 +10,8 @@ import History from '../history'
 import Controls from './controls'
 import Functions from '../functions'
 import Viewport from '../../factory/viewport'
-import House, { HouseInput } from '../../factory/house'
 import Toolbar, { ToolbarInput } from '../../factory/toolbar'
+import Quickset, { QuicksetInput } from '../../factory/quickset'
 import Layers from '../../factory/layers'
 import { debug } from '../utils'
 import { GLOBAL_CONTROL_OPTIONS } from '../constants'
@@ -58,12 +58,6 @@ export default class Editor {
     hoverSelect: true,
 
     /**
-     * Allow alley to indicate where to add
-     * new views.
-     */
-    enableAlleys: true,
-
-    /**
      * Automatically lookup and apply view rules
      * across the document elements on document load
      */
@@ -72,9 +66,9 @@ export default class Editor {
     /**
      * Workspace view preferences
      */
-    viewToolbar: true,
+    viewControls: true,
     viewLayers: true,
-    viewHouse: true
+    viewToolbar: true
   }
   public settings: ModelaSettings = {}
 
@@ -197,7 +191,7 @@ export default class Editor {
    * Update global controls options by settings
    * and preferences.
    */
-  private getOptions(): Record<string, ToolbarOption> {
+  private getOptions(): Record<string, QuicksetOption> {
 
     if( this.settings.viewLayers )
       GLOBAL_CONTROL_OPTIONS['frame-layers'].active = true
@@ -253,32 +247,16 @@ export default class Editor {
       throw new Error('Unexpected error occured')
     
     /**----------------------------------------------------
-     * Initialize global house
-     * ----------------------------------------------------
-     */
-    const
-    hinput: HouseInput = { 
-      key: 'global',
-      // options: this.getOptions(),
-      settings: {
-        visible: this.settings.viewHouse,
-      }
-    },
-    house = House( hinput, { events: this.events })
-    house.appendTo( this.$viewport )
-
-    this.events.on('house.handle', ( key, option ) => {
-      console.log('global house --', key, option )
-    })
-    
-    /**----------------------------------------------------
      * Initialize global toolbar
      * ----------------------------------------------------
      */
-    const 
-    tinput: ToolbarInput = {
+    const
+    tinput: ToolbarInput = { 
       key: 'global',
-      options: this.getOptions(),
+      tools: {},
+      views: {},
+      globals: {},
+      // options: this.getOptions(),
       settings: {
         visible: this.settings.viewToolbar,
       }
@@ -288,16 +266,35 @@ export default class Editor {
 
     this.events.on('toolbar.handle', ( key, option ) => {
       console.log('global toolbar --', key, option )
+    })
+    
+    /**----------------------------------------------------
+     * Initialize global controls
+     * ----------------------------------------------------
+     */
+    const 
+    cinput: QuicksetInput = {
+      key: 'global',
+      options: this.getOptions(),
+      settings: {
+        visible: this.settings.viewControls,
+      }
+    },
+    controls = Quickset( cinput, { events: this.events, editor: this })
+    controls.appendTo( this.$viewport )
+
+    this.events.on('quickset.handle', ( key, option ) => {
+      console.log('global controls --', key, option )
 
       switch( key ){
         case 'frame-layers': {
           if( !option.active ){
             layers.getNode().show()
-            toolbar.subInput({ [`options.${key}.active`]: true })
+            controls.subInput({ [`options.${key}.active`]: true })
           }
           else {
             layers.getNode().hide()
-            toolbar.subInput({ [`options.${key}.active`]: false })
+            controls.subInput({ [`options.${key}.active`]: false })
           }
         }
       }
@@ -351,7 +348,7 @@ export default class Editor {
     /**
      * List to history record stack Stats
      */
-    // this.history.on('history.record', ({ canRedo, canUndo }) => toolbar.subInput({
+    // this.history.on('history.record', ({ canRedo, canUndo }) => controls.subInput({
     //   'options.undo.disabled': !canUndo,
     //   'options.redo.disabled': !canRedo
     // }))

@@ -15,6 +15,7 @@ type Position = {
   top?: string
   right?: string
   bottom?: string
+  center?: string
 }
 
 type InputOptions = {
@@ -57,7 +58,7 @@ type ListItem = {
     params: string | boolean
     shortcut?: string
   }
-  sub?: PanelSection[]
+  sub?: MenuSection[]
   disabled?: boolean
 }
 
@@ -89,7 +90,7 @@ type CSSRuleOption = {
   customizable?: boolean
 }
 
-type ToolbarOption = {
+type QuicksetOption = {
   icon: string
   label?: string
   title: string
@@ -99,15 +100,16 @@ type ToolbarOption = {
     params: string | boolean
     shortcut?: string
   }
-  sub?: ObjectType<ToolbarOption>
+  sub?: ObjectType<QuicksetOption>
   meta?: boolean
   extra?: boolean
+  super?: boolean
   detached?: boolean
   disabled?: boolean
   hidden?: boolean
   active?: boolean
 }
-type ToolbarSettings = {
+type QuicksetSettings = {
   visible?: boolean
   editing?: boolean
   detached?: boolean
@@ -123,7 +125,7 @@ type Listset = {
   items: ListItem[]
 }
 
-type PanelSection = {
+type MenuSection = {
   icon: string
   title?: string
   fieldsets?: Fieldset[]
@@ -131,7 +133,7 @@ type PanelSection = {
   more?: boolean
   active?: boolean
 }
-type PanelSections = ObjectType<PanelSection>
+type MenuSections = ObjectType<MenuSection>
 
 interface GlobalSet {
   css: Modela['css']
@@ -166,7 +168,7 @@ type ModelaSettings = {
   plugins?: (string | ModelaPluginOption)[]
 
   // Workspace view preferences
-  viewToolbar?: boolean,
-  viewLayers?: boolean,
-  viewHouse?: boolean
+  viewControls?: boolean
+  viewToolbar?: boolean
+  viewLayers?: boolean
 }

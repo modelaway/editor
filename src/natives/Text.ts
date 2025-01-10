@@ -1,7 +1,7 @@
 import type { ViewComponent, ViewBridge } from '../types/view'
 
 const
-toolbarOptions: ObjectType<ToolbarOption> = {
+quicksetOptions: ObjectType<QuicksetOption> = {
   bold: { 
     icon: 'bx bx-bold',
     title: 'Bold',
@@ -87,7 +87,7 @@ toolbarOptions: ObjectType<ToolbarOption> = {
     }
   }
 },
-panelOptions: PanelSections = {
+menuOptions: MenuSections = {
   attributes: {
     icon: 'bx bx-edit-alt',
     title: 'Properties',
@@ -114,7 +114,7 @@ panelOptions: PanelSections = {
             value: '14px bold',
             event: {
               type: 'show',
-              attr: 'panel',
+              attr: 'menu',
               params: 'sub',
               shortcut: 'alt + b'
             },
@@ -126,7 +126,7 @@ panelOptions: PanelSections = {
             title: 'Alignment',
             event: {
               type: 'show',
-              attr: 'panel',
+              attr: 'menu',
               params: 'sub',
               shortcut: 'alt + b'
             },
@@ -177,13 +177,13 @@ function apply( view: ViewBridge ){
           const isBold = viewStyle['font-weight'] === 'bold'
 
           view.$.css({ 'font-weight': !isBold ? 'bold' : 'normal' })
-          // Update toolbar options
-          view.fn.updateToolbar({ 'bold.active': !isBold })
+          // Update quickset options
+          view.fn.updateQuickset({ 'bold.active': !isBold })
         }
         else {
           view.$.css({ 'font-weight': 'bold' })
-          // Update toolbar options
-          view.fn.updateToolbar({ 'bold.active': true })
+          // Update quickset options
+          view.fn.updateQuickset({ 'bold.active': true })
         }
       } break
 
@@ -194,13 +194,13 @@ function apply( view: ViewBridge ){
           const isItalic = viewStyle['font-style'] === 'italic'
 
           view.$.css({ 'font-style': !isItalic ? 'italic' : 'normal' })
-          // Update toolbar options
-          view.fn.updateToolbar({ 'italic.active': !isItalic })
+          // Update quickset options
+          view.fn.updateQuickset({ 'italic.active': !isItalic })
         }
         else {
           view.$.css({ 'font-style': 'italic' })
-          // Update toolbar options
-          view.fn.updateToolbar({ 'italic.active': true })
+          // Update quickset options
+          view.fn.updateQuickset({ 'italic.active': true })
         }
       } break
 
@@ -212,16 +212,16 @@ function apply( view: ViewBridge ){
           const isApplied = viewStyle['text-decoration'] === attr
 
           view.$.css({ 'text-decoration': !isApplied ? attr : 'none' })
-          // Update toolbar options
-          view.fn.updateToolbar({
+          // Update quickset options
+          view.fn.updateQuickset({
             'underline.active': attr == 'underline' && !isApplied,
             'line-through.active': attr == 'line-through' && !isApplied
           })
         }
         else {
           view.$.css({ 'text-decoration': attr })
-          // Update toolbar options
-          view.fn.updateToolbar({
+          // Update quickset options
+          view.fn.updateQuickset({
             'underline.active': attr == 'underline',
             'line-through.active': attr == 'line-through'
           })
@@ -233,8 +233,8 @@ function apply( view: ViewBridge ){
       case 'alignment.center':
       case 'alignment.justify': {
         view.$.css({ 'text-align': attr.split('.')[1] })
-        // Update toolbar options
-        view.fn.updateToolbar({
+        // Update quickset options
+        view.fn.updateQuickset({
           'alignment.top.active': attr == 'alignment.top',
           'alignment.left.active': attr == 'alignment.left',
           'alignment.center.active': attr == 'alignment.center',
@@ -266,8 +266,8 @@ const Text: ViewComponent = {
 
     // Interaction events
     view.events
-    .on('toolbar.show', () => {})
-    .on('panel.show', () => {})
+    .on('quickset.show', () => {})
+    .on('menu.show', () => {})
 
     .on('view.styles', async data => await view.$?.css( data ) )
     .on('global.styles', async data => await view.$?.css( data ) )
@@ -297,11 +297,11 @@ const Text: ViewComponent = {
       }
     }
   },
-  toolbar( view ){
-    return toolbarOptions
+  quickset( view ){
+    return quicksetOptions
   },
-  panel( view ){
-    return panelOptions
+  menu( view ){
+    return menuOptions
   }
 }
 

@@ -3,7 +3,7 @@ import type { HandlerHook } from '../types/controls'
 import Lips, { Component } from '../lib/lips/lips'
 import * as Helpers from './helpers'
 import {
-  CONTROL_PANEL_SELECTOR,
+  CONTROL_MENU_SELECTOR,
   CONTROL_LANG_SELECTOR,
   VIEW_EMPTY_SELECTOR,
   FORM_SEPERATOR_SELECTOR
@@ -89,15 +89,15 @@ export default ( input: FinderInput, hook: HandlerHook ) => {
   }
   
   const template = `
-    <mblock ${CONTROL_PANEL_SELECTOR}=input.key>
-      <mblock dismiss="panel" backdrop></mblock>
+    <mblock ${CONTROL_MENU_SELECTOR}=input.key>
+      <mblock dismiss="menu" backdrop></mblock>
       <mblock container>
         <mblock class="header">
           <mblock>
             <minline ${CONTROL_LANG_SELECTOR}>Add view</minline>
 
-            <!-- Dismiss control panel -->
-            <minline dismiss="panel" title="Dismiss" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-x"></micon></minline>
+            <!-- Dismiss control menu -->
+            <minline dismiss="menu" title="Dismiss" ${CONTROL_LANG_SELECTOR}><micon class="bx bx-x"></micon></minline>
           </mblock>
 
           <inputs type="search"

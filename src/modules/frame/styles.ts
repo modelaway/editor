@@ -1,4 +1,4 @@
-import { CompileResult } from 'sass'
+import { compile, serialize, stringify, middleware } from 'stylis'
 import { CSS_CUSTOM_VARIABLES } from '../constants'
 
 interface StyleOptions {
@@ -51,8 +51,8 @@ export default class FrameStyle {
     /**
      * Process `scss` string to `css` string first
      */
-    const { css } = await this.compile( sheet )
-    if( !css ) throw new Error('Empty CSS sheet to compile')
+    const cssText = await this.compile( sheet )
+    if( !cssText ) throw new Error('Empty CSS sheet to compile')
 
     /**
      * Process all imports in a single replace operation
@@ -61,7 +61,7 @@ export default class FrameStyle {
     imports: string[] = [],
     importRegex = /@import\s+(?:url\(['"]?([^'")]+)['"]?\)|['"]([^'"]+)['"]);?\n?/g
     
-    const processedCss = css.replace( importRegex, ( _, urlMatch, quotedMatch ) => {
+    const processedCss = cssText.replace( importRegex, ( _, urlMatch, quotedMatch ) => {
       imports.push( urlMatch || quotedMatch )
       return ''
     })
@@ -153,37 +153,13 @@ export default class FrameStyle {
   }
 
   /**
-   * Compile Sass style string to CSS string
+   * Process sheet string using Stylis
    */
-  compile( str: string ): Promise<CompileResult>{
-    return new Promise( ( resolve, reject ) => {
-      if( !window.msass ){
-        let 
-        waiter: any,
-        max = 1
-        
-        const exec = () => {
-          /**
-           * TEMP: Wait 8 seconds for Sass libary to load
-           */
-          if( !window.msass ){
-            if( max == 8 ){
-              clearInterval( waiter )
-              reject('Undefined Sass compiler')
-            }
-            else max++
-            
-            return
-          }
-
-          clearInterval( waiter )
-          resolve( window.msass.compileString( str ) )
-        }
-
-        waiter = setInterval( exec, 1000 )
-      }
-      else resolve( window.msass.compileString( str ) )
-    } )
+  compile( str: string ): string {
+    try { return serialize( compile( str ), middleware([ stringify ]) ) } 
+    catch( error: any ){
+      throw new Error(`Style compilation failed: ${error.message}`)
+    }
   }
 
   async addRules( cssText: string, options: StyleOptions ){

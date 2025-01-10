@@ -1,7 +1,7 @@
 import type { ViewComponent } from '../types/view'
 
 const
-toolbarOptions: ObjectType<ToolbarOption> = {
+quicksetOptions: ObjectType<QuicksetOption> = {
   bold: { 
     icon: 'bx bx-bold',
     title: 'Bold',
@@ -87,7 +87,7 @@ toolbarOptions: ObjectType<ToolbarOption> = {
     }
   }
 },
-panelOptions: PanelSections = {
+menuOptions: MenuSections = {
   attributes: {
     icon: 'bx bx-edit-alt',
     title: 'Properties',
@@ -113,7 +113,7 @@ panelOptions: PanelSections = {
             value: '14px bold',
             event: {
               type: 'show',
-              attr: 'panel',
+              attr: 'menu',
               params: 'sub',
               shortcut: 'alt + b'
             },
@@ -125,7 +125,7 @@ panelOptions: PanelSections = {
             title: 'Alignment',
             event: {
               type: 'show',
-              attr: 'panel',
+              attr: 'menu',
               params: 'sub',
               shortcut: 'alt + b'
             },
@@ -175,22 +175,22 @@ Paragraph: ViewComponent = {
   },
   async takeover( view ){
     view.events
-    .on('toolbar.show', () => {})
-    .on('toolbar.handle', ( key, option ) => {
+    .on('quickset.show', () => {})
+    .on('quickset.handle', ( key, option ) => {
       console.log('p -- handle option --', key, option )
 
       /**
-       * Sync toolbar with applied changes status
+       * Sync quickset with applied changes status
        */
-      view.fn.syncToolbar({ [`${key}.active`]: !option.active }, () => {
-        toolbarOptions[ key ].active = !option.active
+      view.fn.syncQuickset({ [`${key}.active`]: !option.active }, () => {
+        quicksetOptions[ key ].active = !option.active
       })
       /**
        * Push history stack for reversable actions
        */
       view.fn.pushHistoryStack()
     })
-    .on('panel.show', () => {})
+    .on('menu.show', () => {})
 
     .on('view.styles', data => view.$?.css( data ) )
     .on('global.styles', data => view.$?.css( data ) )
@@ -222,11 +222,11 @@ Paragraph: ViewComponent = {
       }
     }
   },
-  toolbar( view ){
-    return toolbarOptions
+  quickset( view ){
+    return quicksetOptions
   },
-  panel( view ){
-    return panelOptions
+  menu( view ){
+    return menuOptions
   }
 }
 

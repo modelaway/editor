@@ -102,9 +102,9 @@ export default class Functions {
   }
 
   /**
-   * Apply grain update to toolbar options
+   * Apply grain update to quickset options
    */
-  syncToolbar( updates: ObjectType<any>, fn?: () => void ){
+  syncQuickset( updates: ObjectType<any>, fn?: () => void ){
     throw new Error('Method not available')
   }
 

@@ -18,7 +18,6 @@ export const VIEW_REF_SELECTOR = 'vref'
 export const VIEW_NAME_SELECTOR = 'vname'
 export const VIEW_STYLE_SELECTOR = 'vstyle'
 export const VIEW_EMPTY_SELECTOR = 'vempty'
-export const VIEW_ALLEY_SELECTOR = 'valley'
 export const VIEW_ACTIVE_SELECTOR = 'vactive'
 export const VIEW_CAPTION_SELECTOR = 'vcaption'
 export const VIEW_TYPES_ALLOWED_SELECTOR = 'vtypes-allowed'
@@ -32,15 +31,13 @@ export const FRAME_DEFAULT_MARGIN = 140 // Pixel (px)
  */
 export const CONTROL_LANG_SELECTOR = 'mlang'
 export const CONTROL_FRAME_SELECTOR = 'mv-frame'
-export const CONTROL_PANEL_SELECTOR = 'mv-panel'
-export const CONTROL_TOOLBAR_SELECTOR = 'mv-toolbar'
-export const CONTROL_FLOATING_SELECTOR = 'mv-floating'
+export const CONTROL_MENU_SELECTOR = 'mv-menu'
+export const CONTROL_QUICKSET_SELECTOR = 'mv-quickset'
 export const CONTROL_BLOCK_SELECTOR = 'mv-control-block'
 
 export const CONTROL_EDGE_MARGIN = 15
-export const CONTROL_PANEL_MARGIN = 20
-export const CONTROL_TOOLBAR_MARGIN = 6
-export const CONTROL_FLOATING_MARGIN = 10
+export const CONTROL_MENU_MARGIN = 20
+export const CONTROL_QUICKSET_MARGIN = 6
 export const CONTROL_ZOOM_DEFAULT_SCALE = 0.1
 export const CONTROL_ZOOM_SCALE_STEP = 0.02
 export const CONTROL_ZOOOM_EVEN_SCALE = 1
@@ -57,7 +54,7 @@ export const FORM_SEPERATOR_SELECTOR = 'mv-form-seperator'
  * - meta
  * - detached
  */
-export const VIEW_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
+export const VIEW_CONTROL_OPTIONS: ObjectType<QuicksetOption> = {
   view: {
     meta: true,
     icon: 'bx bx-square-rounded',
@@ -124,7 +121,7 @@ export const VIEW_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
       }
     }
   },
-  panel: {
+  menu: {
     icon: 'bx bx-grid-alt',
     title: 'Attributes',
     event: {
@@ -141,7 +138,7 @@ export const VIEW_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
 /**
  * Global control options
  */
-export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
+export const GLOBAL_CONTROL_OPTIONS: ObjectType<QuicksetOption> = {
   undo: {
     icon: 'bx bx-undo',
     title: 'Undo',
@@ -184,7 +181,7 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
     icon: 'bx bx-devices',
     title: 'Device Screens',
     disabled: false,
-    hidden: true,
+    // hidden: true,
     sub: {
       default: { 
         icon: 'bx bx-expand',
@@ -234,9 +231,9 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
       }
     }
   },
-  settings: {
-    icon: 'bx bx-cog',
-    title: 'Settings',
+  comments: {
+    icon: 'bx bx-message-square-dots',
+    title: 'Comments',
     event: {
       type: 'show',
       params: 'global',
@@ -244,24 +241,15 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<ToolbarOption> = {
     },
     disabled: false
   },
-  styles: {
-    icon: 'bx bxs-brush',
-    title: 'Styles',
+  code: {
+    icon: 'bx bx-code-alt',
+    title: 'Code',
     event: {
       type: 'show',
       params: 'global',
       shortcut: 'command + shift + c'
     },
-    disabled: false
-  },
-  assets: {
-    icon: 'bx bx-landscape',
-    title: 'Assets',
-    event: {
-      type: 'show',
-      params: 'global',
-      shortcut: 'command + shift + a'
-    },
+    super: true,
     disabled: false
   }
 }
@@ -902,31 +890,5 @@ export const PATCH_CSS_SETTINGS = `
   :host {
     width: 100%;
     height: 100%;
-  }
-  
-  [valley] {
-    display: inline-block;
-    width: 100%;
-    height: 5px;
-
-    &[status="active"]:hover {
-      outline: 0;
-      background: rgba(150, 150, 150, .3);
-      transition: var(--me-active-transition);
-    }
-    &[discret] {
-      --radius: .3rem;
-      position: absolute;
-      display: block;
-      z-index: 50;
-      left: calc(50% - 0.15rem);
-      top: 100%;
-      width: var(--radius);
-      height: var(--radius);
-      cursor: pointer;
-      margin-top: -0.15rem;
-      background-color: var(--me-secondary-color-fade);
-      box-shadow: var(--me-box-shadow);
-    }
   }
 `

@@ -8,12 +8,11 @@ import { debug, generateKey } from '../utils'
 import {
   MEDIA_SCREENS,
   CONTROL_EDGE_MARGIN,
-  CONTROL_PANEL_SELECTOR,
+  CONTROL_MENU_SELECTOR,
   VIEW_IDENTIFIER,
   VIEW_REF_SELECTOR,
   VIEW_KEY_SELECTOR,
   VIEW_ACTIVE_SELECTOR,
-  VIEW_ALLEY_SELECTOR,
   CONTROL_FRAME_SELECTOR,
   PATCH_CSS_SETTINGS
 } from '../constants'
@@ -192,9 +191,6 @@ export default class Frame extends EventEmitter {
     && this.editor.settings.autoPropagate
     && this.elements.propagate( this.$ )
 
-    // Activate all inert add-view alleys
-    this.enableAlleys('active')
-    
     // Push initial content as history stack
     const initialContent = this.getContent()
     initialContent && this.emit('content.changed', initialContent )
@@ -224,38 +220,26 @@ export default class Frame extends EventEmitter {
     /**
      * Listen to View components or any editable tag
      */
-    const selectors = `:not([${VIEW_ALLEY_SELECTOR}],[${CONTROL_PANEL_SELECTOR}] *)`
+    const selectors = `:not([${CONTROL_MENU_SELECTOR}] *)`
     this.editor.settings.hoverSelect ?
               this.DOM.on('mouseover', selectors, function( this: Cash ){ self.elements.lookup.bind( self.elements )( $(this) ) })
               : this.DOM.on('click', selectors, function( this: Cash ){ self.elements.lookup.bind( self.elements )( $(this) ) })
 
     this.DOM
     /**
-     * Show toolbar options
+     * Show quickset options
      */
-    .on('click', `[${VIEW_ACTIVE_SELECTOR}]`, function( this: Cash ){
+    .on('contextmenu', `[${VIEW_ACTIVE_SELECTOR}]`, function( this: Cash, e: Event ){
+      e.preventDefault()
+
       const key = $(this).attr( VIEW_KEY_SELECTOR )
-      debug('toolbar event --', key )
+      debug('quickset event --', key )
 
       if( !key ) return
 
-      // Show toolbar
+      // Show quickset
       const view = self.elements.get( key )
-      view?.showToolbar()
-    } )
-
-    /**
-     * Show floating triggers on alley hover
-     */
-    .on('mouseover', `[${VIEW_ALLEY_SELECTOR}]`, function( this: Cash ){
-      const key = $(this).attr( VIEW_REF_SELECTOR )
-      debug('floating event --', key )
-
-      if( !key ) return
-
-      // Show floating
-      const view = self.elements.get( key )
-      view?.showFloating()
+      view?.showQuickset()
     } )
 
     .on('input', '[contenteditable]', () => this.emit('content.change', this.getContent() ) )
@@ -263,9 +247,6 @@ export default class Frame extends EventEmitter {
     // .on('paste', onUserAction )
   }
   delete(){
-    // Disable add-view alleys
-    this.enableAlleys('inert')
-
     // Clear elements meta data
     this.elements?.clear()
     // Remove frame element from the DOM
@@ -274,15 +255,8 @@ export default class Frame extends EventEmitter {
     this.emit('frame.deleted')
   }
 
-  /**
-   * Set general state of alleys
-   * 
-   * - active: Enable add-view alleys highlighting during editing
-   * - inert: Disable add-view alleys
-   */
-  enableAlleys( status = 'active' ){
-    if( !this.editor.settings.enableAlleys ) return
-    $(`[${VIEW_ALLEY_SELECTOR}]`).attr('status', status )
+  duplicate(){
+    
   }
 
   setDeviceSize( device: string ){

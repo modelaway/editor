@@ -9,7 +9,7 @@ import Plugins from '../plugins'
 import History from '../history'
 import Controls from './controls'
 import Functions from '../functions'
-import Viewport from '../../factory/viewport'
+import Shell from '../../factory/shell'
 import Toolbar, { ToolbarInput } from '../../factory/toolbar'
 import Quickset, { QuicksetInput } from '../../factory/quickset'
 import Layers from '../../factory/layers'
@@ -73,6 +73,7 @@ export default class Editor {
   public settings: ModelaSettings = {}
 
   public $root?: Cash
+  public $shell?: Cash
   public $viewport?: Cash
 
   /**
@@ -235,14 +236,18 @@ export default class Editor {
    * Enable control actions' event listeners
    */
   enable(){
+    if( !this.$root?.length ) return
+    
     /**
      * Create modela viewport layer and apply translation 
      * to text contents
      */
-    const viewport = Viewport({})
-    $('body').prepend( viewport.getNode() )
+    const shell = Shell({})
+    this.$shell = shell.getNode()
 
-    this.$viewport = viewport.getNode()
+    this.$root.prepend( this.$shell )
+    this.$viewport = shell.find('viewport')
+
     if( !this.$viewport?.length )
       throw new Error('Unexpected error occured')
     
@@ -261,8 +266,8 @@ export default class Editor {
         visible: this.settings.viewToolbar,
       }
     },
-    toolbar = Toolbar( tinput, { events: this.events })
-    toolbar.appendTo( this.$viewport )
+    toolbar = Toolbar( tinput, { events: this.events, editor: this })
+    toolbar.appendTo( this.$shell )
 
     this.events.on('toolbar.handle', ( key, option ) => {
       console.log('global toolbar --', key, option )
@@ -281,7 +286,7 @@ export default class Editor {
       }
     },
     controls = Quickset( cinput, { events: this.events, editor: this })
-    controls.appendTo( this.$viewport )
+    controls.appendTo( this.$shell )
 
     this.events.on('quickset.handle', ( key, option ) => {
       console.log('global controls --', key, option )
@@ -334,7 +339,7 @@ export default class Editor {
       `
     },
     layers = Layers( linput, { events: this.events, editor: this })
-    layers.appendTo( this.$viewport )
+    layers.appendTo( this.$shell )
 
     this.events.on('layers.handle', ( key, option ) => {
       console.log('frame layers --', key, option )
@@ -355,8 +360,8 @@ export default class Editor {
   }
 
   disable(){
-    this.$viewport?.off()
-    this.$viewport?.remove()
+    this.$shell?.off()
+    this.$shell?.remove()
     this.$root?.off()
 
     this.canvas.disable()

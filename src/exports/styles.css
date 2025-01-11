@@ -8,6 +8,7 @@
   --me-secondary-color-blur:  hsla(150, 1%, 100%, 0.1);
   --me-primary-color-fade: rgba(0, 0, 45, .09);
   --me-secondary-color-fade: rgba(220, 220, 220, 0.198);
+  --me-inverse-color: rgba(255, 255, 255, 0.8);
   
   --me-font-size: 14px;
   --me-icon-size: 1.3rem;
@@ -29,28 +30,23 @@
   --me-input-color: rgba(235, 235, 240, 0.7);
 }
 
+modela,
 viewport {
   position: relative;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   display: block;
   overflow: hidden;
-  background-color: #202020;
+}
+viewport {
+  background-color: #fff;
   cursor: grab;
+  
   /* Grid size */
   /* background-size: 10px 10px;
   background-image: linear-gradient(to right, #ccc 1px, transparent 1px),
                     linear-gradient(to bottom, #ccc 1px, transparent 1px); */
 }
-viewport moverlap {
-  position: absolute;
-  display: none;
-  width: 100%;
-  height: 100%;
-  top: 0;
-  left: 0;
-}
-viewport moverlap[on] { display: block }
 viewport mcanvas {
   position: absolute;
   z-index: 1;
@@ -156,29 +152,13 @@ viewport,
   -moz-osx-font-smoothing: grayscale;
 }
 
-viewport,
-[mv-menu] {
-  font-size: var(--me-font-size);
-}
-
 mul,
-mblock,
-mglobal { display: block; }
+mblock { display: block; }
 micon,
 mlabel,
 minline { display: inline; }
 mli { display: inherit; }
 
-
-/* Editing quicksets */
-[mv-menu] {
-  position: fixed;
-  z-index: 200;
-  width: 0px;
-  user-select: none;
-  cursor: default;
-  /* pointer-events: none; */
-}
 
 /* Empty view block */
 [mv-empty] {
@@ -188,134 +168,6 @@ mli { display: inherit; }
 }
 
 /* Editing menus */
-[mv-menu] > [container] {
-  position: relative;
-  width: 18rem;
-  min-height: 10rem;
-  max-height: 30rem;
-  overflow: auto;
-  border-radius: var(--me-border-radius);
-  backdrop-filter: var(--me-backdrop-filter);
-  box-shadow: var(--me-box-shadow);
-  transition: var(--me-active-transition);
-}
-[mv-menu] > [backdrop] {
-  position: fixed;
-  width: 100vw;
-  height: 100vh;
-  left: 0;top: 0;
-}
-[mv-menu] > [container] > .header {
-  position: sticky;
-  z-index: 50;
-  top: 0;
-}
-[mv-menu] > [container],
-[mv-menu] > [container] > .header {
-  background-color: #fff;
-}
-[mv-menu] > [container] > .header > * {
-  display: flex;
-  padding: 0.55rem 0.85em;
-  align-items: center;
-  justify-content: start;
-}
-[mv-menu] > [container] > .header > mblock {
-  cursor: default;
-  font-size: var(--me-font-size);
-  color: var(--me-primary-color-transparent);
-}
-[mv-menu] > [container] > .header > mblock micon {
-  font-size: var(--me-icon-size)!important;
-}
-[mv-menu] > [container] > .header > mblock mlabel {
-  padding-left: 10px;
-}
-[mv-menu] > [container] > .header > mblock [dismiss] {
-  position: absolute;
-  right: 0;
-  /* margin: 0.4rem; */
-}
-[mv-menu] > [container] > .header > [options="tabs"] {
-  list-style: none;
-  margin: 0;
-  border-bottom: 1px solid var(--me-primary-color-fade);
-}
-[mv-menu] > [container] > .header [dismiss],
-[mv-menu] > [container] > .header > [options="tabs"] > mli {
-  padding: 6px;
-  margin: 4px;
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
-  color: var(--me-secondary-color);
-  border-radius: var(--me-border-radius-inside);
-  transition: var(--me-active-transition);
-}
-[mv-menu] > [container] > .header [dismiss],
-[mv-menu] > [container] > .header > [options="tabs"] > mli micon {
-  font-size: var(--me-icon-size-2)!important;
-}
-[mv-menu] > [container] > .header [dismiss],
-[mv-menu] > [container] > .header > [options="tabs"] > mli.active,
-[mv-menu] > [container] > .header > [options="tabs"] > mli:not(.label,.disabled):hover {
-  background-color: var(--me-primary-color-fade);
-}
-[mv-menu] > [container] > .body {
-  min-height: 8rem;
-}
-[mv-menu] > [container] > .body > mblock { display: none; }
-[mv-menu] > [container] > .body > mblock.active { display: block; }
-
-[mv-menu] fieldset {
-  padding: 0.8rem 0.8rem 0 0.8rem;
-  border: none;
-}
-[mv-menu] fieldset > mlabel,
-[mv-menu] .listset > mlabel {
-  display: block;
-  font-weight: bold;
-  margin-bottom: 0.8rem;
-}
-
-[mv-menu] .listset > mlabel {
-  margin: 0.8rem 0.9rem;
-}
-[mv-menu] .listset mul {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-[mv-menu] .listset mul mli {
-  padding: .45rem 1rem;
-  display: flex;
-  align-items: center;
-  font-size: var(--me-font-size);
-}
-[mv-menu] .listset mul mli:not(.disabled):hover {
-  background-color: var(--me-primary-color-fade);
-  cursor: pointer;
-}
-[mv-menu] .listset mul mli micon {
-  font-size: var(--me-icon-size);
-}
-[mv-menu] .listset mul mli > micon:first-child {
-  background-color: var(--me-primary-color-fade);
-  padding: 4px;
-  border-radius: var(--me-border-radius-inside);
-}
-[mv-menu] .listset mul mli minline:not(.value) {
-  padding: 0 .8rem;
-}
-[mv-menu] .listset mul mli .sub-arrow {
-  position: absolute;
-  right: 0;
-}
-[mv-menu] .listset mul mli.disabled,
-[mv-menu] .listset mul mli minline.value,
-[mv-menu] .listset mul mli .sub-arrow {
-  color: var(--me-primary-color-transparent);
-}
 
 /* 
 [mv-form-input="radio"],
@@ -415,21 +267,3 @@ mli { display: inherit; }
     /* color: #fff; */
   }
 }
-
-
-
-
-
-
-
-[rel="house"] [show],
-[rel="house"] [backdrop],
-[rel="house"] [container]{position:fixed;z-index:201;}
-[rel="house"] [show]{left:0;top:calc(50% - 40px);margin:2px;padding:20px 22px 20px 2px;border-radius:0 100px 100px 0;transition:ease-in-out var(--me-active-transition);}
-[rel="house"] [show]:hover{background-color:var(--me-primary-color-fade);}
-[rel="house"] [show] micon{padding:5px 0;cursor:pointer;color:var(--me-trigger-text-color);border-radius:var(--me-border-radius-inside);background-color:var(--me-primary-color-transparent);backdrop-filter:var(--me-backdrop-filter);font-size:var(--me-icon-size)!important;}
-[rel="house"] [backdrop]{display:none;width:100vw;height:100vh;left:0;top:0;}
-[rel="house"] [container]{left:-100%;min-width:25vw;margin:15px;height:calc(100vh - 30px);overflow:hidden;border-radius:20px;transition:var(--me-slide-transition);backdrop-filter:var(--me-backdrop-filter);background-color:rgba(225, 225, 225, .6);box-shadow:var(--me-box-shadow);}
-[rel="house"].active>[backdrop]{display:block;}
-[rel="house"]:hover>[container],
-[rel="house"].active>[container]{left:0;}

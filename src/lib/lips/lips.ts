@@ -436,8 +436,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
     if( typeof data !== 'object' )
       throw new Error('Invalid sub input data argument')
 
-    console.log( this.input, data )
-
     this.setInput( deepAssign<Input>( this.input, data ) )
   }
   setHandler( list: Handler<Input, State, Static, Context> ){
@@ -663,7 +661,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
             if( (Array.isArray( isValue ) && isValue.includes( switchBy )) || isValue === switchBy ){
               matched = true
-
+              
               if( $contents.length )
                 $fragment = $fragment.add( self.render( $contents, scope ) )
             }
@@ -886,7 +884,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
         throw new Error('Nexted component manager is disable')
 
       const 
-      __key__ = `${self.prekey}.${self.NCC++}`,
+      __key__ = `${self.prekey}.${name}$${self.NCC++}`,
       /**
        * Parse assigned attributes to be injected into
        * the component as input.

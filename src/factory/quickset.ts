@@ -86,9 +86,12 @@ export default ( input: QuicksetInput, hook?: HandlerHook ) => {
       }, 5 )
     },
     onShowExtraOptions( status ){ this.state.showExtra = status },
-    onShowSubOptions( key, option ){ this.state.subOption = key && { ...option, key } },
+    onShowSubOptions( key, option ){
+      if( option.disabled ) return
+      this.state.subOption = key && { ...option, key }
+    },
     onHandleOption( key, option ){
-      if( !hook ) return
+      if( option.disabled || !hook ) return
 
       option.meta
           ? typeof hook.metacall == 'function' && hook.metacall( key, option )
@@ -201,7 +204,7 @@ export default ( input: QuicksetInput, hook?: HandlerHook ) => {
 }
 
 const stylesheet = `
-  position: fixed;
+  position: absolute;
   z-index: 200;
   width: auto;
   cursor: default;
@@ -213,7 +216,7 @@ const stylesheet = `
     margin: 0;
     padding: 3px;
     border-radius: var(--me-border-radius);
-    background-color: #fff;
+    background-color: var(--me-inverse-color);
     box-shadow: var(--me-box-shadow);
     backdrop-filter: var(--me-backdrop-filter);
     transition: var(--me-active-transition);

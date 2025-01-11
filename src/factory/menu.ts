@@ -152,5 +152,154 @@ export default ( input: MenuInput, hook: HandlerHook ) => {
     </mblock>
   `
 
-  return new Component<MenuInput, MenuState>('menu', template, { input, state, handler, macros }, { lips })
+  return new Component<MenuInput, MenuState>('menu', template, { input, state, handler, macros, stylesheet }, { lips })
 }
+
+const stylesheet = `
+  position: absolute;
+  z-index: 200;
+  width: 0px;
+  user-select: none;
+  cursor: default;
+  /* pointer-events: none; */
+
+  > [container] {
+    position: relative;
+    width: 18rem;
+    min-height: 10rem;
+    max-height: 30rem;
+    overflow: auto;
+    background-color: #fff;
+    border-radius: var(--me-border-radius);
+    backdrop-filter: var(--me-backdrop-filter);
+    box-shadow: var(--me-box-shadow);
+    transition: var(--me-active-transition);
+
+    > .header {
+      position: sticky;
+      z-index: 50;
+      top: 0;
+      background-color: #fff;
+
+      > * {
+        display: flex;
+        padding: 0.55rem 0.85em;
+        align-items: center;
+        justify-content: start;
+      }
+      > mblock {
+        cursor: default;
+        font-size: var(--me-font-size);
+        color: var(--me-primary-color-transparent);
+
+        micon {
+          font-size: var(--me-icon-size)!important;
+        }
+        mlabel {
+          padding-left: 10px;
+        }
+        [dismiss] {
+          position: absolute;
+          right: 0;
+          /* margin: 0.4rem; */
+        }
+      }
+      [options="tabs"] {
+        list-style: none;
+        margin: 0;
+        border-bottom: 1px solid var(--me-primary-color-fade);
+      }
+      [dismiss],
+      [options="tabs"] > mli {
+        padding: 6px;
+        margin: 4px;
+        display: inline-flex;
+        align-items: center;
+        cursor: pointer;
+        color: var(--me-secondary-color);
+        border-radius: var(--me-border-radius-inside);
+        transition: var(--me-active-transition);
+      }
+      [dismiss],
+      [options="tabs"] > mli micon {
+        font-size: var(--me-icon-size-2)!important;
+      }
+      [dismiss],
+      [options="tabs"] > mli.active,
+      [options="tabs"] > mli:not(.label,.disabled):hover {
+        background-color: var(--me-primary-color-fade);
+      }
+    }
+    
+    .body {
+      min-height: 8rem;
+
+      mblock {
+        display: none;
+        &.active { display: block; }
+      }
+    }
+  }
+  > [backdrop] {
+    position: fixed;
+    width: 100vw;
+    height: 100vh;
+    left: 0;top: 0;
+  }
+
+  fieldset {
+    padding: 0.8rem 0.8rem 0 0.8rem;
+    border: none;
+  }
+  fieldset > mlabel,
+  .listset > mlabel {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 0.8rem;
+  }
+
+  .listset {
+    > mlabel {
+      margin: 0.8rem 0.9rem;
+    }
+    mul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+
+      mli {
+        padding: .45rem 1rem;
+        display: flex;
+        align-items: center;
+        font-size: var(--me-font-size);
+
+        &:not(.disabled):hover {
+          background-color: var(--me-primary-color-fade);
+          cursor: pointer;
+        }
+        
+        micon {
+          font-size: var(--me-icon-size);
+
+          &micon:first-child {
+            background-color: var(--me-primary-color-fade);
+            padding: 4px;
+            border-radius: var(--me-border-radius-inside);
+          }
+        }
+        minline:not(.value) {
+          padding: 0 .8rem;
+        }
+        .sub-arrow {
+          position: absolute;
+          right: 0;
+        }
+        &.disabled,
+        minline.value,
+        .sub-arrow {
+          color: var(--me-primary-color-transparent);
+        }
+      }
+    }
+  }
+`

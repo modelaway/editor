@@ -4,7 +4,7 @@ import french from '../languages/fr.json'
 
 export const CONTROL_ROOT = '#modela'
 
-export const EDITOR_EDGE_PADDING = 20 // Pixel
+export const EDITOR_EDGE_PADDING = 15 // Pixel
 
 /**
  * Common selector use to identify view elements

@@ -17,13 +17,15 @@ export default class Controls {
    * 
    */
   letPosition( $block: Cash, indication: string ): Position {
-    if( !this.editor.$viewport?.length )
+    if( !this.editor.$shell?.length )
       throw new Error('Undefined editor viewport')
 
     const
-    $viewport = this.editor.$viewport,
+    $shell = this.editor.$shell,
     [ posX, posY ] = indication.split('-'),
     position: Position = {}
+
+    console.log( $shell.height() )
 
     if( !posY )
       throw new Error('Invalid positioning indication')
@@ -37,12 +39,11 @@ export default class Controls {
       }
     }
     function centerPosition( pos: string ){
-      console.log($viewport.width() / 2, $block.width() / 2)
       switch( pos ){
         case 'top':
-        case 'bottom': position.left = `${($viewport.width() / 2) - ($block.width() / 2)}px`; break
+        case 'bottom': position.left = `${($shell.width() / 2) - ($block.width() / 2)}px`; break
         case 'left':
-        case 'right': position.top = `${($viewport.height() / 2) - ($block.height() / 2)}px`; break
+        case 'right': position.top = `${($shell.height() / 2) - ($block.height() / 2)}px`; break
       }
     }
 

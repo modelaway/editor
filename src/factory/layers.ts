@@ -234,7 +234,7 @@ function dependencies(){
             this.state.editable = false
 
             // TODO: Emit event to update layer name to parent state
-            console.log('rename to --', key, this.static.newname )
+            // console.log('rename to --', key, this.static.newname )
           } break
         }
       }
@@ -463,7 +463,7 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
 }
 
 const stylesheet = `
-  position: fixed;
+  position: absolute;
   z-index: 200;
   border-radius: var(--me-border-radius);
   background-color: var(--me-secondary-color);

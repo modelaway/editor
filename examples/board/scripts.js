@@ -74,7 +74,7 @@ const i18nConfig = {
 editor.plugins.register( i18n, i18nConfig )
 
 // Then mount editor
-editor.mount('body')
+editor.mount('.editor')
 
 // Add a desktop frame to the board
 editor.canvas.addFrame({

@@ -72,11 +72,11 @@ export default class Movable<Input = void, State = void, Static = void, Context 
     return {
       top,
       left,
-      right: rect.right && this.editor.$viewport?.length
-                                ? ( this.editor.$viewport.width() - rect.right )
+      right: rect.right && this.editor.$shell?.length
+                                ? ( this.editor.$shell.width() - rect.right )
                                 : parseInt( this.$block.css('right') as string ) || (left + this.$block.width()),
-      bottom: rect.bottom && this.editor.$viewport?.length
-                                ? ( this.editor.$viewport.height() - rect.bottom )
+      bottom: rect.bottom && this.editor.$shell?.length
+                                ? ( this.editor.$shell.height() - rect.bottom )
                                 : parseInt( this.$block.css('bottom') as string ) || (top + this.$block.height())
     }
   }

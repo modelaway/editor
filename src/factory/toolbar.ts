@@ -8,6 +8,7 @@ import { CONTROL_LANG_SELECTOR } from '../modules/constants'
 export type ToolbarGlobalOption = {
   icon: string
   title: string
+  parent?: string
   shortcut?: string
   disabled?: boolean
 }
@@ -19,11 +20,14 @@ export type ToolbarSingleOption = {
   shortcut?: string
   active?: boolean
   hidden?: boolean
+  selected?: string
   disabled?: boolean
+  instructions?: string
 }
 export type ToolbarVariantsOption = {
   title: string
   variants: Record<string, ToolbarSingleOption>
+  parent?: string
   hidden?: boolean
   disabled?: boolean
   selected?: string
@@ -41,33 +45,118 @@ export type ToolbarInput = {
   position?: string | Position
 }
 
-type ContentType = 'tool' | 'view' | 'global'
-type Content = {
-  type: ContentType
-  body?: ToolbarOption
-}
-export type ToolbarState = {
-  expanded: boolean
-  content: Content | null
-}
-
 /**
  * Registered dependency components
  */
 function dependencies(){
-  const ToolCaptions = {
+
+  type CaptionsState = {
+    selected: string | null
+    instructions?: string
+    items: Record<string, ToolbarSingleOption>
+  }
+  interface CaptionsTemplate {
+    state: CaptionsState
+    handler: Handler<ToolbarOption, CaptionsState>
+    default: string
+    stylesheet: string
+  }
+  const Captions: CaptionsTemplate = {
+    state: {
+      items: {},
+      selected: null,
+      instructions: undefined
+    },
+    handler: {
+      onInput(){
+        const option = this.input as any
+        if( option.variants ){
+          this.state.items = option.variants
+          this.state.selected = option.selected
+        }
+        else {
+          this.state.items = { '*': option }
+          this.state.selected = '*'
+        }
+
+        this.state.instructions = this.state.selected ? this.state.items[ this.state.selected ].instructions : undefined
+      },
+      onHandleSelect( key: string ){
+        this.state.selected = key
+        this.state.instructions = this.state.items[ key ].instructions
+
+        this.emit('select', this.state.selected )
+      }
+    },
+
     default: `
-      <mblock>Tool captions</mblock>
+      <mblock>
+        <mul>
+          <for in=state.items>
+            <mli class="state.selected == key && 'selected'"
+                  on-click( onHandleSelect, key )>
+              <micon class=each.icon></micon>
+              <mlabel>{each.title}</mlabel>
+            </mli>
+          </for>
+        </mul>
+
+        <if( state.instructions )>
+          <mblock instructions>
+            <mblock>
+              <minline>Instructions</minline>
+
+              <p>{state.instructions}</p>
+            </mblock>
+          </mblock>
+        </if>
+      </mblock>
+    `,
+
+    stylesheet: `
+      mul {
+        padding: 1.2rem;
+
+        mli {
+          padding: 5px 0;
+          margin: 3px;
+          display: flex;
+          align-items: center;
+          font-size: var(--me-font-size);
+          border-radius: var(--me-border-radius-inside);
+
+          micon {
+            padding: 0 8px;
+            font-size: var(--me-icon-size-2);
+            color: gray;
+          }
+
+          &:hover,
+          &.selected {
+            background-color: var(--me-primary-color-transparent);
+          }
+        }
+      }
+
+      [instructions] {
+        position: absolute;
+        bottom: 0;
+
+        mblock {
+          margin: .8rem;
+          padding: 1.2rem;
+          line-height: 1.2;
+          border: 1px solid var(--me-border-color);
+          border-radius: var(--me-border-radius);
+
+          minline { color: gray; }
+          p { margin: .8rem 0 0 0; }
+        }
+      }
     `
   }
 
-  const ViewCaptions = {
-    default: `
-      <mblock>View captions</mblock>
-    `
-  }
-
-  const GlobalContent = {
+  const Globals = {
     default: `
       <mblock>Global content</mblock>
     `
@@ -75,11 +164,21 @@ function dependencies(){
 
   const lips = new Lips()
 
-  lips.register('toolcaptions', ToolCaptions )
-  lips.register('viewcaptions', ViewCaptions )
-  lips.register('globalcontent', GlobalContent )
+  lips.register('captions', Captions )
+  lips.register('globals', Globals )
 
   return lips
+}
+
+type ContentType = 'tool' | 'view' | 'global'
+type Content = {
+  type: ContentType
+  key?: string
+  body?: ToolbarOption
+}
+export type ToolbarState = {
+  expanded: boolean
+  content: Content | null
 }
 
 export default ( input: ToolbarInput, hook?: HandlerHook ) => {
@@ -99,8 +198,7 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
         '*': {
           icon: 'bx bx-pencil',
           title: 'Pencil',
-          parent: 'PENCIL',
-          disabled: true
+          parent: 'PENCIL'
         },
         'pen': {
           icon: 'bx bx-pen',
@@ -135,7 +233,7 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
           parent: 'text'
         },
         'blockquote': {
-          icon: 'bx bx-quote-alt-left',
+          icon: 'bx bxs-quote-alt-left',
           title: 'Blockquote',
           shortcut: 'command + y',
           tool: 'TEXT',
@@ -152,21 +250,24 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
           title: 'Rectangle Shape',
           shortcut: 'command + y',
           tool: 'POINTER',
-          parent: 'shape'
+          parent: 'shape',
+          instructions: 'Create a rectangle-like or square-like shape, resizable and adjustable at any position'
         },
         'circle': {
           icon: 'bx bx-shape-circle',
           title: 'Circle shape',
           shortcut: 'command + y',
           tool: 'POINTER',
-          parent: 'shape'
+          parent: 'shape',
+          instructions: 'Create a circle shape, resizable and adjustable at any position'
         },
         'dynamic': {
           icon: 'bx bx-shape-polygon',
           title: 'Dynamic shape',
           shortcut: 'command + y',
           tool: 'POINTER',
-          parent: 'shape'
+          parent: 'shape',
+          instructions: 'Create a free form shape using svg, with curves, resizable and adjustable at any position'
         }
       }
     },
@@ -181,8 +282,8 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
           parent: 'image'
         },
         'icon': {
-          icon: 'bx bx-universal-access',
-          title: 'Font Icons',
+          icon: 'bx bx-home-smile',
+          title: 'Font icons',
           shortcut: 'command + y',
           tool: 'POINTER',
           parent: 'image'
@@ -259,24 +360,34 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
 
       return style
     },
+    viewOptionCaptions( type, key, option ){
+      let body = option
+      if( option.parent )
+        switch( type ){
+          case 'tool': if( this.input.tools ) body = this.input.tools[ option.parent ]; break
+          case 'view': if( this.input.views ) body = this.input.views[ option.parent ]; break
+        }
+
+      if( !body ) return
+
+      this.state.expanded = true
+      this.state.content = { type, key, body }
+    },
 
     onHandleOption( type: ContentType, key: string, option: ToolbarOption | ToolbarGlobalOption ){
       if( option.disabled ) return
 
-      // Show option details when block is already expanded
-      if( this.state.expanded )
-        this.state.content = { type, body: option }
-
       console.log(`Option [${key}] -- `, option )
+
+      // Show option details when block is already expanded
+      this.state.expanded && this.viewOptionCaptions( type, key, option )
     },
-    onShowOptionCaption( type: ContentType, key: string, option: ToolbarOption | ToolbarGlobalOption, e: Event ){
+    onShowOptionCaptions( type: ContentType, key: string, option: ToolbarOption | ToolbarGlobalOption, e: Event ){
       e.preventDefault()
       if( option.disabled ) return
 
       console.log(`Option [${key}] -- `, option )
-
-      this.state.expanded = true
-      this.state.content = { type, body: option }
+      this.viewOptionCaptions( type, key, option )
 
       /**
        * Auto-close expanded container on external click
@@ -289,6 +400,14 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
 
         hook?.editor?.$viewport?.off('.toolbar-expand')
       })
+    },
+
+    onHandleSelect( type: string, key: string, selected: string ){
+      // console.log('selected --', key, selected )
+      switch( type ){
+        case 'tool': if( this.input.tools ) this.input.tools[ key ].selected = selected; break
+        case 'view': if( this.input.views ) this.input.views[ key ].selected = selected; break
+      }
     }
   }
 
@@ -300,7 +419,7 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
             disabled=macro.disabled
             ${CONTROL_LANG_SELECTOR}
             on-click( onHandleOption, macro.type, key, macro )
-            on-contextmenu( onShowOptionCaption, macro.type, key, macro )>
+            on-contextmenu( onShowOptionCaptions, macro.type, key, macro )>
         <micon class=macro.icon></micon>
 
         <if( macro.label )>
@@ -355,11 +474,9 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
         <mblock container class="state.expanded && 'expanded'">
           <if( state.content )>
             <switch( state.content.type )>
-              <case is="tool">
-                <toolcaptions ...state.content.body></toolcaptions>
-              </case>
-              <case is="view">
-                <viewcaptions ...state.content.body></viewcaptions>
+              <case is="['tool', 'view']">
+                <captions ...state.content.body
+                          on-select( onHandleSelect, state.content.type, state.content.key )></captions>
               </case>
               <case is="global">
                 <globalcontent ...state.content.body></globalcontent>

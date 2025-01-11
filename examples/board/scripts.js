@@ -4,30 +4,27 @@ import { Editor, Natives } from '../../dist/modela.min.js'
 import i18n from './i18n.plugin.js'
 import cardView from './card.view.js'
 
-const dummyFrameContent = `<div class="th--dark" id="root">
-    <main class="position-relative w-100 vh-100 theme-bg">
-      <div class="row m-0 position-relative top-0 vh-100">
-        <div class="col-8 theme-bg-secondary d-md-block d-none"></div>
-        <div class="col p-0">
-          <div class="w-100 h-100 theme-bg">
-            <section
-              style="height:50%;background-image:url(./bg-circles.3c284014.png);background-size:contain">
-            </section>
-            <section style="height:50%" class="position-absolute bottom-0 w-100 d-flex align-items-center px-md-2">
-              <div style="padding-bottom:6rem" class="w-100 px-3"><img width="120px"
-                  src="./small.png"><br><br>
-                <p class="font-medium-2 font-weight-300 py-50" style="font-family:Urbanist;"><span data-lang="en-US"
-                    style="color:inherit;"></span>Mobile money, Bank, e-Wallet, and international transfers just like
-                  you want.</p>
-              </div>
-              <div class="position-absolute bottom-0 p-3"><button
-                  class="btn btn-primary btn-xl btn-block round px-4"><span data-lang="en-US" style="color:inherit;">Get
-                    Started</span></button></div>
-            </section>
-          </div>
-        </div>
-      </div>
-    </main>
+const dummyFrameContent = `
+  <div class="editor">
+    <span>I'm an inline text</span>
+    <br>
+    <br>
+    <br>
+    <br>
+    <br>
+    <br>
+    
+    <p class="view" style="position: absolute; top: 45vh; left: 40vw">I'm a paragraph text <span>Hello there</span></p>
+    <p class="view" style="position: absolute; top: 95vh; left: 80vw">Check me here</p>
+    <!-- <p>Check me here</p>
+    <p>Check me here</p> -->
+
+    <button class="btn btn-primary">Click me</button>
+
+    <div class="block" style="display:block;width:100px;height:100px;background-color:aquamarine;"></div>
+    <div id="box" mv-key="123456789000" mv-name="block" style="display:block;width:100px;height:100px;background-color:black;"></div>
+
+    <img src="http://127.0.0.1:3000/publications/@modela/examples/test/images/twins.jpeg">
   </div>`
 
 // In-build `Fonts` plugin configuration

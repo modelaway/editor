@@ -419,14 +419,14 @@ export class Component<Input = void, State = void, Static = void, Context = void
     if( !isDiff( this.input as TObject<any>, input as TObject<any> ) )
       return
     
-    // Merge with initial/active input.
-    this._setInput({ ...this.input, ...input })
+    // Set new input.
+    this._setInput( input )
     
     /**
      * Triggered anytime component recieve new input
      */
     typeof this.onInput == 'function'
-    && this.onInput.bind(this)( this.input )
+    && this.onInput.bind(this)( input )
   }
   /**
    * Inject grain/partial input to current component 

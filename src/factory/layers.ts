@@ -266,7 +266,6 @@ function dependencies(){
                 <micon class="ill-icon bx bx-git-repo-forked"></micon>
               </case>
               <default>
-                <log( input.attribute, input.type )></log>
                 <switch( input.type )>
                   <case is="image">
                     <micon class="ill-icon bx bx-image-alt"></micon>

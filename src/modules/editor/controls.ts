@@ -25,8 +25,6 @@ export default class Controls {
     [ posX, posY ] = indication.split('-'),
     position: Position = {}
 
-    console.log( $shell.height() )
-
     if( !posY )
       throw new Error('Invalid positioning indication')
 

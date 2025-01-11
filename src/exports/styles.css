@@ -8,7 +8,7 @@
   --me-secondary-color-blur:  hsla(150, 1%, 100%, 0.1);
   --me-primary-color-fade: rgba(0, 0, 45, .09);
   --me-secondary-color-fade: rgba(220, 220, 220, 0.198);
-  --me-inverse-color: rgba(255, 255, 255, 0.8);
+  --me-inverse-color: rgba(255, 255, 255, 0.6);
   
   --me-font-size: 14px;
   --me-icon-size: 1.3rem;
@@ -85,6 +85,7 @@ viewport mcanvas > div[mv-frame] {
   cursor: default!important;
   /* cursor: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAYAAAAfSC3RAAAACXBIWXMAAAsTAAALEwEAmpwYAAAF0WlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4KPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iWE1QIENvcmUgNS41LjAiPgogPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4KICA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIgogICAgeG1sbnM6ZGM9Imh0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvIgogICAgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIgogICAgPgogIDwvcmRmOkRlc2NyaXB0aW9uPgogPC9yZGY6UkRGPgo8L3g6eG1wbWV0YT4KPD94cGFja2V0IGVuZD0iciI/PgxTkNUAAAAvSURBVCgVY2RgYPgPxAwMDIxQGkHDGCAApgHmwIxhxCYAV4RNM1aNxNmKbDSSFQEA8aUDVJ5PvToAAAAASUVORK5CYII=), auto!important; */
   pointer-events: auto;
+  overflow: auto;
 }
 viewport mcanvas > div[mv-frame][frozen] { pointer-events: none; }
 viewport mcanvas > div[mv-frame][frozen]::after {
@@ -134,7 +135,7 @@ viewport mcanvas div[mv-frame] mblock > iframe {
   transition: 300ms;
 }
 
-viewport,
+modela,
 [mv-menu],
 [mv-quickset],
 [mv-form-input] * {

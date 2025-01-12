@@ -29,7 +29,7 @@ export default class I18N {
     if( LANGUAGE_DICTIONARIES[ id ] && text in LANGUAGE_DICTIONARIES[ id ] ){
       // Check by language variant or default option
       if( typeof LANGUAGE_DICTIONARIES[ id ][ text ] === 'object' ){
-        const variants = LANGUAGE_DICTIONARIES[ id ][ text ] as ObjectType<string>
+        const variants = LANGUAGE_DICTIONARIES[ id ][ text ] as Record<string, string>
         text = variants[ variant || '*' ] || variants['*']
       }
       

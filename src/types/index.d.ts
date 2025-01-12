@@ -1,5 +1,3 @@
-type ObjectType<T> = { [index: string]: T }
-
 type ClipBoard = {
   type: string
   key?: string | null
@@ -52,12 +50,7 @@ type ListItem = {
   icon: string
   title: string
   value?: string | number | boolean
-  event: {
-    type: string,
-    attr: string,
-    params: string | boolean
-    shortcut?: string
-  }
+  shortcut?: string
   sub?: MenuSection[]
   disabled?: boolean
 }
@@ -84,7 +77,7 @@ type CSSRuleOption = {
   group: string
   label: string
   name: string
-  value: ObjectType<CSSRuleValue> | CSSRuleValue
+  value: Record<string, CSSRuleValue> | CSSRuleValue
   applyOnly?: string
   display?: string
   customizable?: boolean
@@ -94,13 +87,8 @@ type QuicksetOption = {
   icon: string
   label?: string
   title: string
-  event?: {
-    type: string
-    // attr: string,
-    params: string | boolean
-    shortcut?: string
-  }
-  sub?: ObjectType<QuicksetOption>
+  shortcut?: string
+  sub?: Record<string, QuicksetOption>
   meta?: boolean
   extra?: boolean
   super?: boolean
@@ -133,7 +121,7 @@ type MenuSection = {
   more?: boolean
   active?: boolean
 }
-type MenuSections = ObjectType<MenuSection>
+type MenuSections = Record<string, MenuSection>
 
 interface GlobalSet {
   css: Modela['css']
@@ -146,7 +134,7 @@ type ModelaLanguage = {
   default: string
   current: string
 }
-type ModelaLanguageDictionary = ObjectType<ObjectType<string> | string>
+type ModelaLanguageDictionary = Record<string, Record<string, string> | string>
 declare interface Window {
   msass: any
   mlang: ModelaLanguage
@@ -155,7 +143,7 @@ declare interface Window {
 
 type ModelaPluginOption = { 
   name: string,
-  config: ObjectType<any>
+  config: Record<string, any>
 }
 type ModelaSettings = {
   lang?: string

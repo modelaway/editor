@@ -1,6 +1,6 @@
 
 export default class State {
-  private state: ObjectType<any> = {}
+  private state: Record<string, any> = {}
 
   set( field: string, value: any ){
     this.state[ field ] = value

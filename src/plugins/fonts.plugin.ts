@@ -13,7 +13,7 @@ export default class Fonts implements Plugin {
   public readonly version = '1.0.0'
 
   private readonly defaultWeights = [ 100, 200, 300, 400, 500, 600, 700, 800, 900 ]
-  private readonly fonts: ObjectType<string> = {}
+  private readonly fonts: Record<string, string> = {}
 
   private config: PluginConfig
   private factory: PluginFactory

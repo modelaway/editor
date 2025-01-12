@@ -1,51 +1,26 @@
 import type { ViewComponent, ViewBridge } from '../types/view'
 
 const
-quicksetOptions: ObjectType<QuicksetOption> = {
+quicksetOptions: Record<string, QuicksetOption> = {
   bold: { 
     icon: 'bx bx-bold',
-    title: 'Bold',
-    event: {
-      type: 'apply',
-      params: 'BINARY_SWITCH',
-      shortcut: 'command + alt + b'
-    }
+    title: 'Bold'
   },
   italic: { 
     icon: 'bx bx-italic',
-    title: 'Italic',
-    event: {
-      type: 'apply',
-      params: 'BINARY_SWITCH',
-      shortcut: 'command + alt + i'
-    }
+    title: 'Italic'
   },
   underline: { 
     icon: 'bx bx-underline',
-    title: 'Underline',
-    event: {
-      type: 'apply',
-      params: 'BINARY_SWITCH',
-      shortcut: 'command + alt + u'
-    }
+    title: 'Underline'
   },
   'line-through': {
     icon: 'bx bx-strikethrough',
-    title: 'Stike',
-    event: {
-      type: 'apply',
-      params: 'BINARY_SWITCH',
-      shortcut: 'command + alt + s'
-    }
+    title: 'Stike'
   },
   'font-color': {
     icon: 'bx bx-font-color',
-    title: 'Font Color',
-    event: {
-      type: 'apply',
-      params: 'BINARY_SWITCH',
-      shortcut: 'command + alt + c'
-    }
+    title: 'Font Color'
   },
   alignment: { 
     icon: 'bx bx-align-justify',
@@ -54,35 +29,19 @@ quicksetOptions: ObjectType<QuicksetOption> = {
       left: {
         icon: 'bx bx-align-left',
         title: 'Align Left',
-        event: {
-          type: 'apply',
-          params: true
-        },
         active: true
       },
       center: {
         icon: 'bx bx-align-middle',
-        title: 'Align Center',
-        event: {
-          type: 'apply',
-          params: true
-        }
+        title: 'Align Center'
       },
       right: {
         icon: 'bx bx-align-right',
-        title: 'Align Right',
-        event: {
-          type: 'apply',
-          params: true
-        }
+        title: 'Align Right'
       },
       justify: {
         icon: 'bx bx-align-justify',
-        title: 'Align Justify',
-        event: {
-          type: 'apply',
-          params: true
-        }
+        title: 'Align Justify'
       }
     }
   }
@@ -112,24 +71,12 @@ menuOptions: MenuSections = {
             icon: 'bx bx-text',
             title: 'Text style',
             value: '14px bold',
-            event: {
-              type: 'show',
-              attr: 'menu',
-              params: 'sub',
-              shortcut: 'alt + b'
-            },
             sub: [],
             disabled: false
           },
           { 
             icon: 'bx bx-align-justify',
             title: 'Alignment',
-            event: {
-              type: 'show',
-              attr: 'menu',
-              params: 'sub',
-              shortcut: 'alt + b'
-            },
             value: 'Center',
             disabled: true
           }
@@ -178,12 +125,12 @@ function apply( view: ViewBridge ){
 
           view.$.css({ 'font-weight': !isBold ? 'bold' : 'normal' })
           // Update quickset options
-          view.fn.updateQuickset({ 'bold.active': !isBold })
+          view.fn.syncQuickset({ 'bold.active': !isBold })
         }
         else {
           view.$.css({ 'font-weight': 'bold' })
           // Update quickset options
-          view.fn.updateQuickset({ 'bold.active': true })
+          view.fn.syncQuickset({ 'bold.active': true })
         }
       } break
 
@@ -195,12 +142,12 @@ function apply( view: ViewBridge ){
 
           view.$.css({ 'font-style': !isItalic ? 'italic' : 'normal' })
           // Update quickset options
-          view.fn.updateQuickset({ 'italic.active': !isItalic })
+          view.fn.syncQuickset({ 'italic.active': !isItalic })
         }
         else {
           view.$.css({ 'font-style': 'italic' })
           // Update quickset options
-          view.fn.updateQuickset({ 'italic.active': true })
+          view.fn.syncQuickset({ 'italic.active': true })
         }
       } break
 
@@ -213,7 +160,7 @@ function apply( view: ViewBridge ){
 
           view.$.css({ 'text-decoration': !isApplied ? attr : 'none' })
           // Update quickset options
-          view.fn.updateQuickset({
+          view.fn.syncQuickset({
             'underline.active': attr == 'underline' && !isApplied,
             'line-through.active': attr == 'line-through' && !isApplied
           })
@@ -221,7 +168,7 @@ function apply( view: ViewBridge ){
         else {
           view.$.css({ 'text-decoration': attr })
           // Update quickset options
-          view.fn.updateQuickset({
+          view.fn.syncQuickset({
             'underline.active': attr == 'underline',
             'line-through.active': attr == 'line-through'
           })
@@ -234,7 +181,7 @@ function apply( view: ViewBridge ){
       case 'alignment.justify': {
         view.$.css({ 'text-align': attr.split('.')[1] })
         // Update quickset options
-        view.fn.updateQuickset({
+        view.fn.syncQuickset({
           'alignment.top.active': attr == 'alignment.top',
           'alignment.left.active': attr == 'alignment.left',
           'alignment.center.active': attr == 'alignment.center',

@@ -117,7 +117,7 @@ export default class View extends EventEmitter {
        * - .style() returns style properties of this view
        */
       // if( this.bridge.css ){
-      //   // this.bridge.css.custom = async () => (await this.frame.remote?.customCSSProps() as ObjectType<string>)
+      //   // this.bridge.css.custom = async () => (await this.frame.remote?.customCSSProps() as Record<string, string>)
       //   this.bridge.css.style = async () => this.frame.editor.fn.extractStyle( this.$ as Cash )
       // }
     }
@@ -137,11 +137,11 @@ export default class View extends EventEmitter {
      * Override bridge primary fn interface methods
      */
     if( this.bridge.fn ){
-      this.bridge.fn.syncQuickset = ( updates: ObjectType<any>, fn?: () => void ) => {
+      this.bridge.fn.syncQuickset = ( updates: Record<string, any>, fn?: () => void ) => {
         /**
          * Attach `options.` scope to update options' keys
          */
-        const _updates: ObjectType<any> = {}
+        const _updates: Record<string, any> = {}
 
         Object
         .entries( updates )

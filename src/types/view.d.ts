@@ -52,13 +52,13 @@ interface ViewComponent {
   node: string
   category: string
   caption: ViewCaption
-  attributes: ObjectType<any>
+  attributes: Record<string, any>
 
   render: ( view: ViewBridge ) => string
   takeover: ( view: ViewBridge ) => void
   dismiss: ( view: ViewBridge ) => void
 
   styles?: ( view: ViewBridge ) => StyleSettings
-  quickset?: ( view: ViewBridge ) => ObjectType<QuicksetSet>
+  quickset?: ( view: ViewBridge ) => Record<string, QuicksetSet>
   menu?: ( view: ViewBridge ) => MenuSections
 }

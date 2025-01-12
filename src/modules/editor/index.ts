@@ -14,7 +14,12 @@ import Toolbar, { ToolbarInput } from '../../factory/toolbar'
 import Quickset, { QuicksetInput } from '../../factory/quickset'
 import Layers from '../../factory/layers'
 import { debug } from '../utils'
-import { GLOBAL_CONTROL_OPTIONS } from '../constants'
+import { 
+  GLOBAL_CONTROL_OPTIONS,
+  GLOBAL_TOOLAR_OPTIONS,
+  TOOLS,
+  VIEWS
+} from '../constants'
 
 window.mlang = {
   default: 'en-US',
@@ -258,9 +263,9 @@ export default class Editor {
     const
     tinput: ToolbarInput = { 
       key: 'global',
-      tools: {},
-      views: {},
-      globals: {},
+      tools: TOOLS,
+      views: VIEWS,
+      globals: GLOBAL_TOOLAR_OPTIONS,
       // options: this.getOptions(),
       settings: {
         visible: this.settings.viewToolbar,

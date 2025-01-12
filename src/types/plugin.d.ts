@@ -5,7 +5,7 @@ export interface PluginFactory {
   constants: typeof constants
   editor: Editor
 }
-export type PluginConfig = ObjectType<any>
+export type PluginConfig = Record<string, any>
 export interface Plugin {
   name: string
   version: string

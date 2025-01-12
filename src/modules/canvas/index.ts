@@ -12,7 +12,7 @@ import {
 
 export default class Canvas extends EventEmitter {
   private editor: Editor
-  private list: ObjectType<Frame> = {}
+  private list: Record<string, Frame> = {}
   private currentFrame?: Frame
 
   public $?: Cash

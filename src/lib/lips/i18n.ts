@@ -1,8 +1,9 @@
+import $, { type Cash } from 'cash-dom'
 import type { LanguageDictionary } from '.'
 
 export default class I18N {
   private default = window.navigator.language
-  private LANGUAGE_DICTIONARIES: ObjectType<LanguageDictionary> = {}
+  private LANGUAGE_DICTIONARIES: Record<string, LanguageDictionary> = {}
 
   setLang( lang: string ): boolean {
     if( this.default !== lang ){
@@ -38,7 +39,7 @@ export default class I18N {
     if( this.LANGUAGE_DICTIONARIES[ id ] && text in this.LANGUAGE_DICTIONARIES[ id ] ){
       // Check by language variant or default option
       if( typeof this.LANGUAGE_DICTIONARIES[ id ][ text ] === 'object' ){
-        const variants = this.LANGUAGE_DICTIONARIES[ id ][ text ] as ObjectType<string>
+        const variants = this.LANGUAGE_DICTIONARIES[ id ][ text ] as Record<string, string>
         text = variants[ variant || '*' ] || variants['*']
       }
       
@@ -50,7 +51,7 @@ export default class I18N {
     return { text, lang }
   }
 
-  propagate( $node: JQuery<HTMLElement> ){
+  propagate( $node: Cash ){
     const self = this
     function apply( this: HTMLElement ){
       const

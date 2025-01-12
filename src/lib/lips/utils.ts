@@ -3,7 +3,7 @@
  * Optimized deep difference checker with support for Map, Set,
  * and various JS built-in types
  */
-export function isDiff( aObject: ObjectType<any>, bObject: ObjectType<any> ){
+export function isDiff( aObject: Record<string, any>, bObject: Record<string, any> ){
   // Early reference equality check
   if( aObject === bObject ) return false
   

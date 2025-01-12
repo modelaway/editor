@@ -6,7 +6,7 @@ import * as constants from './constants'
 
 export default class Plugins extends EventEmitter {
   private factory: PluginFactory
-  private list: ObjectType<ObjectType<Plugin>> = {}
+  private list: Record<string, Record<string, Plugin>> = {}
 
   constructor( editor: Editor ){
     super()
@@ -79,7 +79,7 @@ export default class Plugins extends EventEmitter {
   /**
    * Register new plugin
    */
-  register( plug: PluginInstance, config?: ObjectType<any> ){
+  register( plug: PluginInstance, config?: Record<string, any> ){
     // Instanciate plugin
     const plugin = new plug( this.factory, config )
 

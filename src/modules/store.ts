@@ -1,11 +1,10 @@
-import type Modela from '../exports/modela'
+import type Editor from './editor'
 import type { ViewComponent } from '../types/view'
-import type { FrameQuery } from '../lib/frame.window'
 import { debug } from './utils'
 import { Cash } from 'cash-dom'
 
 type StoreMemory = {
-  views: ObjectType<ViewComponent>,
+  views: Record<string, ViewComponent>,
   templates: {}
 }
 
@@ -15,7 +14,7 @@ export default class Store {
     templates: {}
   }
 
-  constructor({ settings }: Modela ){
+  constructor({ settings }: Editor ){
     /**
      * General settings inherited from Modela
      */
@@ -83,7 +82,7 @@ export default class Store {
     debug('view component unregistered - ', name )
   }
   searchView( query?: string ){
-    const results: ObjectType<Listset> = {}
+    const results: Record<string, Listset> = {}
 
     Object
     .entries( this.STORE.views )
@@ -111,12 +110,7 @@ export default class Store {
       results[ category ].items.push({
         icon: caption.icon as string,
         title: caption.title,
-        value: name,
-        event: {
-          type: 'action',
-          attr: 'add-view',
-          params: name
-        }
+        value: name
       })
     } )
 

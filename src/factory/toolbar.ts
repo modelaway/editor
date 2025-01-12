@@ -1,20 +1,12 @@
 import type { HandlerHook } from '../types/controls'
 
-import $ from 'cash-dom'
 import { Handler } from '../lib/lips'
 import Lips, { Component } from '../lib/lips/lips'
 import { CONTROL_LANG_SELECTOR } from '../modules/constants'
 
-export type ToolbarGlobalOption = {
-  icon: string
+export type ToolbarOption = {
   title: string
-  parent?: string
-  shortcut?: string
-  disabled?: boolean
-}
-export type ToolbarSingleOption = {
-  icon: string
-  title: string
+  icon?: string
   tool?: string
   parent?: string
   shortcut?: string
@@ -23,26 +15,7 @@ export type ToolbarSingleOption = {
   selected?: string
   disabled?: boolean
   instructions?: string
-}
-export type ToolbarVariantsOption = {
-  title: string
-  variants: Record<string, ToolbarSingleOption>
-  parent?: string
-  hidden?: boolean
-  disabled?: boolean
-  selected?: string
-}
-export type ToolbarOption = ToolbarSingleOption | ToolbarVariantsOption
-
-export type ToolbarInput = {
-  key: string
-  tools?: Record<string, ToolbarOption>
-  views?: Record<string, ToolbarOption>
-  globals?: Record<string, ToolbarGlobalOption>
-  settings: {
-    visible?: boolean
-  }
-  position?: string | Position
+  variants?: Record<string, ToolbarOption>
 }
 
 /**
@@ -53,7 +26,7 @@ function dependencies(){
   type CaptionsState = {
     selected: string | null
     instructions?: string
-    items: Record<string, ToolbarSingleOption>
+    items: Record<string, ToolbarOption>
   }
   interface CaptionsTemplate {
     state: CaptionsState
@@ -61,6 +34,7 @@ function dependencies(){
     default: string
     stylesheet: string
   }
+
   const Captions: CaptionsTemplate = {
     state: {
       items: {},
@@ -88,7 +62,6 @@ function dependencies(){
         this.emit('select', this.state.selected )
       }
     },
-
     default: `
       <mblock>
         <mul>
@@ -112,7 +85,6 @@ function dependencies(){
         </if>
       </mblock>
     `,
-
     stylesheet: `
       mul {
         padding: 1.2rem;
@@ -149,7 +121,10 @@ function dependencies(){
           border: 1px solid var(--me-border-color);
           border-radius: var(--me-border-radius);
 
-          minline { color: gray; }
+          minline {
+            color: gray;
+            font-size: var(--me-small-font-size);
+          }
           p { margin: .8rem 0 0 0; }
         }
       }
@@ -176,166 +151,41 @@ type Content = {
   key?: string
   body?: ToolbarOption
 }
+
+export type ToolbarInput = {
+  key: string
+  tools?: Record<string, ToolbarOption>
+  views?: Record<string, ToolbarOption>
+  globals?: Record<string, ToolbarOption>
+  settings: {
+    visible?: boolean
+  }
+  position?: string | Position
+}
 export type ToolbarState = {
+  tools: Record<string, ToolbarOption>
+  views: Record<string, ToolbarOption>
+  globals: Record<string, ToolbarOption>
   expanded: boolean
   content: Content | null
 }
 
 export default ( input: ToolbarInput, hook?: HandlerHook ) => {
-  input.tools = {
-    POINTER: {
-      icon: 'bx bx-pointer',
-      title: 'Pointer',
-      active: true
-    },
-    PICKER: {
-      icon: 'bx bx-color-fill',
-      title: 'Picker'
-    },
-    PENCIL: {
-      title: 'Pencil',
-      variants: {
-        '*': {
-          icon: 'bx bx-pencil',
-          title: 'Pencil',
-          parent: 'PENCIL'
-        },
-        'pen': {
-          icon: 'bx bx-pen',
-          title: 'Pen',
-          parent: 'PENCIL'
-        }
-      }
-    },
-    FLOW: {
-      icon: 'bx bx-git-merge',
-      title: 'Flow',
-      disabled: true
-    }
-  }
-  input.views = {
-    text: {
-      title: 'Text',
-      selected: '*',
-      variants: {
-        '*': {
-          icon: 'bx bx-text',
-          title: 'Inline text',
-          shortcut: 'command + y',
-          tool: 'TEXT',
-          parent: 'text'
-        },
-        'circle': {
-          icon: 'bx bx-paragraph',
-          title: 'Paragraph text',
-          shortcut: 'command + y',
-          tool: 'TEXT',
-          parent: 'text'
-        },
-        'blockquote': {
-          icon: 'bx bxs-quote-alt-left',
-          title: 'Blockquote',
-          shortcut: 'command + y',
-          tool: 'TEXT',
-          parent: 'text'
-        }
-      }
-    },
-    shape: {
-      title: 'Shape',
-      selected: '*',
-      variants: {
-        '*': {
-          icon: 'bx bx-shape-square',
-          title: 'Rectangle Shape',
-          shortcut: 'command + y',
-          tool: 'POINTER',
-          parent: 'shape',
-          instructions: 'Create a rectangle-like or square-like shape, resizable and adjustable at any position'
-        },
-        'circle': {
-          icon: 'bx bx-shape-circle',
-          title: 'Circle shape',
-          shortcut: 'command + y',
-          tool: 'POINTER',
-          parent: 'shape',
-          instructions: 'Create a circle shape, resizable and adjustable at any position'
-        },
-        'dynamic': {
-          icon: 'bx bx-shape-polygon',
-          title: 'Dynamic shape',
-          shortcut: 'command + y',
-          tool: 'POINTER',
-          parent: 'shape',
-          instructions: 'Create a free form shape using svg, with curves, resizable and adjustable at any position'
-        }
-      }
-    },
-    image: {
-      title: 'Image',
-      variants: {
-        '*': {
-          icon: 'bx bx-image-alt',
-          title: 'Image',
-          shortcut: 'command + y',
-          tool: 'POINTER',
-          parent: 'image'
-        },
-        'icon': {
-          icon: 'bx bx-home-smile',
-          title: 'Font icons',
-          shortcut: 'command + y',
-          tool: 'POINTER',
-          parent: 'image'
-        }
-      }
-    },
-    video: {
-      icon: 'bx bx-movie-play',
-      title: 'Video',
-      shortcut: 'command + y',
-      tool: 'POINTER'
-    },
-    audio: {
-      icon: 'bx bx-equalizer',
-      title: 'Audio',
-      tool: 'POINTER'
-    }
-  }
-  input.globals = {
-    styles: {
-      icon: 'bx bx-slider-alt',
-      title: 'Styles'
-    },
-    assets: {
-      icon: 'bx bx-landscape',
-      title: 'Assets'
-    },
-    // connect: {
-    //   icon: 'bx bx-podcast',
-    //   title: 'Connect',
-    //   event: {
-    //     type: 'action',
-    //     params: true,
-    //     shortcut: 'command + z'
-    //   }
-    // },
-    plugins: {
-      icon: 'bx bx-customize',
-      title: 'Plugins'
-    },
-    settings: {
-      icon: 'bx bx-cog',
-      title: 'Settings'
-    }
-  }
-
+  
   const state: ToolbarState = {
+    tools: {},
+    views: {},
+    globals: {},
     expanded: false,
     content: null
   }
 
   const handler: Handler<ToolbarInput, ToolbarState> = {
+    onInput({ tools, views, globals }){
+      this.state.tools = tools || {}
+      this.state.views = views || {}
+      this.state.globals = globals || {}
+    },
     onMount(){
       // Set to default position
       ;(!this.input.position || typeof this.input.position === 'string')
@@ -374,19 +224,53 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
       this.state.content = { type, key, body }
     },
 
-    onHandleOption( type: ContentType, key: string, option: ToolbarOption | ToolbarGlobalOption ){
+    selectTool( key ){
+      for( const k in this.state.tools ){
+        this.state.tools[ k ].active = ( k === key )
+      }
+    },
+    selectView( key ){
+      for( const k in this.state.views ){
+        // View with variants
+        if( this.state.views[ k ].variants )
+          for( const vk in this.state.views[ k ].variants ){
+            // View to activate
+            if( k === key && vk === this.state.views[ k ].selected ){
+              // Activate view's related tool
+              this.state.views[ k ].variants[ vk ].tool
+              && this.selectTool( this.state.views[ k ].variants[ vk ].tool )
+            }
+          }
+
+        // View to activate
+        if( k === key ){
+          this.state.views[ k ].active = true
+
+          // Activate view's related tool
+          this.state.views[ k ].tool
+          && this.selectTool( this.state.views[ k ].tool )
+        }
+        // Diactivate if activated
+        else this.state.views[ k ].active = false
+      }
+    },
+    onHandleOption( type: ContentType, key: string, option: ToolbarOption ){
       if( option.disabled ) return
 
-      console.log(`Option [${key}] -- `, option )
+      // console.log(`Option [${key}] -- `, option )
+      switch( type ){
+        case 'tool': this.selectTool( key ); break
+        case 'view': this.selectView( key ); break
+      }
 
       // Show option details when block is already expanded
       this.state.expanded && this.viewOptionCaptions( type, key, option )
     },
-    onShowOptionCaptions( type: ContentType, key: string, option: ToolbarOption | ToolbarGlobalOption, e: Event ){
+    onShowOptionCaptions( type: ContentType, key: string, option: ToolbarOption, e: Event ){
       e.preventDefault()
       if( option.disabled ) return
 
-      console.log(`Option [${key}] -- `, option )
+      // console.log(`Option [${key}] -- `, option )
       this.viewOptionCaptions( type, key, option )
 
       /**
@@ -405,8 +289,8 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
     onHandleSelect( type: string, key: string, selected: string ){
       // console.log('selected --', key, selected )
       switch( type ){
-        case 'tool': if( this.input.tools ) this.input.tools[ key ].selected = selected; break
-        case 'view': if( this.input.views ) this.input.views[ key ].selected = selected; break
+        case 'tool': if( this.state.tools[ key ] ) this.state.tools[ key ].selected = selected; break
+        case 'view': if( this.state.views[ key ] ) this.state.views[ key ].selected = selected; break
       }
     }
   }
@@ -433,12 +317,12 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
     <mblock style=self.getStyle() backdrop>
       <mblock>
         <mblock toolbar>
-          <if( input.tools )>
+          <if( state.tools )>
             <mul options="tools">
-              <for in=input.tools>
+              <for in=state.tools>
                 <if( each.variants )>
                   <const selected="each.variants[ each.selected || '*' ]"></const>
-                  <option type="tool" ...selected></option>
+                  <option type="tool" ...selected active=each.active></option>
                 </if>
                 <else>
                   <option type="tool" ...each></option>
@@ -447,13 +331,13 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
             </mul>
           </if>
 
-          <if( input.views )>
+          <if( state.views )>
             <div divider></div>
             <mul options="views">
-              <for in=input.views>
+              <for in=state.views>
                 <if( each.variants )>
                   <const selected="each.variants[ each.selected || '*' ]"></const>
-                  <option type="view" ...selected></option>
+                  <option type="view" ...selected active=each.active></option>
                 </if>
                 <else>
                   <option type="view" ...each></option>
@@ -462,9 +346,9 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
             </mul>
           </if>
 
-          <if( input.globals )>
+          <if( state.globals )>
             <mul options="globals">
-              <for in=input.globals>
+              <for in=state.globals>
                 <option type="global" ...each></option>
               </for>
             </mul>

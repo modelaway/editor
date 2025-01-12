@@ -1,8 +1,7 @@
 import type { Component } from './lips'
 
-export type TObject<T> = { [index: string]: T }
-export type LanguageDictionary = ObjectType<ObjectType<string> | string>
-export type VariableScope = TObject<{ value: any, type: 'let' | 'const' }>
+export type LanguageDictionary = Record<string, Record<string, string> | string>
+export type VariableScope = Record<string, { value: any, type: 'let' | 'const' }>
 
 export interface Handler<Input = void, State = void, Static = void, Context = void> {
   onCreate?: ( this: Component<Input, State, Static, Context> ) => void
@@ -28,7 +27,7 @@ export type ComponentScope<Input = void, State = void, Static = void, Context = 
   _static?: Static
   handler?: Handler<Input, State, Static, Context>
   stylesheet?: string
-  macros?: TObject<string>
+  macros?: Record<string, string>
 }
 export type ComponentOptions = {
   debug?: boolean

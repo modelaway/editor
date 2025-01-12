@@ -1,6 +1,7 @@
 import type { MediaScreen } from '../types/frame'
 import english from '../languages/en.json'
 import french from '../languages/fr.json'
+import { ToolbarOption } from '../factory/toolbar'
 
 export const CONTROL_ROOT = '#modela'
 
@@ -54,7 +55,7 @@ export const FORM_SEPERATOR_SELECTOR = 'mv-form-seperator'
  * - meta
  * - detached
  */
-export const VIEW_CONTROL_OPTIONS: ObjectType<QuicksetOption> = {
+export const VIEW_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
   view: {
     meta: true,
     icon: 'bx bx-square-rounded',
@@ -63,60 +64,34 @@ export const VIEW_CONTROL_OPTIONS: ObjectType<QuicksetOption> = {
       copy: { 
         icon: 'bx bx-copy',
         title: 'Copy',
-        event: {
-          type: 'action',
-          params: 'view',
-          shortcut: 'command + c'
-        },
+        shortcut: 'command + c',
         meta: true
       },
       'move-up': { 
         icon: 'bx bx-upvote',
         title: 'Move up',
-        event: {
-          type: 'action',
-          params: 'view',
-          shortcut: 'command + up'
-        },
+        shortcut: 'command + up',
         meta: true
       },
       'move-down': { 
         icon: 'bx bx-downvote',
         title: 'Move down',
-        event: {
-          type: 'action',
-          params: 'view',
-          shortcut: 'command + down'
-        },
+        shortcut: 'command + down',
         meta: true
       },
       move: { 
         icon: 'bx bx-move',
         title: 'Move',
-        event: {
-          type: 'action',
-          params: 'view'
-        },
         meta: true
       },
       duplicate: { 
         icon: 'bx bx-duplicate',
         title: 'Duplicate',
-        event: {
-          type: 'action',
-          params: 'view',
-          shortcut: 'command + shift + d'
-        },
         meta: true
       },
       delete: { 
         icon: 'bx bx-trash',
         title: 'Delete',
-        event: {
-          type: 'action',
-          params: 'view',
-          shortcut: 'command + alt + d'
-        },
         meta: true
       }
     }
@@ -124,11 +99,7 @@ export const VIEW_CONTROL_OPTIONS: ObjectType<QuicksetOption> = {
   menu: {
     icon: 'bx bx-grid-alt',
     title: 'Attributes',
-    event: {
-      type: 'show',
-      params: 'BINARY_SWITCH',
-      shortcut: 'command + alt + a'
-    },
+    shortcut: 'command + alt + a',
     meta: true,
     detached: true,
     disabled: false
@@ -138,44 +109,28 @@ export const VIEW_CONTROL_OPTIONS: ObjectType<QuicksetOption> = {
 /**
  * Global control options
  */
-export const GLOBAL_CONTROL_OPTIONS: ObjectType<QuicksetOption> = {
+export const GLOBAL_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
   undo: {
     icon: 'bx bx-undo',
     title: 'Undo',
-    event: {
-      type: 'action',
-      params: true,
-      shortcut: 'command + z'
-    },
+    shortcut: 'command + z',
     disabled: true
   },
   redo: {
     icon: 'bx bx-redo',
     title: 'Redo',
-    event: {
-      type: 'action',
-      params: true,
-      shortcut: 'command + y'
-    },
+    shortcut: 'command + y',
     disabled: true
   },
   'frame-add': {
     icon: 'bx bx-plus',
     title: 'Add New Frame',
-    event: {
-      type: 'action',
-      params: true,
-      shortcut: 'command + f'
-    }
+    shortcut: 'command + f'
   },
   'frame-layers': {
     icon: 'bx bx-list-minus',
     title: 'Show Layers',
-    event: {
-      type: 'action',
-      params: true,
-      shortcut: 'command + l'
-    }
+    shortcut: 'command + l'
   },
   'screen-mode': {
     icon: 'bx bx-devices',
@@ -186,47 +141,27 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<QuicksetOption> = {
       default: { 
         icon: 'bx bx-expand',
         title: 'Current Screen',
-        event: {
-          type: 'action',
-          params: true
-        },
         active: true,
         disabled: false
       },
       mobile: { 
         icon: 'bx bx-mobile-alt',
         title: 'Mobile',
-        event: {
-          type: 'action',
-          params: true
-        },
         disabled: false
       },
       tablet: { 
         icon: 'bx bx-tab',
         title: 'Tablet',
-        event: {
-          type: 'action',
-          params: true
-        },
         disabled: false
       },
       desktop: { 
         icon: 'bx bx-desktop',
         title: 'Desktop',
-        event: {
-          type: 'action',
-          params: true
-        },
         disabled: false
       },
       tv: { 
         icon: 'bx bx-tv',
         title: 'Tv',
-        event: {
-          type: 'action',
-          params: true
-        },
         disabled: false
       }
     }
@@ -234,30 +169,177 @@ export const GLOBAL_CONTROL_OPTIONS: ObjectType<QuicksetOption> = {
   comments: {
     icon: 'bx bx-message-square-dots',
     title: 'Comments',
-    event: {
-      type: 'show',
-      params: 'global',
-      shortcut: 'command + shift + s'
-    },
+    shortcut: 'command + shift + s',
     disabled: false
   },
   code: {
     icon: 'bx bx-code-alt',
     title: 'Code',
-    event: {
-      type: 'show',
-      params: 'global',
-      shortcut: 'command + shift + c'
-    },
+    shortcut: 'command + shift + c',
     super: true,
     disabled: false
   }
 }
 
 /**
+ * Default tools
+ */
+export const TOOLS: Record<string, ToolbarOption> = {
+  POINTER: {
+    icon: 'bx bx-pointer',
+    title: 'Pointer',
+    active: true
+  },
+  PICKER: {
+    icon: 'bx bx-color-fill',
+    title: 'Picker'
+  },
+  PENCIL: {
+    title: 'Pencil',
+    selected: 'pen',
+    variants: {
+      '*': {
+        icon: 'bx bx-pencil',
+        title: 'Pencil',
+        parent: 'PENCIL'
+      },
+      'pen': {
+        icon: 'bx bx-pen',
+        title: 'Pen',
+        parent: 'PENCIL'
+      }
+    }
+  },
+  FLOW: {
+    icon: 'bx bx-git-merge',
+    title: 'Flow',
+    disabled: true
+  }
+}
+
+// TODO: temporarily remove to fetch data from store
+export const VIEWS: Record<string, ToolbarOption> = {
+  text: {
+    title: 'Text',
+    selected: '*',
+    variants: {
+      '*': {
+        icon: 'bx bx-text',
+        title: 'Inline text',
+        shortcut: 'command + y',
+        tool: 'TEXT',
+        parent: 'text'
+      },
+      'circle': {
+        icon: 'bx bx-paragraph',
+        title: 'Paragraph text',
+        shortcut: 'command + y',
+        tool: 'TEXT',
+        parent: 'text'
+      },
+      'blockquote': {
+        icon: 'bx bxs-quote-alt-left',
+        title: 'Blockquote',
+        shortcut: 'command + y',
+        tool: 'TEXT',
+        parent: 'text'
+      }
+    }
+  },
+  shape: {
+    title: 'Shape',
+    selected: '*',
+    variants: {
+      '*': {
+        icon: 'bx bx-shape-square',
+        title: 'Rectangle Shape',
+        shortcut: 'command + y',
+        tool: 'POINTER',
+        parent: 'shape',
+        instructions: 'Create a rectangle-like or square-like shape, resizable and adjustable at any position'
+      },
+      'circle': {
+        icon: 'bx bx-shape-circle',
+        title: 'Circle shape',
+        shortcut: 'command + y',
+        tool: 'POINTER',
+        parent: 'shape',
+        instructions: 'Create a circle shape, resizable and adjustable at any position'
+      },
+      'dynamic': {
+        icon: 'bx bx-shape-polygon',
+        title: 'Dynamic shape',
+        shortcut: 'command + y',
+        tool: 'POINTER',
+        parent: 'shape',
+        instructions: 'Create a free form shape using svg, with curves, resizable and adjustable at any position'
+      }
+    }
+  },
+  image: {
+    title: 'Image',
+    selected: '*',
+    variants: {
+      '*': {
+        icon: 'bx bx-image-alt',
+        title: 'Image',
+        shortcut: 'command + y',
+        tool: 'POINTER',
+        parent: 'image'
+      },
+      'icon': {
+        icon: 'bx bx-home-smile',
+        title: 'Font icons',
+        shortcut: 'command + y',
+        tool: 'POINTER',
+        parent: 'image'
+      }
+    }
+  },
+  video: {
+    icon: 'bx bx-movie-play',
+    title: 'Video',
+    shortcut: 'command + y',
+    tool: 'POINTER'
+  },
+  audio: {
+    icon: 'bx bx-equalizer',
+    title: 'Audio',
+    tool: 'POINTER'
+  },
+  board: {
+    icon: 'bx bx-clipboard',
+    title: 'Board',
+    tool: 'PENCIL'
+  }
+}
+
+/**
+ * Global toolbar options
+ */
+export const GLOBAL_TOOLAR_OPTIONS: Record<string, ToolbarOption> = {
+  styles: {
+    icon: 'bx bx-slider-alt',
+    title: 'Styles'
+  },
+  assets: {
+    icon: 'bx bx-landscape',
+    title: 'Assets'
+  },
+  plugins: {
+    icon: 'bx bx-customize',
+    title: 'Plugins'
+  },
+  settings: {
+    icon: 'bx bx-cog',
+    title: 'Settings'
+  }
+}
+
+/**
  * Support languages translation dictionaries
  */
-export const LANGUAGE_DICTIONARIES: ObjectType<ModelaLanguageDictionary> = {
+export const LANGUAGE_DICTIONARIES: Record<string, ModelaLanguageDictionary> = {
   'en': english,
   'fr': french
 }
@@ -265,7 +347,7 @@ export const LANGUAGE_DICTIONARIES: ObjectType<ModelaLanguageDictionary> = {
 /**
  * Default CSS custom properties variables
  */
-export const CSS_CUSTOM_VARIABLES: ObjectType<CSSRuleOption> = {
+export const CSS_CUSTOM_VARIABLES: Record<string, CSSRuleOption> = {
   primaryColor: {
     group: 'palette',
     label: 'Primary Color',
@@ -466,7 +548,7 @@ export const CSS_CUSTOM_VARIABLES: ObjectType<CSSRuleOption> = {
  * Cascade Style Sheet properties and their
  * possible value options.
  */
-export const CSS_PROPERTIES: ObjectType<string | string[]> = {
+export const CSS_PROPERTIES: Record<string, string | string[]> = {
   'align-content': [ 'stretch', 'center', 'flex-start', 'flex-end', 'space-between', 'space-around', 'initial', 'inherit' ],
   'align-items': [ 'stretch', 'center', 'flex-start', 'flex-end', 'baseline', 'initial', 'inherit' ],
   'align-self': [ 'auto', 'stretch', 'center', 'flex-start', 'flex-end', 'baseline', 'initial', 'inherit' ],
@@ -845,7 +927,7 @@ export const ON_ACTION_EVENTS: string[] = [
 /**
  * Device media screen resolutions
  */
-export const MEDIA_SCREENS: ObjectType<MediaScreen> = {
+export const MEDIA_SCREENS: Record<string, MediaScreen> = {
   'iPhone SE': { 
     device: 'mobile',
     type: { id: 'xs', label: 'Extra Small' }, 

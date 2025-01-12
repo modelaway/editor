@@ -5,7 +5,8 @@
   "main": "./dist/index.js",
   "files": [
     "dist/",
-    "src/"
+    "*.d.ts",
+    "dist/types/**/*"
   ],
   "exports": {
     ".": {
@@ -17,7 +18,8 @@
   "private": false,
   "scripts": {
     "dev": "bun compile --watch",
-    "compile": "bun build --entrypoints ./src/exports/* ./src/plugins/* ./src/lib/lips/lips.ts --entry-naming [name].min.[ext] --minify --root . --outdir ./dist --target browser --format esm --sourcemap=external",
+    "compile": "bun build --entrypoints ./src/exports/* ./src/plugins/* ./src/lib/lips/lips.ts --entry-naming [name].min.[ext] --minify --root . --outdir ./dist --target browser --format esm --sourcemap=external && bun run build:declaration",
+    "build:declaration": "tsc --project tsconfig.types.json",
     "prepack": "bun compile",
     "test": "Echo 'Error: No test specified' && exit 1",
     "test:view": "yarn build:tsc && jest test/auth.test.js"
@@ -32,7 +34,9 @@
   },
   "devDependencies": {
     "@types/diff-match-patch": "^1.0.36",
-    "@types/stylis": "^4.2.7"
+    "@types/stylis": "^4.2.7",
+    "tsc": "^2.0.4",
+    "typescript": "^5.7.3"
   },
   "directories": {
     "dist": "dist/",

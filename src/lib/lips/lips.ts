@@ -1,5 +1,4 @@
-import type { 
-  TObject,
+import type {
   LipsConfig,
   Template,
   EventListener,
@@ -78,7 +77,7 @@ $.fn.extend({
 export default class Lips<Context = any> {
   private debug = false
   private context?: Context
-  private store: ObjectType<Template> = {}
+  private store: Record<string, Template> = {}
   private __root?: Component
 
   public i18n = new I18N()
@@ -197,7 +196,7 @@ export default class Lips<Context = any> {
 
 export class Component<Input = void, State = void, Static = void, Context = void> {
   private template: string
-  private macros: TObject<string>
+  private macros: Record<string, string>
   private $?: Cash
 
   public input: Input
@@ -210,9 +209,9 @@ export class Component<Input = void, State = void, Static = void, Context = void
   private __stylesheet?: Stylesheet
   private __macros: Map<string, Cash> = new Map() // Cached macros templates
   private __components: Map<string, Component> = new Map() // Cached nexted components
-  private __events: TObject<EventListener[]> = {}
-  private __once_events: TObject<EventListener[]> = {}
-  private __attachableEvents: { $node: Cash, _event: string, instruction: string, scope?: TObject<any> }[] = []
+  private __events: Record<string, EventListener[]> = {}
+  private __once_events: Record<string, EventListener[]> = {}
+  private __attachableEvents: { $node: Cash, _event: string, instruction: string, scope?: Record<string, any> }[] = []
 
   private __templateCache: Map<string, Cash> = new Map()
 
@@ -309,7 +308,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
      */
     Array.isArray( context )
     && context.length
-    && this.lips?.useContext( context, ctx => isDiff( this.context as TObject<any>, ctx ) && setContext( ctx ) )
+    && this.lips?.useContext( context, ctx => isDiff( this.context as Record<string, any>, ctx ) && setContext( ctx ) )
 
     this.SEC = effect( () => {
       this.input = getInput()
@@ -416,7 +415,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
      * Apply update only when new input is different 
      * from the incoming input
      */
-    if( !isDiff( this.input as TObject<any>, input as TObject<any> ) )
+    if( !isDiff( this.input as Record<string, any>, input as Record<string, any> ) )
       return
     
     // Set new input.
@@ -791,7 +790,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
         throw new Error('Macro component not found')
       
       // Initial macro input
-      const macroInput: TObject<any> = {}
+      const macroInput: Record<string, any> = {}
 
       /**
        * Also inject macro slotted body into macro input
@@ -891,7 +890,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
        */
       input: any = {},
       attrs = ($node as any).attrs(),
-      events: TObject<any> = {}
+      events: Record<string, any> = {}
 
       Object
       .entries( attrs )
@@ -1279,7 +1278,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
       script = script.trim()
       
       if( scope ){
-        const _scope: TObject<any> = {}
+        const _scope: Record<string, any> = {}
         for( const key in scope )
           _scope[ key ] = scope[ key ].value
 

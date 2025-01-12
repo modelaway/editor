@@ -55,7 +55,7 @@ export const hashKey = () => {
  * 
  * - preserve included functions
  */
-export const obj2Str = ( obj: ObjectType<any> ): string => {
+export const obj2Str = ( obj: Record<string, any> ): string => {
   let str = '{'
 
   for( let key in obj ){
@@ -81,7 +81,7 @@ export const obj2Str = ( obj: ObjectType<any> ): string => {
 /**
  * Convert back a string object converted with obj2Str
  */
-export const str2Obj = ( str: string ): ObjectType<any> => {
+export const str2Obj = ( str: string ): Record<string, any> => {
   return new Function(`return ${str}`)()
 }
 
@@ -91,7 +91,7 @@ export const str2Obj = ( str: string ): ObjectType<any> => {
  * 
  * Default delay: 8 seconds
  */
-let AUTO_DISMISS_TRACKERS: ObjectType<any> = {}
+let AUTO_DISMISS_TRACKERS: Record<string, any> = {}
 
 export const autoDismiss = ( id: string, $this: Cash, delay?: number ) => {
   // Cancel previous auto-dismiss-delay
@@ -107,13 +107,13 @@ export const autoDismiss = ( id: string, $this: Cash, delay?: number ) => {
  * 
  * return modified object
  */
-export const deepAssign = ( original: ObjectType<any>, toSet: ObjectType<any> ) => {
+export const deepAssign = ( original: Record<string, any>, toSet: Record<string, any> ) => {
   if( typeof original !== 'object'
       || typeof toSet !== 'object'
       || !Object.keys( toSet ).length )
     throw new Error('Invalid deep assign arguments')
 
-  function doset( obj: ObjectType<any>, sequence: string, value: any ){
+  function doset( obj: Record<string, any>, sequence: string, value: any ){
     const
     keys = sequence.split('.'),
     key = keys.shift()

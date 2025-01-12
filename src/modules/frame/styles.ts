@@ -338,7 +338,7 @@ export default class FrameStyle {
     return parts.join('\n')
   }
 
-  setVariables( updates?: ObjectType<string | ObjectType<string>> ){
+  setVariables( updates?: Record<string, string | Record<string, string>> ){
     /**
      * Apply properties updates to the variables
      */
@@ -365,7 +365,7 @@ export default class FrameStyle {
   }
   
   rules(){
-    const selectors: ObjectType<ObjectType<string>> = {}
+    const selectors: Record<string, Record<string, string>> = {}
 
     Array
     .from( document.styleSheets )
@@ -385,7 +385,7 @@ export default class FrameStyle {
             || ['html', 'body'].includes( selectorText ) ) 
           return
 
-        const record: ObjectType<string> = {}
+        const record: Record<string, string> = {}
 
         Array
         .from( style )

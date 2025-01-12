@@ -89,7 +89,7 @@ export default class Functions {
     const styleStr = $this.attr('style')
     if( !styleStr ) return {}
 
-    const styles: ObjectType<string> = {}
+    const styles: Record<string, string> = {}
     
     styleStr.split(/;/).forEach( ( each: string ) => {
       const [name, value] = each.split(':')
@@ -104,7 +104,7 @@ export default class Functions {
   /**
    * Apply grain update to quickset options
    */
-  syncQuickset( updates: ObjectType<any>, fn?: () => void ){
+  syncQuickset( updates: Record<string, any>, fn?: () => void ){
     throw new Error('Method not available')
   }
 

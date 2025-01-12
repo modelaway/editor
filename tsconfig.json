@@ -2,15 +2,10 @@
   "ts-node": {
     "files": true
   },
-  "files": [
-    "src/exports/modela.ts",
-    "src/exports/client.ts",
-    "src/modules/natives.loader.ts",
-    "src/types/index.d.ts"
-  ],
   "compilerOptions": {
     "target": "es5",
     "module": "commonjs",
+    "lib": ["es2021", "DOM"],
     "moduleResolution": "node",
     "outDir": "dist",
     "rootDir": "src",
@@ -24,6 +19,6 @@
     "declaration": true,
     "sourceMap": true
   },
-  "include": ["./src/**/*"],
+  "include": ["./src/**/*", "imp/output"],
   "exclude": ["./dist"]
 }

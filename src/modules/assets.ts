@@ -1,7 +1,7 @@
 import { debug } from './utils'
 
 export default class Assets {
-  private ASSETS: ObjectType<AssetData> = {}
+  private ASSETS: Record<string, AssetData> = {}
 
   add( assets: AssetData ){
     if( !assets )

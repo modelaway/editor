@@ -1,5 +1,5 @@
 import type Editor from './editor'
-import { ViewComponent } from '../types/view'
+import type { ViewComponent } from '../types/view'
 
 import Text from '../natives/Text'
 import Block from '../natives/Block'

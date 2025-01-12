@@ -1,5 +1,5 @@
 import type Frame from '../frame'
-import type { AddViewTriggerType, ViewComponent } from '../../types/view'
+import type { ViewComponent } from '../../types/view'
 
 import $, { type Cash } from 'cash-dom'
 import View from './view'
@@ -15,7 +15,7 @@ export default class Elements {
   /**
    * List of actively mapped elements
    */
-  public list: ObjectType<View> = {}
+  public list: Record<string, View> = {}
 
   /**
    * Default view state
@@ -75,13 +75,13 @@ export default class Elements {
   /**
    * Add view component via editor contxt to the DOM
    */
-  add( name: string, to: string, triggerType?: AddViewTriggerType ){
+  add( name: string, to: string ){
     const vc = this.frame.editor.store.getView( name )
     if( !vc )
       throw new Error(`Unknown <${name}> view`)
 
     this.currentView = new View( this.frame )
-    this.currentView.mount( vc as ViewComponent, to, triggerType )
+    this.currentView.mount( vc as ViewComponent, to )
 
     /**
      * Set this view in global namespace

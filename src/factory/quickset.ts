@@ -13,16 +13,16 @@ import {
  */
 export type QuicksetInput = {
   key: string
-  options: ObjectType<QuicksetOption>
+  options: Record<string, QuicksetOption>
   settings?: QuicksetSettings
   position?: string | Position
 }
 export type QuicksetState = {
-  default: ObjectType<QuicksetOption> | null
-  extra: ObjectType<QuicksetOption> | null
-  super: ObjectType<QuicksetOption> | null
-  subOption: ObjectType<QuicksetOption> | null
-  detached: ObjectType<QuicksetOption> | null
+  default: Record<string, QuicksetOption> | null
+  extra: Record<string, QuicksetOption> | null
+  super: Record<string, QuicksetOption> | null
+  subOption: Record<string, QuicksetOption> | null
+  detached: Record<string, QuicksetOption> | null
   showExtra: boolean
 }
 

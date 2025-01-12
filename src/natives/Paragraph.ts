@@ -1,51 +1,27 @@
 import type { ViewComponent } from '../types/view'
 
 const
-quicksetOptions: ObjectType<QuicksetOption> = {
+quicksetOptions: Record<string, QuicksetOption> = {
   bold: { 
     icon: 'bx bx-bold',
     title: 'Bold',
-    event: {
-      type: 'apply',
-      params: 'BINARY_SWITCH',
-      shortcut: 'command + alt + b'
-    }
+    shortcut: 'command + alt + b'
   },
   italic: { 
     icon: 'bx bx-italic',
-    title: 'Italic',
-    event: {
-      type: 'apply',
-      params: 'BINARY_SWITCH',
-      shortcut: 'command + alt + i'
-    }
+    title: 'Italic'
   },
   underline: { 
     icon: 'bx bx-underline',
-    title: 'Underline',
-    event: {
-      type: 'apply',
-      params: 'BINARY_SWITCH',
-      shortcut: 'command + alt + u'
-    }
+    title: 'Underline'
   },
   strikethrough: {
     icon: 'bx bx-strikethrough',
-    title: 'Stike',
-    event: {
-      type: 'apply',
-      params: 'BINARY_SWITCH',
-      shortcut: 'command + alt + s'
-    }
+    title: 'Stike'
   },
   'font-color': {
     icon: 'bx bx-font-color',
-    title: 'Font Color',
-    event: {
-      type: 'apply',
-      params: 'BINARY_SWITCH',
-      shortcut: 'command + alt + c'
-    }
+    title: 'Font Color'
   },
   alignment: { 
     icon: 'bx bx-align-justify',
@@ -54,35 +30,19 @@ quicksetOptions: ObjectType<QuicksetOption> = {
       left: {
         icon: 'bx bx-align-left',
         title: 'Align Left',
-        event: {
-          type: 'apply',
-          params: true
-        },
         active: true
       },
       center: {
         icon: 'bx bx-align-middle',
-        title: 'Align Center',
-        event: {
-          type: 'apply',
-          params: true
-        }
+        title: 'Align Center'
       },
       right: {
         icon: 'bx bx-align-right',
-        title: 'Align Right',
-        event: {
-          type: 'apply',
-          params: true
-        }
+        title: 'Align Right'
       },
       justify: {
         icon: 'bx bx-align-justify',
-        title: 'Align Justify',
-        event: {
-          type: 'apply',
-          params: true
-        }
+        title: 'Align Justify'
       }
     }
   }
@@ -111,24 +71,14 @@ menuOptions: MenuSections = {
             icon: 'bx bx-text',
             title: 'Text style',
             value: '14px bold',
-            event: {
-              type: 'show',
-              attr: 'menu',
-              params: 'sub',
-              shortcut: 'alt + b'
-            },
+            shortcut: 'alt + b',
             sub: [],
             disabled: false
           },
           { 
             icon: 'bx bx-align-justify',
             title: 'Alignment',
-            event: {
-              type: 'show',
-              attr: 'menu',
-              params: 'sub',
-              shortcut: 'alt + b'
-            },
+            shortcut: 'alt + b',
             value: 'Center',
             disabled: true
           }

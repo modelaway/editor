@@ -23,7 +23,7 @@ export type FinderInput = {
 }
 export type FinderState = {
   query: string
-  results: ObjectType<SearchResult>
+  results: Record<string, SearchResult>
 }
 export default ( input: FinderInput, hook: HandlerHook ) => {
   const lips = new Lips()

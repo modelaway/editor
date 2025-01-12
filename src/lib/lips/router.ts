@@ -1,6 +1,5 @@
 import type { Handler, Template } from '.'
 
-type TObject<T> = { [index: string]: any }
 type RouteDef = {
   path: string
   template: Template
@@ -21,8 +20,8 @@ type Static = {
   defaultPath: string | null
   currentPath: string | null
   currentRoute: Route | null
-  params: TObject<any>
-  query: TObject<any>
+  params: Record<string, any>
+  query: Record<string, any>
 }
 
 export const _static: Static = {

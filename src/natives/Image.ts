@@ -1,13 +1,9 @@
 import type { ViewComponent } from '../types/view'
 
-const options: ObjectType<QuicksetOption> = {
+const options: Record<string, QuicksetOption> = {
   upload: {
     icon: 'bx bx-image-add',
-    title: 'Add image',
-    event: {
-      type: 'on',
-      params: 'image'
-    }
+    title: 'Add image'
   }
 }
 

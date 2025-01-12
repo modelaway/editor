@@ -1,7 +1,7 @@
 import type { ViewComponent } from '../types/view'
 
 const
-options: ObjectType<QuicksetOption> = {},
+options: Record<string, QuicksetOption> = {},
 
 Button: ViewComponent = {
   name: 'button',

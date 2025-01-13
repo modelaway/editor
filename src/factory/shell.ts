@@ -5,11 +5,11 @@ export type ShellInput = {
 }
 export default ( input: ShellInput ) => {
   const template = `
-    <modela>
+    <mshell>
       <viewport>
         <mcanvas></mcanvas>
       </viewport>
-    </modela>
+    </mshell>
   `
 
   return new Component<ShellInput>( 'shell', template, { input } )

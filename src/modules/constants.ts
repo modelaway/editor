@@ -13,9 +13,7 @@ export const EDITOR_EDGE_PADDING = 15 // Pixel
  * 
  * Could be `classname` or `tagname` or `data-*`
  */
-export const VIEW_IDENTIFIER = '.view'
 export const VIEW_KEY_SELECTOR = 'vkey'
-export const VIEW_REF_SELECTOR = 'vref'
 export const VIEW_NAME_SELECTOR = 'vname'
 export const VIEW_STYLE_SELECTOR = 'vstyle'
 export const VIEW_EMPTY_SELECTOR = 'vempty'

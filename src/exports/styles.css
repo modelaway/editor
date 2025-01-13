@@ -31,7 +31,7 @@
   --me-input-color: rgba(235, 235, 240, 0.7);
 }
 
-modela,
+mshell,
 viewport {
   position: relative;
   width: 100%;
@@ -136,7 +136,7 @@ viewport mcanvas div[mv-frame] mblock > iframe {
   transition: 300ms;
 }
 
-modela,
+mshell,
 [mv-menu],
 [mv-quickset],
 [mv-form-input] * {
@@ -263,9 +263,5 @@ mli { display: inherit; }
   viewport {
     /* color: #213547;
     background-color: #ffffff; */
-  }
-  viewport .modela-button {
-    background-color: var(--me-primary-color);
-    /* color: #fff; */
   }
 }

@@ -18,7 +18,6 @@ import {
   CONTROL_EDGE_MARGIN,
   CONTROL_MENU_MARGIN,
   CONTROL_QUICKSET_MARGIN,
-  VIEW_REF_SELECTOR,
   VIEW_CONTROL_OPTIONS
 } from '../constants'
 import { Component } from '../../lib/lips/lips'

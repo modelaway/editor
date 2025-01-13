@@ -3,7 +3,7 @@ import type Editor from '../editor'
 import type { FrameOption } from '../../types/frame'
 
 import Frame from '../frame'
-import Handle from './handle'
+import Handles from '../handles'
 import EventEmitter from 'events'
 import {
   FRAME_DEFAULT_MARGIN,
@@ -16,23 +16,35 @@ export default class Canvas extends EventEmitter {
   private currentFrame?: Frame
 
   public $?: Cash
-  public handle?: Handle
+  public handles?: Handles
 
   constructor( editor: Editor ){
     super()
     this.editor = editor
   }
   enable(){
+    if( !this.editor.$viewport?.length )
+      throw new Error('Undefined editor viewport')
+
     // Initial
     this.$ = this.editor.$viewport?.find(':scope > mcanvas')
     
-    this.handle = new Handle( this.editor, {
-      target: `div[${CONTROL_FRAME_SELECTOR}]`,
+    this.handles = new Handles( this.editor, {
+      enable: ['pan', 'zoom', 'wrap', 'move', 'snapguide', 'create', 'resize'],
+      $viewport: this.editor.$viewport,
+      $canvas: this.$,
+      element: `div[${CONTROL_FRAME_SELECTOR}]`,
       MIN_WIDTH: 100,
       MIN_HEIGHT: 100
     })
+    
+    // Initial canvas state
+    this.$.css({
+      left: '50%',
+      top: '50%',
+      transform: `translate(-50%, -50%) scale(${this.handles.scale})`
+    })
 
-    this.handle.apply()
 
     // Listen an process history stack
     // 'history.init'
@@ -56,7 +68,7 @@ export default class Canvas extends EventEmitter {
     this.emit('canvas.enabled')
   }
   disable(){
-    this.handle?.discard()
+    this.handles?.discard()
     this.emit('canvas.disabled')
   }
 

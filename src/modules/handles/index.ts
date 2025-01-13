@@ -9,9 +9,6 @@ import Zoomable from './zoomable'
 import Resizable from './resizable'
 import Wrappable from './wrappable'
 import SnapGuidable from './snapguidable'
-import {
-  CONTROL_ZOOM_DEFAULT_SCALE
-} from '../constants'
 
 export type Handle = 'pan' 
                       | 'zoom'
@@ -23,7 +20,7 @@ export type Handle = 'pan'
                       | 'snapguide'
                       | 'move:snapguide'
                       | 'resize:snapguide'
-export type HandlesOptions = {
+export interface HandlesOptions {
   enable: Handle[]
   $viewport: Cash
   $canvas: Cash
@@ -33,8 +30,10 @@ export type HandlesOptions = {
   WRAPPER_TAG?: string
   WRAPPER_SIZE?: number
   WRAPPER_BORDER_WIDTH?: number
-}
 
+  getScale(): number
+  setScale( value: number ): void
+}
 export interface HandleInterface {
   apply(): void
   discard(): void
@@ -60,7 +59,6 @@ export default class Handles extends EventEmitter {
   public isPanning = false
   public isResizing = false
 
-  public scale = CONTROL_ZOOM_DEFAULT_SCALE
   public canvasOffset = { x: 0, y: 0 }
 
   constructor( editor: Editor, options: HandlesOptions ){
@@ -165,10 +163,10 @@ export default class Handles extends EventEmitter {
   }
 
   transformCanvas(){
-    this.options.$canvas.css('transform', `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.scale})`)
+    this.options.$canvas.css('transform', `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.options.getScale()})`)
   }
   getScaleQuo(){
-    return 1 / this.scale
+    return 1 / this.options.getScale()
   }
   
   discard(){

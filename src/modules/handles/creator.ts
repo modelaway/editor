@@ -26,8 +26,8 @@ export default class Creator implements HandleInterface {
     if( !rect ) return
 
     const
-    cursorX = ( e.pageX - rect.left ) / this.context.scale,
-    cursorY = ( e.pageY - rect.top ) / this.context.scale
+    cursorX = ( e.pageX - rect.left ) / this.context.options.getScale(),
+    cursorY = ( e.pageY - rect.top ) / this.context.options.getScale()
 
     // this.editor.canvas.addFrame({
     //   position: {

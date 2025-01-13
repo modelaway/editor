@@ -18,7 +18,7 @@ export default class Zoomable implements HandleInterface {
     
     const
     // Calculate offset for infinite zoom
-    zoomRatio = scale / this.context.scale,
+    zoomRatio = scale / this.context.options.getScale(),
     rect = this.context.$canvas[0]?.getBoundingClientRect()
     
     if( !rect ) return
@@ -27,7 +27,8 @@ export default class Zoomable implements HandleInterface {
     offsetX = ( origin.x - rect.left ) * ( CONTROL_ZOOOM_EVEN_SCALE - zoomRatio ),
     offsetY = ( origin.y - rect.top ) * ( CONTROL_ZOOOM_EVEN_SCALE - zoomRatio )
 
-    this.context.scale = scale
+    this.context.options.setScale( scale )
+    
     this.context.canvasOffset.x += offsetX
     this.context.canvasOffset.y += offsetY
 
@@ -47,7 +48,7 @@ export default class Zoomable implements HandleInterface {
     },
     delta = e.deltaY > 0 ? -CONTROL_ZOOM_SCALE_STEP : CONTROL_ZOOM_SCALE_STEP
     
-    this.to( this.context.scale + delta, cursorPosition )
+    this.to( this.context.options.getScale() + delta, cursorPosition )
   }
 
   apply(){

@@ -3,7 +3,7 @@ import EventEmitter from 'events'
 
 import I18N from '../i18n'
 import Store from '../store'
-import Canvas from '../canvas'
+import Canvas from './canvas'
 import Assets from '../assets'
 import Plugins from '../plugins'
 import History from '../history'

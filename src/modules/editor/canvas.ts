@@ -1,5 +1,5 @@
 import $, { type Cash } from 'cash-dom'
-import type Editor from '../editor'
+import type Editor from '.'
 import type { FrameOption } from '../../types/frame'
 
 import Frame from '../frame'
@@ -7,13 +7,16 @@ import Handles from '../handles'
 import EventEmitter from 'events'
 import {
   FRAME_DEFAULT_MARGIN,
-  CONTROL_FRAME_SELECTOR
+  CONTROL_FRAME_SELECTOR,
+  CONTROL_ZOOM_DEFAULT_SCALE
 } from '../constants'
 
 export default class Canvas extends EventEmitter {
   private editor: Editor
   private list: Record<string, Frame> = {}
   private currentFrame?: Frame
+
+  public scale = CONTROL_ZOOM_DEFAULT_SCALE
 
   public $?: Cash
   public handles?: Handles
@@ -35,14 +38,21 @@ export default class Canvas extends EventEmitter {
       $canvas: this.$,
       element: `div[${CONTROL_FRAME_SELECTOR}]`,
       MIN_WIDTH: 100,
-      MIN_HEIGHT: 100
+      MIN_HEIGHT: 100,
+
+      /**
+       * Give control of the canvas scale value
+       * to the handlers.
+       */
+      getScale: () => (this.scale),
+      setScale: value => this.scale = value
     })
     
     // Initial canvas state
     this.$.css({
       left: '50%',
       top: '50%',
-      transform: `translate(-50%, -50%) scale(${this.handles.scale})`
+      transform: `translate(-50%, -50%) scale(${this.scale})`
     })
 
 

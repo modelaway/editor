@@ -1,7 +1,7 @@
-import type { Cash } from 'cash-dom'
 import type Editor from '../editor'
 
 import EventEmitter from 'events'
+import $, { type Cash } from 'cash-dom'
 import Creator from './creator'
 import Movable from './movable'
 import Pannable from './pannable'
@@ -9,6 +9,9 @@ import Zoomable from './zoomable'
 import Resizable from './resizable'
 import Wrappable from './wrappable'
 import SnapGuidable from './snapguidable'
+import Stylesheet from '../../lib/stylesheet'
+import ShadowEvents from '../../lib/shadowEvents'
+import FrameStyle from '../frame/styles'
 
 export type Handle = 'pan' 
                       | 'zoom'
@@ -25,6 +28,9 @@ export interface HandlesOptions {
   $viewport: Cash
   $canvas: Cash
   element: string
+  dom: 'main' | 'shadow'
+  shadowRoot?: ShadowRoot
+  frameStyle?: FrameStyle
   MIN_WIDTH: number
   MIN_HEIGHT: number
   WRAPPER_TAG?: string
@@ -39,9 +45,44 @@ export interface HandleInterface {
   discard(): void
 }
 
-export default class Handles extends EventEmitter {
-  private editor: Editor
+class Inclusion extends EventEmitter {
   public options: HandlesOptions
+
+  constructor( options: HandlesOptions ){
+    super()
+    this.options = options
+  }
+
+  /**
+   * Return DOM-wise events
+   */
+  events( arg: Cash | Document ){
+    switch( this.options.dom ){
+      case 'main': return arg === document ? $(document) : (arg as Cash)
+      case 'shadow': return new ShadowEvents( arg === document ? this.options.shadowRoot : (arg as Cash)[0] as any )
+    }
+  }
+  /**
+   * Add styles based on type of DOM.
+   */
+  styles( rel: string, sheet: string ){
+    switch( this.options.dom ){
+      case 'shadow': {
+        if( !this.options.frameStyle )
+          throw new Error('Undefined frameStyle instance option')
+
+        this.options.frameStyle.addRules( sheet, { rel })
+        return this.options.frameStyle
+      }
+
+      case 'main':
+      default: return new Stylesheet( rel, { sheet, meta: true })
+    }
+  }
+}
+
+export default class Handles extends Inclusion {
+  private editor: Editor
   public manual: {
     move?: Movable
     pan?: Pannable
@@ -62,7 +103,7 @@ export default class Handles extends EventEmitter {
   public canvasOffset = { x: 0, y: 0 }
 
   constructor( editor: Editor, options: HandlesOptions ){
-    super()
+    super( options )
 
     if( !options.$viewport.length || !options.$canvas.length )
       throw new Error('Invalid handles options')
@@ -80,6 +121,10 @@ export default class Handles extends EventEmitter {
       ...options
     }
 
+    this.initialize()
+  }
+
+  initialize(){
     /**
      * Enable `snapguide` prior for dependency 
      * assignment.

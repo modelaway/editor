@@ -43,9 +43,12 @@ export default class Creator implements HandleInterface {
 
   apply(){
     if( !this.context.$viewport.length ) return
-    this.context.$viewport.on('dblclick.create', e => this.handle(e))
+
+    this.context
+    .events( this.context.$viewport )
+    .on('dblclick.create', e => this.handle(e))
   }
   discard(){
-    this.context.$viewport.off('.create')
+    this.context.events( this.context.$viewport ).off('.create')
   }
 }

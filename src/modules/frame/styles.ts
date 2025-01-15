@@ -2,14 +2,14 @@ import { compile, serialize, stringify, middleware } from 'stylis'
 import { CSS_CUSTOM_VARIABLES } from '../constants'
 
 interface StyleOptions {
-  key: string
+  rel: string
   scope?: boolean
 }
 
 interface StyleMetadata {
   sheet: CSSStyleSheet
   isScoped: boolean
-  key?: string
+  rel?: string
 }
 
 interface ProcessedImports {
@@ -25,22 +25,19 @@ export default class FrameStyle {
    * Storage of all stylesheets with metadata for extraction later
    */
   private sheets = {
-    inline: new Map<string, StyleMetadata>(),   // key: id, value: { sheet, isScoped, key? }
-    linked: new Map<string, StyleMetadata>(),   // key: href, value: { sheet, isScoped, key? }
-    imported: new Map<string, StyleMetadata>()  // key: importUrl, value: { sheet, isScoped, key? }
+    inline: new Map<string, StyleMetadata>(),   // rel: id, value: { sheet, isScoped, rel? }
+    linked: new Map<string, StyleMetadata>(),   // rel: href, value: { sheet, isScoped, rel? }
+    imported: new Map<string, StyleMetadata>()  // rel: importUrl, value: { sheet, isScoped, rel? }
   }
 
   constructor( shadow: ShadowRoot, metaStyle?: string ){
-    // @ts-ignore
-    !window.msass && import('https://jspm.dev/sass').then( lib => window.msass = lib )
-
     this.shadow = shadow
     this.tempSheet = new CSSStyleSheet()
 
     /**
      * Constructable stylesheet for frame-level styles
      */
-    metaStyle && this.addRules( metaStyle || '', { key: 'frame' })
+    metaStyle && this.addRules( metaStyle || '', { rel: 'frame' })
   }
   
   /**
@@ -123,7 +120,7 @@ export default class FrameStyle {
    * Helper to scope CSS rules to specific view
    * Optimized with single-pass rule processing
    */
-  private toString( cssText: string, key?: string ): string {
+  private toString( cssText: string, rel?: string ): string {
     const
     ruleParts: string[] = [],
     { cssRules }: any = ( this.tempSheet.replaceSync( cssText ), this.tempSheet )
@@ -136,14 +133,14 @@ export default class FrameStyle {
                                     .map( ( selector: string ) => {
                                       const trimmed = selector.trim()
                                       
-                                      return !key 
+                                      return !rel 
                                               || trimmed.startsWith(':root')
-                                              || trimmed.startsWith(':host') ? 
-                                                    trimmed
-                                                    : `#${key} ${trimmed}`
+                                              || trimmed.startsWith(':host')
+                                                    ? trimmed
+                                                    : `[rel="${rel}"] ${trimmed}`
                                     })
                                     .join(',')
-        
+                                    
         ruleParts.push(`${scopedSelector} ${rule.style.cssText}`)
       }
       else ruleParts.push( rule.cssText )
@@ -163,7 +160,7 @@ export default class FrameStyle {
   }
 
   async addRules( cssText: string, options: StyleOptions ){
-    const { key, scope = false } = options
+    const { rel, scope = false } = options
 
     try {
       const
@@ -172,12 +169,14 @@ export default class FrameStyle {
       
       // Handle main CSS
       if( processedCss ){
-        await sheet.replace( scope ? this.toString( processedCss, key ) : processedCss )
+        await sheet.replace( scope ? this.toString( processedCss, rel ) : processedCss )
         
-        this.sheets.inline.set( key, {
+        // Avoid duplicate
+        this.removeRules( rel )
+        this.sheets.inline.set( rel, {
           sheet,
           isScoped: scope,
-          key
+          rel
         })
         
         this.shadow.adoptedStyleSheets = [
@@ -188,7 +187,7 @@ export default class FrameStyle {
 
       // Handle @imports in parallel
       imports.length
-      && await Promise.all( imports.map( importUrl => this.addImport( importUrl, { key, scope }) ) )
+      && await Promise.all( imports.map( importUrl => this.addImport( importUrl, { rel, scope }) ) )
     }
     catch( error: any ){
       console.error('Failed to add styles:', error )
@@ -199,19 +198,21 @@ export default class FrameStyle {
   }
 
   async addLink( href: string, options: StyleOptions ){
-    const { key, scope = false } = options
+    const { rel, scope = false } = options
     
     try {
       const
       cssText = await this.fetchCSSContent( href ),
       sheet = new CSSStyleSheet()
       
-      await sheet.replace( scope && key ? this.toString( cssText, key ) : cssText )
+      await sheet.replace( scope && rel ? this.toString( cssText, rel ) : cssText )
       
+      // Avoid duplicate
+      this.removeLink( href )
       this.sheets.linked.set( href, {
         sheet,
         isScoped: scope,
-        key
+        rel
       })
       
       this.shadow.adoptedStyleSheets = [
@@ -228,19 +229,21 @@ export default class FrameStyle {
   }
 
   async addImport( url: string, options: StyleOptions ){
-    const { key, scope = false } = options
+    const { rel, scope = false } = options
 
     try {
       const
       cssText = await this.fetchCSSContent( url ),
       sheet = new CSSStyleSheet()
       
-      await sheet.replace( scope && key ? this.toString( cssText, key ) : cssText )
+      await sheet.replace( scope && rel ? this.toString( cssText, rel ) : cssText )
       
+      // Avoid duplicate
+      this.removeImport( url )
       this.sheets.imported.set( url, {
         sheet,
         isScoped: scope,
-        key
+        rel
       })
       
       this.shadow.adoptedStyleSheets = [
@@ -256,18 +259,18 @@ export default class FrameStyle {
     }
   }
 
-  removeRules( scopekey: string ): boolean {
+  removeRules( scoperel: string ): boolean {
     let removed = false
     
     /**
-     * Helper function to remove styles by key
+     * Helper function to remove styles by rel
      */
     const removeFromMap = ( map: Map<string, StyleMetadata> ) => {
-      for( const [ key, data ] of map.entries() ){
-        if( data.key === scopekey ){
+      for( const [ rel, data ] of map.entries() ){
+        if( data.rel === scoperel ){
           this.shadow.adoptedStyleSheets = this.shadow.adoptedStyleSheets.filter( s => s !== data.sheet )
 
-          map.delete( key )
+          map.delete( rel )
           removed = true
         }
       }
@@ -321,10 +324,10 @@ export default class FrameStyle {
      * Helper function to extract styles from a map
      */
     const extractFromMap = ( map: Map<string, StyleMetadata>, type: string ) => {
-      for( const [ key, data ] of map.entries() ){
-        parts.push(`/* ${type}: ${key} */`)
+      for( const [ rel, data ] of map.entries() ){
+        parts.push(`/* ${type}: ${rel} */`)
 
-        data.key && parts.push(`/* Scoped to view: ${data.key} */`)
+        data.rel && parts.push(`/* Scoped to view: ${data.rel} */`)
 
         parts.push( Array.from( data.sheet.cssRules ).map( rule => rule.cssText ).join('\n'))
         parts.push('\n')
@@ -361,7 +364,7 @@ export default class FrameStyle {
       varStr += `\t${name}: ${value};\n`
     })
 
-    varStr && this.addRules(`:root { ${varStr} }`, { key: 'variables' })
+    varStr && this.addRules(`:host { ${varStr} }`, { rel: 'variables' })
   }
   
   rules(){

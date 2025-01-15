@@ -117,13 +117,17 @@ export default class Resizable implements HandleInterface {
   apply(){
     if( !this.context.$canvas.length ) return
 
-    this.context.$canvas.on('mousedown.resize', '.handle', e => this.start( e, $(e.target) ))
-    $(document)
+    this.context
+    .events( this.context.$canvas )
+    .on('mousedown.resize', '.handle', e => this.start( e, $(e.target) ))
+    
+    this.context
+    .events( document )
     .on('mousemove.resize', e => this.handle(e))
     .on('mouseup.resize', () => this.stop())
   }
   discard(){
-    this.context.$canvas.off('.resize')
-    $(document).off('.resize')
+    this.context.events( this.context.$canvas ).off('.resize')
+    this.context.events( document ).off('.resize')
   }
 }

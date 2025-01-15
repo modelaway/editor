@@ -76,12 +76,13 @@ export default class Movable implements HandleInterface {
   apply(){
     if( !this.context.$canvas.length ) return
 
-    $(document)
+    this.context
+    .events( document)
     .on('mousedown.move', e => this.start( e ) )
     .on('mousemove.move', e => this.handle( e ) )
     .on('mouseup.move', () => this.stop() )
   }
   discard(){
-    $(document).off('.move')
+    this.context.events( document).off('.move')
   }
 }

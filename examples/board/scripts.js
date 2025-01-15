@@ -6,25 +6,13 @@ import cardView from './card.view.js'
 
 const dummyFrameContent = `
   <div class="editor">
-    <span>I'm an inline text</span>
-    <br>
-    <br>
-    <br>
-    <br>
-    <br>
-    <br>
-    
     <p class="view" style="position: absolute; top: 45vh; left: 40vw">I'm a paragraph text <span>Hello there</span></p>
     <p class="view" style="position: absolute; top: 95vh; left: 80vw">Check me here</p>
-    <!-- <p>Check me here</p>
-    <p>Check me here</p> -->
+    
+    <div style="position: absolute;display:block;top:100px;width:100px;height:100px;background-color:aquamarine;"></div>
+    <div style="position: absolute;display:block;top:200px;width:100px;height:100px;background-color:black;"></div>
 
-    <button class="btn btn-primary">Click me</button>
-
-    <div class="block" style="display:block;width:100px;height:100px;background-color:aquamarine;"></div>
-    <div id="box" mv-key="123456789000" mv-name="block" style="display:block;width:100px;height:100px;background-color:black;"></div>
-
-    <img src="http://127.0.0.1:3000/publications/@modela/examples/test/images/twins.jpeg">
+    <img src="http://127.0.0.1:3000/publications/@modela/examples/test/images/twins.jpeg" style="position: absolute;top:400px;left:200px;">
   </div>`
 
 // In-build `Fonts` plugin configuration

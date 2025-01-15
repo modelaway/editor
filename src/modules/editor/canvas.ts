@@ -32,21 +32,22 @@ export default class Canvas extends EventEmitter {
     // Initial
     this.$ = this.editor.$viewport?.find(':scope > mcanvas')
     
-    this.handles = new Handles( this.editor, {
-      enable: ['pan', 'zoom', 'wrap', 'move', 'snapguide', 'create', 'resize'],
-      $viewport: this.editor.$viewport,
-      $canvas: this.$,
-      element: `div[${CONTROL_FRAME_SELECTOR}]`,
-      MIN_WIDTH: 100,
-      MIN_HEIGHT: 100,
+    // this.handles = new Handles( this.editor, {
+    //   dom: 'main',
+    //   enable: ['pan', 'zoom', 'wrap', 'move', 'snapguide', 'create', 'resize'],
+    //   $viewport: this.editor.$viewport,
+    //   $canvas: this.$,
+    //   element: `div[${CONTROL_FRAME_SELECTOR}]`,
+    //   MIN_WIDTH: 100,
+    //   MIN_HEIGHT: 100,
 
-      /**
-       * Give control of the canvas scale value
-       * to the handlers.
-       */
-      getScale: () => (this.scale),
-      setScale: value => this.scale = value
-    })
+    //   /**
+    //    * Give control of the canvas scale value
+    //    * to the handlers.
+    //    */
+    //   getScale: () => (this.scale),
+    //   setScale: value => this.scale = value
+    // })
     
     // Initial canvas state
     this.$.css({

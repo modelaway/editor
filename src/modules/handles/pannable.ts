@@ -43,13 +43,17 @@ export default class Pannable implements HandleInterface {
   apply(){
     if( !this.context.$viewport.length ) return
 
-    this.context.$viewport.on('mousedown.pan', e => this.start(e))
-    $(document)
+    this.context
+    .events( this.context.$viewport )
+    .on('mousedown.pan', e => this.start(e))
+    
+    this.context
+    .events( document )
     .on('mousemove.pan', e => this.handle(e))
     .on('mouseup.pan', () => this.stop())
   }
   discard(){
-    this.context.$viewport.off('.pan')
-    $(document).off('.pan')
+    this.context.events( this.context.$viewport ).off('.pan')
+    this.context.events( document ).off('.pan')
   }
 }

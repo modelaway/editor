@@ -3,8 +3,11 @@ import type { FrameOption } from '../../types/frame'
 
 import $, { type Cash } from 'cash-dom'
 import EventEmitter from 'events'
+import Handles from '../handles'
 import Elements from '../elements'
+import FrameStyles from './styles'
 import { debug, generateKey } from '../utils'
+import ShadowEvents from '../../lib/shadowEvents'
 import {
   MEDIA_SCREENS,
   CONTROL_EDGE_MARGIN,
@@ -14,17 +17,9 @@ import {
   CONTROL_FRAME_SELECTOR,
   PATCH_CSS_SETTINGS
 } from '../constants'
-import FrameStyles from './styles'
 
 const createFrame = ( key: string, position?: FrameOption['position'] ) => {
   return `<div ${CONTROL_FRAME_SELECTOR}="${key}" style="top:${position?.top || '0px'};left:${position?.left || '0px'}"></div>`
-}
-
-type EventType = keyof HTMLElementEventMap;
-
-interface EventOptions {
-  stopPropagation?: boolean;
-  preventDefault?: boolean;
 }
 
 interface Topography {
@@ -39,79 +34,6 @@ interface TopographyOptions {
   includeMargins?: boolean
 }
 
-class ShadowDOMEvents {
-  private listeners: Map<string, EventListener> = new Map()
-  private root: ShadowRoot
-
-  constructor( shadowRoot: ShadowRoot ){
-    this.root = shadowRoot;
-  }
-
-  on<E extends EventType>(
-    _event: E,
-    selectorOrCallback: string | EventListener,
-    callbackOrOptions?: EventListener | EventOptions,
-    options: EventOptions = {}
-  ): this {
-    if( !this.root ) return this
-
-    // Handle overloaded parameters
-    let 
-    selector: string | undefined,
-    callback: EventListener
-    
-    if( typeof selectorOrCallback === 'function' ){
-      callback = selectorOrCallback
-      options = callbackOrOptions as EventOptions || {}
-    }
-    else {
-      selector = selectorOrCallback
-      callback = callbackOrOptions as EventListener
-    }
-
-    if( typeof callback !== 'function' ) return this
-
-    // Create the event listener
-    const wrappedCallback = ( e: Event ) => {
-      options.stopPropagation && e.stopPropagation()
-      options.preventDefault && e.preventDefault()
-
-      if( !selector ){
-        callback.bind( e.target )( e )
-        return
-      }
-
-      e.target instanceof Element 
-      && e.target.matches( selector )
-      && callback.bind( e.target )( e )
-    }
-
-    // Store the listener for cleanup
-    const key = `${_event}-${selector || ''}`
-    this.listeners.set( key, wrappedCallback )
-    
-    // Attach the listener
-    this.root.addEventListener( _event, wrappedCallback, true )
-
-    return this
-  }
-
-  off<E extends EventType>( _event: E, selector?: string ): this {
-    if( !this.root ) return this
-
-    const
-    key = `${_event}-${selector || ''}`,
-    listener = this.listeners.get( key )
-    
-    if( listener ){
-      this.root.removeEventListener( _event, listener, true )
-      this.listeners.delete( key )
-    }
-
-    return this
-  }
-}
-
 export default class Frame extends EventEmitter {
   public key: string
   public editor: Editor
@@ -119,7 +41,9 @@ export default class Frame extends EventEmitter {
 
   public $: Cash
   public styles: FrameStyles
-  private DOM: ShadowDOMEvents
+
+  private handles?: Handles
+  private DOM: ShadowEvents
 
   /**
    * Initialize UI elements manager
@@ -151,7 +75,7 @@ export default class Frame extends EventEmitter {
     options.content && $(shadow).append( options.content )
 
     this.$ = $(element.shadowRoot)
-    this.DOM = new ShadowDOMEvents( element.shadowRoot )
+    this.DOM = new ShadowEvents( element.shadowRoot )
 
     /**
      * No explicit size is considered a default 
@@ -163,6 +87,26 @@ export default class Frame extends EventEmitter {
 
     // Add frame to the board
     this.editor.canvas.$?.append( this.$frame )
+
+    // Initialize handles
+    this.handles = new Handles( this.editor, {
+      dom: 'shadow',
+      shadowRoot: element.shadowRoot,
+      frameStyle: this.styles,
+      enable: ['wrap', 'move', 'snapguide', 'create', 'resize'],
+      $viewport: this.$frame,
+      $canvas: this.$,
+      element: `*`,
+      MIN_WIDTH: 100,
+      MIN_HEIGHT: 100,
+
+      /**
+       * Give control of the canvas scale value
+       * to the handlers.
+       */
+      getScale: () => (this.editor.canvas.scale),
+      setScale: value => this.editor.canvas.scale = value
+    })
 
     this.controls()
     
@@ -195,7 +139,7 @@ export default class Frame extends EventEmitter {
     
     // Push new history stack after view content changed
     this.on('view.changed', () => this.emit('content.changed', this.getContent() ) )
-
+    
     // Initialize control events
     this.events()
     // Frame fully loaded
@@ -247,6 +191,8 @@ export default class Frame extends EventEmitter {
   delete(){
     // Clear elements meta data
     this.elements?.clear()
+    this.handles?.discard()
+    
     // Remove frame element from the DOM
     this.$frame.remove()
 

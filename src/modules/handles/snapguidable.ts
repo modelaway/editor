@@ -1,7 +1,8 @@
 import type Handles from '.'
 import type { HandleInterface } from '.'
+import type FrameStyle from '../frame/styles'
+import type Stylesheet from '../../lib/stylesheet'
 
-import Stylesheet from '../stylesheet'
 import $, { type Cash } from 'cash-dom'
 import {
   CONTROL_SNAP_THRESHOLD
@@ -9,14 +10,14 @@ import {
 
 export default class SnapGuidable implements HandleInterface {
   private context: Handles
-  private style: Stylesheet
+  private style: Stylesheet | FrameStyle
   
   private $vsnapguide = $('<snapguide vertical></snapguide>')
   private $hsnapguide = $('<snapguide horizontal></snapguide>')
 
   constructor( context: Handles ){
     this.context = context
-    this.style = new Stylesheet('snapguide', { sheet: this.getStyleSheet(), meta: true })
+    this.style = this.context.styles('snapguide', this.getStyleSheet() )
   }
 
   private getStyleSheet(){
@@ -152,6 +153,12 @@ export default class SnapGuidable implements HandleInterface {
   apply(){}
   discard(){
     this.hide()
-    this.style.clear()
+
+    /**
+     * Clear style by dom type
+     */
+    'removeRules' in this.style
+            ? this.style.removeRules('snapguide')
+            : this.style.clear()
   }
 }

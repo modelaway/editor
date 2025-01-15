@@ -12,7 +12,7 @@ import $, { type Cash } from 'cash-dom'
 import I18N from './i18n'
 import Benchmark from './benchmark'
 import ParallelExecutor from './parallel'
-import Stylesheet from '../../modules/stylesheet'
+import Stylesheet from '../stylesheet'
 import { isDiff, deepClone, deepAssign } from './utils'
 import { effect, EffectControl, signal } from './signal'
 

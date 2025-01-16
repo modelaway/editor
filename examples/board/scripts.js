@@ -5,13 +5,13 @@ import i18n from './i18n.plugin.js'
 import cardView from './card.view.js'
 
 const dummyFrameContent = `
-  <p class="view" style="position: absolute; top: 45vh; left: 40vw">I'm a paragraph text <span>Hello there</span></p>
-  <p class="view" style="position: absolute; top: 95vh; left: 80vw">Check me here</p>
+  <img src="http://127.0.0.1:3000/publications/@modela/examples/test/images/twins.jpeg" style="position: absolute;top:400px;left:200px;">
+
+  <p style="position: absolute; top: 15vh; left: 40vw">I'm a paragraph text <span>Hello there</span></p>
+  <span style="position: absolute; top: 55vh; left: 80vw; display: inline">Check me here</span>
   
   <div style="position: absolute;display:block;top:100px;width:100px;height:100px;background-color:aquamarine;"></div>
   <div style="position: absolute;display:block;top:200px;width:100px;height:100px;background-color:black;"></div>
-
-  <img src="http://127.0.0.1:3000/publications/@modela/examples/test/images/twins.jpeg" style="position: absolute;top:400px;left:200px;">
 `
 
 // In-build `Fonts` plugin configuration

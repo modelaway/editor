@@ -55,7 +55,7 @@ export default class Wrappable implements HandleInterface {
           position: absolute;
           width: ${this.context.options.WRAPPER_HANDLE_SIZE}px;
           height: ${this.context.options.WRAPPER_HANDLE_SIZE}px;
-          background: #fff;
+          background: var(--me-inverse-color);
           border: ${this.context.options.WRAPPER_BORDER_WIDTH}px solid var(--me-primary-color);
           border-radius: ${hbr}px;
           box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
@@ -179,22 +179,26 @@ export default class Wrappable implements HandleInterface {
     .before( $wrapper )
 
     $wrapper.find(':scope > scope').append( $target as any )
-
+    
     // Add resizing handles
-    const handles = styles.position
-                    && ['fixed', 'absolute'].includes( styles.position )
-                          /**
-                            * Resize from every side and angle 
-                            * of the element
-                            */
-                          ? ['tl', 'tr', 'bl', 'br', 'tc', 'bc', 'lc', 'rc']
-                          /**
-                            * Relative-like position element can only be resized
-                            * from the `right` and `bottom` sides and the `right-bottom`
-                            * angle of the element to maintain the `left-top` position 
-                            * relative to its parent element.
-                            */
-                          : ['br', 'bc', 'rc']
+    const handles = (styles.display || $target.attr('handle')) === 'inline'
+                          // Unidirection handle for inline elements
+                          ? ['rc']
+                          // Multidirectional handles for non-inline elements
+                          : styles.position 
+                            && ['fixed', 'absolute'].includes( styles.position )
+                                                      /**
+                                                        * Resize from every side and angle 
+                                                        * of the element
+                                                        */
+                                                      ? ['tl', 'tr', 'bl', 'br', 'tc', 'bc', 'lc', 'rc']
+                                                      /**
+                                                        * Relative-like position element can only be resized
+                                                        * from the `right` and `bottom` sides and the `right-bottom`
+                                                        * angle of the element to maintain the `left-top` position 
+                                                        * relative to its parent element.
+                                                        */
+                                                      : ['br', 'bc', 'rc']
     
     handles.forEach( htype => $wrapper.append(`<div class="handle ${htype}"></div>`) )
   }
@@ -241,22 +245,24 @@ export default class Wrappable implements HandleInterface {
   apply(){
     if( !this.context.$canvas.length ) return
 
+    const selector = `${this.context.options.element}:not(${this.context.options.WRAPPER_TAG},${this.context.options.WRAPPER_TAG} > scope,${this.context.options.WRAPPER_TAG} > .handle)`
+
     /**
      * Wrappable element activation by constraints
      */
     this.context
     .events( this.context.$canvas )
-    .on('click.wrapper', this.context.options.element, (e: any) => {
+    .on('mousedown.wrapper', selector, ( e: any ) => {
       this.context.constraints<WrappableActionType>('wrap', 'activate', e )
       && this.activate( $(e.target) )
-    })
+    }, { selfExclude: true })
 
     /**
      * Wrappable element deactivation by constraints
      */
     this.context
-    .events( this.context.$viewport )
-    .on('click.wrapper', e =>  {
+    .events( this.context.options.$viewport )
+    .on('mousedown.wrapper', e =>  {
       this.context.constraints<WrappableActionType>('wrap', 'deactivate', e )
       && this.deactivate( $(e.target) )
     } )

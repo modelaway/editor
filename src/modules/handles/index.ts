@@ -29,7 +29,6 @@ export interface HandlesOptions {
   $canvas: Cash
   element: string
   dom: 'main' | 'shadow'
-  shadowRoot?: ShadowRoot
   frameStyle?: FrameStyle
   MIN_WIDTH: number
   MIN_HEIGHT: number
@@ -60,7 +59,7 @@ class Inclusion extends EventEmitter {
   events( arg: Cash | Document ){
     switch( this.options.dom ){
       case 'main': return arg === document ? $(document) : (arg as Cash)
-      case 'shadow': return new ShadowEvents( arg === document ? this.options.shadowRoot : (arg as Cash)[0] as any )
+      case 'shadow': return new ShadowEvents( arg === document ? this.options.$viewport[0] : (arg as Cash)[0] as any )
     }
   }
   /**
@@ -138,6 +137,9 @@ export default class Handles extends Inclusion {
    * given handle.
    * 
    * - Keyboard 
+   * 
+   * IMPORTANT: Can be override externally to 
+   *            define custom constraints
    */
   constraints<ActionType>( type: HandleType, action: ActionType, event?: KeyboardEvent ){
     switch( type ){

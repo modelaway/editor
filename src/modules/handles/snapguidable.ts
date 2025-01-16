@@ -109,8 +109,10 @@ export default class SnapGuidable implements HandleInterface {
     // Clear existing guides first
     this.hide()
 
+    const selector = `${this.context.options.element}:not(${this.context.options.WRAPPER_TAG},${this.context.options.WRAPPER_TAG} > scope,${this.context.options.WRAPPER_TAG} > .handle)`
+    
     this.context.$canvas
-    .find( this.context.options.element )
+    .find( selector )
     .each( function(){
       const
       $other = $(this),

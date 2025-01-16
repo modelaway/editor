@@ -61,24 +61,22 @@ export default class Frame extends EventEmitter {
     const element = this.$frame.get(0)
     if( !element ) throw new Error('Frame node creation failed unexpectedly')
  
-    const shadow = element.attachShadow({ mode: 'open' })
-    shadow.innerHTML = `<fcanvas></fcanvas>`
+    element.attachShadow({ mode: 'open' })
     if( !element.shadowRoot )
       throw new Error('Frame shadow root creation failed unexpectedly')
+
+    // Add in-frame canvas
+    element.shadowRoot.innerHTML = `<fcanvas></fcanvas>`
  
+    this.$viewport = $(element.shadowRoot)
+    this.$canvas = this.$viewport.children().first()
+    this.DOM = new ShadowEvents( element )
+
     /**
      * Initialize frame styles manager with 
      * shadow root :host stylesheet
      */
-    this.styles = new FrameStyles( shadow, this.getStyleSheet() )
-
-    this.$viewport = $(element.shadowRoot)
-    this.$canvas = this.$viewport.find('fcanvas')
-    this.DOM = new ShadowEvents( element.shadowRoot )
-
-    // Append initial content
-    options.content && this.$canvas.append( options.content )
-
+    this.styles = new FrameStyles( element.shadowRoot, this.getStyleSheet() )
     /**
      * No explicit size is considered a default 
      * frame with the default screen resolution.
@@ -87,33 +85,14 @@ export default class Frame extends EventEmitter {
             this.$frame.css( options.size )
             : this.setDeviceSize( options.device || 'default')
 
+    // Append initial content
+    options.content && this.$canvas.append( options.content )
     // Add frame to the board
     this.editor.canvas.$?.append( this.$frame )
 
-    // Initialize handles
-    this.handles = new Handles( this.editor, {
-      enable: ['create', 'wrap', 'resize', 'move', 'snapguide'],
-      $viewport: this.$viewport,
-      $canvas: this.$canvas,
-      element: `*`,
-      MIN_WIDTH: 100,
-      MIN_HEIGHT: 100,
-
-      /**
-       * Specify a shadow DOM incapsulation env
-       */
-      dom: 'shadow',
-      shadowRoot: element.shadowRoot,
-      frameStyle: this.styles,
-
-      /**
-       * Give control of the canvas scale value
-       * to the handlers.
-       */
-      getScale: () => (this.editor.canvas.scale),
-      setScale: value => this.editor.canvas.scale = value
-    })
-
+    /**
+     * Enable controls over the frame
+     */
     this.controls()
     
     /**
@@ -158,6 +137,69 @@ export default class Frame extends EventEmitter {
   private controls(){
     // Define initial :root css variables (Custom properties)
     this.styles.setVariables()
+
+    /**
+     * Initialize handles
+     */
+    this.handles = new Handles( this.editor, {
+      enable: ['create', 'wrap', 'resize', 'move', 'snapguide'],
+      $viewport: this.$viewport,
+      $canvas: this.$canvas,
+      element: `*`,
+      MIN_WIDTH: 100,
+      MIN_HEIGHT: 100,
+
+      /**
+       * Specify a shadow DOM incapsulation env
+       */
+      dom: 'shadow',
+      frameStyle: this.styles,
+
+      /**
+       * Give control of the canvas scale value
+       * to the handlers.
+       */
+      getScale: () => (this.editor.canvas.scale),
+      setScale: value => this.editor.canvas.scale = value
+    })
+    // Define custom handles constraints
+    this.handles.constraints = function( type, action, event ){
+      switch( type ){
+        case 'wrap': {
+          switch( action ){
+            case 'activate': return true
+            case 'deactivate': return !this?.isPanning 
+                                      && !this?.isZooming
+                                      && !this?.isMoving
+                                      && !this?.isResizing
+                                      || false
+            default: return true
+          }
+        }
+  
+        case 'move': {
+          switch( action ){
+            case 'start': return !this?.isPanning
+                                  && !this?.isZooming
+                                  && !this?.isResizing
+                                  || false
+            default: return true
+          }
+        }
+  
+        case 'resize': {
+          switch( action ){
+            case 'start': return !this?.isPanning
+                                  && !this?.isZooming
+                                  && !this?.isMoving
+                                  || false
+            default: return true
+          }
+        }
+  
+        default: return true
+      }
+    }
   
     /**
      * Propagate view control over the existing content
@@ -231,7 +273,6 @@ export default class Frame extends EventEmitter {
 
     this.emit('frame.deleted')
   }
-
   duplicate(){
     
   }

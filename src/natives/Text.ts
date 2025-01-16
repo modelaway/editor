@@ -231,7 +231,7 @@ const Text: ViewComponent = {
       sheet: `
         min-width: 1.3rem;
         font-size: inherit;
-        display: inline-block;
+        display: inline;
         content: "Loren upsum";
         
         &[contenteditable] { outline: none; }

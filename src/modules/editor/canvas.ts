@@ -34,7 +34,7 @@ export default class Canvas extends EventEmitter {
     
     this.handles = new Handles( this.editor, {
       dom: 'main',
-      enable: ['pan', 'zoom'],
+      enable: ['pan', 'zoom', 'create', 'wrap', 'move:snapguide', 'resize:snapguide'],
       $viewport: this.editor.$viewport,
       $canvas: this.$,
       element: `div[${CONTROL_FRAME_SELECTOR}]`,

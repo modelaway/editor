@@ -14,8 +14,7 @@ import {
   CONTROL_MENU_SELECTOR,
   VIEW_KEY_SELECTOR,
   VIEW_ACTIVE_SELECTOR,
-  CONTROL_FRAME_SELECTOR,
-  PATCH_CSS_SETTINGS
+  CONTROL_FRAME_SELECTOR
 } from '../constants'
 
 const createFrame = ( key: string, position?: FrameOption['position'] ) => {
@@ -39,7 +38,8 @@ export default class Frame extends EventEmitter {
   public editor: Editor
   public $frame: Cash
 
-  public $: Cash
+  public $viewport: Cash
+  public $canvas: Cash
   public styles: FrameStyles
 
   private handles?: Handles
@@ -62,6 +62,7 @@ export default class Frame extends EventEmitter {
     if( !element ) throw new Error('Frame node creation failed unexpectedly')
  
     const shadow = element.attachShadow({ mode: 'open' })
+    shadow.innerHTML = `<fcanvas></fcanvas>`
     if( !element.shadowRoot )
       throw new Error('Frame shadow root creation failed unexpectedly')
  
@@ -69,13 +70,14 @@ export default class Frame extends EventEmitter {
      * Initialize frame styles manager with 
      * shadow root :host stylesheet
      */
-    this.styles = new FrameStyles( shadow, PATCH_CSS_SETTINGS )
+    this.styles = new FrameStyles( shadow, this.getStyleSheet() )
+
+    this.$viewport = $(element.shadowRoot)
+    this.$canvas = this.$viewport.find('fcanvas')
+    this.DOM = new ShadowEvents( element.shadowRoot )
 
     // Append initial content
-    options.content && $(shadow).append( options.content )
-
-    this.$ = $(element.shadowRoot)
-    this.DOM = new ShadowEvents( element.shadowRoot )
+    options.content && this.$canvas.append( options.content )
 
     /**
      * No explicit size is considered a default 
@@ -90,15 +92,19 @@ export default class Frame extends EventEmitter {
 
     // Initialize handles
     this.handles = new Handles( this.editor, {
-      dom: 'shadow',
-      shadowRoot: element.shadowRoot,
-      frameStyle: this.styles,
-      enable: ['wrap', 'move', 'snapguide', 'create', 'resize'],
-      $viewport: this.$frame,
-      $canvas: this.$,
+      enable: ['create', 'wrap', 'resize', 'move', 'snapguide'],
+      $viewport: this.$viewport,
+      $canvas: this.$canvas,
       element: `*`,
       MIN_WIDTH: 100,
       MIN_HEIGHT: 100,
+
+      /**
+       * Specify a shadow DOM incapsulation env
+       */
+      dom: 'shadow',
+      shadowRoot: element.shadowRoot,
+      frameStyle: this.styles,
 
       /**
        * Give control of the canvas scale value
@@ -120,18 +126,45 @@ export default class Frame extends EventEmitter {
     this.emit('add')
   }
 
+  private getStyleSheet(){
+    return `
+      :host {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+      
+      fcanvas {
+        position: relative;
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 1px solid var(--me-border-color);
+        background-image: 
+          linear-gradient(45deg, #c6c6c6 25%, transparent 25%),
+          linear-gradient(-45deg, #c6c6c6 25%, transparent 25%),
+          linear-gradient(45deg, transparent 75%, #c6c6c6 75%),
+          linear-gradient(-45deg, transparent 75%, #c6c6c6 75%);
+        background-size: 16px 16px;
+        background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+        background-color: white;
+        cursor: default!important;
+        /* cursor: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAYAAAAfSC3RAAAACXBIWXMAAAsTAAALEwEAmpwYAAAF0WlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4KPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iWE1QIENvcmUgNS41LjAiPgogPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4KICA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIgogICAgeG1sbnM6ZGM9Imh0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvIgogICAgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIgogICAgPgogIDwvcmRmOkRlc2NyaXB0aW9uPgogPC9yZGY6UkRGPgo8L3g6eG1wbWV0YT4KPD94cGFja2V0IGVuZD0iciI/PgxTkNUAAAAvSURBVCgVY2RgYPgPxAwMDIxQGkHDGCAApgHmwIxhxCYAV4RNM1aNxNmKbDSSFQEA8aUDVJ5PvToAAAAASUVORK5CYII=), auto!important; */
+        pointer-events: auto;
+        overflow: auto;
+      }
+    `
+  }
   private controls(){
     // Define initial :root css variables (Custom properties)
     this.styles.setVariables()
-    // Inject editor css patch into frame content <head>
-    // this.css.declare('patch', PATCH_CSS_SETTINGS )
-    
+  
     /**
      * Propagate view control over the existing content
      */
-    this.$.length
+    this.$canvas.length
     && this.editor.settings.autoPropagate
-    && this.elements.propagate( this.$ )
+    && this.elements.propagate( this.$canvas )
 
     // Push initial content as history stack
     const initialContent = this.getContent()
@@ -147,16 +180,16 @@ export default class Frame extends EventEmitter {
   }
 
   freeze(){
-    this.$frame.attr('frozen', 'true')
+    this.$frame.addClass('frozen')
     this.emit('frame.changed', 'freeze')
   }
   unfreeze(){
-    this.$frame.removeAttr('frozen')
+    this.$frame.removeClass('frozen')
     this.emit('frame.changed', 'unfreeze')
   }
 
   events(){
-    if( !this.$?.length || !this.editor.$viewport?.length ) return
+    if( !this.$canvas.length || !this.editor.$viewport?.length ) return
     const self = this
 
     /**
@@ -280,12 +313,12 @@ export default class Frame extends EventEmitter {
    * Retrieve frame's body content.
    */
   getContent( root = false ){
-    return this.$?.html() || ''
+    return this.$canvas.html() || ''
   }
   /**
    * Set frame's body content
    */
   setContent( content: string, root = false ){
-    this.$?.html( content )
+    this.$canvas.html( content )
   }
 }

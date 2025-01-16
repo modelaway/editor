@@ -4,6 +4,7 @@ import type SnapGuidable from './snapguidable'
 
 import $, { type Cash } from 'cash-dom'
 
+type MoveActionType = 'start' | 'handle' | 'stop'
 export default class Movable implements HandleInterface {
   private context: Handles
   private $wrapper?: Cash
@@ -21,6 +22,8 @@ export default class Movable implements HandleInterface {
   private start( e: any ){
     const $target = $(e.target).closest( this.context.options.WRAPPER_TAG )
     if( !$target.length ) return
+
+    e.preventDefault()
 
     /**
      * Relative-like content element cannot be 
@@ -67,6 +70,8 @@ export default class Movable implements HandleInterface {
     this.$wrapper.css({ top: `${newTop}px`, left: `${newLeft}px` })
   }
   private stop(){
+    if( !this.context.isMoving ) return
+
     this.context.isMoving = false
     this.$wrapper = undefined
 
@@ -77,8 +82,14 @@ export default class Movable implements HandleInterface {
     if( !this.context.$canvas.length ) return
 
     this.context
-    .events( document)
-    .on('mousedown.move', e => this.start( e ) )
+    .events( this.context.$canvas )
+    .on('mousedown.move', this.context.options.element, e => {
+      this.context.constraints<MoveActionType>('move', 'start', e )
+      && this.start( e )
+    } )
+
+    this.context
+    .events( this.context.$viewport )
     .on('mousemove.move', e => this.handle( e ) )
     .on('mouseup.move', () => this.stop() )
   }

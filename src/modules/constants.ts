@@ -965,10 +965,3 @@ export const MEDIA_SCREENS: Record<string, MediaScreen> = {
     height: '3368px'
   }
 }
-
-export const PATCH_CSS_SETTINGS = `
-  :host {
-    width: 100%;
-    height: 100%;
-  }
-`

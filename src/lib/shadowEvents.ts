@@ -3,8 +3,9 @@
 type EventType = string
 
 interface EventOptions {
-  stopPropagation?: boolean;
   preventDefault?: boolean;
+  stopPropagation?: boolean;
+  stopImmediatePropagation?: boolean;
 }
 
 export default class ShadowEvents {
@@ -41,8 +42,11 @@ export default class ShadowEvents {
 
     // Create the event listener
     const wrappedCallback = ( e: Event ) => {
-      options.stopPropagation && e.stopPropagation()
+      // e.composed && e.stopPropagation()
+
       options.preventDefault && e.preventDefault()
+      options.stopPropagation && e.stopPropagation()
+      options.stopImmediatePropagation && e.stopImmediatePropagation()
 
       if( !selector ){
         callback.bind( e.target )( e )

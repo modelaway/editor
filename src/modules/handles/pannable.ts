@@ -36,6 +36,8 @@ export default class Pannable implements HandleInterface {
     this.context.transformCanvas()
   }
   private stop(){
+    if( !this.context.isPanning ) return
+
     this.context.isPanning = false
     this.context.$viewport.css('cursor', 'grab')
   }

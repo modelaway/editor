@@ -4,6 +4,8 @@ import type SnapGuidable from './snapguidable'
 
 import $, { type Cash } from 'cash-dom'
 
+type ResizeActionType = 'start' | 'handle' | 'stop'
+
 export default class Resizable implements HandleInterface {
   private context: Handles
   private $handle?: Cash
@@ -36,8 +38,7 @@ export default class Resizable implements HandleInterface {
     this.startLeft = parseFloat( this.$wrapper?.css('left') as string ) || 0
   }
   private handle( e: any ){
-    if( this.context.isPanning
-        || !this.context.isResizing
+    if( !this.context.isResizing
         || !this.$wrapper?.length
         || this.startWidth === undefined
         || this.startHeight === undefined ) return
@@ -107,6 +108,8 @@ export default class Resizable implements HandleInterface {
     })
   }
   private stop(){
+    if( !this.context.isResizing ) return
+
     this.context.isResizing = false
     this.$handle = undefined
     this.$wrapper = undefined
@@ -119,15 +122,18 @@ export default class Resizable implements HandleInterface {
 
     this.context
     .events( this.context.$canvas )
-    .on('mousedown.resize', '.handle', e => this.start( e, $(e.target) ))
+    .on('mousedown.resize', '.handle', e => {
+      this.context.constraints<ResizeActionType>('resize', 'start', e )
+      && this.start( e, $(e.target) )
+    })
     
     this.context
-    .events( document )
+    .events( this.context.$viewport )
     .on('mousemove.resize', e => this.handle(e))
     .on('mouseup.resize', () => this.stop())
   }
   discard(){
     this.context.events( this.context.$canvas ).off('.resize')
-    this.context.events( document ).off('.resize')
+    this.context.events( this.context.$viewport ).off('.resize')
   }
 }

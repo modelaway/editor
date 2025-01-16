@@ -13,7 +13,7 @@ import Stylesheet from '../../lib/stylesheet'
 import ShadowEvents from '../../lib/shadowEvents'
 import FrameStyle from '../frame/styles'
 
-export type Handle = 'pan' 
+export type HandleType = 'pan' 
                       | 'zoom'
                       | 'create'
                       | 'create:wrap'
@@ -24,7 +24,7 @@ export type Handle = 'pan'
                       | 'move:snapguide'
                       | 'resize:snapguide'
 export interface HandlesOptions {
-  enable: Handle[]
+  enable: HandleType[]
   $viewport: Cash
   $canvas: Cash
   element: string
@@ -34,11 +34,12 @@ export interface HandlesOptions {
   MIN_WIDTH: number
   MIN_HEIGHT: number
   WRAPPER_TAG?: string
-  WRAPPER_SIZE?: number
   WRAPPER_BORDER_WIDTH?: number
+  WRAPPER_HANDLE_SIZE?: number
 
-  getScale(): number
-  setScale( value: number ): void
+  getScale: () => number
+  setScale: ( value: number ) => void
+  constraints?: <ActionTypes>( type: HandleType, action: ActionTypes, event?: KeyboardEvent ) => boolean
 }
 export interface HandleInterface {
   apply(): void
@@ -97,6 +98,7 @@ export default class Handles extends Inclusion {
   public $canvas: Cash
 
   public isMoving = false
+  public isZooming = false
   public isPanning = false
   public isResizing = false
 
@@ -115,13 +117,64 @@ export default class Handles extends Inclusion {
     // REVIEW: Options validation
     this.options = {
       WRAPPER_TAG: 'rzwrapper',
-      WRAPPER_SIZE: 10,
       WRAPPER_BORDER_WIDTH: 1,
+      WRAPPER_HANDLE_SIZE: 6,
       
       ...options
     }
 
+    /**
+     * Override the constraints method
+     * via options
+     */
+    if( typeof this.options.constraints == 'function' )
+      this.constraints = this.options.constraints.bind(this)
+
     this.initialize()
+  }
+
+  /**
+   * Defined constraints of triggering a
+   * given handle.
+   * 
+   * - Keyboard 
+   */
+  constraints<ActionType>( type: HandleType, action: ActionType, event?: KeyboardEvent ){
+    switch( type ){
+      case 'wrap': {
+        switch( action ){
+          case 'activate': return event?.altKey || false
+          case 'deactivate': return !this?.isPanning 
+                                    && !this?.isZooming
+                                    && !this?.isMoving
+                                    && !this?.isResizing
+                                    || false
+          default: return true
+        }
+      }
+
+      case 'move': {
+        switch( action ){
+          case 'start': return !this?.isPanning
+                                && !this?.isZooming
+                                && !this?.isResizing
+                                || false
+          default: return true
+        }
+      }
+
+      case 'resize': {
+        switch( action ){
+          case 'start': return !this?.isPanning
+                                && !this?.isZooming
+                                && !this?.isMoving
+                                || false
+          default: return true
+        }
+      }
+
+      default: return true
+    }
   }
 
   initialize(){

@@ -33,6 +33,7 @@ export default class Zoomable implements HandleInterface {
     this.context.canvasOffset.y += offsetY
 
     this.context.transformCanvas()
+    this.context.isZooming = false
   }
   private handleZoom( e: any ){
     /**
@@ -40,6 +41,8 @@ export default class Zoomable implements HandleInterface {
      */
     if( !e.ctrlKey && !e.altKey ) return
     e.cancelable && e.preventDefault()
+
+    this.context.isZooming = true
 
     const 
     cursorPosition: Origin = {

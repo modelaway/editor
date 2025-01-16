@@ -55,39 +55,8 @@ viewport mcanvas {
   box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
   touch-action: none;
 }
-viewport snapguide {
-  position: absolute;
-  z-index: 10;
-  background-color: rgba(0, 0, 255, 0.5);
-  z-index: 999;
-  pointer-events: none;
-}
-viewport snapguide[horizontal] {
-  height: 1px;
-  width: 100%;
-}
-viewport snapguide[vertical] {
-  width: 1px;
-  height: 100%;
-}
 
-viewport mcanvas > div[mv-frame] {
-  position: absolute;
-  display: block;
-  border: 1px solid var(--me-border-color);
-  background-image: 
-    linear-gradient(45deg, #c6c6c6 25%, transparent 25%),
-    linear-gradient(-45deg, #c6c6c6 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, #c6c6c6 75%),
-    linear-gradient(-45deg, transparent 75%, #c6c6c6 75%);
-  background-size: 16px 16px;
-  background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
-  background-color: white;
-  cursor: default!important;
-  /* cursor: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAYAAAAfSC3RAAAACXBIWXMAAAsTAAALEwEAmpwYAAAF0WlUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz4KPHg6eG1wbWV0YSB4bWxuczp4PSJhZG9iZTpuczptZXRhLyIgeDp4bXB0az0iWE1QIENvcmUgNS41LjAiPgogPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4KICA8cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0iIgogICAgeG1sbnM6ZGM9Imh0dHA6Ly9wdXJsLm9yZy9kYy9lbGVtZW50cy8xLjEvIgogICAgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIgogICAgPgogIDwvcmRmOkRlc2NyaXB0aW9uPgogPC9yZGY6UkRGPgo8L3g6eG1wbWV0YT4KPD94cGFja2V0IGVuZD0iciI/PgxTkNUAAAAvSURBVCgVY2RgYPgPxAwMDIxQGkHDGCAApgHmwIxhxCYAV4RNM1aNxNmKbDSSFQEA8aUDVJ5PvToAAAAASUVORK5CYII=), auto!important; */
-  pointer-events: auto;
-  overflow: auto;
-}
+viewport mcanvas > div[mv-frame] { position: absolute; }
 viewport mcanvas > div[mv-frame][frozen] { pointer-events: none; }
 viewport mcanvas > div[mv-frame][frozen]::after {
   content: "";
@@ -99,42 +68,21 @@ viewport mcanvas > div[mv-frame][frozen]::after {
   background: var(--me-secondary-color-transparent);
   pointer-events: none;
 }
-viewport mcanvas > div[mv-frame][component] {
-  resize: both;
-  overflow: auto;
-}
-viewport mcanvas div[mv-frame] mul {
-  display: none;
-  align-items: center;
-  justify-content: space-around;
+snapguide {
   position: absolute;
-  right: 0;
-  margin-top: -2.5rem;
+  z-index: 999;
+  background-color: rgba(0, 0, 255, 0.5);
+  pointer-events: none;
 }
-viewport mcanvas div[mv-frame] mul:active {
-  color: red!important;
-}
-viewport mcanvas div[mv-frame]:hover mul {
-  display: flex;
-}
-viewport mcanvas div[mv-frame] mul mli {
-  padding: 4px;
-  cursor: pointer;
-}
-viewport mcanvas div[mv-frame] mblock {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-viewport mcanvas div[mv-frame] mblock > iframe {
-  width:100%;
-  height:100%;
-  border:none;
-  background-color: rgb(255, 255, 255);
-  transition: 300ms;
-}
+
+snapguide[horizontal] {
+    height: 1px;
+    width: 100%;
+  }
+snapguide[vertical] {
+    width: 1px;
+    height: 100%;
+  }
 
 mshell,
 [mv-menu],

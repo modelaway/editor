@@ -4,6 +4,8 @@ import type FrameStyle from '../frame/styles'
 import type Stylesheet from '../../lib/stylesheet'
 import $, { type Cash } from 'cash-dom'
 
+type WrappableActionType = 'activate' | 'deactivate'
+
 export default class Wrappable implements HandleInterface {
   private context: Handles
   private style: Stylesheet | FrameStyle
@@ -14,15 +16,32 @@ export default class Wrappable implements HandleInterface {
   }
 
   private getStyleSheet(){
+    if( !this.context.options.WRAPPER_BORDER_WIDTH )
+      this.context.options.WRAPPER_BORDER_WIDTH = 1
+
+    if( !this.context.options.WRAPPER_HANDLE_SIZE )
+      this.context.options.WRAPPER_HANDLE_SIZE = 6
+    
+    const
+    // Side Handle Width
+    shw = this.context.options.WRAPPER_HANDLE_SIZE * 2.5,
+    // Handle Centered Position
+    hcp = ( this.context.options.WRAPPER_HANDLE_SIZE / 2 ) + this.context.options.WRAPPER_BORDER_WIDTH + (this.context.options.WRAPPER_BORDER_WIDTH / 2),
+    // Handle Border Radius
+    hbr = ( this.context.options.WRAPPER_HANDLE_SIZE / 2 ) + this.context.options.WRAPPER_BORDER_WIDTH
+
     return `
       ${this.context.options.WRAPPER_TAG} {
         display: inline-block;
-        border: ${this.context.options.WRAPPER_BORDER_WIDTH}px solid #007bff; /* Frame border */
+        border: ${this.context.options.WRAPPER_BORDER_WIDTH}px solid var(--me-primary-color-transparent);
         box-sizing: border-box;
+        box-shadow: 0 0 0 1px rgba(13, 110, 253, 0.1);
+        transition: border-color 0.2s ease;
         
-        background: red;
-        padding: 15px;
-
+        &:hover {
+          border-color: var(--me-primary-color);
+        }
+        
         > scope {
           display: block;
           position: relative;
@@ -31,23 +50,82 @@ export default class Wrappable implements HandleInterface {
           overflow: hidden;
         }
 
-        /* Handles (pseudo-elements) */
+        /* Handle container for better organization */
         > .handle {
-          content: '';
           position: absolute;
-          width: ${this.context.options.WRAPPER_SIZE}px; /* Adjust handle size */
-          height: ${this.context.options.WRAPPER_SIZE}px;
-          background: #007bff;
-          cursor: pointer;
+          width: ${this.context.options.WRAPPER_HANDLE_SIZE}px;
+          height: ${this.context.options.WRAPPER_HANDLE_SIZE}px;
+          background: #fff;
+          border: ${this.context.options.WRAPPER_BORDER_WIDTH}px solid var(--me-primary-color);
+          border-radius: ${hbr}px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+          transition: all 0.2s ease;
+          z-index: 100;
 
-          &.tl { top: -5px; left: -5px; cursor: nwse-resize; } /* Top-left */
-          &.tr { top: -5px; right: -5px; cursor: nesw-resize; } /* Top-right */
-          &.bl { bottom: -5px; left: -5px; cursor: nesw-resize; } /* Bottom-left */ 
-          &.br { bottom: -5px; right: -5px; cursor: nwse-resize; } /* Bottom-right */
-          &.tc { top: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; } /* Top-center */
-          &.bc { bottom: -5px; left: 50%; transform: translateX(-50%); cursor: ns-resize; } /* Bottom-center */
-          &.lc { left: -5px; top: 50%; transform: translateY(-50%); cursor: ew-resize; } /* Left-center */
-          &.rc { right: -5px; top: 50%; transform: translateY(-50%); cursor: ew-resize; } /* Right-center */
+          &:hover {
+            background: var(--me-primary-color);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+          }
+          
+          /* Corner handles */
+          &.tl { 
+            top: -${hcp}px; 
+            left: -${hcp}px; 
+            cursor: nwse-resize; 
+          }
+          &.tr { 
+            top: -${hcp}px; 
+            right: -${hcp}px; 
+            cursor: nesw-resize; 
+          }
+          &.bl { 
+            bottom: -${hcp}px; 
+            left: -${hcp}px; 
+            cursor: nesw-resize; 
+          }
+          &.br { 
+            bottom: -${hcp}px; 
+            right: -${hcp}px; 
+            cursor: nwse-resize; 
+          }
+
+          /* Edge handles */
+          &.tc,
+          &.bc { 
+            width: ${shw}px;
+            left: 50%; 
+            transform: translateX(-50%);
+            cursor: ns-resize;
+          }
+          &.tc { top: -${hcp}px; }
+          &.bc { bottom: -${hcp}px; }
+
+          &.lc,
+          &.rc { 
+            height: ${shw}px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: ew-resize;
+          }
+          &.lc { left: -${hcp}px; }
+          &.rc { right: -${hcp}px; }
+
+          /* Make edge handles slightly more prominent on hover */
+          &.tc:hover,
+          &.bc:hover,
+          &.lc:hover,
+          &.rc:hover {
+            transform: scale(1.1) translateX(-45%);
+          }
+          &.lc:hover, &.rc:hover {
+            transform: scale(1.1) translateY(-45%);
+          }
+        }
+
+        /* Optional: Add a subtle highlight when the wrapper is being dragged */
+        &[data-dragging="true"] {
+          border-color: rgba(13, 110, 253, 0.9);
+          box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.1);
         }
       }
     `
@@ -122,19 +200,18 @@ export default class Wrappable implements HandleInterface {
   }
   deactivate( $target: Cash ){
     if( !this.context.options.WRAPPER_TAG
-        || $target.is( this.context.options.element )
         || $target.closest( this.context.options.WRAPPER_TAG ).length ) return
 
     const 
     self = this,
     $wrappers = this.context.$canvas.find( this.context.options.WRAPPER_TAG )
-    
-    $wrappers?.each( function(){
-      const 
+
+    $wrappers?.length && $wrappers.each( function(){
+      const
       $wrapper = $(this),
-      $target = $wrapper.find( self.context.options.element ),
+      $target = $wrapper.find(`:scope > scope > ${self.context.options.element}`),
       originalStyles = $target.data('original-style')
-      
+
       if( !originalStyles ) return
 
       // @ts-ignore
@@ -164,19 +241,29 @@ export default class Wrappable implements HandleInterface {
   apply(){
     if( !this.context.$canvas.length ) return
 
+    /**
+     * Wrappable element activation by constraints
+     */
     this.context
     .events( this.context.$canvas )
     .on('click.wrapper', this.context.options.element, (e: any) => {
-      e.altKey && this.activate( $(e.target) )
+      this.context.constraints<WrappableActionType>('wrap', 'activate', e )
+      && this.activate( $(e.target) )
     })
 
+    /**
+     * Wrappable element deactivation by constraints
+     */
     this.context
-    .events( document )
-    .on('click.wrapper', e => this.deactivate( $(e.target) ))
+    .events( this.context.$viewport )
+    .on('click.wrapper', e =>  {
+      this.context.constraints<WrappableActionType>('wrap', 'deactivate', e )
+      && this.deactivate( $(e.target) )
+    } )
   }
   discard(){
     this.context.events( this.context.$canvas ).off('.wrapper')
-    this.context.events( document ).off('.wrapper')
+    this.context.events( this.context.$viewport ).off('.wrapper')
 
     /**
      * Clear style by dom type

@@ -102,7 +102,7 @@ export default class Lips<Context = any> {
     this.register('router', Router )
   }
 
-  async register( name: string, template: Template<any, any, any, any> ){
+  register( name: string, template: Template<any, any, any, any> ){
     /**
      * TODO: Register component by providing file path.
      */
@@ -114,10 +114,14 @@ export default class Lips<Context = any> {
     // }
 
     this.store[ name ] = template
+
+    return this
   }
 
   unregister( name: string ){
     delete this.store[ name ]
+
+    return this
   }
 
   has( name: string ){
@@ -146,7 +150,6 @@ export default class Lips<Context = any> {
     // }
     // catch( error ){ throw new Error(`No <${pathname}> component found`) }
   }
-
   render( name: string, template: Template ){
     const
     { default: _default, ...scope } = template,
@@ -158,7 +161,6 @@ export default class Lips<Context = any> {
 
     return new Component( name, _default, scope, options )
   }
-
   root( template: Template, selector: string ){
     this.__root = this.render('__ROOT__', template )
     this.__root.appendTo( selector )

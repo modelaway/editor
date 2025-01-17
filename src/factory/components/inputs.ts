@@ -1,11 +1,9 @@
-
 import {
   CONTROL_LANG_SELECTOR,
-  FORM_INPUT_SELECTOR,
-  FORM_SEPERATOR_SELECTOR
-} from '../modules/constants'
+  FORM_INPUT_SELECTOR
+} from '../../modules/constants'
 
-export const Inputs = () => {
+const Inputs = () => {
   const template = `
     <const id="'input-'+ input.type +'-'+ (input.label || input.name).toLowerCase().replace(/\s+/g, '-')"></const>
 
@@ -41,3 +39,5 @@ export const Inputs = () => {
 
   return { default: template  }
 }
+
+export default Inputs

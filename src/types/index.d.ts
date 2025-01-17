@@ -83,6 +83,20 @@ type CSSRuleOption = {
   customizable?: boolean
 }
 
+type ToolbarOption = {
+  title: string
+  icon?: string
+  tool?: string
+  parent?: string
+  shortcut?: string
+  active?: boolean
+  hidden?: boolean
+  selected?: string
+  disabled?: boolean
+  instructions?: string
+  variants?: Record<string, ToolbarOption>
+}
+
 type QuicksetOption = {
   icon: string
   label?: string

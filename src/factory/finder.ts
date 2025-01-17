@@ -1,7 +1,7 @@
 import type { HandlerHook } from '../types/controls'
 
 import Lips, { Component } from '../lib/lips/lips'
-import * as Helpers from './helpers'
+import * as Helpers from './components/inputs'
 import {
   CONTROL_MENU_SELECTOR,
   CONTROL_LANG_SELECTOR,

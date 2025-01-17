@@ -1,6 +1,5 @@
 
 import { Editor, Natives } from '../../dist/modela.min.js'
-// import ModelaNativesLoader from '../../dist/natives.loader.min.js'
 import i18n from './i18n.plugin.js'
 import cardView from './card.view.js'
 

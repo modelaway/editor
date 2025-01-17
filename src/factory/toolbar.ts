@@ -3,144 +3,21 @@ import type { HandlerHook } from '../types/controls'
 import { Handler } from '../lib/lips'
 import Lips, { Component } from '../lib/lips/lips'
 import { CONTROL_LANG_SELECTOR } from '../modules/constants'
+import Styles from './components/styles'
+import Assets from './components/assets'
+import Plugins from './components/plugins'
+import Settings from './components/settings'
+import TECaptions from './components/tecaptions'
 
-export type ToolbarOption = {
-  title: string
-  icon?: string
-  tool?: string
-  parent?: string
-  shortcut?: string
-  active?: boolean
-  hidden?: boolean
-  selected?: string
-  disabled?: boolean
-  instructions?: string
-  variants?: Record<string, ToolbarOption>
-}
-
-/**
- * Registered dependency components
- */
 function dependencies(){
-
-  type CaptionsState = {
-    selected: string | null
-    instructions?: string
-    items: Record<string, ToolbarOption>
-  }
-  interface CaptionsTemplate {
-    state: CaptionsState
-    handler: Handler<ToolbarOption, CaptionsState>
-    default: string
-    stylesheet: string
-  }
-
-  const Captions: CaptionsTemplate = {
-    state: {
-      items: {},
-      selected: null,
-      instructions: undefined
-    },
-    handler: {
-      onInput(){
-        const option = this.input as any
-        if( option.variants ){
-          this.state.items = option.variants
-          this.state.selected = option.selected
-        }
-        else {
-          this.state.items = { '*': option }
-          this.state.selected = '*'
-        }
-
-        this.state.instructions = this.state.selected ? this.state.items[ this.state.selected ].instructions : undefined
-      },
-      onHandleSelect( key: string ){
-        this.state.selected = key
-        this.state.instructions = this.state.items[ key ].instructions
-
-        this.emit('select', this.state.selected )
-      }
-    },
-    default: `
-      <mblock>
-        <mul>
-          <for in=state.items>
-            <mli class="state.selected == key && 'selected'"
-                  on-click( onHandleSelect, key )>
-              <micon class=each.icon></micon>
-              <mlabel>{each.title}</mlabel>
-            </mli>
-          </for>
-        </mul>
-
-        <if( state.instructions )>
-          <mblock instructions>
-            <mblock>
-              <minline>Instructions</minline>
-
-              <p>{state.instructions}</p>
-            </mblock>
-          </mblock>
-        </if>
-      </mblock>
-    `,
-    stylesheet: `
-      mul {
-        padding: 1.2rem;
-
-        mli {
-          padding: 5px 0;
-          margin: 3px;
-          display: flex;
-          align-items: center;
-          font-size: var(--me-font-size);
-          border-radius: var(--me-border-radius-inside);
-
-          micon {
-            padding: 0 8px;
-            font-size: var(--me-icon-size-2);
-            color: gray;
-          }
-
-          &:hover,
-          &.selected {
-            background-color: var(--me-primary-color-transparent);
-          }
-        }
-      }
-
-      [instructions] {
-        position: absolute;
-        bottom: 0;
-
-        mblock {
-          margin: .8rem;
-          padding: 1.2rem;
-          line-height: 1.2;
-          border: 1px solid var(--me-border-color);
-          border-radius: var(--me-border-radius);
-
-          minline {
-            color: gray;
-            font-size: var(--me-small-font-size);
-          }
-          p { margin: .8rem 0 0 0; }
-        }
-      }
-    `
-  }
-
-  const Globals = {
-    default: `
-      <mblock>Global content</mblock>
-    `
-  }
-
   const lips = new Lips()
 
-  lips.register('captions', Captions )
-  lips.register('globals', Globals )
+  lips
+  .register('styles', Styles() )
+  .register('assets', Assets() )
+  .register('plugins', Plugins() )
+  .register('settings', Settings() )
+  .register('captions', TECaptions() )
 
   return lips
 }
@@ -200,6 +77,7 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
         this.getNode().css( defPostion )
       }, 5 )
     },
+
     getStyle(){
       let style: Record<string, string> = {
         display: this.input.settings?.visible ? 'block' : 'none'
@@ -210,6 +88,25 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
 
       return style
     },
+    viewBodyContent({ type, key, body }){
+      if( !body ) return
+      const isExpanded = this.state.expanded
+
+      this.state.expanded = true
+      this.state.content = { type, key, body }
+
+      /**
+       * Auto-close expanded container on external click
+       * 
+       * TODO: Scope the click to anywhere but the toolbar block
+       */
+      !isExpanded && hook?.editor?.$viewport?.on('click.toolbar-expand', () => {
+        this.state.expanded = false
+        this.state.content = null
+
+        hook?.editor?.$viewport?.off('.toolbar-expand')
+      })
+    },
     viewOptionCaptions( type, key, option ){
       let body = option
       if( option.parent )
@@ -217,11 +114,8 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
           case 'tool': if( this.input.tools ) body = this.input.tools[ option.parent ]; break
           case 'view': if( this.input.views ) body = this.input.views[ option.parent ]; break
         }
-
-      if( !body ) return
-
-      this.state.expanded = true
-      this.state.content = { type, key, body }
+        
+      this.viewBodyContent({ type, key, body })
     },
 
     selectTool( key ){
@@ -254,36 +148,34 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
         else this.state.views[ k ].active = false
       }
     },
+
     onHandleOption( type: ContentType, key: string, option: ToolbarOption ){
       if( option.disabled ) return
 
       // console.log(`Option [${key}] -- `, option )
       switch( type ){
-        case 'tool': this.selectTool( key ); break
-        case 'view': this.selectView( key ); break
-      }
+        case 'tool': {
+          this.selectTool( key )
+          // Show option details when block is already expanded
+          this.state.expanded && this.viewOptionCaptions( type, key, option )
+        } break
 
-      // Show option details when block is already expanded
-      this.state.expanded && this.viewOptionCaptions( type, key, option )
+        case 'view': {
+          this.selectView( key )
+          // Show option details when block is already expanded
+          this.state.expanded && this.viewOptionCaptions( type, key, option )
+        } break
+
+        case 'global': this.viewBodyContent({ type, key, body: option }); break
+      }
     },
     onShowOptionCaptions( type: ContentType, key: string, option: ToolbarOption, e: Event ){
       e.preventDefault()
-      if( option.disabled ) return
+      if( type === 'global' || option.disabled ) return
 
       // console.log(`Option [${key}] -- `, option )
       this.viewOptionCaptions( type, key, option )
-
-      /**
-       * Auto-close expanded container on external click
-       * 
-       * TODO: Scope the click to anywhere but the toolbar block
-       */
-      hook?.editor?.$viewport?.on('click.toolbar-expand', () => {
-        this.state.expanded = false
-        this.state.content = null
-
-        hook?.editor?.$viewport?.off('.toolbar-expand')
-      })
+      this.canDismissBody()
     },
 
     onHandleSelect( type: string, key: string, selected: string ){
@@ -320,13 +212,15 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
           <if( state.tools )>
             <mul options="tools">
               <for in=state.tools>
-                <if( each.variants )>
-                  <const selected="each.variants[ each.selected || '*' ]"></const>
-                  <option type="tool" ...selected active=each.active></option>
+                <if( !each.hidden )>
+                  <if( each.variants )>
+                    <const selected="each.variants[ each.selected || '*' ]"></const>
+                    <option type="tool" ...selected active=each.active></option>
+                  </if>
+                  <else>
+                    <option type="tool" ...each></option>
+                  </else>
                 </if>
-                <else>
-                  <option type="tool" ...each></option>
-                </else>
               </for>
             </mul>
           </if>
@@ -335,13 +229,15 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
             <div divider></div>
             <mul options="views">
               <for in=state.views>
-                <if( each.variants )>
-                  <const selected="each.variants[ each.selected || '*' ]"></const>
-                  <option type="view" ...selected active=each.active></option>
+                <if( !each.hidden )>
+                  <if( each.variants )>
+                    <const selected="each.variants[ each.selected || '*' ]"></const>
+                    <option type="view" ...selected active=each.active></option>
+                  </if>
+                  <else>
+                    <option type="view" ...each></option>
+                  </else>
                 </if>
-                <else>
-                  <option type="view" ...each></option>
-                </else>
               </for>
             </mul>
           </if>
@@ -349,7 +245,9 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
           <if( state.globals )>
             <mul options="globals">
               <for in=state.globals>
-                <option type="global" ...each></option>
+                <if( !each.hidden )>
+                  <option type="global" ...each></option>
+                </if>
               </for>
             </mul>
           </if>
@@ -363,7 +261,20 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
                           on-select( onHandleSelect, state.content.type, state.content.key )></captions>
               </case>
               <case is="global">
-                <globalcontent ...state.content.body></globalcontent>
+                <switch( state.content.key )>
+                  <case is="styles">
+                    <styles ...state.content.body></styles>
+                  </case>
+                  <case is="assets">
+                    <assets ...state.content.body></assets>
+                  </case>
+                  <case is="plugins">
+                    <plugins ...state.content.body></plugins>
+                  </case>
+                  <case is="settings">
+                    <settings ...state.content.body></settings>
+                  </case>
+                </switch>
               </case>
             </switch>
           </if>

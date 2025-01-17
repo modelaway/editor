@@ -96,7 +96,7 @@ export default class View extends EventEmitter {
    * Run initial 
    */
   private initialize(){
-    if( !this.$ || !this.frame.$ ) return
+    if( !this.$?.length ) return
 
     try {
       /**
@@ -105,7 +105,7 @@ export default class View extends EventEmitter {
       const { name, styles } = this.get()
       if( name && typeof styles === 'function' ){
         const sheet = styles( this.bridge ).sheet
-        sheet && this.frame.styles.addRules( sheet, { key: this.key as string, scope: true } )
+        sheet && this.frame.styles.addRules( sheet, { rel: this.key as string, scope: true } )
       }
 
       /**
@@ -217,14 +217,14 @@ export default class View extends EventEmitter {
    * Mount new view comopnent into the DOM
    */
   mount( vc: ViewComponent, to: string ){
-    if( !this.frame.$ ) return
+    if( !this.frame.$canvas.length ) return
 
     /**
      * `to` field should only be a model-view-key to be
      * sure the destination view is within editor control
      * scope.
      */
-    const $to = this.frame.$.find(`[${VIEW_KEY_SELECTOR}="${to}"]`)
+    const $to = this.frame.$canvas.find(`[${VIEW_KEY_SELECTOR}="${to}"]`)
     if( !$to.length )
       throw new Error(`Invalid destination view - <key:${to}>`)
     

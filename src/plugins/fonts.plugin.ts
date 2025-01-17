@@ -64,7 +64,7 @@ export default class Fonts implements Plugin {
      * Auto-load fonts css on all frames
      */
     this.config.autoload
-    && await frame.styles.addRules( Object.values( this.fonts ).join('\n'), { key: 'fonts' })
+    && await frame.styles.addRules( Object.values( this.fonts ).join('\n'), { rel: 'fonts' })
 
     // Apply defined font css rules to global custom variables
     typeof this.config.cssrule == 'object'
@@ -110,7 +110,7 @@ export default class Fonts implements Plugin {
     // Refresh imported fonts in every frame's DOM
     this.factory.editor.canvas.each( frame => {
       frame.styles.removeRules('fonts')
-      frame.styles.addRules( Object.values( this.fonts ).join('\n'), { key: 'fonts' })
+      frame.styles.addRules( Object.values( this.fonts ).join('\n'), { rel: 'fonts' })
     } )
   }
 }

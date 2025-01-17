@@ -23,7 +23,7 @@ interface SnapPoints {
 export default class SnapGuidable implements HandleInterface {
   private context: Handles
   private style: Stylesheet | FrameStyle
-
+  
   constructor( context: Handles ){
     this.context = context
     this.style = this.context.styles('snapguide', this.getStyleSheet() )
@@ -77,13 +77,10 @@ export default class SnapGuidable implements HandleInterface {
     else return $element[0]?.getBoundingClientRect()
   }
   private showGuide( axis: 'horizontal' | 'vertical', point: SnapPoint ){
-    axis === 'vertical'
-          ? $(`<snapguide vertical></snapguide>`)
-            .css({ left: `${point.guidePosition}px`, top: 0 })
-            .appendTo( this.context.$viewport )
-          : $('<snapguide horizontal></snapguide>')
-            .css({ left: 0, top: `${point.guidePosition}px` })
-            .appendTo( this.context.$viewport )
+    (axis === 'vertical'
+          ? $(`<snapguide vertical></snapguide>`).css({ left: `${point.guidePosition}px`, top: 0 })
+          : $('<snapguide horizontal></snapguide>').css({ left: 0, top: `${point.guidePosition}px` }) )
+    .appendTo( this.context.$viewport )
   }
 
   calculate( $wrapper: Cash, newLeft: number, newTop: number, newWidth?: number, newHeight?: number ){
@@ -97,8 +94,14 @@ export default class SnapGuidable implements HandleInterface {
 
     let
     self = this,
-    scaleQuo = this.context.getScaleQuo(),
-    // Track all snap points
+    /**
+     * Apply scale quo different to a shadow island 
+     * viewport environment.
+     */
+    scaleQuo = this.context.$viewport[0] instanceof ShadowRoot ? this.context.getScaleQuo() : 1,
+    /**
+     * Track all snap points
+     */
     snapPoints: SnapPoints = {
       left: [],
       right: [],
@@ -109,11 +112,11 @@ export default class SnapGuidable implements HandleInterface {
     // Clear existing guides first
     this.hide()
 
-    const selector = `${this.context.options.element}:not(${this.context.options.WRAPPER_TAG},${this.context.options.WRAPPER_TAG} > scope,${this.context.options.WRAPPER_TAG} > .handle)`
-    
-    this.context.$canvas
-    .find( selector )
-    .each( function(){
+    const 
+    selector = `${this.context.options.element}:not(${this.context.options.WRAPPER_TAG},${this.context.options.WRAPPER_TAG} > scope,${this.context.options.WRAPPER_TAG} > .handle)`,
+    nodes = this.context.$canvas.find( selector )
+
+    nodes?.each( function(){
       const
       $other = $(this),
       otherLeft = parseFloat( $other.css('left') as string ),
@@ -123,6 +126,8 @@ export default class SnapGuidable implements HandleInterface {
 
       otherRect = self.getRelativeRect( $other )
       if( !otherRect ) return
+
+      console.log( otherRect, scaleQuo )
 
       // Snap to other elements' left and right edges
       if( Math.abs( newLeft - otherLeft ) < CONTROL_SNAP_THRESHOLD )

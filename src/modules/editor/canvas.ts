@@ -8,7 +8,8 @@ import EventEmitter from 'events'
 import {
   FRAME_DEFAULT_MARGIN,
   CONTROL_FRAME_SELECTOR,
-  CONTROL_ZOOM_DEFAULT_SCALE
+  CONTROL_ZOOM_DEFAULT_SCALE,
+  ALLOWED_CANVAS_HANDLES
 } from '../constants'
 
 export default class Canvas extends EventEmitter {
@@ -34,7 +35,7 @@ export default class Canvas extends EventEmitter {
     
     this.handles = new Handles( this.editor, {
       dom: 'main',
-      enable: ['pan', 'zoom', 'create', 'wrap', 'move:snapguide', 'resize:snapguide'],
+      enable: ALLOWED_CANVAS_HANDLES,
       $viewport: this.editor.$viewport,
       $canvas: this.$,
       element: `div[${CONTROL_FRAME_SELECTOR}]`,

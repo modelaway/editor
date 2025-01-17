@@ -1,9 +1,8 @@
+import type { HandleType } from './handles'
 import type { MediaScreen } from '../types/frame'
+import type { ToolbarOption } from '../factory/toolbar'
 import english from '../languages/en.json'
 import french from '../languages/fr.json'
-import { ToolbarOption } from '../factory/toolbar'
-
-export const CONTROL_ROOT = '#modela'
 
 export const EDITOR_EDGE_PADDING = 15 // Pixel
 
@@ -37,7 +36,7 @@ export const CONTROL_BLOCK_SELECTOR = 'mv-control-block'
 export const CONTROL_EDGE_MARGIN = 15
 export const CONTROL_MENU_MARGIN = 20
 export const CONTROL_QUICKSET_MARGIN = 6
-export const CONTROL_ZOOM_DEFAULT_SCALE = 1
+export const CONTROL_ZOOM_DEFAULT_SCALE = 0.1
 export const CONTROL_ZOOM_SCALE_STEP = 0.02
 export const CONTROL_ZOOOM_EVEN_SCALE = 1
 export const CONTROL_ZOOM_MIN_SCALE = 0.01
@@ -46,6 +45,9 @@ export const CONTROL_SNAP_THRESHOLD = 5 // Snapping threshold: Distance within w
 
 export const FORM_INPUT_SELECTOR = 'mv-form-input'
 export const FORM_SEPERATOR_SELECTOR = 'mv-form-seperator'
+
+export const ALLOWED_CANVAS_HANDLES: HandleType[] = ['pan', 'zoom', 'create', 'wrap', 'move:snapguide', 'resize:snapguide']
+export const ALLOWED_FRAME_CANVAS_HANDLES: HandleType[] = ['create', 'wrap', 'move', 'resize', 'snapguide']
 
 /**
  * View control options

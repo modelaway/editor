@@ -14,7 +14,8 @@ import {
   CONTROL_MENU_SELECTOR,
   VIEW_KEY_SELECTOR,
   VIEW_ACTIVE_SELECTOR,
-  CONTROL_FRAME_SELECTOR
+  CONTROL_FRAME_SELECTOR,
+  ALLOWED_FRAME_CANVAS_HANDLES
 } from '../constants'
 
 const createFrame = ( key: string, position?: FrameOption['position'] ) => {
@@ -142,7 +143,7 @@ export default class Frame extends EventEmitter {
      * Initialize handles
      */
     this.handles = new Handles( this.editor, {
-      enable: ['create', 'wrap', 'resize', 'move', 'snapguide'],
+      enable: ALLOWED_FRAME_CANVAS_HANDLES,
       $viewport: this.$viewport,
       $canvas: this.$canvas,
       element: `*`,

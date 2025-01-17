@@ -1,6 +1,5 @@
 import type { HandleType } from './handles'
 import type { MediaScreen } from '../types/frame'
-import type { ToolbarOption } from '../factory/toolbar'
 import english from '../languages/en.json'
 import french from '../languages/fr.json'
 
@@ -206,7 +205,7 @@ export const TOOLS: Record<string, ToolbarOption> = {
     active: true
   },
   PICKER: {
-    icon: 'bx bx-color-fill',
+    icon: 'bx bxs-eyedropper',
     title: 'Picker'
   },
   PENCIL: {
@@ -224,6 +223,10 @@ export const TOOLS: Record<string, ToolbarOption> = {
         parent: 'PENCIL'
       }
     }
+  },
+  VECTOR: {
+    icon: 'bx bx-vector',
+    title: 'Vector'
   },
   FLOW: {
     icon: 'bx bx-git-merge',

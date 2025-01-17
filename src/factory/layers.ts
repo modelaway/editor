@@ -249,6 +249,8 @@ function dependencies(){
           <micon class="'toggle-icon visibility bx '+( input.hidden ? 'bx-hide' : 'bx-show')"
                   on-click( onToggleVisibility, input.key )></micon>
 
+          <micon class="ill-icon move-handle bx bx-grid-vertical"></micon>
+
           <minline style="{ padding: '7px 0 7px '+(20 * input.depth)+'px' }">
             <switch( input.attribute )>
               <case is="group">
@@ -263,7 +265,7 @@ function dependencies(){
                         style="padding: 0 4px"
                         on-click( onCollapse, input.key )></micon>
 
-                <micon class="ill-icon bx bx-git-repo-forked"></micon>
+                <micon class="ill-icon bx bx-hash"></micon>
               </case>
               <default>
                 <switch( input.type )>
@@ -367,7 +369,7 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
       const sortableOptions: SortableOptions = {
         list: 'mul',
         item: 'mli',
-        handle: 'mli minline > mlabel',
+        handle: 'mli > .layer-bar > .move-handle',
         // ghostClass: 'ghost',
         // dragClass: 'dragging',
         // selectedClass: 'selected',
@@ -465,7 +467,7 @@ const stylesheet = `
   position: absolute;
   z-index: 200;
   border-radius: var(--me-border-radius);
-  background-color: var(--me-secondary-color);
+  background-color: var(--me-inverse-color);
   box-shadow: var(--me-box-shadow);
   backdrop-filter: var(--me-backdrop-filter);
   cursor: default;
@@ -476,6 +478,7 @@ const stylesheet = `
     display: flex;
     align-items: center;
     justify-content: space-between;
+    border-bottom: 1px solid var(--me-border-color);
     user-select: none;
 
     minline {
@@ -491,17 +494,17 @@ const stylesheet = `
     }
   }
   .body {
-    min-width: 15rem;
+    min-width: 18rem;
     height: 45vh;
     padding-top: 1px;
     overflow: auto;
   }
   .ill-icon {
-    color: gray;
+    color: rgb(180, 180, 180);
     padding-right: 10px;
   }
   .toggle-icon {
-    color: gray;
+    color: rgb(180, 180, 180);
     padding: 7px 8px;
     cursor: pointer;
     font-size: var(--me-icon-size);
@@ -512,17 +515,26 @@ const stylesheet = `
   }
 
   mli {
-    background-color: var(--me-secondary-color);
+    background-color: var(--me-inverse-color);
     border-top: 1px solid var(--me-border-color);
     border-bottom: 1px solid var(--me-border-color);
     margin: -1px 0;
+    cursor: default;
     
     .layer-bar {
       display: flex;
       align-items: center;
 
+      .move-handle {
+        padding: 0 3px;
+        visibility: hidden;
+        cursor: move;
+      }
+
       &:hover {
-        background-color: var(--me-secondary-color-transparent);
+        background-color: var(--me-primary-color-fade);
+
+        .move-handle { visibility: visible; }
       }
 
       > minline {
@@ -531,7 +543,7 @@ const stylesheet = `
         align-items: center;
 
         mlabel { 
-          color: #d2d7dd;
+          /* color: #d2d7dd; */
           user-select: none;
           
           &[contenteditable="true"]{
@@ -561,9 +573,9 @@ const stylesheet = `
   .sortable-list {
     --td: 150ms;
     --go: .9;
-    --pb: rgba(45,45,45,.3);
+    --pb: var(--me-primary-color-transparent);
     --sb: rgba(65,145,255,.5);
-    --hb: rgba(255,255,255,.05);
+    --hb: var(--me-primary-color);
 
     .sortable-item {
       transition: all var(--td) ease;
@@ -611,8 +623,7 @@ const stylesheet = `
     .sortable-drag { opacity: 0; }
 
     .selected {
-      background: var(--hb);
-      border-left: 2px solid var(--sb);
+      border-left: 3px solid var(--hb);
     }
 
     .level-change {

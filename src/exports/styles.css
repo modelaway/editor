@@ -20,7 +20,7 @@
 
   --me-border-radius: 15px;
   --me-border-radius-inside: 10px;
-  --me-border-color: rgba(0, 0, 20, .15);
+  --me-border-color: rgba(0, 0, 20, .1);
   --me-trigger-text-color: #fff;
   --me-active-text-color: #038fcc;
   --me-disabled-text-color: #a6a6a6;
@@ -67,21 +67,6 @@ viewport mcanvas > div[mv-frame][frozen]::after {
   background: var(--me-secondary-color-transparent);
   pointer-events: none;
 }
-snapguide {
-  position: absolute;
-  z-index: 999;
-  background-color: rgba(0, 0, 255, 0.5);
-  pointer-events: none;
-}
-
-snapguide[horizontal] {
-    height: 1px;
-    width: 100%;
-  }
-snapguide[vertical] {
-    width: 1px;
-    height: 100%;
-  }
 
 mshell,
 [mv-menu],

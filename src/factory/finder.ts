@@ -1,7 +1,7 @@
 import type { HandlerHook } from '../types/controls'
 
 import Lips, { Component } from '../lib/lips/lips'
-import * as Helpers from './components/inputs'
+import * as Components from './components'
 import {
   CONTROL_MENU_SELECTOR,
   CONTROL_LANG_SELECTOR,
@@ -27,7 +27,7 @@ export type FinderState = {
 }
 export default ( input: FinderInput, hook: HandlerHook ) => {
   const lips = new Lips()
-  lips.register('inputs', Helpers.Inputs() )
+  lips.register('inputs', Components.inputs.default() )
 
   const state = {
     query: '',

@@ -113,7 +113,9 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     ;($list || this.$block)?.find(`.${this.options.selectedClass}`)?.removeClass( this.options.selectedClass )
   }
 
-  private startDrag( $item: any, y: number ){
+  private startDrag( $item: Cash, y: number ){
+    if( this.dragging ) return
+
     this.dragging = true
     this.startY = y
 
@@ -126,13 +128,13 @@ export default class Sortable<Input = void, State = void, Static = void, Context
       this.$dragElements.forEach( $each => $ghostList.append( $each.clone().css('position', 'relative') ) )
       this.$ghost = $ghostList
     }
-    else this.$ghost = $item.clone().addClass( this.options.ghostClass )
+    else this.$ghost = $item.clone().addClass( this.options.ghostClass as string )
 
     this.$ghost.css({
       position: 'fixed',
       width: $item.outerWidth(),
       // left: $item.offset().left,
-      top: $item.position().top,
+      top: $item.position()?.top,
       zIndex: Z_INDEX_GHOST,
       pointerEvents: 'none'
     })
@@ -144,6 +146,7 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     const totalHeight = this.$dragElements.reduce( ( sum, $each ) => sum + $each.outerHeight(), 0 )
 
     this.$placeholder = $('<div/>').addClass( this.options.placeholder || PLACEHOLDER_CLASS )
+                                    // @ts-ignore
                                     .css({
                                       height: totalHeight,
                                       marginBottom: $item.css('marginBottom')
@@ -151,7 +154,6 @@ export default class Sortable<Input = void, State = void, Static = void, Context
 
     // $item.after( this.$placeholder )
     this.$dragElements.forEach( $each => this.options.dragClass && $each.addClass( this.options.dragClass ) )
-    
     this.$block?.append( this.$ghost )
   }
   private onDrag( x: number, y: number ){
@@ -201,7 +203,7 @@ export default class Sortable<Input = void, State = void, Static = void, Context
   }
   private endDrag(){
     if( !this.dragging ) return
-
+    
     const
     $newList = this.$placeholder.closest( this.options.list ),
     $oldList = this.$sourceList,
@@ -217,21 +219,24 @@ export default class Sortable<Input = void, State = void, Static = void, Context
       level: this.getLevel( this.$placeholder[0] )
     })
 
+    // Store placeholder reference before later removal
+    const $placeholder = this.$placeholder
+
     /**
      * Move all selected elements to new position
      */
     this.$dragElements
     .reverse()
     .forEach( $each => {
-      $each
-      .removeClass( this.options.dragClass )
-      .insertBefore( this.$placeholder )
+      $each.removeClass( this.options.dragClass )
+      
+      // Skip if placeholder not in DOM
+      $placeholder?.parent().length
+      && $each.insertBefore( $placeholder )
     })
     
-    if( this.options.ghostClass )
-      this.$block?.find('.'+ this.options.ghostClass ).remove()
-    if( this.options.placeholder )
-      this.$block?.find('.'+ this.options.placeholder ).remove()
+    this.options.ghostClass && this.$block?.find('.'+ this.options.ghostClass ).remove()
+    this.options.placeholder && this.$block?.find('.'+ this.options.placeholder ).remove()
 
     this.$ghost.remove()
     this.$placeholder.remove()
@@ -260,6 +265,7 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     if( !this.$block ) return
     
     const
+    self = this,
     $list = this.$block.find( this.options.list )
     if( !$list?.length ) return
 
@@ -270,9 +276,26 @@ export default class Sortable<Input = void, State = void, Static = void, Context
      */
     this.options.multiDrag
     && $list.on('click', this.options.item, ( e: MouseEvent ) => {
-        if( !e.ctrlKey && !e.metaKey ) return
+        if( !e.ctrlKey && !e.metaKey ){
+          this.clearSelection()
+          return
+        }
+
+        e.preventDefault()
+        e.stopPropagation()
         
         const $item = $(e.currentTarget as Element)
+        
+        // Unselect any children when parent is selected
+        $item
+        .find( this.options.item )
+        .each( function(){ self.removeSelection( $(this) ) } )
+
+        // Unselect any parent when children is selected
+        $item
+        .closest(`.${this.options.selectedClass}`)
+        .each( function(){ self.removeSelection( $(this) ) } )
+
         this.selectedItems.has( $item[0] )
                       ? this.removeSelection( $item )
                       : this.addSelection( $item )
@@ -280,8 +303,10 @@ export default class Sortable<Input = void, State = void, Static = void, Context
 
     const handle = this.options.handle || this.options.item
 
-    $list.on('mousedown', handle, ( e: MouseEvent ) => {
+    $list
+    .on('mousedown', handle, ( e: MouseEvent ) => {
       if( e.button !== 0 ) return // Only left mouse button
+      e.stopPropagation()
 
       let $item = $(e.target as Element)
       if( $item.not( this.options.item ) )

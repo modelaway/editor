@@ -117,7 +117,7 @@ export default class Resizable implements HandleInterface {
     this.snapguide?.hide()
   }
 
-  apply(){
+  enable(){
     if( !this.context.$canvas.length ) return
 
     this.context
@@ -132,7 +132,7 @@ export default class Resizable implements HandleInterface {
     .on('mousemove.resize', e => this.handle(e))
     .on('mouseup.resize', () => this.stop())
   }
-  discard(){
+  disable(){
     this.context.events( this.context.$canvas ).off('.resize')
     this.context.events( this.context.$viewport ).off('.resize')
   }

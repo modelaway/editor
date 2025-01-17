@@ -20,6 +20,8 @@ export const VIEW_ACTIVE_SELECTOR = 'vactive'
 export const VIEW_CAPTION_SELECTOR = 'vcaption'
 export const VIEW_TYPES_ALLOWED_SELECTOR = 'vtypes-allowed'
 
+export const FRAME_MIN_WIDTH = 100 // Pixel (px)
+export const FRAME_MIN_HEIGHT = 100 // Pixel (px)
 export const FRAME_DEFAULT_MARGIN = 140 // Pixel (px)
 
 /**
@@ -46,8 +48,21 @@ export const CONTROL_SNAP_THRESHOLD = 5 // Snapping threshold: Distance within w
 export const FORM_INPUT_SELECTOR = 'mv-form-input'
 export const FORM_SEPERATOR_SELECTOR = 'mv-form-seperator'
 
-export const ALLOWED_CANVAS_HANDLES: HandleType[] = ['pan', 'zoom', 'create', 'wrap', 'move:snapguide', 'resize:snapguide']
-export const ALLOWED_FRAME_CANVAS_HANDLES: HandleType[] = ['create', 'wrap', 'move', 'resize', 'snapguide']
+export const ALLOWED_CANVAS_HANDLES: HandleType[] = [
+  'pan',
+  'zoom',
+  'create:wrap',
+  'wrap',
+  'move:snapguide',
+  'resize:snapguide'
+]
+export const ALLOWED_FRAME_CANVAS_HANDLES: HandleType[] = [
+  'create',
+  'wrap',
+  'move',
+  'resize',
+  'snapguide'
+]
 
 /**
  * View control options

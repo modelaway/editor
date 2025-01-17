@@ -9,7 +9,9 @@ import {
   FRAME_DEFAULT_MARGIN,
   CONTROL_FRAME_SELECTOR,
   CONTROL_ZOOM_DEFAULT_SCALE,
-  ALLOWED_CANVAS_HANDLES
+  ALLOWED_CANVAS_HANDLES,
+  FRAME_MIN_WIDTH,
+  FRAME_MIN_HEIGHT
 } from '../constants'
 
 export default class Canvas extends EventEmitter {
@@ -39,15 +41,31 @@ export default class Canvas extends EventEmitter {
       $viewport: this.editor.$viewport,
       $canvas: this.$,
       element: `div[${CONTROL_FRAME_SELECTOR}]`,
-      MIN_WIDTH: 100,
-      MIN_HEIGHT: 100,
+      MIN_WIDTH: FRAME_MIN_WIDTH,
+      MIN_HEIGHT: FRAME_MIN_HEIGHT,
 
       /**
        * Give control of the canvas scale value
        * to the handlers.
        */
       getScale: () => (this.scale),
-      setScale: value => this.scale = value
+      setScale: value => this.scale = value,
+
+      /**
+       * Method to create new frames by handles
+       */
+      createElement: ({ x, y }) => {
+        this.addFrame({
+          position: {
+            top: `${x}px`,
+            left: `${y}px`
+          },
+          size: {
+            width: `${FRAME_MIN_WIDTH}px`,
+            height: `${FRAME_MIN_HEIGHT}px`
+          }
+        })
+      }
     })
     
     // Initial canvas state
@@ -80,7 +98,7 @@ export default class Canvas extends EventEmitter {
     this.emit('canvas.enabled')
   }
   disable(){
-    this.handles?.discard()
+    this.handles?.disable()
     this.emit('canvas.disabled')
   }
 

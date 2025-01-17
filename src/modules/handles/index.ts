@@ -24,7 +24,7 @@ export type HandleType = 'pan'
                       | 'move:snapguide'
                       | 'resize:snapguide'
 export interface HandlesOptions {
-  enable: HandleType[]
+  enable?: HandleType[]
   $viewport: Cash
   $canvas: Cash
   element: string
@@ -38,11 +38,12 @@ export interface HandlesOptions {
 
   getScale: () => number
   setScale: ( value: number ) => void
+  createElement?: ( position: { x: number, y: number }) => void
   constraints?: <ActionTypes>( type: HandleType, action: ActionTypes, event?: KeyboardEvent ) => boolean
 }
 export interface HandleInterface {
-  apply(): void
-  discard(): void
+  enable(): void
+  disable(): void
 }
 
 class Inclusion extends EventEmitter {
@@ -128,8 +129,110 @@ export default class Handles extends Inclusion {
      */
     if( typeof this.options.constraints == 'function' )
       this.constraints = this.options.constraints.bind(this)
+    
+    // Auto-enabled
+    this.enable()
+  }
 
-    this.initialize()
+  enable( handles?: HandleType[] ){
+    // Set/Update allowed handles
+    if( handles )
+      this.options.enable = handles
+
+    /**
+     * Enable `snapguide` prior for dependency 
+     * assignment.
+     */
+    if( this.options.enable?.includes('snapguide') ){
+      this.manual.snapguide = new SnapGuidable( this )
+      this.manual.snapguide.enable()
+    }
+
+    /**
+     * Enable and also expose manual controls 
+     * over enabled handles.
+     * 
+     * - Eg. handles.manual.zoom.to(...)
+     */
+    this.options.enable?.forEach( each => {
+      switch( each ){
+        case 'pan': {
+          this.manual.pan = new Pannable( this )
+          this.manual.pan.enable()
+        } break
+        
+        case 'create':
+        case 'create:wrap': {
+          /**
+           * [*:wrap]: Create and wrap the element automatically
+           */
+          let wrappable
+          if( each === 'create:wrap' )
+            wrappable = this.manual.wrap || new Wrappable( this )
+
+          this.manual.create = new Creator( this, wrappable )
+          this.manual.create.enable()
+        } break
+        
+        case 'zoom': {
+          this.manual.zoom = new Zoomable( this )
+          this.manual.zoom.enable()
+        } break
+        
+        case 'wrap': {
+          this.manual.wrap = new Wrappable( this )
+          this.manual.wrap.enable()
+        } break
+        
+        case 'move':
+        case 'move:snapguide': {
+          if( !this.options.enable?.includes('wrap') )
+            throw new Error('Move handle only applies on wrappable elements. Expect `wrap` handle')
+          
+          /**
+           * [*:snapguide]: Move handle must have a 
+           * snapguide dependency defined
+           */
+          let snapguide
+          if( this.options.enable.includes('snapguide') || each === 'move:snapguide' )
+            snapguide = this.manual.snapguide || new SnapGuidable( this )
+
+          this.manual.move = new Movable( this, snapguide )
+          this.manual.move.enable()
+        } break
+        
+        case 'resize':
+        case 'resize:snapguide': {
+          if( !this.options.enable?.includes('wrap') )
+            throw new Error('Resize handle only applies on wrappable elements. Expect `wrap` handle')
+          
+          /**
+           * [*:snapguide]: Resize handle must have 
+           * a snapguide dependency defined
+           */
+          let snapguide
+          if( this.options.enable.includes('snapguide') || each === 'resize:snapguide' )
+            snapguide = this.manual.snapguide || new SnapGuidable( this )
+
+          this.manual.resize = new Resizable( this, snapguide )
+          this.manual.resize.enable()
+        } break
+      }
+    } )
+  }
+  disable( handles?: HandleType[] ){
+    if( !this.options.enable )
+      throw new Error('No handle defined')
+
+    const enabled = Object.entries( this.manual )
+
+    Array.isArray( handles ) && handles.length
+                    // Only specified handles
+                    ? enabled.filter( ([ type ]) => (handles.includes( type as HandleType )) )
+                              .forEach( ([type, handle]) => handle.disable() )
+                    
+                    // Disable all enabled handles
+                    : enabled.forEach( ([type, handle]) => handle.disable() )
   }
 
   /**
@@ -179,99 +282,10 @@ export default class Handles extends Inclusion {
     }
   }
 
-  initialize(){
-    /**
-     * Enable `snapguide` prior for dependency 
-     * assignment.
-     */
-    if( this.options.enable.includes('snapguide') ){
-      this.manual.snapguide = new SnapGuidable( this )
-      this.manual.snapguide.apply()
-    }
-
-    /**
-     * Apply and also expose manual controls 
-     * over enabled handles.
-     * 
-     * - Eg. handles.manual.zoom.to(...)
-     */
-    this.options.enable.forEach( each => {
-      switch( each ){
-        case 'pan': {
-          this.manual.pan = new Pannable( this )
-          this.manual.pan.apply()
-        } break
-        
-        case 'create':
-        case 'create:wrap': {
-          /**
-           * [*:wrap]: Create and wrap the element automatically
-           */
-          let wrappable
-          if( each === 'create:wrap' )
-            wrappable = this.manual.wrap || new Wrappable( this )
-
-          this.manual.create = new Creator( this, wrappable )
-          this.manual.create.apply()
-        } break
-        
-        case 'zoom': {
-          this.manual.zoom = new Zoomable( this )
-          this.manual.zoom.apply()
-        } break
-        
-        case 'wrap': {
-          this.manual.wrap = new Wrappable( this )
-          this.manual.wrap.apply()
-        } break
-        
-        case 'move':
-        case 'move:snapguide': {
-          if( !this.options.enable.includes('wrap') )
-            throw new Error('Move handle only applies on wrappable elements. Expect `wrap` handle')
-          
-          /**
-           * [*:snapguide]: Move handle must have a 
-           * snapguide dependency defined
-           */
-          let snapguide
-          if( this.options.enable.includes('snapguide') || each === 'move:snapguide' )
-            snapguide = this.manual.snapguide || new SnapGuidable( this )
-
-          this.manual.move = new Movable( this, snapguide )
-          this.manual.move.apply()
-        } break
-        
-        case 'resize':
-        case 'resize:snapguide': {
-          if( !this.options.enable.includes('wrap') )
-            throw new Error('Resize handle only applies on wrappable elements. Expect `wrap` handle')
-          
-          /**
-           * [*:snapguide]: Resize handle must have 
-           * a snapguide dependency defined
-           */
-          let snapguide
-          if( this.options.enable.includes('snapguide') || each === 'resize:snapguide' )
-            snapguide = this.manual.snapguide || new SnapGuidable( this )
-
-          this.manual.resize = new Resizable( this, snapguide )
-          this.manual.resize.apply()
-        } break
-      }
-    } )
-  }
-
   transformCanvas(){
     this.options.$canvas.css('transform', `translate(${this.canvasOffset.x}px, ${this.canvasOffset.y}px) scale(${this.options.getScale()})`)
   }
   getScaleQuo(){
     return 1 / this.options.getScale()
-  }
-  
-  discard(){
-    Object
-    .values( this.manual )
-    .forEach( handle => handle.discard() )
   }
 }

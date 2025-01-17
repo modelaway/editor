@@ -242,7 +242,7 @@ export default class Wrappable implements HandleInterface {
     })
   }
 
-  apply(){
+  enable(){
     if( !this.context.$canvas.length ) return
 
     const selector = `${this.context.options.element}:not(${this.context.options.WRAPPER_TAG},${this.context.options.WRAPPER_TAG} > scope,${this.context.options.WRAPPER_TAG} > .handle)`
@@ -267,7 +267,7 @@ export default class Wrappable implements HandleInterface {
       && this.deactivate( $(e.target) )
     } )
   }
-  discard(){
+  disable(){
     this.context.events( this.context.$canvas ).off('.wrapper')
     this.context.events( this.context.$viewport ).off('.wrapper')
 

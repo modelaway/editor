@@ -29,26 +29,22 @@ export default class Creator implements HandleInterface {
     cursorX = ( e.pageX - rect.left ) / this.context.options.getScale(),
     cursorY = ( e.pageY - rect.top ) / this.context.options.getScale()
 
-    // this.editor.canvas.addFrame({
-    //   position: {
-    //     top: `${cursorY}px`,
-    //     left: `${cursorX}px`
-    //   },
-    //   size: {
-    //     width: `${this.options.MIN_WIDTH}px`,
-    //     height: `${this.options.MIN_HEIGHT}px`
-    //   }
-    // })
+    /**
+     * Handle creation process via external
+     * controls.
+     */
+    typeof this.context.options.createElement === 'function'
+    && this.context.options.createElement({ x: cursorX, y: cursorY })
   }
 
-  apply(){
+  enable(){
     if( !this.context.$viewport.length ) return
 
     this.context
     .events( this.context.$viewport )
     .on('dblclick.create', e => this.handle(e))
   }
-  discard(){
+  disable(){
     this.context.events( this.context.$viewport ).off('.create')
   }
 }

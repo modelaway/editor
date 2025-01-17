@@ -54,14 +54,14 @@ export default class Zoomable implements HandleInterface {
     this.to( this.context.options.getScale() + delta, cursorPosition )
   }
 
-  apply(){
+  enable(){
     if( !this.context.$viewport.length ) return
 
     this.context
     .events( this.context.$viewport )
     .on('wheel.zoom', e => this.handleZoom(e) )
   }
-  discard(){
+  disable(){
     this.context.events( this.context.$viewport ).off('.zoom')
   }
 }

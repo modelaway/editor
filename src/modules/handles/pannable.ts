@@ -42,7 +42,7 @@ export default class Pannable implements HandleInterface {
     this.context.$viewport.css('cursor', 'grab')
   }
 
-  apply(){
+  enable(){
     if( !this.context.$viewport.length ) return
 
     this.context
@@ -54,7 +54,7 @@ export default class Pannable implements HandleInterface {
     .on('mousemove.pan', e => this.handle(e))
     .on('mouseup.pan', () => this.stop())
   }
-  discard(){
+  disable(){
     this.context.events( this.context.$viewport ).off('.pan')
     this.context.events( document ).off('.pan')
   }

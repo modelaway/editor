@@ -216,8 +216,8 @@ export default class SnapGuidable implements HandleInterface {
     setTimeout(() => $guides.remove(), 100 )
   }
 
-  apply(){}
-  discard(){
+  enable(){}
+  disable(){
     this.hide()
 
     /**

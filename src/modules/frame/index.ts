@@ -161,7 +161,15 @@ export default class Frame extends EventEmitter {
        * to the handlers.
        */
       getScale: () => (this.editor.canvas.scale),
-      setScale: value => this.editor.canvas.scale = value
+      setScale: value => this.editor.canvas.scale = value,
+
+      /**
+       * Method to add element into frame 
+       * canvas by handles
+       */
+      createElement: ({ x, y }) => {
+        console.log('Add element to frame canvas')
+      }
     })
     // Define custom handles constraints
     this.handles.constraints = function( type, action, event ){
@@ -267,7 +275,7 @@ export default class Frame extends EventEmitter {
   delete(){
     // Clear elements meta data
     this.elements?.clear()
-    this.handles?.discard()
+    this.handles?.disable()
     
     // Remove frame element from the DOM
     this.$frame.remove()

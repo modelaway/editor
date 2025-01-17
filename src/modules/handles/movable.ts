@@ -78,7 +78,7 @@ export default class Movable implements HandleInterface {
     this.snapguide?.hide()
   }
 
-  apply(){
+  enable(){
     if( !this.context.$canvas.length ) return
 
     this.context
@@ -93,7 +93,7 @@ export default class Movable implements HandleInterface {
     .on('mousemove.move', e => this.handle( e ) )
     .on('mouseup.move', () => this.stop() )
   }
-  discard(){
+  disable(){
     this.context.events( document).off('.move')
   }
 }

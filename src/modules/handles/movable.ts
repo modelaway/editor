@@ -84,7 +84,7 @@ export default class Movable implements HandleInterface {
     this.context
     .events( this.context.$canvas )
     .on('mousedown.move', this.context.options.element, e => {
-      this.context.constraints<MoveActionType>('move', 'start', e )
+      !this.context.constraints<MoveActionType>('move', 'start', e )
       && this.start( e )
     } )
 

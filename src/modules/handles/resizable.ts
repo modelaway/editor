@@ -123,7 +123,7 @@ export default class Resizable implements HandleInterface {
     this.context
     .events( this.context.$canvas )
     .on('mousedown.resize', '.handle', e => {
-      this.context.constraints<ResizeActionType>('resize', 'start', e )
+      !this.context.constraints<ResizeActionType>('resize', 'start', e )
       && this.start( e, $(e.target) )
     })
     

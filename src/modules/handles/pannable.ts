@@ -3,6 +3,8 @@ import type { HandleInterface } from '.'
 
 import $ from 'cash-dom'
 
+type PanActionType = 'start' | 'handle' | 'stop'
+
 export default class Pannable implements HandleInterface {
   private context: Handles
   private startX = 0
@@ -39,7 +41,7 @@ export default class Pannable implements HandleInterface {
     if( !this.context.isPanning ) return
 
     this.context.isPanning = false
-    this.context.$viewport.css('cursor', 'grab')
+    this.context.$viewport.css('cursor', 'default')
   }
 
   enable(){
@@ -47,12 +49,21 @@ export default class Pannable implements HandleInterface {
 
     this.context
     .events( this.context.$viewport )
-    .on('mousedown.pan', e => this.start(e))
+    .on('mousedown.pan', e => {
+      !this.context.constraints<PanActionType>('pan', 'start', e )
+      && this.start(e)
+    })
     
     this.context
     .events( document )
-    .on('mousemove.pan', e => this.handle(e))
-    .on('mouseup.pan', () => this.stop())
+    .on('mousemove.pan', e => {
+      !this.context.constraints<PanActionType>('pan', 'handle', e )
+      && this.handle(e)
+    })
+    .on('mouseup.pan', e => {
+      !this.context.constraints<PanActionType>('pan', 'stop', e )
+      && this.stop()
+    })
   }
   disable(){
     this.context.events( this.context.$viewport ).off('.pan')

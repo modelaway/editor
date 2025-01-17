@@ -206,6 +206,7 @@ export default class Wrappable implements HandleInterface {
     if( !this.context.options.WRAPPER_TAG
         || $target.closest( this.context.options.WRAPPER_TAG ).length ) return
 
+console.log('deactivate')
     const 
     self = this,
     $wrappers = this.context.$canvas.find( this.context.options.WRAPPER_TAG )
@@ -253,7 +254,7 @@ export default class Wrappable implements HandleInterface {
     this.context
     .events( this.context.$canvas )
     .on('mousedown.wrapper', selector, ( e: any ) => {
-      this.context.constraints<WrappableActionType>('wrap', 'activate', e )
+      !this.context.constraints<WrappableActionType>('wrap', 'activate', e )
       && this.activate( $(e.target) )
     }, { selfExclude: true })
 
@@ -263,9 +264,9 @@ export default class Wrappable implements HandleInterface {
     this.context
     .events( this.context.options.$viewport )
     .on('mousedown.wrapper', e =>  {
-      this.context.constraints<WrappableActionType>('wrap', 'deactivate', e )
+      !this.context.constraints<WrappableActionType>('wrap', 'deactivate', e )
       && this.deactivate( $(e.target) )
-    } )
+    })
   }
   disable(){
     this.context.events( this.context.$canvas ).off('.wrapper')

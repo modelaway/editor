@@ -49,7 +49,10 @@ export default class Creator implements HandleInterface {
 
     this.context
     .events( this.context.$viewport )
-    .on('dblclick.create', e => this.handle(e))
+    .on('dblclick.create', e => {
+      !this.context.constraints('create', null, e )
+      && this.handle(e)
+    })
   }
   disable(){
     this.context.events( this.context.$viewport ).off('.create')

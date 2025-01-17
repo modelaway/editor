@@ -28,7 +28,7 @@ export interface HandlesOptions {
   $viewport: Cash
   $canvas: Cash
   element: string
-  dom: 'main' | 'shadow'
+  dom?: 'main' | 'shadow'
   frameStyle?: FrameStyle
   MIN_WIDTH: number
   MIN_HEIGHT: number
@@ -59,8 +59,9 @@ class Inclusion extends EventEmitter {
    */
   events( arg: Cash | Document ){
     switch( this.options.dom ){
-      case 'main': return arg === document ? $(document) : (arg as Cash)
       case 'shadow': return new ShadowEvents( arg === document ? this.options.$viewport[0] : (arg as Cash)[0] as any )
+      case 'main':
+      default: return arg === document ? $(document) : (arg as Cash)
     }
   }
   /**
@@ -239,21 +240,27 @@ export default class Handles extends Inclusion {
    * Defined constraints of triggering a
    * given handle.
    * 
-   * - Keyboard 
+   * - Keyboard
+   * - Cursor
+   * - Other handle's State
    * 
    * IMPORTANT: Can be override externally to 
    *            define custom constraints
+   * 
+   * @return: true - There's a contraint. Should not proceed
+   *          false - Allowed to proceed
    */
-  constraints<ActionType>( type: HandleType, action: ActionType, event?: KeyboardEvent ){
+  constraints<ActionType>( type: HandleType, action?: ActionType | null, event?: KeyboardEvent ){
     switch( type ){
       case 'wrap': {
         switch( action ){
-          case 'activate': return event?.altKey || false
+          case 'activate': return !event?.metaKey || false
           case 'deactivate': return !this.isPanning 
-                                    && !this.isZooming
                                     && !this.isMoving
+                                    && !this.isZooming
                                     && !this.isResizing
                                     || false
+          // Constrain by default
           default: return true
         }
       }
@@ -264,6 +271,7 @@ export default class Handles extends Inclusion {
                                 && !this.isZooming
                                 && !this.isResizing
                                 || false
+          // Constrain by default
           default: return true
         }
       }
@@ -271,14 +279,16 @@ export default class Handles extends Inclusion {
       case 'resize': {
         switch( action ){
           case 'start': return !this.isPanning
-                                && !this.isZooming
                                 && !this.isMoving
+                                && !this.isZooming
                                 || false
+          // Constrain by default
           default: return true
         }
       }
 
-      default: return true
+      // Allow unlisted handles by default
+      default: return false
     }
   }
 

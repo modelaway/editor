@@ -59,7 +59,10 @@ export default class Zoomable implements HandleInterface {
 
     this.context
     .events( this.context.$viewport )
-    .on('wheel.zoom', e => this.handleZoom(e) )
+    .on('wheel.zoom', e => {
+      !this.context.constraints('zoom', null, e )
+      && this.handleZoom(e)
+    })
   }
   disable(){
     this.context.events( this.context.$viewport ).off('.zoom')

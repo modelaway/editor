@@ -169,6 +169,8 @@ export default class Frame extends EventEmitter {
        */
       createElement: ({ x, y }) => {
         console.log('Add element to frame canvas')
+
+        return $()
       }
     })
     // Define custom handles constraints
@@ -176,37 +178,41 @@ export default class Frame extends EventEmitter {
       switch( type ){
         case 'wrap': {
           switch( action ){
-            case 'activate': return true
-            case 'deactivate': return !this?.isPanning 
-                                      && !this?.isZooming
-                                      && !this?.isMoving
-                                      && !this?.isResizing
+            case 'activate': return false
+            case 'deactivate': return !this.isPanning 
+                                      && !this.isZooming
+                                      && !this.isMoving
+                                      && !this.isResizing
                                       || false
+            // Constrain by default
             default: return true
           }
         }
   
         case 'move': {
           switch( action ){
-            case 'start': return !this?.isPanning
-                                  && !this?.isZooming
-                                  && !this?.isResizing
+            case 'start': return !this.isPanning
+                                  && !this.isZooming
+                                  && !this.isResizing
                                   || false
+            // Constrain by default
             default: return true
           }
         }
   
         case 'resize': {
           switch( action ){
-            case 'start': return !this?.isPanning
-                                  && !this?.isZooming
-                                  && !this?.isMoving
+            case 'start': return !this.isPanning
+                                  && !this.isZooming
+                                  && !this.isMoving
                                   || false
+            // Constrain by default
             default: return true
           }
         }
   
-        default: return true
+        // Allow unlisted handles by default
+        default: return false
       }
     }
   

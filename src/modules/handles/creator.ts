@@ -6,10 +6,11 @@ import $ from 'cash-dom'
 
 export default class Creator implements HandleInterface {
   private context: Handles
+  private wrappable?: Wrappable
   
   constructor( context: Handles, wrappable?: Wrappable ){
     this.context = context
-    
+    this.wrappable = wrappable
   }
 
   private handle( e: any ){
@@ -24,7 +25,7 @@ export default class Creator implements HandleInterface {
 
     const rect = this.context.$canvas.get(0)?.getBoundingClientRect()
     if( !rect ) return
-
+    
     const
     cursorX = ( e.pageX - rect.left ) / this.context.options.getScale(),
     cursorY = ( e.pageY - rect.top ) / this.context.options.getScale()
@@ -33,8 +34,14 @@ export default class Creator implements HandleInterface {
      * Handle creation process via external
      * controls.
      */
-    typeof this.context.options.createElement === 'function'
-    && this.context.options.createElement({ x: cursorX, y: cursorY })
+    if( typeof this.context.options.createElement === 'function' ){
+      const $element = this.context.options.createElement({ x: cursorX, y: cursorY })
+
+      // Auto-wrap created element
+      this.wrappable
+      && $element.length
+      && this.wrappable.activate( $element )
+    }
   }
 
   enable(){

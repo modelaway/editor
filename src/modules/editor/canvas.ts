@@ -28,6 +28,7 @@ export default class Canvas extends EventEmitter {
     super()
     this.editor = editor
   }
+  
   enable(){
     if( !this.editor.$viewport?.length )
       throw new Error('Undefined editor viewport')
@@ -55,16 +56,18 @@ export default class Canvas extends EventEmitter {
        * Method to create new frames by handles
        */
       createElement: ({ x, y }) => {
-        this.addFrame({
+        const options = {
           position: {
-            top: `${x}px`,
-            left: `${y}px`
+            left: `${x}px`,
+            top: `${y}px`
           },
           size: {
             width: `${FRAME_MIN_WIDTH}px`,
             height: `${FRAME_MIN_HEIGHT}px`
           }
-        })
+        }
+
+        return this.addFrame( options ).$frame
       }
     })
     

@@ -127,8 +127,6 @@ export default class SnapGuidable implements HandleInterface {
       otherRect = self.getRelativeRect( $other )
       if( !otherRect ) return
 
-      console.log( otherRect, scaleQuo )
-
       // Snap to other elements' left and right edges
       if( Math.abs( newLeft - otherLeft ) < CONTROL_SNAP_THRESHOLD )
         snapPoints.left.push({

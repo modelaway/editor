@@ -38,7 +38,7 @@ export interface HandlesOptions {
 
   getScale: () => number
   setScale: ( value: number ) => void
-  createElement?: ( position: { x: number, y: number }) => void
+  createElement?: ( position: { x: number, y: number }) => Cash
   constraints?: <ActionTypes>( type: HandleType, action: ActionTypes, event?: KeyboardEvent ) => boolean
 }
 export interface HandleInterface {
@@ -249,10 +249,10 @@ export default class Handles extends Inclusion {
       case 'wrap': {
         switch( action ){
           case 'activate': return event?.altKey || false
-          case 'deactivate': return !this?.isPanning 
-                                    && !this?.isZooming
-                                    && !this?.isMoving
-                                    && !this?.isResizing
+          case 'deactivate': return !this.isPanning 
+                                    && !this.isZooming
+                                    && !this.isMoving
+                                    && !this.isResizing
                                     || false
           default: return true
         }
@@ -260,9 +260,9 @@ export default class Handles extends Inclusion {
 
       case 'move': {
         switch( action ){
-          case 'start': return !this?.isPanning
-                                && !this?.isZooming
-                                && !this?.isResizing
+          case 'start': return !this.isPanning
+                                && !this.isZooming
+                                && !this.isResizing
                                 || false
           default: return true
         }
@@ -270,9 +270,9 @@ export default class Handles extends Inclusion {
 
       case 'resize': {
         switch( action ){
-          case 'start': return !this?.isPanning
-                                && !this?.isZooming
-                                && !this?.isMoving
+          case 'start': return !this.isPanning
+                                && !this.isZooming
+                                && !this.isMoving
                                 || false
           default: return true
         }

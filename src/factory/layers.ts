@@ -6,44 +6,10 @@ import type { SortableOptions } from '../modules/controls/sortable'
 import $, { type Cash } from 'cash-dom'
 import Lips, { Component } from '../lib/lips/lips'
 import { VIEW_KEY_SELECTOR } from '../modules/constants'
+import LayerList from './components/layerlist'
+import LayerItem from './components/layeritem'
+import { deepAssign, deepClone, deepDelete, deepValue } from '../modules/utils'
 
-export type LayersSettings = {
-  visible?: boolean
-}
-export type LayerElement = {
-  key: string
-  parentKey?: string
-  name: string
-  type: 'block' | 'text' | 'image' | 'video' | 'audio'
-  attribute: 'element' | 'node' | 'group'
-  position: {
-    x: number
-    y: number
-    z: number
-  }
-  hidden?: boolean
-  locked?: boolean
-  collapsed?: boolean
-  layers?: Record<string, LayerElement>
-  styles?: string | null
-  component?: {
-    name: string
-    rel: string
-  }
-}
-export interface LayersInput {
-  key: string
-  settings?: LayersSettings
-  position?: string | Position
-  content?: string
-  mutations?: Mutation[]
-}
-export interface LayersState {
-  layers: Record<string, LayerElement>
-  activeLayer: string | null
-  selection: Array<string>
-  collapsed: boolean
-}
 export type Mutation = {
   action: 'add' | 'remove' | 'reorder' | 'modify'
   element: LayerElement
@@ -56,9 +22,13 @@ class Traverser {
   /**
    * Generate unique key for layer elements
    */
-  private generateKey(){
+  private generateAttributes(){
     this.layerCount++
-    return `layer ${this.layerCount}`
+
+    return {
+      defkey: `l${this.layerCount}`,
+      defname: `Layer ${this.layerCount}`
+    }
   }
 
   /**
@@ -88,13 +58,15 @@ class Traverser {
       throw new Error('Invalid element')
 
     const
+    { defkey, defname } = this.generateAttributes(),
     type = this.getElementType( element ),
     groupAttr = $element.attr('group'),
     children = type !== 'text' ? $element.children() : null,
     layer: LayerElement = {
-      key: $element.attr( VIEW_KEY_SELECTOR ) || this.generateKey(),
+      key: $element.attr( VIEW_KEY_SELECTOR ) || defkey,
       parentKey,
-      name: type === 'text' ? 'text' : element.tagName.toLowerCase(),
+      name: $element.attr( VIEW_KEY_SELECTOR ) || defname,
+      tagname: type === 'text' ? 'text' : element.tagName.toLowerCase(),
       type,
       attribute: groupAttr ? 'group' : children && children.length > 0 ? 'node' : 'element',
       position: {
@@ -117,16 +89,15 @@ class Traverser {
     //   }
     // }
 
-    if( layer.attribute === 'node' || layer.attribute === 'group' ){
+    if( layer.attribute === 'node' || layer.attribute === 'group' )
       children?.each(( _, child ) => {
         const childLayer = this.createElement( child, layer.key )
 
-        if( !layer.layers ) 
-          layer.layers = {}
+        if( !layer.layers )
+          layer.layers = new Map()
 
-        layer.layers[ childLayer.key ] = childLayer
+        layer.layers.set( childLayer.key, childLayer )
       })
-    }
 
     return layer
   }
@@ -134,14 +105,14 @@ class Traverser {
   /**
    * Traverse DOM structure and build layer tree
    */
-  public traverse( rootElement: string | Element ): Record<string, LayerElement> {
+  public traverse( rootElement: string | Element ): Map<string, LayerElement> {
     const 
     $root = $(rootElement),
-    layers: Record<string, LayerElement> = {}
+    layers: Map<string, LayerElement> = new Map()
     
     $root.each(( _, element ) => {
       const layer = this.createElement( element )
-      layers[ layer.key ] = layer
+      layers.set( layer.key, layer )
     })
 
     return layers
@@ -150,7 +121,7 @@ class Traverser {
   /**
    * Find all layers belonging to specific group
    */
-  public findLayersByGroup( layers: Record<string, LayerElement>, groupName: string ): LayerElement[] {
+  public findLayersByGroup( layers: Map<string, LayerElement>, groupName: string ): LayerElement[] {
     const result: LayerElement[] = []
     
     Object
@@ -171,148 +142,14 @@ class Traverser {
  * Registered dependency components
  */
 function dependencies(){
-  const LayerListTemplate = {
-    default: `
-      <mul style="{ display: input.collapsed ? 'block' : 'none' }"
-            class="sortable-list">
-        <for in=input.list>
-          <layeritem ...each depth=input.depth></layeritem>
-        </for>
-      </mul>
-    `
-  }
-
-  type LayerItemState = {
-    collapsed: boolean
-    editable: boolean
-    newname?: string
-  }
-  type LayerItemStatic = {
-    newname: string
-    dragState: {
-      active: boolean
-      sourceKey: string | null
-      targetKey?: string | null
-      $ghost?: Cash
-      position: {
-        x: number
-        y: number
-      } | null
+  const lips = new Lips<Context>({
+    context: {
+      selection: []
     }
-  }
-  type LayerLITemplateType = {
-    state: LayerItemState
-    _static: LayerItemStatic,
-    handler: Handler<LayerElement, LayerItemState, LayerItemStatic>
-    default: string
-  }
-  const LayerItemTemplate: LayerLITemplateType = {
-    state: {
-      collapsed: true,
-      editable: false
-    },
-    _static: {
-      newname: '',
-      dragState: {
-        active: false,
-        sourceKey: null,
-        targetKey: null,
-        position: null
-      }
-    },
-    handler: {
-      onCollapse( key: string ){
-        this.state.collapsed = !this.state.collapsed
-        
-        // TODO: Track key for memoizing purpose
-      },
-      onRenameLayer( key: string, action: 'init' | 'input' | 'apply', e ){
-        switch( action ){
-          case 'init': this.state.editable = true; break
-          case 'input': this.static.newname = e.target.value || e.target.innerText; break
-          case 'apply': {
-            this.state.editable = false
+  })
 
-            // TODO: Emit event to update layer name to parent state
-            // console.log('rename to --', key, this.static.newname )
-          } break
-        }
-      }
-    },
-    default: `
-      <mli layer=input.key
-            class="sortable-item"
-            data-level=input.depth>
-        <mblock class="nested-indicator"></mblock>
-
-        <mblock class="layer-bar">
-          <micon class="'toggle-icon visibility bx '+( input.hidden ? 'bx-hide' : 'bx-show')"
-                  on-click( onToggleVisibility, input.key )></micon>
-
-          <micon class="ill-icon move-handle bx bx-grid-vertical"></micon>
-
-          <minline style="{ padding: '7px 0 7px '+(20 * input.depth)+'px' }">
-            <switch( input.attribute )>
-              <case is="group">
-                <micon class="'toggle-icon bx '+( state.collapsed ? 'bx-chevron-down' : 'bx-chevron-right')"
-                        style="padding: 0 4px"
-                        on-click( onCollapse, input.key )></micon>
-
-                <micon class="ill-icon bx bx-object-horizontal-left"></micon>
-              </case>
-              <case is="node">
-                <micon class="'toggle-icon bx '+( state.collapsed ? 'bx-chevron-down' : 'bx-chevron-right')"
-                        style="padding: 0 4px"
-                        on-click( onCollapse, input.key )></micon>
-
-                <micon class="ill-icon bx bx-hash"></micon>
-              </case>
-              <default>
-                <switch( input.type )>
-                  <case is="image">
-                    <micon class="ill-icon bx bx-image-alt"></micon>
-                  </case>
-                  <case is="video">
-                    <micon class="ill-icon bx bx-play-circle"></micon>
-                  </case>
-                  <case is="audio">
-                    <micon class="ill-icon bx bx-volume-low"></micon>
-                  </case>
-                  <case is="text">
-                    <micon class="ill-icon bx bx-text"></micon>
-                  </case>
-                  <default>
-                    <micon class="ill-icon bx bx-shape-square"></micon>
-                  </default>
-                </switch>
-              </default>
-            </switch>
-            
-            <mlabel contenteditable=state.editable
-                    on-blur(onRenameLayer, input.key, 'apply')
-                    on-input(onRenameLayer, input.key, 'input')
-                    on-dblclick(onRenameLayer, input.key, 'init')>{input.name}</mlabel>
-
-            <if( input.locked )>
-              <micon class="toggle-icon bxs bx-lock-alt"
-                      on-click( onToggleLock, input.key )></micon>
-            </if>
-          </minline>
-        </mblock>
-
-        <if( input.layers && (input.attribute === 'node' || input.attribute === 'group') )>
-          <layerlist list=input.layers
-                      depth="input.depth + 1"
-                      collapsed=state.collapsed></layerlist>
-        </if>
-      </mli>
-    `
-  }
-
-  const lips = new Lips()
-
-  lips.register('layerlist', LayerListTemplate )
-  lips.register('layeritem', LayerItemTemplate )
+  lips.register('layerlist', LayerList() )
+  lips.register('layeritem', LayerItem() )
 
   return lips
 }
@@ -323,19 +160,44 @@ function cleanContent( html: string ){
             .replace(/\s{2,}/g, '')
 }
 
+export type LayersSettings = {
+  visible?: boolean
+}
+export interface LayersInput {
+  key: string
+  settings?: LayersSettings
+  position?: string | Position
+  content?: string
+  mutations?: Mutation[]
+}
+
+type Context = {
+  selection: Array<string>
+}
+interface State {
+  layers: Map<string, LayerElement>
+  activeLayer: string | null
+  collapsed: boolean
+}
+
+type ReorderSpec = {
+  key: string
+  path: string
+  sourceIndex: string
+  targetIndex: number
+}
+
 /**
  * Element Layers management list
  */
 export default ( input: LayersInput, hook?: HandlerHook ) => {
-  
-  const state: LayersState = {
-    layers: {},
+  const state: State = {
+    layers: new Map(),
     activeLayer: null,
-    selection: [],
     collapsed: false
   }
 
-  const handler: Handler<LayersInput, LayersState> = {
+  const handler: Handler<LayersInput, State> = {
     onInput({ content, mutations }){
       if( content ){
         const tvs = new Traverser
@@ -354,7 +216,7 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
         handle: '.header > minline',
         apex: ['right', 'bottom']
       }
-      this.movable = hook?.editor?.controls.movable<LayersInput, LayersState>( this, movableOptions )
+      this.movable = hook?.editor?.controls.movable<LayersInput, State>( this, movableOptions )
 
       this.movable.on('started', ( position: Position ) => {})
       this.movable.on('moving', ( position: Position ) => {})
@@ -377,33 +239,28 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
         // nested: true,
         // multiDrag: true
       }
-      this.sortable = hook?.editor?.controls.sortable<LayersInput, LayersState>( this, sortableOptions )
+      this.sortable = hook?.editor?.controls.sortable<LayersInput, State>( this, sortableOptions )
       
-      // this.sortable
-      // .on('select', ({items}) => {
-      //   this.setState({ selectedLayers: items.map(el => $(el).attr('layer')) })
-      // })
-      // .on('reorder', ({items, sourceList, targetList, level}) => {
-      //   this.emit('layer.move', {
-      //     items: items.map(i => ({
-      //       key: $(i.element).attr('layer'),
-      //       sourceIndex: i.sourceIndex,
-      //       targetIndex: i.targetIndex
-      //     })),
-      //     sourceParent: $(sourceList).closest('mli').attr('layer'),
-      //     targetParent: $(targetList).closest('mli').attr('layer'),
-      //     level
-      //   })
-      // })
-      // .on('nested', ({ items, sourceParent, targetParent, oldLevel, newLevel}) => {
-      //   this.emit('layer.nest', {
-      //     items: items.map(el => $(el).attr('layer')),
-      //     sourceParent: sourceParent && $(sourceParent).closest('mli').attr('layer'),
-      //     targetParent: $(targetParent).closest('mli').attr('layer'),
-      //     oldLevel,
-      //     newLevel
-      //   })
-      // })
+      this.sortable
+      .on('sortable.select', ( $items: Cash[] ) => {
+        this.setContext('selection', $items.map( el => el.attr('layer') as string ) )
+      })
+      .on('sortable.reorder', ({ $items, $sourceList, $targetList, oldIndices, newIndex }: any ) => {
+        const 
+        layers: ReorderSpec[] = $items.map( ( $element: Cash, idx: number ) => ({
+          path: $element.attr('path'),
+          key: $element.attr('layer'),
+          sourceIndex: oldIndices[ idx ],
+          targetIndex: newIndex + idx
+        })),
+        sourcePath = $sourceList.attr('path'),
+        targetPath = $targetList.attr('path')
+
+        layers.length
+        && sourcePath
+        && targetPath
+        && this.reorderLayers( layers, sourcePath, targetPath )
+      })
 
       // Set to default position
       ;(!this.input.position || typeof this.input.position === 'string')
@@ -417,14 +274,25 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
         this.getNode().css( defPostion )
       }, 5 )
     },
-    onRender(){
-    },
     onDestroy(){
       this.movable.dispose()
       this.sortable.dispose()
     },
     onCollapse(){ this.state.collapsed = !this.state.collapsed },
 
+    reorderLayers( layers: ReorderSpec[], sourcePath: string, targetPath: string ){
+      targetPath = targetPath.replace('#.', '')
+
+      layers.forEach( each => {
+        const
+        path = each.path.replace('#.', ''),
+        layer = deepValue( this.state.layers, `${path}.${each.key}` )
+
+        this.state.layers = deepAssign( this.state.layers, { [`${targetPath}.${each.key}`]: layer }, each.targetIndex )
+        this.state.layers = deepDelete( this.state.layers, `${path}.${each.key}` )
+        console.log( each.targetIndex, this.state.layers )
+      } )
+    },
     getStyle(){
       let style: Record<string, string> = {
         display: this.input.settings?.visible ? 'block' : 'none'
@@ -460,7 +328,7 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
     </mblock>
   `
 
-  return new Component<LayersInput, LayersState>('layers', template, { input, state, handler, stylesheet }, { lips: dependencies() })
+  return new Component<LayersInput, State>('layers', template, { input, state, handler, stylesheet }, { lips: dependencies() })
 }
 
 const stylesheet = `
@@ -478,7 +346,6 @@ const stylesheet = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom: 1px solid var(--me-border-color);
     user-select: none;
 
     minline {
@@ -498,6 +365,7 @@ const stylesheet = `
     height: 45vh;
     padding-top: 1px;
     overflow: auto;
+    border-top: 1px solid var(--me-border-color);
   }
   .ill-icon {
     color: rgb(180, 180, 180);
@@ -508,10 +376,6 @@ const stylesheet = `
     padding: 7px 8px;
     cursor: pointer;
     font-size: var(--me-icon-size);
-
-    &.visibility {
-      border-right: 1px solid var(--me-border-color);
-    }
   }
 
   mli {
@@ -526,7 +390,7 @@ const stylesheet = `
       align-items: center;
 
       .move-handle {
-        padding: 0 3px;
+        padding-right: 3px;
         visibility: hidden;
         cursor: move;
       }
@@ -545,6 +409,7 @@ const stylesheet = `
         mlabel { 
           /* color: #d2d7dd; */
           user-select: none;
+          font-size: var(--me-small-font-size);
           
           &[contenteditable="true"]{
             min-width: 5rem;
@@ -570,14 +435,14 @@ const stylesheet = `
     }
   }
 
-  .sortable-list {
+  mul[sortable] {
     --td: 150ms;
     --go: .9;
     --pb: var(--me-primary-color-transparent);
     --sb: rgba(65,145,255,.5);
     --hb: var(--me-primary-color);
 
-    .sortable-item {
+    .mli[sortable] {
       transition: all var(--td) ease;
       transform-origin: 50% 50%;
       animation: reorder var(--td) ease;

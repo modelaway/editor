@@ -46,7 +46,7 @@ export default class Sortable<Input = void, State = void, Static = void, Context
   private sourceGroup: string = ''
   private level: number = 0
   private startY: number = 0
-  private selectedItems: Set<any> = new Set()
+  private selectedItems: Map<Element, Cash> = new Map()
 
   constructor( editor: Editor, component: Component<Input, State, Static, Context>, options: SortableOptions ){
     super()
@@ -97,20 +97,47 @@ export default class Sortable<Input = void, State = void, Static = void, Context
   }
 
   addSelection( $item: Cash ){
-    if( this.selectedItems.has( $item[0] ) ) return
+    if( !$item[0] ) return
 
-    this.selectedItems.add( $item[0] )
+    const 
+    self = this,
+    mkey = $item[0]
+    if( this.selectedItems.has( mkey ) ) return
+
+    // Unselect any children when parent is selected
+    $item
+    .find( this.options.item )
+    .each( function(){ self.removeSelection( $(this), true ) } )
+
+    // Unselect any parent when children is selected
+    $item
+    .closest(`.${this.options.selectedClass}`)
+    .each( function(){ self.removeSelection( $(this), true ) } )
+
+    this.selectedItems.set( mkey, $item )
     $item.addClass( this.options.selectedClass as string )
-  }
-  removeSelection( $item: Cash ){
-    if( !this.selectedItems.has( $item[0] ) ) return
 
-    this.selectedItems.delete($item[0])
+    this.emit('sortable.select', [ ...this.selectedItems.values() ])
+  }
+  removeSelection( $item: Cash, partial = false ){
+    if( !$item[0] ) return
+
+    const mkey = $item[0]
+    if( !this.selectedItems.has( mkey ) ) return
+
+    this.selectedItems.delete( mkey )
     $item.removeClass( this.options.selectedClass )
+
+    !partial && this.emit('sortable.select', [ ...this.selectedItems.values() ])
   }
   clearSelection( $list?: Cash ){
     this.selectedItems.clear()
-    ;($list || this.$block)?.find(`.${this.options.selectedClass}`)?.removeClass( this.options.selectedClass )
+
+    ;($list || this.$block)
+    ?.find(`.${this.options.selectedClass}`)
+    ?.removeClass( this.options.selectedClass )
+    
+    this.emit('sortable.select', [])
   }
 
   private startDrag( $item: Cash, y: number ){
@@ -204,18 +231,12 @@ export default class Sortable<Input = void, State = void, Static = void, Context
   private endDrag(){
     if( !this.dragging ) return
     
-    const
-    $newList = this.$placeholder.closest( this.options.list ),
-    $oldList = this.$sourceList,
-    newIndex = this.$placeholder.index(),
-    oldIndices = this.$dragElements.map( $each => $each.index() )
-    
-    this.emit('sortable:reorder', {
-      elements: this.$dragElements,
-      oldList: $oldList,
-      newList: $newList,
-      oldIndices: oldIndices,
-      newIndex: newIndex,
+    this.emit('sortable.reorder', {
+      $items: this.$dragElements,
+      $sourceList: this.$sourceList,
+      $targetList: this.$placeholder.closest( this.options.list ),
+      oldIndices: this.$dragElements.map( $each => $each.index() ),
+      newIndex: this.$placeholder.index(),
       level: this.getLevel( this.$placeholder[0] )
     })
 
@@ -276,26 +297,17 @@ export default class Sortable<Input = void, State = void, Static = void, Context
      */
     this.options.multiDrag
     && $list.on('click', this.options.item, ( e: MouseEvent ) => {
+        e.preventDefault()
+        e.stopPropagation()
+
         if( !e.ctrlKey && !e.metaKey ){
           this.clearSelection()
           return
         }
-
-        e.preventDefault()
-        e.stopPropagation()
         
         const $item = $(e.currentTarget as Element)
+        if( !$item[0] ) return
         
-        // Unselect any children when parent is selected
-        $item
-        .find( this.options.item )
-        .each( function(){ self.removeSelection( $(this) ) } )
-
-        // Unselect any parent when children is selected
-        $item
-        .closest(`.${this.options.selectedClass}`)
-        .each( function(){ self.removeSelection( $(this) ) } )
-
         this.selectedItems.has( $item[0] )
                       ? this.removeSelection( $item )
                       : this.addSelection( $item )
@@ -312,7 +324,7 @@ export default class Sortable<Input = void, State = void, Static = void, Context
       if( $item.not( this.options.item ) )
         $item = $item.closest( this.options.item )
 
-      if( !$item.length ) return
+      if( !$item.length || !$item[0] ) return
       e.preventDefault()
       
       this.$sourceList = $item.closest( this.options.list )
@@ -326,7 +338,7 @@ export default class Sortable<Input = void, State = void, Static = void, Context
           this.addSelection( $item )
         }
 
-        this.$dragElements = Array.from( this.selectedItems ).map( each => $(each) )
+        this.$dragElements = [ ...this.selectedItems.values() ]
       }
       else this.$dragElements = [ $item ]
       

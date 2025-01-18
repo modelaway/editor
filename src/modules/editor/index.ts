@@ -321,6 +321,9 @@ export default class Editor {
         visible: this.settings.viewLayers,
       },
       content: `
+        <div class="alert">
+          <p>Some text here</p>
+        </div>
         <section class="header-block">
           <div class="container-fluid">
             <div class="row">

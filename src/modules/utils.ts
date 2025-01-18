@@ -98,42 +98,293 @@ export const autoDismiss = ( id: string, $this: Cash, delay?: number ) => {
   clearTimeout( AUTO_DISMISS_TRACKERS[ id ] )
   AUTO_DISMISS_TRACKERS[ id ] = setTimeout( () => $this.remove(), (delay || 5) * 1000 )
 }
+type Container = Record<string, any> | Map<string, any>
 
-/**
- * Operate a deep assign on a object.
- * 
- * NOTE: Create object or subset of that object
- * if doesn't exist in the original object
- * 
- * return modified object
- */
-export const deepAssign = ( original: Record<string, any>, toSet: Record<string, any> ) => {
-  if( typeof original !== 'object'
-      || typeof toSet !== 'object'
-      || !Object.keys( toSet ).length )
-    throw new Error('Invalid deep assign arguments')
+function isContainer(value: any): value is Container {
+  return (
+    value !== null &&
+    typeof value === 'object' &&
+    (value.constructor === Object || value.constructor === Map)
+  )
+}
 
-  function doset( obj: Record<string, any>, sequence: string, value: any ){
-    const
-    keys = sequence.split('.'),
-    key = keys.shift()
+function getValue(container: Container, key: string): any {
+  return container instanceof Map ? container.get(key) : container[key]
+}
 
-    if( !key ) return
+function setValue(container: Container, key: string, value: any): void {
+  container instanceof Map ? container.set(key, value) : container[key] = value
+}
 
-    if( !(key in obj) && keys.length )
-      obj[ key ] = {}
+function hasKey(container: Container, key: string): boolean {
+  return container instanceof Map ? container.has(key) : key in container
+}
 
-    if( typeof obj === 'object' && keys.length ){
-      obj = obj[ key ]
-      return doset( obj, keys.join('.'), value )
-    }
+function deleteKey(container: Container, key: string): void {
+  container instanceof Map ? container.delete(key) : delete container[key]
+}
 
-    obj[ key ] = value
+export function deepClone( obj: any, seen = new WeakMap() ){
+  // Handle primitives and functions
+  if( obj === null || typeof obj !== 'object' ) return obj
+
+  // Handle circular references
+  if( seen.has( obj ) ) return seen.get( obj )
+
+  // Handle Date objects
+  if( obj instanceof Date ) return new Date( obj.getTime() )
+
+  // Handle RegExp objects
+  if( obj instanceof RegExp ) return new RegExp( obj.source, obj.flags )
+
+  // Handle Map objects
+  if( obj instanceof Map ){
+    const mapClone = new Map()
+
+    seen.set( obj, mapClone )
+    obj.forEach( ( value, key ) => mapClone.set( deepClone( key, seen ), deepClone( value, seen ) ) )
+    
+    return mapClone
   }
 
-  const modified = JSON.parse( JSON.stringify( original ) )
-  for( const each in toSet )
-    doset( modified, each, toSet[ each ] )
+  // Handle Set objects
+  if( obj instanceof Set ){
+    const setClone = new Set()
+
+    seen.set( obj, setClone )
+    obj.forEach( value => setClone.add( deepClone( value, seen ) ) )
+
+    return setClone
+  }
+
+  // Handle Arrays
+  if( Array.isArray( obj ) ){
+    const arrClone: any[] = []
+    seen.set( obj, arrClone )
+
+    for( let i = 0; i < obj.length; i++ )
+      arrClone[i] = deepClone( obj[i], seen )
+    
+    return arrClone
+  }
+
+  // Handle TypedArrays
+  if( ArrayBuffer.isView( obj ) )
+    return new (obj.constructor as any)( obj )
+
+  // Handle plain objects
+  const clone = Object.create( Object.getPrototypeOf( obj ) )
+  seen.set( obj, clone )
+
+  // Copy symbol properties
+  const symbols = Object.getOwnPropertySymbols( obj )
+  for( const symbol of symbols )
+    clone[symbol] = deepClone( obj[symbol], seen )
+
+  // Copy enumerable properties
+  for( const key in obj )
+    if( Object.prototype.hasOwnProperty.call( obj, key ) )
+      clone[key] = deepClone( obj[key], seen )
+
+  return clone
+}
+
+export function insertIntoMap<K, V>( map: Map<K, V>, key: K, value: V, index: number ): Map<K, V>{
+  const entries = Array.from( map.entries() )
+  entries.splice( index, 0, [ key, value ])
+
+  return new Map( entries )
+}
+
+/**
+ * Deep assign values to an object using dot notation paths
+ * @param original The source object to modify
+ * @param toSet Object containing path-value pairs to set
+ * @param index Optional index for Map insertion at the deepest level
+ * @returns A new object with the assigned values
+ */
+export function deepAssign<T>( original: T, toSet: Record<string, any>, index?: number ): T {
+  if( !original || (typeof original !== 'object' && !(original instanceof Map)) )
+    throw new TypeError('Original argument must be an object or Map')
+
+  if( !toSet || typeof toSet !== 'object' )
+    throw new TypeError('ToSet argument must be an object')
+    
+  if( !Object.keys( toSet ).length )
+    return original instanceof Map ? new Map(original as Map<any, any>) as T : { ...original as object } as T
+
+  function setValueAtPath( base: any, path: string, value: any ){
+    const parts = path.split(/\.|\[|\]/).filter( Boolean )
+    let current = base
+    let isMap = current instanceof Map
+    let parentMap: Map<any, any> | null = null
+    let lastKey: any = null
+
+    for( let i = 0; i < parts.length; i++ ){
+      const
+      key = parts[i],
+      isArrayIndex = !isNaN( Number( key ) ),
+      isLastPart = i === parts.length - 1,
+      nextIsArrayIndex = !isNaN( Number( parts[ i + 1 ] ) )
+
+      if( isLastPart ){
+        if( isMap && typeof index === 'number' ){
+          current = insertIntoMap( current, key, value, index )
+          if( parentMap ){
+            parentMap.set( lastKey, current )
+          } else {
+            base = current
+          }
+          continue
+        }
+
+        isMap ? current.set( key, value ) : current[key] = value
+        continue
+      }
+
+      const hasKey = isMap ? current.has(key) : key in current
+      const currentValue = isMap ? current.get(key) : current[key]
+      const isCurrentArray = Array.isArray(currentValue)
+
+      if( !hasKey ){
+        const newValue = nextIsArrayIndex ? [] : (isMap ? new Map() : {})
+        isMap ? current.set( key, newValue ) : current[key] = newValue
+      }
+      else if( nextIsArrayIndex && !isCurrentArray ){
+        const newArray: any[] = []
+        isMap ? current.set( key, newArray ) : current[key] = newArray
+      }
+      else if( !nextIsArrayIndex && isCurrentArray ){
+        const newContainer = isMap ? new Map() : {}
+        isMap ? current.set( key, newContainer ) : current[key] = newContainer
+      }
+
+      if( isMap ){
+        parentMap = current
+        lastKey = key
+      }
+      
+      current = isMap ? current.get( key ) : current[key]
+      isMap = current instanceof Map
+    }
+
+    return base
+  }
+
+  const modified = original instanceof Map ? new Map(original as Map<any, any>) : deepClone(original)
+
+  try {
+    for( const [ path, value ] of Object.entries( toSet ) ){
+      if( typeof path !== 'string' )
+        throw new TypeError(`Invalid path: ${path}`)
+
+      if( !/^[a-zA-Z0-9_\-\[\].]+$/.test( path ) )
+        throw new Error(`Invalid path format: ${path}`)
+
+      const result = setValueAtPath( modified, path, value )
+      if( result instanceof Map ){
+        return result as T
+      }
+    }
+  }
+  catch( error: any ){
+    throw new Error(`Failed to assign value: ${error.message}`)
+  }
 
   return modified
+}
+
+export function deepValue<T = any>( obj: any, path: string ): T {
+  if( !obj || (typeof obj !== 'object' && !(obj instanceof Map)) )
+    throw new TypeError('Object argument must be an object or Map')
+
+  if( typeof path !== 'string' )
+    throw new TypeError('Path argument must be a string')
+
+  if( !/^[a-zA-Z0-9_\-\[\].]+$/.test( path ) )
+    throw new Error(`Invalid path format: ${path}`)
+
+  const parts = path.split(/\.|\[|\]/).filter( Boolean )
+  let current = obj
+  let isMap = current instanceof Map
+
+  try {
+    for( const part of parts ){
+      if( current === null || (typeof current !== 'object' && !(current instanceof Map)) )
+        throw new Error(`Cannot access property '${part}' of non-object/non-Map`)
+
+      const exists = isMap ? current.has(part) : part in current
+      if( !exists )
+        throw new Error(`Path segment '${part}' does not exist`)
+
+      current = isMap ? current.get(part) : current[part]
+      isMap = current instanceof Map
+    }
+
+    return current as T
+  }
+  catch( error: any ){
+    throw new Error(`Failed to get value: ${error.message}`)
+  }
+}
+
+export function deepDelete<T>( obj: T, path: string ): T {
+  if( !obj || (typeof obj !== 'object' && !(obj instanceof Map)) )
+    throw new TypeError('Object argument must be an object or Map')
+
+  if( typeof path !== 'string' )
+    throw new TypeError('Path argument must be a string')
+
+  if( !/^[a-zA-Z0-9_\-\[\].]+$/.test( path ) )
+    throw new Error(`Invalid path format: ${path}`)
+
+  const 
+  parts = path.split(/\.|\[|\]/).filter( Boolean ),
+  lastPart = parts[ parts.length - 1 ]
+  
+  if( !parts.length )
+    throw new Error('Path cannot be empty')
+
+  const modified = obj instanceof Map ? 
+    new Map(obj as Map<any, any>) : 
+    deepClone(obj)
+
+  let current = modified
+  let isMap = current instanceof Map
+
+  try {
+    // Navigate to the parent of the target to delete
+    for( let i = 0; i < parts.length - 1; i++ ){
+      const part = parts[i]
+
+      if( current === null || (typeof current !== 'object' && !(current instanceof Map)) )
+        throw new Error(`Cannot access property '${part}' of non-object/non-Map`)
+
+      const exists = isMap ? current.has(part) : part in current
+      if( !exists )
+        throw new Error(`Path segment '${part}' does not exist`)
+
+      current = isMap ? current.get(part) : current[part]
+      isMap = current instanceof Map
+    }
+
+    const exists = isMap ? current.has(lastPart) : lastPart in current
+    if( !exists )
+      throw new Error(`Path segment '${lastPart}' does not exist`)
+
+    if( Array.isArray( current ) ){
+      const index = parseInt( lastPart )
+      if( isNaN( index ) )
+        throw new Error(`Invalid array index: ${lastPart}`)
+      current.splice( index, 1 )
+    }
+    else {
+      isMap ? current.delete(lastPart) : delete current[lastPart]
+    }
+
+    return modified
+  }
+  catch( error: any ){
+    throw new Error(`Failed to delete value: ${error.message}`)
+  }
 }

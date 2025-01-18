@@ -137,6 +137,29 @@ type MenuSection = {
 }
 type MenuSections = Record<string, MenuSection>
 
+type LayerElement = {
+  key: string
+  parentKey?: string
+  name: string
+  tagname?: string
+  type: 'block' | 'text' | 'image' | 'video' | 'audio'
+  attribute: 'element' | 'node' | 'group'
+  position: {
+    x: number
+    y: number
+    z: number
+  }
+  hidden?: boolean
+  locked?: boolean
+  collapsed?: boolean
+  layers?: Map<string, LayerElement>
+  styles?: string | null
+  component?: {
+    name: string
+    rel: string
+  }
+}
+
 interface GlobalSet {
   css: Modela['css']
   assets: Modela['assets']

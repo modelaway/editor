@@ -1,27 +1,40 @@
+// TypeScript type for TypedArrays
+type TypedArray =
+  | Int8Array
+  | Uint8Array
+  | Uint8ClampedArray
+  | Int16Array
+  | Uint16Array
+  | Int32Array
+  | Uint32Array
+  | Float32Array
+  | Float64Array
+  | BigInt64Array
+  | BigUint64Array
 
 /**
- * Optimized deep difference checker with support for Map, Set,
+ * Deep difference checker with support for Map, Set,
  * and various JS built-in types
  */
-export function isDiff( aObject: Record<string, any>, bObject: Record<string, any> ){
+export function isDiff( a: any, b: any ){
   // Early reference equality check
-  if( aObject === bObject ) return false
+  if( a === b ) return false
   
-  if( typeof aObject !== 'object'
-      || typeof bObject !== 'object' ) return null
+  if( typeof a !== 'object'
+      || typeof b !== 'object' ) return false
       
   // Early null check
-  if( aObject === null || bObject === null ) return true
+  if( a === null || b === null ) return true
 
   // Handle Set objects with optimized comparison
-  if( aObject instanceof Set ){
-    if( !( bObject instanceof Set ) ) return true
-    if( aObject.size !== bObject.size ) return true
+  if( a instanceof Set ){
+    if( !( b instanceof Set ) ) return true
+    if( a.size !== b.size ) return true
     
     // Fast path for primitive-only Sets
-    if( isPrimitiveSet( aObject ) && isPrimitiveSet( bObject ) ){
-      for( const value of aObject ){
-        if( !bObject.has( value ) ) return true
+    if( isPrimitiveSet( a ) && isPrimitiveSet( b ) ){
+      for( const value of a ){
+        if( !b.has( value ) ) return true
       }
       return false
     }
@@ -29,15 +42,15 @@ export function isDiff( aObject: Record<string, any>, bObject: Record<string, an
     // For Sets with objects, use a Map to cache results
     const compared = new Map()
     
-    for( const aValue of aObject ){
+    for( const aValue of a ){
       let found = false
       
       if( typeof aValue !== 'object' ){
-        if( bObject.has( aValue ) ){
+        if( b.has( aValue ) ){
           found = true
         }
       } else {
-        for( const bValue of bObject ){
+        for( const bValue of b ){
           // Skip if value types don't match
           if( typeof bValue !== 'object' ) continue
           
@@ -67,15 +80,15 @@ export function isDiff( aObject: Record<string, any>, bObject: Record<string, an
   }
 
   // Handle Map objects with optimized comparison
-  if( aObject instanceof Map ){
-    if( !( bObject instanceof Map ) ) return true
-    if( aObject.size !== bObject.size ) return true
+  if( a instanceof Map ){
+    if( !( b instanceof Map ) ) return true
+    if( a.size !== b.size ) return true
 
     // Fast path for primitive-only Maps
-    if( isPrimitiveMap( aObject ) && isPrimitiveMap( bObject ) ){
-      for( const [key, aValue] of aObject ){
+    if( isPrimitiveMap( a ) && isPrimitiveMap( b ) ){
+      for( const [key, aValue] of a ){
         // Get is O(1) and already checks existence
-        const bValue = bObject.get( key )
+        const bValue = b.get( key )
         if( bValue !== aValue ) return true
       }
       return false
@@ -84,12 +97,12 @@ export function isDiff( aObject: Record<string, any>, bObject: Record<string, an
     // For Maps with object keys/values
     const compared = new Map()
 
-    for( const [aKey, aValue] of aObject ){
+    for( const [aKey, aValue] of a ){
       // Handle primitive keys using direct lookup
       if( typeof aKey !== 'object' ){
-        if( !bObject.has( aKey ) ) return true
+        if( !b.has( aKey ) ) return true
         
-        const bValue = bObject.get( aKey )
+        const bValue = b.get( aKey )
         
         // Quick check for primitive values
         if( typeof aValue !== 'object' ){
@@ -107,7 +120,7 @@ export function isDiff( aObject: Record<string, any>, bObject: Record<string, an
       let valueMatched = false
 
       // Compare each key deeply since keys are objects
-      for( const [bKey, bValue] of bObject ){
+      for( const [bKey, bValue] of b ){
         if( typeof bKey !== 'object' ) continue
 
         // Check key comparison cache
@@ -147,11 +160,11 @@ export function isDiff( aObject: Record<string, any>, bObject: Record<string, an
   }
 
   // Fast path for arrays
-  if( Array.isArray( aObject ) ){
-    if( !Array.isArray( bObject ) ) return true
-    if( aObject.length !== bObject.length ) return true
-    for( let i = 0; i < aObject.length; i++ ){
-      const aVal = aObject[i], bVal = bObject[i]
+  if( Array.isArray( a ) ){
+    if( !Array.isArray( b ) ) return true
+    if( a.length !== b.length ) return true
+    for( let i = 0; i < a.length; i++ ){
+      const aVal = a[i], bVal = b[i]
       // Early exit on primitive comparison
       if( aVal !== bVal && ( typeof aVal !== 'object' || isDiff( aVal, bVal ) ) ) return true
     }
@@ -159,8 +172,8 @@ export function isDiff( aObject: Record<string, any>, bObject: Record<string, an
   }
 
   // Cache keys to avoid multiple calls
-  const aKeys = Object.keys( aObject )
-  const bKeys = Object.keys( bObject )
+  const aKeys = Object.keys( a )
+  const bKeys = Object.keys( b )
 
   // Quick length comparison before sorting
   if( aKeys.length !== bKeys.length ) return true
@@ -180,8 +193,8 @@ export function isDiff( aObject: Record<string, any>, bObject: Record<string, an
   // Now we know keys match, compare values
   for( let i = 0; i < length; i++ ){
     const key = aKeys[i]
-    const aVal = aObject[key]
-    const bVal = bObject[key]
+    const aVal = a[key]
+    const bVal = b[key]
 
     // Early exit for primitive equality
     if( aVal === bVal ) continue
@@ -218,8 +231,8 @@ export function isDiff( aObject: Record<string, any>, bObject: Record<string, an
       if( typeof bVal !== 'object' ) return true
 
       // Self reference check
-      if( aVal === aObject ){
-        if( bVal !== bObject ) return true
+      if( aVal === a ){
+        if( bVal !== b ) return true
       }
       // WARNING: Doesn't deal with circular refs other than ^^
       else if( isDiff( aVal, bVal ) ) return true
@@ -229,6 +242,14 @@ export function isDiff( aObject: Record<string, any>, bObject: Record<string, an
   }
 
   return false
+}
+
+/**
+ * Helper function to check if Set contains only primitives
+ */
+function isPrimitiveValue( value: unknown ): value is string | number | boolean | symbol | null | undefined {
+  return value === null 
+          || ( typeof value !== 'object' && typeof value !== 'function' )
 }
 
 // Helper to check if Set contains only primitives
@@ -248,6 +269,94 @@ function isPrimitiveMap( map: Map<any, any> ): boolean {
       return false
 
   return true
+}
+
+/**
+ * Extended deep comparison that handles additional JS types not covered by isDiff
+ * @param a First value to compare
+ * @param b Second value to compare
+ * @returns true if values are different, false if they are equal
+ */
+export function isSuperDiff( a: unknown, b: unknown ): boolean {
+  // Early reference equality check
+  if( a === b ) return false
+  
+  // Handle primitive types explicitly
+  const typeA = typeof a
+  const typeB = typeof b
+  
+  // Different types mean different values
+  if( typeA !== typeB ) return true
+  
+  // Handle primitive types
+  switch( typeA ){
+    case 'undefined': return false // Both undefined (caught by ===)
+    case 'boolean': return false // Caught by ===
+    case 'number':
+      // Handle special number cases
+      if( Number.isNaN( a as number ) && Number.isNaN( b as number ) )
+        return false
+
+      if( !Number.isFinite( a as number ) && !Number.isFinite( b as number ) )
+        return Math.sign( a as number ) !== Math.sign( b as number )
+
+      return false // Caught by ===
+    case 'string': return false // Caught by ===
+    case 'symbol': return true  // Different symbols (same caught by ===)
+    case 'function': return ( a as Function ).toString() !== ( b as Function ).toString()
+    case 'bigint': return false // Caught by ===
+  }
+  
+  // Handle null
+  if( a === null || b === null ) return true
+  
+  // From here on, we're dealing with objects
+  
+  // Handle TypedArrays
+  if( ArrayBuffer.isView( a ) ){
+    if( !ArrayBuffer.isView( b ) ) return true
+    if( a.byteLength !== b.byteLength ) return true
+    if( a.constructor !== b.constructor ) return true
+    
+    const aArr = a as TypedArray
+    const bArr = b as TypedArray
+    
+    for( let i = 0; i < aArr.length; i++ )
+      if( aArr[i] !== bArr[i] )
+        return true
+    
+    return false
+  }
+  
+  // Handle ArrayBuffer
+  if( a instanceof ArrayBuffer ){
+    if( !( b instanceof ArrayBuffer ) ) return true
+    if( a.byteLength !== b.byteLength ) return true
+    
+    const 
+    viewA = new Uint8Array( a ),
+    viewB = new Uint8Array( b )
+    
+    for( let i = 0; i < viewA.length; i++ )
+      if( viewA[i] !== viewB[i] )
+        return true
+    
+    return false
+  }
+  
+  // Handle Promise objects (can only check instance)
+  if( a instanceof Promise )
+    return !( b instanceof Promise )
+  
+  // Handle Error objects
+  if( a instanceof Error )
+    return !( b instanceof Error ) 
+            || a.message !== b.message
+            || a.name !== b.name
+            || isSuperDiff( a.stack, b.stack )
+  
+  // Pass through to original isDiff for other cases
+  return isDiff( a, b )
 }
 
 export function deepClone( obj: any, seen = new WeakMap() ){
@@ -365,9 +474,8 @@ export function deepAssign<T>( original: T, toSet: Record<string, any> ): T {
   }
 
   const modified = deepClone( original )
-
   try {
-    for( const [path, value] of Object.entries( toSet ) ){
+    for( const [ path, value ] of Object.entries( toSet ) ){
       if( typeof path !== 'string' )
         throw new TypeError(`Invalid path: ${path}`)
 

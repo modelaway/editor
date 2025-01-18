@@ -13,7 +13,7 @@ import I18N from './i18n'
 import Benchmark from './benchmark'
 import ParallelExecutor from './parallel'
 import Stylesheet from '../stylesheet'
-import { isDiff, deepClone, deepAssign } from './utils'
+import { isDiff, deepClone, deepAssign, isSuperDiff } from './utils'
 import { effect, EffectControl, signal } from './signal'
 
 import * as Router from './router'
@@ -78,7 +78,13 @@ export default class Lips<Context = any> {
   private debug = false
   private context?: Context
   private store: Record<string, Template> = {}
+
   private __root?: Component
+  private __context?: Context
+
+  // Internal Update Clock (IUC)
+  private IUC?: NodeJS.Timeout
+  private IUC_BEAT = 5 // ms
 
   public i18n = new I18N()
 
@@ -93,13 +99,34 @@ export default class Lips<Context = any> {
 
     this._setContext = setContext
     this._getContext = getContext
-    
+
+    // Ignite the IUC only when context is available
+    config?.context && this.setIUC()
+
     /**
      * Register native components
      * 
      * `<router routers=[] global, ...></router>` -- Internal Routing Component
      */
     this.register('router', Router )
+  }
+
+  private setIUC(){
+    this.IUC = setInterval( () => {
+      if( !this.context ) return
+
+      /**
+       * Apply update only when a new change 
+       * occured on the state.
+       * 
+       * Merge with initial/active state.
+       */
+      !this.__context
+          ? this._setContext( this.context )
+          : this.context
+            && isDiff( this.__context, this.context )
+            && this._setContext( this.context )
+    }, this.IUC_BEAT )
   }
 
   register( name: string, template: Template<any, any, any, any> ){
@@ -176,14 +203,52 @@ export default class Lips<Context = any> {
     && this.__root?.rerender()
   }
 
-  setContext( key: Context | string, value?: any ){
-    typeof key == 'string' ?
-              this._setContext({ ...this.context, [key]: value } as Context )
-              : this._setContext({ ...this.context, ...key } as Context )
+  setContext( arg: Context | string, value?: any ){
+    /**
+     * Change context only when tangible updates
+     * are detected.
+     * 
+     * Note: Context may not be initialize at instanciation
+     * of Lips.
+     */
+    if( typeof arg === 'string' ){
+      if( !this.context )
+        this.context = {} as Context
+
+      if( isSuperDiff( this.context[ arg as keyof Context ], value ) ){
+        this.context[ arg as keyof Context ] = value
+
+        // Ignite IUC only on initial context
+        !this.IUC && this.setIUC()
+      }
+    }
+    /**
+     * no-array object guard
+     */
+    else if( !Array.isArray( arg ) ){
+      if( !this.context )
+        this.context = arg
+      
+      else if( Object.entries( this.context ).some( ([ key, value ]) => isSuperDiff( this.context?.[ key as keyof Context ], value ) ) )
+        this.context = { ...this.context, ...arg }
+
+      // Ignite IUC only on initial context
+      !this.IUC && this.setIUC()
+    }
+    
+    else throw new Error('Invalid context data')
   }
   useContext( fields: (keyof Context)[], fn: ( ...args: any[] ) => void ){
     effect( () => {
       this.context = this._getContext()
+
+      /**
+       * Hold state value since last signal update.
+       * 
+       * IMPORTANT: Required to check changes on the state
+       *            during IUC processes.
+       */
+      this.__context = deepClone( this.context )
 
       const ctx: any = {}
       fields.forEach( field => {
@@ -191,7 +256,13 @@ export default class Lips<Context = any> {
         ctx[ field ] = this.context[ field ]
       } )
 
-      typeof fn === 'function' && fn( ctx )
+      /**
+       * Propagate context change effect to component 
+       * only when its registered scope have changed
+       */
+      typeof fn === 'function'
+      && Object.keys( ctx )
+      && fn( ctx )
     } )
   }
 }
@@ -315,7 +386,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
     this.SEC = effect( () => {
       this.input = getInput()
       this.state = getState()
-      this.context = getContext()
+
+      if( context ) this.context = getContext()
 
       // Reset the benchmark
       this.benchmark.reset()
@@ -405,12 +477,23 @@ export class Component<Input = void, State = void, Static = void, Context = void
   setState( data: Partial<Record<keyof State, any>> ){
     const state = this._getState()
     this._setState({ ...state, ...data } as State )
+
+    // TODO: Add batch update
     
     /**
      * Triggered anytime component state gets updated
      */
     typeof this.onUpdate == 'function'
     && this.onUpdate.bind(this)()
+  }
+  setContext( arg: Partial<Record<string, any>> | string, value?: any  ){
+    /**
+     * Set global context value from any component
+     * 
+     * Note: `arg` if object isn't restricted to 
+     *        this component's required context fields scope.
+     */
+    this.lips?.setContext( arg, value )
   }
   setInput( input: Input ){
     /**
@@ -605,6 +688,24 @@ export class Component<Input = void, State = void, Static = void, Context = void
             const forScope: VariableScope = {
               ...scope, 
               each: { value: each, type: 'const' },
+              index: { value: index, type: 'const' }
+            }
+
+            $fragment = $fragment.add( self.render( $contents, forScope ) )
+          }
+          
+          index++
+        }
+      }
+
+      else if( _in instanceof Map ){
+        let index = 0
+        for( const [ key, value ] of _in ){
+          if( $contents.length ){
+            const forScope: VariableScope = {
+              ...scope, 
+              key: { value: key, type: 'const' },
+              each: { value: value, type: 'const' },
               index: { value: index, type: 'const' }
             }
 

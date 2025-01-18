@@ -1,4 +1,5 @@
 import type { Component } from './lips'
+import type Lips from './lips'
 
 export type LanguageDictionary = Record<string, Record<string, string> | string>
 export type VariableScope = Record<string, { value: any, type: 'let' | 'const' }>

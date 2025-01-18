@@ -14,7 +14,27 @@ type Subscriber = {
  */ 
 type Dependency = Set<Subscriber>
 type Listener = () => unknown
-type Signal<T> = [ () => T, ( nextValue: T ) => void ]
+type HistoryEntry<T> = {
+  value: T
+  timestamp: number
+  metadata?: Record<string, unknown>
+}
+
+type Signal<T> = [
+  read: () => T,
+  write: ( nextValue: T, metadata?: Record<string, unknown> ) => void,
+  history: {
+    undo: () => void
+    redo: () => void
+    jumpTo: (index: number) => void
+    getHistory: () => HistoryEntry<T>[]
+    getCurrentIndex: () => number
+    canUndo: () => boolean
+    canRedo: () => boolean
+    clear: () => void
+  }
+]
+
 interface Batch {
   add( sub: Subscriber ): void
   flush(): void
@@ -70,19 +90,21 @@ export function batch<T>( fn: () => T ): T {
   }
 }
 
-export function signal<T>( value: T ): Signal<T> {
-  const subscriptions: Dependency = new Set()
+export function signal<T>( value: T, options = { maxSize: 100 }): Signal<T> {
+  const 
+  subscriptions: Dependency = new Set(),
+  history: HistoryEntry<T>[] = [{ value, timestamp: Date.now() }]
+
+  let currentIndex = 0
 
   const read = () => {
     const running = context[ context.length - 1 ]
     running && subscribe( running, subscriptions )
 
-    return value
+    return history[ currentIndex ].value
   }
 
-  const write = ( nextValue: T ) => {
-    value = nextValue
-
+  const notifySubscribers = () => {
     const subs = [ ...subscriptions ]
     if( currentBatch )
       for( const sub of subs ) 
@@ -91,7 +113,77 @@ export function signal<T>( value: T ): Signal<T> {
     else for( const sub of subs ) sub.execute()
   }
 
-  return [ read, write ]
+  const write = ( nextValue: T, metadata?: Record<string, unknown> ) => {
+    // Skip if value hasn't changed
+    if( Object.is( history[ currentIndex ].value, nextValue ) )
+      return
+
+    // Remove future history if we're not at the latest state
+    if( currentIndex < history.length - 1 )
+      history.splice( currentIndex + 1 )
+
+    // Add new entry
+    history.push({
+      value: nextValue,
+      timestamp: Date.now(),
+      metadata
+    })
+
+    // Maintain history size limit
+    if( history.length > options.maxSize ){
+      history.shift()
+      currentIndex = Math.max( 0, currentIndex - 1 )
+    }
+    else currentIndex++
+
+    notifySubscribers()
+  }
+
+  const controls = {
+    undo(){
+      if( currentIndex > 0 ){
+        currentIndex--
+        notifySubscribers()
+      }
+    },
+    redo(){
+      if( currentIndex < history.length - 1 ){
+        currentIndex++
+        notifySubscribers()
+      }
+    },
+    jumpTo( index: number ){
+      if( index >= 0 && index < history.length && index !== currentIndex ){
+        currentIndex = index
+        notifySubscribers()
+      }
+    },
+    getHistory(){
+      return [ ...history ]
+    },
+    getCurrentIndex(){
+      return currentIndex
+    },
+    canUndo(){
+      return currentIndex > 0
+    },
+    canRedo(){
+      return currentIndex < history.length - 1
+    },
+    clear(){
+      // Reset to initial state
+      const initialState = history[0]
+
+      history.length = 0
+      history.push( initialState )
+
+      currentIndex = 0
+
+      notifySubscribers()
+    }
+  }
+
+  return [ read, write, controls ]
 }
 
 export function effect( fn: Listener ): EffectControl {

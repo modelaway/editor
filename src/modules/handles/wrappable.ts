@@ -206,7 +206,6 @@ export default class Wrappable implements HandleInterface {
     if( !this.context.options.WRAPPER_TAG
         || $target.closest( this.context.options.WRAPPER_TAG ).length ) return
 
-console.log('deactivate')
     const 
     self = this,
     $wrappers = this.context.$canvas.find( this.context.options.WRAPPER_TAG )

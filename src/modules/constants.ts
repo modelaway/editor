@@ -60,6 +60,7 @@ export const ALLOWED_FRAME_CANVAS_HANDLES: HandleType[] = [
   'wrap',
   'move',
   'resize',
+  'select',
   'snapguide'
 ]
 

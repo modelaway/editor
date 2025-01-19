@@ -20,6 +20,7 @@ export type HandleType = 'pan'
                       | 'move'
                       | 'wrap'
                       | 'resize'
+                      | 'select'
                       | 'snapguide'
                       | 'move:snapguide'
                       | 'resize:snapguide'
@@ -30,11 +31,13 @@ export interface HandlesOptions {
   element: string
   dom?: 'main' | 'shadow'
   frameStyle?: FrameStyle
+  
   MIN_WIDTH: number
   MIN_HEIGHT: number
   WRAPPER_TAG?: string
   WRAPPER_BORDER_WIDTH?: number
   WRAPPER_HANDLE_SIZE?: number
+  SELECTION_MIN_SIZE?: number
 
   getScale: () => number
   setScale: ( value: number ) => void
@@ -102,6 +105,7 @@ export default class Handles extends Inclusion {
   public isZooming = false
   public isPanning = false
   public isResizing = false
+  public isSelecting = false
 
   public canvasOffset = { x: 0, y: 0 }
 
@@ -259,6 +263,7 @@ export default class Handles extends Inclusion {
                                     && !this.isMoving
                                     && !this.isZooming
                                     && !this.isResizing
+                                    && !this.isSelecting
                                     || false
           // Constrain by default
           default: return true
@@ -268,6 +273,19 @@ export default class Handles extends Inclusion {
       case 'move': {
         switch( action ){
           case 'start': return !this.isPanning
+                                && !this.isZooming
+                                && !this.isResizing
+                                && !this.isSelecting
+                                || false
+          // Constrain by default
+          default: return true
+        }
+      }
+
+      case 'select': {
+        switch( action ){
+          case 'start': return !this.isPanning
+                                && !this.isMoving
                                 && !this.isZooming
                                 && !this.isResizing
                                 || false
@@ -281,6 +299,7 @@ export default class Handles extends Inclusion {
           case 'start': return !this.isPanning
                                 && !this.isMoving
                                 && !this.isZooming
+                                && !this.isSelecting
                                 || false
           // Constrain by default
           default: return true

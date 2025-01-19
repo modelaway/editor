@@ -216,56 +216,54 @@ export function deepAssign<T>( original: T, toSet: Record<string, any>, index?: 
   function setValueAtPath( base: any, path: string, value: any ){
     const parts = path.split(/\.|\[|\]/).filter( Boolean )
     let current = base
-    let isMap = current instanceof Map
-    let parentMap: Map<any, any> | null = null
-    let lastKey: any = null
+    const parentChain: { parent: any; key: any }[] = []
 
     for( let i = 0; i < parts.length; i++ ){
-      const
+      const 
       key = parts[i],
-      isArrayIndex = !isNaN( Number( key ) ),
-      isLastPart = i === parts.length - 1,
-      nextIsArrayIndex = !isNaN( Number( parts[ i + 1 ] ) )
+      isLastPart = i === parts.length - 1
 
       if( isLastPart ){
-        if( isMap && typeof index === 'number' ){
+        if( current instanceof Map && typeof index === 'number' ){
           current = insertIntoMap( current, key, value, index )
-          if( parentMap ){
-            parentMap.set( lastKey, current )
+          
+          if( parentChain.length > 0 ){
+            for( let j = parentChain.length - 1; j >= 0; j-- ){
+              const 
+              { parent, key } = parentChain[j],
+              isParentMap = parent instanceof Map
+
+              isParentMap ? parent.set( key, current ) : parent[key] = current
+              current = parent
+            }
           } else {
             base = current
           }
-          continue
+        } else {
+          current instanceof Map ? current.set( key, value ) : current[key] = value
         }
-
-        isMap ? current.set( key, value ) : current[key] = value
         continue
       }
 
-      const hasKey = isMap ? current.has(key) : key in current
-      const currentValue = isMap ? current.get(key) : current[key]
-      const isCurrentArray = Array.isArray(currentValue)
+      parentChain.push({ parent: current, key })
 
-      if( !hasKey ){
-        const newValue = nextIsArrayIndex ? [] : (isMap ? new Map() : {})
-        isMap ? current.set( key, newValue ) : current[key] = newValue
+      if( current instanceof Map ){
+        if( !current.has( key ) ){
+          current.set( key, new Map() )
+        }
+        current = current.get( key )
+      } else {
+        if( key === 'layers' ){
+          if( !(key in current) || !(current[key] instanceof Map) ){
+            current[key] = new Map()
+          }
+        } else if( !(key in current) ){
+          current[key] = new Map()
+        } else if( !(current[key] instanceof Map) ){
+          current[key] = new Map()
+        }
+        current = current[key]
       }
-      else if( nextIsArrayIndex && !isCurrentArray ){
-        const newArray: any[] = []
-        isMap ? current.set( key, newArray ) : current[key] = newArray
-      }
-      else if( !nextIsArrayIndex && isCurrentArray ){
-        const newContainer = isMap ? new Map() : {}
-        isMap ? current.set( key, newContainer ) : current[key] = newContainer
-      }
-
-      if( isMap ){
-        parentMap = current
-        lastKey = key
-      }
-      
-      current = isMap ? current.get( key ) : current[key]
-      isMap = current instanceof Map
     }
 
     return base
@@ -349,8 +347,9 @@ export function deepDelete<T>( obj: T, path: string ): T {
     new Map(obj as Map<any, any>) : 
     deepClone(obj)
 
-  let current = modified
-  let isMap = current instanceof Map
+  let 
+  current = modified,
+  parentChain: { parent: any; key: string }[] = []
 
   try {
     // Navigate to the parent of the target to delete
@@ -360,15 +359,30 @@ export function deepDelete<T>( obj: T, path: string ): T {
       if( current === null || (typeof current !== 'object' && !(current instanceof Map)) )
         throw new Error(`Cannot access property '${part}' of non-object/non-Map`)
 
-      const exists = isMap ? current.has(part) : part in current
+      // Handle special case for 'layers' property in objects
+      if( !(current instanceof Map) && part === 'layers' ){
+        if( !(part in current) )
+          throw new Error(`Path segment '${part}' does not exist`)
+          
+        if( !(current[part] instanceof Map) )
+          throw new Error(`Expected Map at path segment '${part}' but got ${typeof current[part]}`)
+      }
+
+      const exists = current instanceof Map ? 
+        current.has(part) : 
+        part in current
+
       if( !exists )
         throw new Error(`Path segment '${part}' does not exist`)
 
-      current = isMap ? current.get(part) : current[part]
-      isMap = current instanceof Map
+      parentChain.push({ parent: current, key: part })
+      current = current instanceof Map ? current.get(part) : current[part]
     }
 
-    const exists = isMap ? current.has(lastPart) : lastPart in current
+    const exists = current instanceof Map ? 
+      current.has(lastPart) : 
+      lastPart in current
+
     if( !exists )
       throw new Error(`Path segment '${lastPart}' does not exist`)
 
@@ -377,14 +391,95 @@ export function deepDelete<T>( obj: T, path: string ): T {
       if( isNaN( index ) )
         throw new Error(`Invalid array index: ${lastPart}`)
       current.splice( index, 1 )
-    }
-    else {
-      isMap ? current.delete(lastPart) : delete current[lastPart]
+    } else {
+      current instanceof Map ? 
+        current.delete(lastPart) : 
+        delete current[lastPart]
+
+      // After deletion, update the parent chain if maps are empty
+      for( let i = parentChain.length - 1; i >= 0; i-- ){
+        const 
+        { parent, key } = parentChain[i],
+        child = parent instanceof Map ? parent.get(key) : parent[key],
+        isEmpty = child instanceof Map ? 
+          child.size === 0 : 
+          Object.keys(child).length === 0
+
+        if( isEmpty ){
+          parent instanceof Map ?
+            parent.delete(key) :
+            delete parent[key]
+        } else {
+          break // Stop if we find a non-empty parent
+        }
+      }
     }
 
     return modified
   }
   catch( error: any ){
     throw new Error(`Failed to delete value: ${error.message}`)
+  }
+}
+
+type ThrottleOptions = {
+  leading?: boolean   // Whether to invoke on the leading edge of the timeout
+  trailing?: boolean  // Whether to invoke on the trailing edge of the timeout
+}
+
+/**
+ * Creates a throttled function that only invokes `func` at most once per
+ * every `wait` milliseconds.
+ *
+ * @param func - The function to throttle
+ * @param wait - The number of milliseconds to throttle invocations to
+ * @param options - The options object
+ * @returns The new throttled function
+ */
+export function throttle<T extends (...args: any[]) => any>( func: T, wait: number, options: ThrottleOptions = {} ): (...args: Parameters<T>) => ReturnType<T> | undefined {
+  let 
+  timeout: ReturnType<typeof setTimeout> | undefined,
+  previous = 0, // Last time func was invoked
+  result: ReturnType<T> | undefined // Store result of last invocation
+  
+  const 
+  leading = options.leading !== false,
+  trailing = options.trailing !== false
+  
+  /**
+   * Function to be invoked after wait period
+   */
+  const later = ( context: any, args: Parameters<T> ) => {
+    previous = leading ? Date.now() : 0
+    timeout = undefined
+    result = func.apply( context, args )
+  }
+  
+  return function( this: any, ...args: Parameters<T> ): ReturnType<T> | undefined {
+    const now = Date.now()
+    
+    // Handle first invocation
+    if( !previous && !leading ) 
+      previous = now
+    
+    // Calculate remaining time
+    const remaining = wait - (now - previous)
+    
+    // Check if it's time to invoke
+    if( remaining <= 0 || remaining > wait ){
+      if( timeout ){
+        clearTimeout( timeout )
+        timeout = undefined
+      }
+      
+      previous = now
+      result = func.apply( this, args )
+      
+    }
+    // Schedule trailing call
+    else if( !timeout && trailing )
+      timeout = setTimeout(() => later( this, args ), remaining )
+    
+    return result
   }
 }

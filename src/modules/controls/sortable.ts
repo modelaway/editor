@@ -3,6 +3,7 @@ import type { Component } from '../../lib/lips/lips'
 
 import $, { type Cash } from 'cash-dom'
 import { EventEmitter } from 'events'
+import { throttle } from '../utils'
 
 const
 ANIMATION_DEFAULT = 150,
@@ -10,7 +11,9 @@ GHOST_CLASS = 'sortable-ghost',
 DRAG_CLASS = 'sortable-drag',
 SELECTED_CLASS = 'selected',
 PLACEHOLDER_CLASS = 'sortable-placeholder',
-Z_INDEX_GHOST = 1000
+Z_INDEX_GHOST = 1000,
+SCROLL_SPEED = 20,
+DRAG_THRESHOLD = 5
 
 export type SortableOptions = {
   list: string
@@ -28,6 +31,8 @@ export type SortableOptions = {
   }
   nested?: boolean
   multiDrag?: boolean
+  dragThreshold?: number
+  scrollSpeed?: number
 }
 
 export default class Sortable<Input = void, State = void, Static = void, Context = void> extends EventEmitter {
@@ -36,17 +41,19 @@ export default class Sortable<Input = void, State = void, Static = void, Context
 
   private options: SortableOptions
   private dragging: boolean = false
+  private scrollInterval?: number
 
   private $block?: Cash
-  private $ghost: any = null
-  private $sourceList: any = null
-  private $placeholder: any = null
+  private $ghost: Cash | null = null
+  private $sourceList: Cash | null = null
+  private $placeholder: Cash | null = null
   private $dragElements: Cash[] = []
 
   private sourceGroup: string = ''
   private level: number = 0
   private startY: number = 0
   private selectedItems: Map<Element, Cash> = new Map()
+  private boundHandleKeyboard: ( e: KeyboardEvent ) => void
 
   constructor( editor: Editor, component: Component<Input, State, Static, Context>, options: SortableOptions ){
     super()
@@ -61,11 +68,69 @@ export default class Sortable<Input = void, State = void, Static = void, Context
       selectedClass: SELECTED_CLASS,
       nested: true,
       multiDrag: true,
+      dragThreshold: DRAG_THRESHOLD,
+      scrollSpeed: SCROLL_SPEED,
       ...options
     }
 
+    this.boundHandleKeyboard = this.handleKeyboard.bind(this)
+    
     this.component.getNode() && this.bind()
     this.component.on('render', () => this.bind() )
+  }
+
+  private handleKeyboard( e: KeyboardEvent ){
+    if( !this.selectedItems.size ) return
+
+    const 
+    $selected = [ ...this.selectedItems.values() ][0],
+    $list = $selected.closest( this.options.list )
+    
+    switch( e.key ){
+      case 'ArrowUp': {
+        e.preventDefault()
+
+        const $prev = $selected.prev( this.options.item )
+        if( !$prev.length ) return
+
+        $selected.insertBefore( $prev )
+        this.emitReorder( $selected, $list )
+      } break
+
+      case 'ArrowDown': {
+        e.preventDefault()
+
+        const $next = $selected.next( this.options.item )
+        if( !$next.length ) return
+        
+        $selected.insertAfter( $next )
+        this.emitReorder( $selected, $list )
+      } break
+    }
+  }
+
+  private handleAutoScroll( clientY: number ){
+    const 
+    scrollThreshold = 50,
+    viewportHeight = window.innerHeight
+    
+    if( clientY < scrollThreshold )
+      this.startAutoScroll( -(this.options.scrollSpeed || SCROLL_SPEED) )
+    
+    else if( clientY > viewportHeight - scrollThreshold )
+      this.startAutoScroll( this.options.scrollSpeed || SCROLL_SPEED )
+    
+    else this.stopAutoScroll()
+  }
+  private startAutoScroll( speed: number ){
+    if( this.scrollInterval ) return
+    this.scrollInterval = window.setInterval( () => window.scrollBy( 0, speed ), 16 ) // ~60fps
+  }
+  private stopAutoScroll(){
+    if( !this.scrollInterval ) return
+
+    clearInterval( this.scrollInterval )
+    this.scrollInterval = undefined
   }
 
   private getGroup( el: Element ): string {
@@ -95,6 +160,16 @@ export default class Sortable<Input = void, State = void, Static = void, Context
   private getLevel( el: Element ): number {
     return $(el).parents( this.options.list ).length
   }
+  private emitReorder( $item: Cash, $list: Cash ){
+    this.emit('sortable.reorder', {
+      $items: [ $item ],
+      $sourceList: $list,
+      $targetList: $list,
+      oldIndices: [ $item.index() ],
+      newIndex: $item.index(),
+      level: this.getLevel( $item[0] as Element )
+    })
+  }
 
   addSelection( $item: Cash ){
     if( !$item[0] ) return
@@ -115,7 +190,13 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     .each( function(){ self.removeSelection( $(this), true ) } )
 
     this.selectedItems.set( mkey, $item )
-    $item.addClass( this.options.selectedClass as string )
+
+    $item
+    .addClass( this.options.selectedClass as string )
+    .attr({
+      'aria-selected': 'true',
+      'aria-grabbed': 'false'
+    })
 
     this.emit('sortable.select', [ ...this.selectedItems.values() ])
   }
@@ -126,7 +207,13 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     if( !this.selectedItems.has( mkey ) ) return
 
     this.selectedItems.delete( mkey )
-    $item.removeClass( this.options.selectedClass )
+
+    $item
+    .removeClass( this.options.selectedClass )
+    .attr({
+      'aria-selected': 'false',
+      'aria-grabbed': 'false'
+    })
 
     !partial && this.emit('sortable.select', [ ...this.selectedItems.values() ])
   }
@@ -136,6 +223,10 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     ;($list || this.$block)
     ?.find(`.${this.options.selectedClass}`)
     ?.removeClass( this.options.selectedClass )
+    ?.attr({
+      'aria-selected': 'false',
+      'aria-grabbed': 'false'
+    })
     
     this.emit('sortable.select', [])
   }
@@ -151,17 +242,26 @@ export default class Sortable<Input = void, State = void, Static = void, Context
      */
     if( this.$dragElements.length > 1 ){
       const $ghostList = $('<div/>').addClass( this.options.ghostClass as string )
+                                    .attr('role', 'list')
 
-      this.$dragElements.forEach( $each => $ghostList.append( $each.clone().css('position', 'relative') ) )
+      this.$dragElements.forEach( $each => {
+        const $clone = $each.clone()
+                            .css('position', 'relative')
+                            .attr('role', 'listitem') 
+
+        $ghostList.append( $clone )
+      })
+
       this.$ghost = $ghostList
     }
-    else this.$ghost = $item.clone().addClass( this.options.ghostClass as string )
+    else this.$ghost = $item.clone()
+                            .addClass( this.options.ghostClass as string )
+                            .attr('role', 'listitem')
 
     this.$ghost.css({
       position: 'fixed',
       width: $item.outerWidth(),
-      // left: $item.offset().left,
-      top: $item.position()?.top,
+      top: $item.position()?.top || 0,
       zIndex: Z_INDEX_GHOST,
       pointerEvents: 'none'
     })
@@ -173,21 +273,29 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     const totalHeight = this.$dragElements.reduce( ( sum, $each ) => sum + $each.outerHeight(), 0 )
 
     this.$placeholder = $('<div/>').addClass( this.options.placeholder || PLACEHOLDER_CLASS )
-                                    // @ts-ignore
+                                    .attr('role', 'presentation')
                                     .css({
                                       height: totalHeight,
-                                      marginBottom: $item.css('marginBottom')
+                                      marginBottom: $item.css('marginBottom') || '0px'
                                     })
 
-    // $item.after( this.$placeholder )
-    this.$dragElements.forEach( $each => this.options.dragClass && $each.addClass( this.options.dragClass ) )
+    this.$dragElements.forEach( $each => {
+      this.options.dragClass
+      && $each.addClass( this.options.dragClass )
+
+      $each.attr('aria-grabbed', 'true')
+    })
+    
     this.$block?.append( this.$ghost )
   }
-  private onDrag( x: number, y: number ){
+  private readonly onDrag = throttle( ( x: number, y: number ) => {
     if( !this.dragging || !this.$block?.length ) return
 
     const deltaY = y - this.startY
-    this.$ghost.css('transform', `translateY(${deltaY}px)`)
+    this.$ghost?.css('transform', `translateY(${deltaY}px)`)
+
+    // Handle auto-scrolling
+    this.handleAutoScroll( y )
 
     const elemBelow = document.elementFromPoint( x, y )
     if( !elemBelow ) return
@@ -197,12 +305,10 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     $belowList = $below.closest( this.options.list )
     if( !$belowList.length ) return
 
-    const 
-    targetGroup = this.getGroup( $belowList[0] as Element ),
-    targetLevel = this.getLevel( $belowList[0] as Element )
+    // const 
+    // targetGroup = this.getGroup( $belowList[0] as Element ),
+    // targetLevel = this.getLevel( $belowList[0] as Element )
     
-    // console.log('guard --', targetGroup, targetLevel, this.level )
-
     // if( !this.canTransfer( this.sourceGroup, targetGroup ) ) return
     // if( !this.options.nested && targetLevel !== this.level ) return
     
@@ -217,27 +323,28 @@ export default class Sortable<Input = void, State = void, Static = void, Context
 
       const elemCenter = ($each.offset()?.top || 0) + $each.outerHeight() / 2
       if( ghostCenter > elemCenter ){
-        this.$placeholder.insertAfter( $each )
+        this.$placeholder?.insertAfter( $each )
         placed = true
       }
     })
 
     if( !placed && $belowItems.length )
-      this.$placeholder.insertBefore( $belowItems.first() )
+      this.$placeholder?.insertBefore( $belowItems.first() )
 
     else if( !placed )
-      $belowList.append( this.$placeholder )
-  }
+      $belowList.append( this.$placeholder as Cash )
+
+  }, 16, { leading: true, trailing: true })
   private endDrag(){
     if( !this.dragging ) return
     
     this.emit('sortable.reorder', {
       $items: this.$dragElements,
       $sourceList: this.$sourceList,
-      $targetList: this.$placeholder.closest( this.options.list ),
+      $targetList: this.$placeholder?.closest( this.options.list ),
       oldIndices: this.$dragElements.map( $each => $each.index() ),
-      newIndex: this.$placeholder.index(),
-      level: this.getLevel( this.$placeholder[0] )
+      newIndex: this.$placeholder?.index(),
+      level: this.getLevel( this.$placeholder?.[0] as Element )
     })
 
     // Store placeholder reference before later removal
@@ -249,7 +356,9 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     this.$dragElements
     .reverse()
     .forEach( $each => {
-      $each.removeClass( this.options.dragClass )
+      $each
+      .removeClass( this.options.dragClass )
+      .attr('aria-grabbed', 'false')
       
       // Skip if placeholder not in DOM
       $placeholder?.parent().length
@@ -259,8 +368,8 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     this.options.ghostClass && this.$block?.find('.'+ this.options.ghostClass ).remove()
     this.options.placeholder && this.$block?.find('.'+ this.options.placeholder ).remove()
 
-    this.$ghost.remove()
-    this.$placeholder.remove()
+    this.$ghost?.remove()
+    this.$placeholder?.remove()
     
     $(document).off('.sortable')
     
@@ -273,6 +382,25 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     this.$sourceList = null
     this.$placeholder = null
     this.$dragElements = []
+
+    this.stopAutoScroll()
+  }
+
+  private addAccessibilityAttributes(){
+    this.$block
+    ?.find( this.options.item )
+    .attr({
+      'role': 'listitem',
+      'aria-grabbed': 'false',
+      'tabindex': '0'
+    })
+
+    this.$block
+    ?.find( this.options.list )
+    .attr({
+      'role': 'list',
+      'aria-dropeffect': 'move'
+    })
   }
 
   bind(){
@@ -285,12 +413,16 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     this.$block = this.component?.getNode()
     if( !this.$block ) return
     
-    const
-    self = this,
-    $list = this.$block.find( this.options.list )
+    const $list = this.$block.find( this.options.list )
     if( !$list?.length ) return
 
     this.unbind()
+
+    // Add accessibility attributes
+    this.addAccessibilityAttributes()
+
+    // Add keyboard support
+    $(document).on('keydown.sortable', this.boundHandleKeyboard )
 
     /**
      * Handle on- multiple select 
@@ -313,11 +445,10 @@ export default class Sortable<Input = void, State = void, Static = void, Context
                       : this.addSelection( $item )
       })
 
-    const handle = this.options.handle || this.options.item
-
     $list
-    .on('mousedown', handle, ( e: MouseEvent ) => {
-      if( e.button !== 0 ) return // Only left mouse button
+    .on('mousedown', this.options.handle || this.options.item, ( e: MouseEvent ) => {
+      // Only left mouse button
+      if( e.button !== 0 ) return
       e.stopPropagation()
 
       let $item = $(e.target as Element)
@@ -328,7 +459,7 @@ export default class Sortable<Input = void, State = void, Static = void, Context
       e.preventDefault()
       
       this.$sourceList = $item.closest( this.options.list )
-      this.sourceGroup = this.getGroup( this.$sourceList[0] )
+      this.sourceGroup = this.getGroup( this.$sourceList[0] as Element )
       this.level = this.getLevel( $item[0] as Element )
 
       // Handle multi-selection drag
@@ -342,22 +473,43 @@ export default class Sortable<Input = void, State = void, Static = void, Context
       }
       else this.$dragElements = [ $item ]
       
-      this.startDrag( $item, e.clientY )
+      const threshold = this.options.dragThreshold || DRAG_THRESHOLD
+      let
+      hasReachedThreshold = false,
+      startX = e.clientX
+
+      const checkThreshold = ( moveEvent: MouseEvent ) => {
+        if( !hasReachedThreshold ){
+          const deltaX = Math.abs( moveEvent.clientX - startX )
+          const deltaY = Math.abs( moveEvent.clientY - this.startY )
+          
+          if( deltaX > threshold || deltaY > threshold ){
+            hasReachedThreshold = true
+            this.startDrag( $item, moveEvent.clientY )
+          }
+        }
+        
+        hasReachedThreshold && this.onDrag( moveEvent.clientX, moveEvent.clientY )
+      }
 
       $(document)
-      .on('mousemove.sortable', ( e: MouseEvent ) => this.onDrag( e.clientX, e.clientY ) )
-      .on('mouseup.sortable', () => this.endDrag() )
+      .on('mousemove.sortable', checkThreshold )
+      .on('mouseup.sortable', () => {
+        hasReachedThreshold && this.endDrag()
+        $(document).off('.sortable')
+      })
     })
   }
   unbind(){
     this.$block?.find( this.options.list )?.off('mousedown click')
     $(document).off('.sortable')
   }
-
   dispose(){
+    this.unbind()
+    this.clearSelection()
+    this.stopAutoScroll()
+
     this.component = null
     this.$block = undefined
-
-    this.clearSelection()
   }
 }

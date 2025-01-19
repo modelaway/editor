@@ -160,14 +160,19 @@ function cleanContent( html: string ){
             .replace(/\s{2,}/g, '')
 }
 
+export type LayersHost = {
+  key: string
+  type: 'frame'
+  title: string
+  content?: string
+}
 export type LayersSettings = {
   visible?: boolean
 }
 export interface LayersInput {
-  key: string
+  host: LayersHost
   settings?: LayersSettings
   position?: string | Position
-  content?: string
   mutations?: Mutation[]
 }
 
@@ -198,10 +203,10 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
   }
 
   const handler: Handler<LayersInput, State> = {
-    onInput({ content, mutations }){
-      if( content ){
+    onInput({ host, mutations }){
+      if( host.content ){
         const tvs = new Traverser
-        this.state.layers = tvs.traverse( cleanContent( content ) )
+        this.state.layers = tvs.traverse( cleanContent( host.content ) )
       }
 
       if( mutations ){
@@ -286,11 +291,19 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
       layers.forEach( each => {
         const
         path = each.path.replace('#.', ''),
-        layer = deepValue( this.state.layers, `${path}.${each.key}` )
-
-        this.state.layers = deepAssign( this.state.layers, { [`${targetPath}.${each.key}`]: layer }, each.targetIndex )
-        this.state.layers = deepDelete( this.state.layers, `${path}.${each.key}` )
-        console.log( each.targetIndex, this.state.layers )
+        source = `${path}.${each.key}`,
+        target = `${targetPath}.${each.key}`,
+        layer = deepValue( this.state.layers, source )
+        
+        this.state.layers = deepAssign( this.state.layers, { [ target ]: layer }, each.targetIndex )
+        /**
+         * Delete layer from source path
+         * 
+         * IMPORTANT: Avoid deleting layer moved between each other
+         * under the same source path.
+         */
+        if( source !== target )
+          this.state.layers = deepDelete( this.state.layers, source )
       } )
     },
     getStyle(){
@@ -308,14 +321,22 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
   const template = `
     <mblock style=self.getStyle()>
       <mblock class="header">
-        <minline>
-          <micon class="bx bx-list-minus ill-icon"></micon>
-          <mlabel>Layers</mlabel>
-        </minline>
+        <mblock>
+          <minline>
+            <micon class="bx bx-list-minus ill-icon"></micon>
+            <mlabel>Layers</mlabel>
+          </minline>
 
-        <micon class="'toggle-icon bx '+( state.collapsed ? 'bx-chevron-down' : 'bx-chevron-right')"
-                style="padding: 0 0 0 10px;"
-                on-click( onCollapse )></micon>
+          <micon class="'toggle-icon bx '+( state.collapsed ? 'bx-chevron-down' : 'bx-chevron-right')"
+                  style="padding: 0 0 0 10px;"
+                  on-click( onCollapse )></micon>
+        </mblock>
+
+        <mblock class="host-title"
+                style="{ display: state.collapsed ? 'block' : 'none' }">
+          <span class="host-type">{input.host.type} / </span>
+          <span>{input.host.title}</span>
+        </mblock>
       </mblock>
 
       <mblock class="body" style="{ display: state.collapsed ? 'block' : 'none' }">
@@ -342,11 +363,13 @@ const stylesheet = `
   overflow: hidden;
 
   .header {
-    padding: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    user-select: none;
+    mblock {
+      user-select: none;
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
 
     minline {
       width: 60%;
@@ -359,13 +382,20 @@ const stylesheet = `
     .toggle.icon { 
       font-size: var(--me-icon-size-2);
     }
+
+    .host-title {
+      font-size: var(--me-small-font-size);
+      
+      .host-type {
+        color: var(--me-primary-color-transparent);
+      }
+    }
   }
   .body {
     min-width: 18rem;
     height: 45vh;
     padding-top: 1px;
     overflow: auto;
-    border-top: 1px solid var(--me-border-color);
   }
   .ill-icon {
     color: rgb(180, 180, 180);

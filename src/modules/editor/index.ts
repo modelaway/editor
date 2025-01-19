@@ -12,7 +12,7 @@ import Functions from '../functions'
 import Shell from '../../factory/shell'
 import Toolbar, { ToolbarInput } from '../../factory/toolbar'
 import Quickset, { QuicksetInput } from '../../factory/quickset'
-import Layers from '../../factory/layers'
+import Layers, { LayersInput } from '../../factory/layers'
 import { debug } from '../utils'
 import { 
   GLOBAL_CONTROL_OPTIONS,
@@ -315,36 +315,40 @@ export default class Editor {
      * ----------------------------------------------------
      */
     const
-    linput = {
-      key: 'global',
-      settings: {
-        visible: this.settings.viewLayers,
-      },
-      content: `
-        <div class="alert">
-          <p>Some text here</p>
-        </div>
-        <section class="header-block">
-          <div class="container-fluid">
-            <div class="row">
-              <div class="col-xl-4 col-lg-4 col-md-4 logo">
-                <a href="/" title="Angular, React, Sass"><img src="https://www.webrecto.com/common/images/logo.png"
-                    alt="Angular, React, Sass" title="Angular, React, Sass" /></a>
-              </div>
-              <div class="col-xl-8 col-lg-8 col-md-8 text-right">
-                <div class="header-menu">
-                  <ul>
-                    <li>Angular</li>
-                    <li>React</li>
-                    <li>NextJs</li>
-                    <li>Sass</li>
-                  </ul>
+    linput: LayersInput = {
+      host: {
+        key: 'global',
+        type: 'frame',
+        title: 'Home',
+        content: `
+          <div class="alert">
+            <p>Some text here</p>
+          </div>
+          <section class="header-block">
+            <div class="container-fluid">
+              <div class="row">
+                <div class="col-xl-4 col-lg-4 col-md-4 logo">
+                  <a href="/" title="Angular, React, Sass"><img src="https://www.webrecto.com/common/images/logo.png"
+                      alt="Angular, React, Sass" title="Angular, React, Sass" /></a>
+                </div>
+                <div class="col-xl-8 col-lg-8 col-md-8 text-right">
+                  <div class="header-menu">
+                    <ul>
+                      <li>Angular</li>
+                      <li>React</li>
+                      <li>NextJs</li>
+                      <li>Sass</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </section>
-      `
+          </section>
+        `
+      },
+      settings: {
+        visible: this.settings.viewLayers,
+      },
     },
     layers = Layers( linput, { events: this.events, editor: this })
     layers.appendTo( this.$shell )

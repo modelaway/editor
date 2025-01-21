@@ -424,7 +424,7 @@ export default class Wrappable implements HandleInterface {
     }
   }
 
-  activate( $targets: Cash, e: MouseEvent | KeyboardEvent ){
+  activate( $targets: Cash, e?: MouseEvent | KeyboardEvent ){
     $targets.length === 1
                 ? this.singleWrap( $targets )
                 : this.multipWrap( $targets )

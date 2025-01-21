@@ -578,6 +578,8 @@ function DemoCart(){
 
 function DemoLayers(){
   const
+  context = {},
+  lips = new Lips({ context }),
   content = `
     <section class="header-block">
       <div class="container-fluid">
@@ -1017,9 +1019,13 @@ function DemoLayers(){
       </div>
     </div>
   `,
-  component = Layers({ key: '0', content }).appendTo('body')
-
-  
+  host = {
+    key: '0',
+    type: 'frame' as 'frame',
+    title: 'Frame 1',
+    content
+  },
+  component = Layers( lips, { host }).appendTo('body')
 }
 
 // Demo1()

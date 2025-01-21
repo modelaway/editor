@@ -1,4 +1,4 @@
-import type { Handler } from '../../../../src/component'
+import type { Handler } from '../../../../src/lib/lips'
 
 export type Input = {
   initial: number

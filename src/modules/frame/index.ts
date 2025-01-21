@@ -147,8 +147,8 @@ export default class Frame extends EventEmitter {
       $viewport: this.$viewport,
       $canvas: this.$canvas,
       element: `*`,
-      MIN_WIDTH: 100,
-      MIN_HEIGHT: 100,
+      MIN_WIDTH: 1,
+      MIN_HEIGHT: 1,
 
       /**
        * Specify a shadow DOM incapsulation env
@@ -179,8 +179,11 @@ export default class Frame extends EventEmitter {
         case 'wrap': {
           switch( action ){
             case 'activate': return false
-            case 'deactivate': return event?.shiftKey
+            case 'deactivate': return event?.shiftKey 
+                                      || event?.metaKey
                                       || false
+            case 'multiwrap': return !event?.shiftKey
+
             // Constrain by default
             default: return false
           }

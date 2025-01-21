@@ -91,7 +91,6 @@ export default class Resizable implements HandleInterface {
 
     this.captureElementStates( this.$wrapper )
   }
-
   private handle( e: any ){
     if( !this.context.isResizing
         || !this.$wrapper?.length
@@ -174,7 +173,8 @@ export default class Resizable implements HandleInterface {
     scaleY = newHeight / this.startHeight
 
     // Update all elements with new scale factors and position changes
-    this.updateElementsRelatively( scaleX, scaleY, deltaX, deltaY )
+    this.elementStates.length > 1
+    && this.updateElementsRelatively( scaleX, scaleY, deltaX, deltaY )
   }
 
   private stop(){

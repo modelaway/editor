@@ -280,7 +280,7 @@ export default class Handles extends Inclusion {
     switch( type ){
       case 'wrap': {
         switch( action ){
-          case 'activate': return !event?.metaKey || false
+          case 'activate': return !event?.altKey || false
           case 'deactivate': return this.isPanning 
                                     || this.isMoving
                                     || this.isZooming

@@ -34,7 +34,7 @@ export default class Wrappable implements HandleInterface {
     return `
       ${this.context.options.WRAPPER_TAG} {
         display: inline-block;
-        border: ${this.context.options.WRAPPER_BORDER_WIDTH}px solid var(--me-primary-color-transparent);
+        border: ${this.context.options.WRAPPER_BORDER_WIDTH * this.context.getScaleQuo()}px solid var(--me-primary-color-transparent);
         box-sizing: border-box;
         box-shadow: 0 0 0 1px rgba(13, 110, 253, 0.1);
         transition: border-color 0.2s ease;
@@ -172,10 +172,11 @@ export default class Wrappable implements HandleInterface {
       position = self.getRelativeRect( $el ),
       width = position.width * scaleQuo,
       height = position.height * scaleQuo,
-      top = parseFloat( $el.css('top') as string ),
-      left = parseFloat( $el.css('left') as string )
+      top = parseInt( $el.css('top') as string ),
+      left = parseInt( $el.css('left') as string )
       
       // console.log(
+      //   '\nElement --', $el[0],
       //   '\nwidth: ', $el.width(),
       //   '\nheight: ', $el.height(),
       //   '\nrect width: ', position.width,
@@ -214,6 +215,21 @@ export default class Wrappable implements HandleInterface {
     const tag = this.context.options.WRAPPER_TAG || 'div'
     return $(`<${tag}><scope></scope></${tag}>`)
   }
+  private createHandle( htype: string ){
+    const
+    $handle = $(`<div class="handle ${htype}"></div>`),
+    size = ( this.context.options.WRAPPER_HANDLE_SIZE || 6 ) * this.context.getScaleQuo(),
+    borderSize = ( this.context.options.WRAPPER_BORDER_WIDTH || 1 ) * this.context.getScaleQuo()
+
+    // TODO: Adapt the handles display by scale
+    // $handle.css({
+    //   width: `${size}px`,
+    //   height: `${size}px`,
+    //   borderWidth: `${borderSize}px`
+    // })
+
+    return $handle
+  }
   private singleWrap( $target: Cash ){
     if( !this.context.options.WRAPPER_TAG
         || $target.data('is-wrapped') ) return
@@ -228,12 +244,13 @@ export default class Wrappable implements HandleInterface {
       marginLeft: $target.css('margin-left'),
       marginBottom: $target.css('margin-bottom'),
       marginRight: $target.css('margin-right'),
-      top: parseFloat( $target.css('top') as string ) || $target.position()?.top,
-      left: parseFloat( $target.css('left') as string ) || $target.position()?.left
+      top: parseInt( $target.css('top') as string ),
+      left: parseInt( $target.css('left') as string )
     }
 
     // Create wrapper with the same essential styles
-    const $wrapper = this.createWrapper().css({
+    const $wrapper = this.createWrapper()
+    .css({
       position: styles.position && ['fixed', 'absolute'].includes( styles.position ) ? styles.position : 'relative',
       zIndex: Number( styles.zIndex ),
       display: styles.display || 'static',
@@ -266,7 +283,7 @@ export default class Wrappable implements HandleInterface {
                               ? ['tl', 'tr', 'bl', 'br', 'tc', 'bc', 'lc', 'rc']
                               : ['br', 'bc', 'rc']
 
-    handles.forEach( htype => $wrapper.append(`<div class="handle ${htype}"></div>`) )
+    handles.forEach( htype => this.createHandle( htype ).appendTo( $wrapper ) )
   }
   private multipWrap( $targets: Cash ){
     if( !this.context.options.WRAPPER_TAG
@@ -347,7 +364,7 @@ export default class Wrappable implements HandleInterface {
                     ? ['tl', 'tr', 'bl', 'br', 'tc', 'bc', 'lc', 'rc']
                     : ['br', 'bc', 'rc']
 
-    handles.forEach( htype => $wrapper.append(`<div class="handle ${htype}"></div>`) )
+    handles.forEach( htype => this.createHandle( htype ).appendTo( $wrapper ) )
   }
   /**
    * Helper method to handle unwrapping of elements
@@ -445,6 +462,7 @@ export default class Wrappable implements HandleInterface {
 
       // Check constraints and put all found element into cluster wrap.
       if( $wrapped.length > 1 && !this.context.constraints<WrappableActionType>('wrap', 'multiwrap', e as KeyboardEvent ) ){
+        console.log('multi')
         this.deactivate()
         this.multipWrap( $wrapped )
 
@@ -513,7 +531,8 @@ export default class Wrappable implements HandleInterface {
     this.context
     .events( this.context.options.$viewport )
     .on('mousedown.wrapper', e => {
-      !this.context.constraints<WrappableActionType>('wrap', 'deactivate', e )
+      !$(e.target).is(`${wtag} > .handle`)
+      && !this.context.constraints<WrappableActionType>('wrap', 'deactivate', e )
       && this.deactivate()
     })
   }

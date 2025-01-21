@@ -179,38 +179,48 @@ export default class Frame extends EventEmitter {
         case 'wrap': {
           switch( action ){
             case 'activate': return false
-            case 'deactivate': return !this.isPanning 
-                                      && !this.isZooming
-                                      && !this.isMoving
-                                      && !this.isResizing
+            case 'deactivate': return event?.shiftKey
                                       || false
             // Constrain by default
-            default: return true
+            default: return false
           }
         }
-  
-        case 'move': {
+
+        case 'select': {
           switch( action ){
-            case 'start': return !this.isPanning
-                                  && !this.isZooming
-                                  && !this.isResizing
+            case 'start': return this.isPanning
+                                  || this.isMoving
+                                  || this.isZooming
+                                  || this.isResizing
                                   || false
-            // Constrain by default
-            default: return true
+            // No constrain by default
+            default: return false
           }
         }
-  
+
         case 'resize': {
           switch( action ){
-            case 'start': return !this.isPanning
-                                  && !this.isZooming
-                                  && !this.isMoving
+            case 'start': return this.isPanning
+                                  || this.isZooming
+                                  || this.isSelecting
                                   || false
-            // Constrain by default
-            default: return true
+            // No Constrain by default
+            default: return false
           }
         }
-  
+
+        case 'move': {
+          switch( action ){
+            case 'start': return this.isPanning
+                                  || this.isZooming
+                                  || this.isResizing
+                                  || this.isSelecting
+                                  || false
+            // No Constrain by default
+            default: return false
+          }
+        }
+
         // Allow unlisted handles by default
         default: return false
       }

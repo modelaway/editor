@@ -8,6 +8,7 @@ import Pannable from './pannable'
 import Zoomable from './zoomable'
 import Resizable from './resizable'
 import Wrappable from './wrappable'
+import Selectable from './selectable'
 import SnapGuidable from './snapguidable'
 import Stylesheet from '../../lib/stylesheet'
 import ShadowEvents from '../../lib/shadowEvents'
@@ -21,6 +22,7 @@ export type HandleType = 'pan'
                       | 'wrap'
                       | 'resize'
                       | 'select'
+                      | 'select:wrap'
                       | 'snapguide'
                       | 'move:snapguide'
                       | 'resize:snapguide'
@@ -37,7 +39,9 @@ export interface HandlesOptions {
   WRAPPER_TAG?: string
   WRAPPER_BORDER_WIDTH?: number
   WRAPPER_HANDLE_SIZE?: number
-  SELECTION_MIN_SIZE?: number
+  DRAG_SELECT_MIN_SIZE?: number
+  DRAG_SELECT_THRESHOLD?: number
+  DRAG_SELECT_TAG?: string
 
   getScale: () => number
   setScale: ( value: number ) => void
@@ -95,6 +99,7 @@ export default class Handles extends Inclusion {
     wrap?: Wrappable
     create?: Creator
     resize?: Resizable
+    select?: Selectable
     snapguide?: SnapGuidable
   } = {}
 
@@ -124,6 +129,9 @@ export default class Handles extends Inclusion {
       WRAPPER_TAG: 'rzwrapper',
       WRAPPER_BORDER_WIDTH: 1,
       WRAPPER_HANDLE_SIZE: 6,
+
+      DRAG_SELECT_TAG: 'dragselect',
+      DRAG_SELECT_MIN_SIZE: 5,
       
       ...options
     }
@@ -187,6 +195,20 @@ export default class Handles extends Inclusion {
         case 'wrap': {
           this.manual.wrap = new Wrappable( this )
           this.manual.wrap.enable()
+        } break
+
+        case 'select':
+        case 'select:wrap': {
+          /**
+           * [*:wrap]: Move handle must have a 
+           * wrap dependency defined
+           */
+          let wrappable
+          if( this.options.enable?.includes('wrap') || each === 'select:wrap' )
+            wrappable = this.manual.wrap || new Wrappable( this )
+
+          this.manual.select = new Selectable( this, wrappable )
+          this.manual.select.enable()
         } break
         
         case 'move':
@@ -259,50 +281,48 @@ export default class Handles extends Inclusion {
       case 'wrap': {
         switch( action ){
           case 'activate': return !event?.metaKey || false
-          case 'deactivate': return !this.isPanning 
-                                    && !this.isMoving
-                                    && !this.isZooming
-                                    && !this.isResizing
-                                    && !this.isSelecting
+          case 'deactivate': return this.isPanning 
+                                    || this.isMoving
+                                    || this.isZooming
+                                    || this.isResizing
+                                    || this.isSelecting
                                     || false
-          // Constrain by default
-          default: return true
+          // No constrain by default
+          default: return false
         }
       }
 
       case 'move': {
         switch( action ){
-          case 'start': return !this.isPanning
-                                && !this.isZooming
-                                && !this.isResizing
-                                && !this.isSelecting
+          case 'start': return this.isPanning
+                                || this.isZooming
+                                || this.isResizing
+                                || this.isSelecting
                                 || false
-          // Constrain by default
-          default: return true
+          // No constrain by default
+          default: return false
         }
       }
 
       case 'select': {
         switch( action ){
-          case 'start': return !this.isPanning
-                                && !this.isMoving
-                                && !this.isZooming
-                                && !this.isResizing
+          case 'start': return this.isPanning
+                                || this.isMoving
+                                || this.isZooming
+                                || this.isResizing
                                 || false
-          // Constrain by default
-          default: return true
+          // No constrain by default
+          default: return false
         }
       }
 
       case 'resize': {
         switch( action ){
-          case 'start': return !this.isPanning
-                                && !this.isMoving
-                                && !this.isZooming
-                                && !this.isSelecting
+          case 'start': return this.isPanning
+                                || this.isZooming
                                 || false
-          // Constrain by default
-          default: return true
+          // No constrain by default
+          default: return false
         }
       }
 

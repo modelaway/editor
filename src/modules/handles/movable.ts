@@ -90,8 +90,14 @@ export default class Movable implements HandleInterface {
 
     this.context
     .events( this.context.$viewport )
-    .on('mousemove.move', e => this.handle( e ) )
-    .on('mouseup.move', () => this.stop() )
+    .on('mousemove.move', e => { 
+      !this.context.constraints<MoveActionType>('move', 'handle', e )
+      && this.handle( e )
+    } )
+    .on('mouseup.move', e => {
+      !this.context.constraints<MoveActionType>('move', 'stop', e )
+      && this.stop()
+    } )
   }
   disable(){
     this.context.events( document).off('.move')

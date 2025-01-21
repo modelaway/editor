@@ -4,11 +4,12 @@ import type FrameStyle from '../frame/styles'
 import type Stylesheet from '../../lib/stylesheet'
 import $, { type Cash } from 'cash-dom'
 
-type WrappableActionType = 'activate' | 'deactivate'
+type WrappableActionType = 'activate' | 'deactivate' | 'multiwrap'
 
 export default class Wrappable implements HandleInterface {
   private context: Handles
   private style: Stylesheet | FrameStyle
+  private $targets?: Cash
 
   constructor( context: Handles ){
     this.context = context
@@ -130,13 +131,90 @@ export default class Wrappable implements HandleInterface {
       }
     `
   }
+  private getRelativeRect( $element: Cash ): DOMRect {
+    if( !$element[0] || !this.context.$viewport[0] )
+      throw new Error('Invalid arguments')
+    
+    /**
+     * Calculate bounding client rect relative 
+     * to shadowRoot host's boundaries.
+     */
+    if( this.context.$viewport[0] instanceof ShadowRoot ){
+      const 
+      eRect = $element[0]?.getBoundingClientRect(),
+      vRect = this.context.$viewport[0]?.host.getBoundingClientRect()
+      
+      return {
+        left: eRect.left - vRect.left,
+        top: eRect.top - vRect.top,
+        right: eRect.right - vRect.left,
+        bottom: eRect.bottom - vRect.top,
+        width: eRect.width,
+        height: eRect.height
+      } as DOMRect
+    }
+    else return $element[0]?.getBoundingClientRect()
+  }
+  private getBoundingBox( $elements: Cash ){
+    const
+    self = this,
+    scaleQuo = this.context.getScaleQuo()
+
+    let 
+    minTop = Infinity,
+    minLeft = Infinity,
+    maxRight = -Infinity,
+    maxBottom = -Infinity
+
+    $elements.each( function(){
+      const 
+      $el = $(this),
+      position = self.getRelativeRect( $el ),
+      width = position.width * scaleQuo,
+      height = position.height * scaleQuo,
+      top = parseFloat( $el.css('top') as string ),
+      left = parseFloat( $el.css('left') as string )
+      
+      // console.log(
+      //   '\nwidth: ', $el.width(),
+      //   '\nheight: ', $el.height(),
+      //   '\nrect width: ', position.width,
+      //   '\nrect height: ', position.height,
+      //   '\ncss width: ', $el.css('width'),
+      //   '\ncss height: ', $el.css('height'),
+      //   '\nscale width: ', position.width * scaleQuo,
+      //   '\nscale height: ', position.height * scaleQuo,
+
+      //   '\n\ntop: ', $el.position()?.top,
+      //   '\nleft: ', $el.position()?.left,
+      //   '\nrect top: ', position.top,
+      //   '\nrect left: ', position.left,
+      //   '\ncss top: ', $el.css('top'),
+      //   '\ncss left: ', $el.css('left'),
+      //   '\nscale top: ', position.top * scaleQuo,
+      //   '\nscale left: ', position.left * scaleQuo,
+      // )
+
+      if( !position ) return
+
+      minTop = Math.min( minTop, top )
+      minLeft = Math.min( minLeft, left )
+      maxRight = Math.max( maxRight, left + width )
+      maxBottom = Math.max( maxBottom, top + height )
+    })
+
+    return {
+      top: minTop,
+      left: minLeft,
+      width: maxRight - minLeft,
+      height: maxBottom - minTop
+    }
+  }
   private createWrapper(){
     const tag = this.context.options.WRAPPER_TAG || 'div'
     return $(`<${tag}><scope></scope></${tag}>`)
   }
-
-  activate( $target: Cash ){
-    // Prevent duplicate wrapping
+  private singleWrap( $target: Cash ){
     if( !this.context.options.WRAPPER_TAG
         || $target.data('is-wrapped') ) return
 
@@ -152,21 +230,22 @@ export default class Wrappable implements HandleInterface {
       marginRight: $target.css('margin-right'),
       top: parseFloat( $target.css('top') as string ) || $target.position()?.top,
       left: parseFloat( $target.css('left') as string ) || $target.position()?.left
-    },
-    // Create a wrapper with the same essential styles
-    // @ts-ignore
-    $wrapper = this.createWrapper().css({
+    }
+
+    // Create wrapper with the same essential styles
+    const $wrapper = this.createWrapper().css({
       position: styles.position && ['fixed', 'absolute'].includes( styles.position ) ? styles.position : 'relative',
-      zIndex: styles.zIndex,
-      display: styles.display,
-      top: styles.top,
-      left: styles.left,
+      zIndex: Number( styles.zIndex ),
+      display: styles.display || 'static',
+      top: styles.top || 0,
+      left: styles.left || 0,
       width: $target.outerWidth(),
       height: $target.outerHeight(),
       boxSizing: 'border-box',
       userSelect: 'none'
     })
 
+    // Store original styles and adjust target
     $target
     .data('is-wrapped', true )
     .data('original-style', styles )
@@ -174,58 +253,126 @@ export default class Wrappable implements HandleInterface {
       margin: 0,
       width: '100%',
       height: '100%',
-      position: 'static' // Reset to prevent interference during wrapping
+      position: 'static'
     })
     .before( $wrapper )
 
-    $wrapper.find(':scope > scope').append( $target as any )
-    
-    // Add resizing handles
+    $wrapper.find(':scope > scope').append( $target )
+
+    // Add resize handles based on position type
     const handles = (styles.display || $target.attr('handle')) === 'inline'
-                          // Unidirection handle for inline elements
                           ? ['rc']
-                          // Multidirectional handles for non-inline elements
-                          : styles.position 
-                            && ['fixed', 'absolute'].includes( styles.position )
-                                                      /**
-                                                        * Resize from every side and angle 
-                                                        * of the element
-                                                        */
-                                                      ? ['tl', 'tr', 'bl', 'br', 'tc', 'bc', 'lc', 'rc']
-                                                      /**
-                                                        * Relative-like position element can only be resized
-                                                        * from the `right` and `bottom` sides and the `right-bottom`
-                                                        * angle of the element to maintain the `left-top` position 
-                                                        * relative to its parent element.
-                                                        */
-                                                      : ['br', 'bc', 'rc']
-    
+                          : styles.position && ['fixed', 'absolute'].includes( styles.position )
+                              ? ['tl', 'tr', 'bl', 'br', 'tc', 'bc', 'lc', 'rc']
+                              : ['br', 'bc', 'rc']
+
     handles.forEach( htype => $wrapper.append(`<div class="handle ${htype}"></div>`) )
   }
-  deactivate( $target: Cash ){
+  private multipWrap( $targets: Cash ){
     if( !this.context.options.WRAPPER_TAG
-        || $target.closest( this.context.options.WRAPPER_TAG ).length ) return
+        || !$targets.length 
+        || $targets.filter('[data-is-wrapped]').length ) return
 
-    const 
+    const
     self = this,
-    $wrappers = this.context.$canvas.find( this.context.options.WRAPPER_TAG )
+    boundingBox = this.getBoundingBox( $targets ),
+    $first = $targets.first(),
+    baseStyles = {
+      position: $first.css('position'),
+      zIndex: $first.css('z-index'),
+      display: $first.css('display')
+    }
 
-    $wrappers?.length && $wrappers.each( function(){
+    // Store original styles and positions for each element
+    $targets.each( function(){
+      const 
+      $target = $(this),
+      position = self.getRelativeRect( $target )
+
+      if( !position ) return
+
+      $target.data('original-style', {
+        position: $target.css('position'),
+        zIndex: $target.css('z-index'),
+        display: $target.css('display'),
+        marginTop: $target.css('margin-top'),
+        marginLeft: $target.css('margin-left'),
+        marginBottom: $target.css('margin-bottom'),
+        marginRight: $target.css('margin-right'),
+        top: parseFloat( $target.css('top') as string ) - boundingBox.top,
+        left: parseFloat( $target.css('left') as string ) - boundingBox.left
+      })
+    })
+
+    // Create wrapper with bounding box dimensions
+    const $wrapper = this.createWrapper().css({
+      position: baseStyles.position && ['fixed', 'absolute'].includes( baseStyles.position )
+                ? baseStyles.position 
+                : 'relative',
+      zIndex: Number( baseStyles.zIndex ),
+      display: baseStyles.display || 'static',
+      top: boundingBox.top,
+      left: boundingBox.left,
+      width: boundingBox.width,
+      height: boundingBox.height,
+      boxSizing: 'border-box',
+      userSelect: 'none'
+    })
+
+    // Position elements relative to wrapper
+    $targets.each( function(){
+      const 
+      $target = $(this),
+      originalStyle = $target.data('original-style')
+
+      if( !originalStyle ) return
+
+      $target
+      .data('is-wrapped', true)
+      .css({
+        position: 'absolute',
+        margin: 0,
+        width: $target.outerWidth(),
+        height: $target.outerHeight(),
+        top: originalStyle.top,
+        left: originalStyle.left
+      })
+    })
+
+    $first.before( $wrapper )
+    $wrapper.find(':scope > scope').append( $targets )
+
+    // Add resize handles
+    const handles = baseStyles.position && ['fixed', 'absolute'].includes( baseStyles.position )
+                    ? ['tl', 'tr', 'bl', 'br', 'tc', 'bc', 'lc', 'rc']
+                    : ['br', 'bc', 'rc']
+
+    handles.forEach( htype => $wrapper.append(`<div class="handle ${htype}"></div>`) )
+  }
+  /**
+   * Helper method to handle unwrapping of elements
+   * @param $wrapper - The wrapper element
+   * @param $elements - Elements to unwrap
+   * @param selective - Whether this is a selective unwrap within a multi-wrap
+   */
+  private unwrap( $wrapper: Cash, $elements: Cash, selective: boolean = false ){
+    const isSingle = $elements.length === 1
+
+    // Handle single element unwrapping
+    if( isSingle ){
       const
-      $wrapper = $(this),
-      $target = $wrapper.find(`:scope > scope > ${self.context.options.element}`),
+      $target = $elements.first(),
       originalStyles = $target.data('original-style')
 
       if( !originalStyles ) return
 
-      // @ts-ignore
       $target.css({
-        width: $wrapper.css('width'),
-        height: $wrapper.css('height'),
+        width: $wrapper.css('width') as string,
+        height: $wrapper.css('height') as string,
         display: originalStyles.display,
         position: originalStyles.position,
-        top: ['fixed', 'absolute'].includes( originalStyles.position ) ? $wrapper.css('top') : '',
-        left: ['fixed', 'absolute'].includes( originalStyles.position ) ? $wrapper.css('left') : '',
+        top: (['fixed', 'absolute'].includes( originalStyles.position ) ? $wrapper.css('top') : '') as string,
+        left: (['fixed', 'absolute'].includes( originalStyles.position ) ? $wrapper.css('left') : '') as string,
         marginTop: originalStyles.marginTop,
         marginLeft: originalStyles.marginLeft,
         marginBottom: originalStyles.marginBottom,
@@ -234,37 +381,140 @@ export default class Wrappable implements HandleInterface {
 
       // Restore hierarchy
       $target
-      .data('is-wrapped', false)
+      .removeAttr('data-original-style')
+      .removeAttr('data-is-wrapped')
       .insertBefore( $wrapper )
-      
-      // Clean up wrapper and handles
+
+      // Remove wrapper if no other elements remain
       $wrapper.remove()
-    })
+    }
+    
+    // Handle multiple elements unwrapping
+    else {
+      $elements.each( function(){
+        const
+        $target = $(this),
+        originalStyles = $target.data('original-style')
+
+        if( !originalStyles ) return
+
+        $target.css({
+          position: originalStyles.position,
+          zIndex: originalStyles.zIndex,
+          display: originalStyles.display,
+          marginTop: originalStyles.marginTop,
+          marginLeft: originalStyles.marginLeft,
+          marginBottom: originalStyles.marginBottom,
+          marginRight: originalStyles.marginRight,
+          width: $target.css('width') as string,
+          height: $target.css('height') as string,
+          top: parseFloat( $wrapper.css('top') as string ) + originalStyles.top,
+          left: parseFloat( $wrapper.css('left') as string ) + originalStyles.left
+        })
+
+        // Restore hierarchy
+        $target
+        .removeAttr('data-original-style')
+        .removeAttr('data-is-wrapped')
+        .insertBefore( $wrapper )
+      })
+
+      // Only remove wrapper if this isn't a selective unwrap
+      !selective && $wrapper.remove()
+    }
+  }
+
+  activate( $targets: Cash, e: MouseEvent | KeyboardEvent ){
+    $targets.length === 1
+                ? this.singleWrap( $targets )
+                : this.multipWrap( $targets )
+
+    /**
+     * Cluster wrap multiple selected elements during
+     * single target activation but in progression wrap
+     * trigger by `mousedown` or `click`
+     * 
+     * Mostly works base on constraints like:
+     * - e.shiftKey
+     * - e.metaKey
+     * - etc
+     */
+    if( $targets.length === 1 && $targets.closest( this.context.options.WRAPPER_TAG ).length ){
+      // Find already wrapped elements
+      const $wrapped = this.context.$canvas.find('[data-is-wrapped="true"]')
+
+      // Check constraints and put all found element into cluster wrap.
+      if( $wrapped.length > 1 && !this.context.constraints<WrappableActionType>('wrap', 'multiwrap', e as KeyboardEvent ) ){
+        this.deactivate()
+        this.multipWrap( $wrapped )
+
+        this.$targets = $wrapped
+      }
+    }
+    else this.$targets = $targets
+  }
+  deactivate( $targets?: Cash ){
+    if( !this.context.options.WRAPPER_TAG ) return
+
+    const 
+    self = this,
+    $wrappers = this.context.$canvas.find( this.context.options.WRAPPER_TAG )
+    
+    if( !$wrappers?.length ) return
+
+    // If specific targets are provided, only unwrap those elements
+    $targets?.length
+          ? $wrappers.each( function(){
+            const
+            $wrapper = $(this),
+            $wrappedElements = $wrapper.find(`:scope > scope > ${self.context.options.element}`),
+            $elementsToUnwrap = $wrappedElements.filter( function(){
+              return $targets.filter( ( _, target ) => target === this ).length > 0
+            })
+
+            if( !$elementsToUnwrap.length ) return
+
+            $wrappedElements.length === $elementsToUnwrap.length
+                                // If all wrapped elements need to be unwrapped, unwrap the entire wrapper
+                                ? self.unwrap( $wrapper, $wrappedElements )
+                                // Otherwise, only unwrap specific elements
+                                : self.unwrap( $wrapper, $elementsToUnwrap, true )
+          })
+          // If no specific targets, unwrap all wrappers
+          : $wrappers.each( function(){
+            const
+            $wrapper = $(this),
+            $wrappedElements = $wrapper.find(`:scope > scope > ${self.context.options.element}`)
+
+            self.unwrap( $wrapper, $wrappedElements )
+          })
   }
 
   enable(){
     if( !this.context.$canvas.length ) return
 
-    const selector = `${this.context.options.element}:not(${this.context.options.WRAPPER_TAG},${this.context.options.WRAPPER_TAG} > scope,${this.context.options.WRAPPER_TAG} > .handle)`
+    const
+    wtag = this.context.options.WRAPPER_TAG,
+    selector = `${this.context.options.element}:not(${wtag},${wtag} > scope,${wtag} > .handle)`
 
     /**
-     * Wrappable element activation by constraints
+     * Single element wrapping on click
      */
     this.context
     .events( this.context.$canvas )
     .on('mousedown.wrapper', selector, ( e: any ) => {
       !this.context.constraints<WrappableActionType>('wrap', 'activate', e )
-      && this.activate( $(e.target) )
-    }, { selfExclude: true })
+      && this.activate( $(e.target), e )
+    }, { selfExclude: true, stopPropagation: true })
 
     /**
      * Wrappable element deactivation by constraints
      */
     this.context
     .events( this.context.options.$viewport )
-    .on('mousedown.wrapper', e =>  {
+    .on('mousedown.wrapper', e => {
       !this.context.constraints<WrappableActionType>('wrap', 'deactivate', e )
-      && this.deactivate( $(e.target) )
+      && this.deactivate()
     })
   }
   disable(){

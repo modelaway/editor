@@ -1,6 +1,6 @@
 import type { HandlerHook } from '../types/controls'
+import type Lips from '../lib/lips/lips'
 
-import Lips, { Component } from '../lib/lips/lips'
 import * as Components from './components'
 import {
   CONTROL_MENU_SELECTOR,
@@ -25,8 +25,7 @@ export type FinderState = {
   query: string
   results: Record<string, SearchResult>
 }
-export default ( input: FinderInput, hook: HandlerHook ) => {
-  const lips = new Lips()
+export default ( lips: Lips, input: FinderInput, hook: HandlerHook ) => {
   lips.register('inputs', Components.inputs.default() )
 
   const state = {
@@ -112,5 +111,5 @@ export default ( input: FinderInput, hook: HandlerHook ) => {
     </mblock>
   `
 
-  return new Component<FinderInput, FinderState>('finder', template, { input, state, handler, macros })
+  return lips.render<FinderInput, FinderState>('finder', { default: template, state, handler, macros }, input )
 }

@@ -1,8 +1,8 @@
+import type Lips from '../lib/lips/lips'
 import type { Handler } from '../lib/lips'
 import type { ViewCaption } from '../types/view'
 import type { HandlerHook } from '../types/controls'
 
-import Lips, { Component } from '../lib/lips/lips'
 import * as Components from './components'
 import {
   CONTROL_LANG_SELECTOR,
@@ -24,8 +24,7 @@ export type MenuState = {
   activeTab: string | null
 }
 
-export default ( input: MenuInput, hook: HandlerHook ) => {
-  const lips = new Lips()
+export default ( lips: Lips, input: MenuInput, hook: HandlerHook ) => {
   lips.register('inputs', Components.inputs.default() )
 
   const state = {
@@ -152,7 +151,7 @@ export default ( input: MenuInput, hook: HandlerHook ) => {
     </mblock>
   `
 
-  return new Component<MenuInput, MenuState>('menu', template, { input, state, handler, macros, stylesheet }, { lips })
+  return lips.render<MenuInput, MenuState>('menu', { default: template, state, handler, macros, stylesheet }, input )
 }
 
 const stylesheet = `

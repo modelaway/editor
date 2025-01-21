@@ -412,7 +412,7 @@ export default class View extends EventEmitter {
       events: this.bridge.events,
       metacall: this.metacall.bind(this)
     }
-    this.Quickset = Quickset( input, hook )
+    this.Quickset = Quickset( this.frame.editor.lips, input, hook )
     let $quickset = this.Quickset.appendTo( this.frame.editor.$viewport ).getNode()
 
     /**
@@ -472,7 +472,7 @@ export default class View extends EventEmitter {
     hook: HandlerHook = {
       metacall: this.metacall.bind(this)
     }
-    this.Menu = Menu( input, hook )
+    this.Menu = Menu( this.frame.editor.lips, input, hook )
     let $menu = this.Menu.appendTo( this.frame.editor.$viewport ).getNode()
 
     const
@@ -529,7 +529,7 @@ export default class View extends EventEmitter {
       events: this.bridge.events,
       metacall: this.metacall.bind(this)
     }
-    this.Finder = Finder( input, hook )
+    this.Finder = Finder( this.frame.editor.lips, input, hook )
     let $finder = this.Finder.appendTo( this.frame.editor.$viewport ).getNode()
 
     const

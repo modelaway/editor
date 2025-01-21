@@ -1,10 +1,10 @@
+import type Lips from '../lib/lips/lips'
 import type { Handler } from '../lib/lips'
 import type { HandlerHook } from '../types/controls'
 import type { MovableOptions } from '../modules/controls/movable'
 import type { SortableOptions } from '../modules/controls/sortable'
 
 import $, { type Cash } from 'cash-dom'
-import Lips, { Component } from '../lib/lips/lips'
 import { VIEW_KEY_SELECTOR } from '../modules/constants'
 import LayerList from './components/layerlist'
 import LayerItem from './components/layeritem'
@@ -138,22 +138,6 @@ class Traverser {
   }
 }
 
-/**
- * Registered dependency components
- */
-function dependencies(){
-  const lips = new Lips<Context>({
-    context: {
-      selection: []
-    }
-  })
-
-  lips.register('layerlist', LayerList() )
-  lips.register('layeritem', LayerItem() )
-
-  return lips
-}
-
 function cleanContent( html: string ){
   return html.trim()
             .replace(/[\n\t\r]+/g, '')
@@ -195,7 +179,11 @@ type ReorderSpec = {
 /**
  * Element Layers management list
  */
-export default ( input: LayersInput, hook?: HandlerHook ) => {
+export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
+  
+  lips.register('layerlist', LayerList() )
+  lips.register('layeritem', LayerItem() )
+
   const state: State = {
     layers: new Map(),
     activeLayer: null,
@@ -349,7 +337,7 @@ export default ( input: LayersInput, hook?: HandlerHook ) => {
     </mblock>
   `
 
-  return new Component<LayersInput, State>('layers', template, { input, state, handler, stylesheet }, { lips: dependencies() })
+  return lips.render<LayersInput, State>('layers', { default: template, state, handler, stylesheet }, input )
 }
 
 const stylesheet = `

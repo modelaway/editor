@@ -1,7 +1,7 @@
+import type Lips from '../lib/lips/lips'
 import type { Handler } from '../lib/lips'
 import type { HandlerHook } from '../types/controls'
 
-import { Component } from '../lib/lips/lips'
 import {
   CONTROL_LANG_SELECTOR,
   CONTROL_QUICKSET_SELECTOR,
@@ -26,7 +26,7 @@ export type QuicksetState = {
   showExtra: boolean
 }
 
-export default ( input: QuicksetInput, hook?: HandlerHook ) => {
+export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
 
   const state: QuicksetState = {
     default: null,
@@ -200,7 +200,7 @@ export default ( input: QuicksetInput, hook?: HandlerHook ) => {
     </mblock>
   `
 
-  return new Component<QuicksetInput, QuicksetState>('quickset', template, { input, state, handler, macros, stylesheet })
+  return lips.render<QuicksetInput, QuicksetState>('quickset', { default: template, state, handler, macros, stylesheet }, input )
 }
 
 const stylesheet = `

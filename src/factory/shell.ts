@@ -1,9 +1,9 @@
-import { Component } from '../lib/lips/lips'
+import type Lips from '../lib/lips/lips'
 
 export type ShellInput = {
 
 }
-export default ( input: ShellInput ) => {
+export default ( lips: Lips, input: ShellInput ) => {
   const template = `
     <mshell>
       <viewport>
@@ -12,5 +12,5 @@ export default ( input: ShellInput ) => {
     </mshell>
   `
 
-  return new Component<ShellInput>( 'shell', template, { input } )
+  return lips.render<ShellInput>( 'shell', { default: template }, input )
 }

@@ -177,7 +177,7 @@ export default class Lips<Context = any> {
     // }
     // catch( error ){ throw new Error(`No <${pathname}> component found`) }
   }
-  render( name: string, template: Template ){
+  render<Input = void, State = void, Static = void, Context = void>( name: string, template: Template<Input, State, Static, Context>, input?: Input ){
     const
     { default: _default, ...scope } = template,
     options: ComponentOptions = {
@@ -186,7 +186,7 @@ export default class Lips<Context = any> {
       lips: this
     }
 
-    return new Component( name, _default, scope, options )
+    return new Component<Input, State, Static, Context>( name, _default, { ...scope, input }, options )
   }
   root( template: Template, selector: string ){
     this.__root = this.render('__ROOT__', template )

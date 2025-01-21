@@ -1,26 +1,13 @@
+import type Lips from '../lib/lips/lips'
+import type { Handler } from '../lib/lips'
 import type { HandlerHook } from '../types/controls'
 
-import { Handler } from '../lib/lips'
-import Lips, { Component } from '../lib/lips/lips'
-import { CONTROL_LANG_SELECTOR } from '../modules/constants'
 import Styles from './components/styles'
 import Assets from './components/assets'
 import Plugins from './components/plugins'
 import Settings from './components/settings'
 import TECaptions from './components/tecaptions'
-
-function dependencies(){
-  const lips = new Lips()
-
-  lips
-  .register('styles', Styles() )
-  .register('assets', Assets() )
-  .register('plugins', Plugins() )
-  .register('settings', Settings() )
-  .register('captions', TECaptions() )
-
-  return lips
-}
+import { CONTROL_LANG_SELECTOR } from '../modules/constants'
 
 type ContentType = 'tool' | 'view' | 'global'
 type Content = {
@@ -47,7 +34,13 @@ export type ToolbarState = {
   content: Content | null
 }
 
-export default ( input: ToolbarInput, hook?: HandlerHook ) => {
+export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
+  lips
+  .register('styles', Styles() )
+  .register('assets', Assets() )
+  .register('plugins', Plugins() )
+  .register('settings', Settings() )
+  .register('captions', TECaptions() )
   
   const state: ToolbarState = {
     tools: {},
@@ -283,7 +276,7 @@ export default ( input: ToolbarInput, hook?: HandlerHook ) => {
     </mblock>
   `
 
-  return new Component<ToolbarInput, ToolbarState>('toolbar', template, { input, state, handler, macros, stylesheet }, { lips: dependencies() })
+  return lips.render<ToolbarInput, ToolbarState>('toolbar', { default: template, state, handler, macros, stylesheet }, input )
 }
 
 const stylesheet = `

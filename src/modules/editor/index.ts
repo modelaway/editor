@@ -20,11 +20,14 @@ import {
   TOOLS,
   VIEWS
 } from '../constants'
+import Lips from '../../lib/lips/lips'
 
 window.mlang = {
   default: 'en-US',
   current: window.navigator.language
 }
+
+type GlobalLipsContext = {}
 
 export default class Editor {
   private events = new EventEmitter()
@@ -77,6 +80,7 @@ export default class Editor {
   }
   public settings: ModelaSettings = {}
 
+  public lips: Lips
   public $root?: Cash
   public $shell?: Cash
   public $viewport?: Cash
@@ -147,6 +151,14 @@ export default class Editor {
     // Set default language as current language
     if( this.settings.lang )
       window.mlang.current = this.settings.lang
+
+    const context: GlobalLipsContext = {
+      context: {
+        selection: []
+      }
+    }
+
+    this.lips = new Lips({ context })
 
     /**
      * Manage history stack of all actions
@@ -247,7 +259,7 @@ export default class Editor {
      * Create modela viewport layer and apply translation 
      * to text contents
      */
-    const shell = Shell({})
+    const shell = Shell( this.lips, {})
     this.$shell = shell.getNode()
 
     this.$root.prepend( this.$shell )
@@ -271,7 +283,7 @@ export default class Editor {
         visible: this.settings.viewToolbar,
       }
     },
-    toolbar = Toolbar( tinput, { events: this.events, editor: this })
+    toolbar = Toolbar( this.lips, tinput, { events: this.events, editor: this })
     toolbar.appendTo( this.$shell )
 
     this.events.on('toolbar.handle', ( key, option ) => {
@@ -290,7 +302,7 @@ export default class Editor {
         visible: this.settings.viewControls,
       }
     },
-    controls = Quickset( cinput, { events: this.events, editor: this })
+    controls = Quickset( this.lips, cinput, { events: this.events, editor: this })
     controls.appendTo( this.$shell )
 
     this.events.on('quickset.handle', ( key, option ) => {
@@ -350,7 +362,7 @@ export default class Editor {
         visible: this.settings.viewLayers,
       },
     },
-    layers = Layers( linput, { events: this.events, editor: this })
+    layers = Layers( this.lips, linput, { events: this.events, editor: this })
     layers.appendTo( this.$shell )
 
     this.events.on('layers.handle', ( key, option ) => {

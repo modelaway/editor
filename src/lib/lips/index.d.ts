@@ -19,6 +19,7 @@ export type Template<Input = void, State = void, Static = void, Context = void> 
   context?: any
   handler?: Handler<Input, State, Static, Context>
   stylesheet?: string
+  macros?: Record<string, string>
   default: string
 }
 export type ComponentScope<Input = void, State = void, Static = void, Context = void> = {

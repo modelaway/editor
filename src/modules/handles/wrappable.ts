@@ -4,7 +4,7 @@ import type FrameStyle from '../frame/styles'
 import type Stylesheet from '../../lib/stylesheet'
 import $, { type Cash } from 'cash-dom'
 
-type WrappableActionType = 'activate' | 'deactivate' | 'multiwrap'
+type WrappableActionType = 'activate' | 'deactivate' | 'multiwrap' | 'handle'
 
 export default class Wrappable implements HandleInterface {
   private context: Handles
@@ -275,15 +275,6 @@ export default class Wrappable implements HandleInterface {
     .before( $wrapper )
 
     $wrapper.find(':scope > scope').append( $target )
-
-    // Add resize handles based on position type
-    const handles = (styles.display || $target.attr('handle')) === 'inline'
-                          ? ['rc']
-                          : styles.position && ['fixed', 'absolute'].includes( styles.position )
-                              ? ['tl', 'tr', 'bl', 'br', 'tc', 'bc', 'lc', 'rc']
-                              : ['br', 'bc', 'rc']
-
-    handles.forEach( htype => this.createHandle( htype ).appendTo( $wrapper ) )
   }
   private multipWrap( $targets: Cash ){
     if( !this.context.options.WRAPPER_TAG
@@ -358,13 +349,6 @@ export default class Wrappable implements HandleInterface {
 
     $first.before( $wrapper )
     $wrapper.find(':scope > scope').append( $targets )
-
-    // Add resize handles
-    const handles = baseStyles.position && ['fixed', 'absolute'].includes( baseStyles.position )
-                    ? ['tl', 'tr', 'bl', 'br', 'tc', 'bc', 'lc', 'rc']
-                    : ['br', 'bc', 'rc']
-
-    handles.forEach( htype => this.createHandle( htype ).appendTo( $wrapper ) )
   }
   /**
    * Helper method to handle unwrapping of elements
@@ -450,7 +434,7 @@ export default class Wrappable implements HandleInterface {
      * Cluster wrap multiple selected elements during
      * single target activation but in progression wrap
      * trigger by `mousedown` or `click`
-     * 
+     *
      * Mostly works base on constraints like:
      * - e.shiftKey
      * - e.metaKey
@@ -505,6 +489,44 @@ export default class Wrappable implements HandleInterface {
 
             self.unwrap( $wrapper, $wrappedElements )
           })
+  }
+  
+  handle( $targets: Cash ){
+    /**
+     * Auto-activate targets if not.
+     */
+    !$targets.closest( this.context.options.WRAPPER_TAG ).length
+    && this.activate( $targets )
+
+    const $wrapper = $targets.closest( this.context.options.WRAPPER_TAG )
+    if( !$wrapper.length ) return
+
+    const
+    stylePosition = $wrapper.css('position'),
+    display = $wrapper.find( this.context.options.element ).attr('handle') || $wrapper.css('display'),
+
+    /**
+     * Add handles based on position type
+     */
+    handles = display === 'inline' 
+                          ? ['rc']
+                          : stylePosition && ['fixed', 'absolute'].includes( stylePosition )
+                                          ? ['tl', 'tr', 'bl', 'br', 'tc', 'bc', 'lc', 'rc']
+                                          : ['br', 'bc', 'rc']
+
+    handles.forEach( htype => this.createHandle( htype ).appendTo( $wrapper ) )
+  }
+  unhandle( $targets?: Cash ){
+    const
+    self = this,
+    $wrapper = $targets?.length
+                    ? $targets.closest( this.context.options.WRAPPER_TAG )
+                    : this.context.$canvas.find( this.context.options.WRAPPER_TAG as string )
+
+    $wrapper?.length
+    && $wrapper.each( function(){
+      $(this).find(`${self.context.options.WRAPPER_TAG} > .handle`).remove()
+    })
   }
 
   enable(){

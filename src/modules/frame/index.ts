@@ -183,6 +183,7 @@ export default class Frame extends EventEmitter {
                                       || event?.metaKey
                                       || false
             case 'multiwrap': return !event?.shiftKey
+            case 'handle': return false
 
             // Constrain by default
             default: return false

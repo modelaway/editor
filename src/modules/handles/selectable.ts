@@ -24,6 +24,7 @@ export default class Selectable implements HandleInterface {
   private cursorX = 0
   private cursorY = 0
   private isShiftKeyPressed = false
+  private isPendingSelect = false
 
   private throttled: any
 
@@ -139,7 +140,7 @@ export default class Selectable implements HandleInterface {
     const rect = this.context.$canvas[0]?.getBoundingClientRect()
     if( !rect ) return
 
-    this.context.isSelecting = true
+    this.isPendingSelect = true
     this.isShiftKeyPressed = e.shiftKey
 
     const scaleQuo = this.context.getScaleQuo()
@@ -156,32 +157,48 @@ export default class Selectable implements HandleInterface {
       // Clear progressive selection for new drag operation
       this.$progressiveSelection = undefined
     }
-
-    this.$coverage = $(`<${this.context.options.DRAG_SELECT_TAG}/>`)
-    this.$coverage.css({
-      left: `${this.startX}px`,
-      top: `${this.startY}px`,
-      width: '0',
-      height: '0'
-    })
-
-    this.isShiftKeyPressed && this.$coverage.addClass('inclusive')
-    this.context.$canvas.append( this.$coverage )
   }
   private handle( e: any ){
     if( this.context.isPanning
         || this.context.isMoving
         || this.context.isResizing
-        || !this.context.isSelecting
-        || !this.$coverage?.length
         || !this.context.$canvas?.length ) return
 
     const rect = this.context.$canvas[0]?.getBoundingClientRect()
     if( !rect ) return
 
-    // Update selection rectangle visual
     const scaleQuo = this.context.getScaleQuo()
 
+    if( this.isPendingSelect ){
+      const
+      currentX = ( e.pageX - rect.left ) * scaleQuo,
+      currentY = ( e.pageY - rect.top ) * scaleQuo,
+      deltaX = Math.abs( currentX - this.startX ),
+      deltaY = Math.abs( currentY - this.startY ),
+      selectThreshold = this.context.options.DRAG_SELECT_THRESHOLD || 5
+
+      if( Math.max( deltaX, deltaY ) > selectThreshold ){
+        this.isPendingSelect = false
+        this.context.isSelecting = true
+
+        // Create selection coverage element only after threshold is met
+        this.$coverage = $(`<${this.context.options.DRAG_SELECT_TAG}/>`)
+        this.$coverage.css({
+          left: `${this.startX}px`,
+          top: `${this.startY}px`,
+          width: '0',
+          height: '0'
+        })
+
+        this.isShiftKeyPressed && this.$coverage.addClass('inclusive')
+        this.context.$canvas.append( this.$coverage )
+      }
+      else return
+    }
+
+    if( !this.context.isSelecting || !this.$coverage?.length ) return
+
+    // Update selection rectangle visual
     this.cursorX = ( e.pageX - rect.left ) * scaleQuo
     this.cursorY = ( e.pageY - rect.top ) * scaleQuo
 
@@ -222,9 +239,10 @@ export default class Selectable implements HandleInterface {
     this.throttled( rect, left, top, width, height )
   }
   private stop( e: any ){
-    if( !this.context.isSelecting ) return
+    if( !this.isPendingSelect && !this.context.isSelecting ) return
 
     this.context.isSelecting = false
+    this.isPendingSelect = false
 
     const
     width = Math.abs( this.cursorX - this.startX ),
@@ -249,9 +267,11 @@ export default class Selectable implements HandleInterface {
       finalSelection = this.updateProgressiveSelection( filteredSelection )
       
       if( finalSelection?.length ){
-        // First unwrap all elements to prepare for multi-wrap
+        /**
+         * First unwrap all elements to prepare for multi-wrap
+         * then apply multi-wrap.
+         */
         this.wrappable?.deactivate( finalSelection )
-        // Then apply multi-wrap
         this.wrappable?.activate( finalSelection )
         
         this.context.emit('selection.end', finalSelection )

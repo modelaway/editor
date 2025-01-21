@@ -36,6 +36,7 @@ export interface HandlesOptions {
   
   MIN_WIDTH: number
   MIN_HEIGHT: number
+  MOVE_THRESHOLD?: number
   WRAPPER_TAG?: string
   WRAPPER_BORDER_WIDTH?: number
   WRAPPER_HANDLE_SIZE?: number
@@ -126,12 +127,15 @@ export default class Handles extends Inclusion {
 
     // REVIEW: Options validation
     this.options = {
+      MOVE_THRESHOLD: 5,
+
       WRAPPER_TAG: 'rzwrapper',
       WRAPPER_BORDER_WIDTH: 1,
       WRAPPER_HANDLE_SIZE: 6,
 
       DRAG_SELECT_TAG: 'dragselect',
       DRAG_SELECT_MIN_SIZE: 5,
+      DRAG_SELECT_THRESHOLD: 5,
       
       ...options
     }

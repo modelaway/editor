@@ -5,6 +5,7 @@ import type SnapGuidable from './snapguidable'
 import $, { type Cash } from 'cash-dom'
 
 type MoveActionType = 'start' | 'handle' | 'stop'
+
 export default class Movable implements HandleInterface {
   private context: Handles
   private $wrapper?: Cash
@@ -13,6 +14,10 @@ export default class Movable implements HandleInterface {
   private startTop = 0
   private startLeft = 0
   private snapguide?: SnapGuidable
+  private initialCursorX = 0
+  private initialCursorY = 0
+  private MOVE_THRESHOLD = 5
+  private isPendingMove = false
 
   constructor( context: Handles, snapguide?: SnapGuidable ){
     this.context = context
@@ -33,10 +38,10 @@ export default class Movable implements HandleInterface {
     if( !position || !['fixed', 'absolute'].includes( position ) ) return
 
     this.$wrapper = $target
-    this.context.isMoving = true
+    this.isPendingMove = true
 
-    this.cursorX = e.pageX
-    this.cursorY = e.pageY
+    this.initialCursorX = this.cursorX = e.pageX
+    this.initialCursorY = this.cursorY = e.pageY
 
     this.startTop = parseFloat( this.$wrapper?.css('top') as string ) || 0
     this.startLeft = parseFloat( this.$wrapper?.css('left') as string ) || 0
@@ -44,11 +49,28 @@ export default class Movable implements HandleInterface {
   private handle( e: any ){
     if( this.context.isPanning
         || this.context.isResizing
-        || !this.context.isMoving
         || !this.$wrapper?.length ) return
 
+    const scaleQuo = this.context.getScaleQuo()
+
+    if( this.isPendingMove ){
+      const
+      deltaX = Math.abs( e.pageX - this.initialCursorX ),
+      deltaY = Math.abs( e.pageY - this.initialCursorY ),
+      moveThreshold = this.context.options.MOVE_THRESHOLD || 5
+
+      if( Math.max( deltaX, deltaY ) > moveThreshold ){
+        this.isPendingMove = false
+        this.context.isMoving = true
+        this.cursorX = e.pageX
+        this.cursorY = e.pageY
+      }
+      else return
+    }
+
+    if( !this.context.isMoving ) return
+
     const
-    scaleQuo = this.context.getScaleQuo(),
     deltaX = ( e.pageX - this.cursorX ) * scaleQuo,
     deltaY = ( e.pageY - this.cursorY ) * scaleQuo
 
@@ -70,9 +92,10 @@ export default class Movable implements HandleInterface {
     this.$wrapper.css({ top: `${newTop}px`, left: `${newLeft}px` })
   }
   private stop(){
-    if( !this.context.isMoving ) return
+    if( !this.isPendingMove && !this.context.isMoving ) return
 
     this.context.isMoving = false
+    this.isPendingMove = false
     this.$wrapper = undefined
 
     this.snapguide?.hide()

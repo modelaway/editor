@@ -462,7 +462,6 @@ export default class Wrappable implements HandleInterface {
 
       // Check constraints and put all found element into cluster wrap.
       if( $wrapped.length > 1 && !this.context.constraints<WrappableActionType>('wrap', 'multiwrap', e as KeyboardEvent ) ){
-        console.log('multi')
         this.deactivate()
         this.multipWrap( $wrapped )
 

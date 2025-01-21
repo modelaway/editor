@@ -206,7 +206,7 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
        * Attach movable control to layer component
        */
       const movableOptions: MovableOptions = {
-        handle: '.header > minline',
+        handle: '.header > mblock > minline',
         apex: ['right', 'bottom']
       }
       this.movable = hook?.editor?.controls.movable<LayersInput, State>( this, movableOptions )
@@ -397,7 +397,6 @@ const stylesheet = `
   }
 
   mli {
-    background-color: var(--me-inverse-color);
     border-top: 1px solid var(--me-border-color);
     border-bottom: 1px solid var(--me-border-color);
     margin: -1px 0;
@@ -415,7 +414,6 @@ const stylesheet = `
 
       &:hover {
         background-color: var(--me-primary-color-fade);
-
         .move-handle { visibility: visible; }
       }
 
@@ -487,16 +485,6 @@ const stylesheet = `
       &:active { cursor: grabbing }
     }
 
-    .sortable-ghost {
-      opacity: var(--go);
-      backdrop-filter: blur(2px);
-      box-shadow: var(--me-box-shadow);
-      border-radius: 4px;
-      pointer-events: none;
-      transform-origin: 50% 50%;
-      animation: ghost-appear var(--td) ease;
-    }
-
     .sortable-placeholder {
       background: var(--pb);
       margin: 4px 0;
@@ -512,6 +500,17 @@ const stylesheet = `
     .level-change {
       animation: level-shift var(--td) ease;
     }
+  }
+
+  .sortable-ghost {
+    opacity: var(--go);
+    backdrop-filter: blur(2px);
+    box-shadow: var(--me-box-shadow);
+    background-color: var(--me-inverse-color);
+    border-radius: 4px;
+    pointer-events: none;
+    transform-origin: 50% 50%;
+    animation: ghost-appear var(--td) ease;
   }
 
   @keyframes ghost-appear {

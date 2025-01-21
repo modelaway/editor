@@ -67,7 +67,7 @@ const LayerItem = () => {
           data-level=input.depth
           class="context.selection.includes( input.key ) && 'selected'">
       <mblock class="nested-indicator"></mblock>
-      
+
       <mblock class="layer-bar">
         <micon class="'toggle-icon visibility bx '+( input.hidden ? 'bx-hide' : 'bx-show')"
                 on-click( onToggleVisibility, input.key )></micon>

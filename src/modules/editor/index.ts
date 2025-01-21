@@ -153,9 +153,7 @@ export default class Editor {
       window.mlang.current = this.settings.lang
 
     const context: GlobalLipsContext = {
-      context: {
-        selection: []
-      }
+      selection: ['l3']
     }
 
     this.lips = new Lips({ context })

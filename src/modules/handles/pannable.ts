@@ -62,6 +62,18 @@ export default class Pannable implements HandleInterface {
 
     this.context.transformCanvas()
   }
+  center(){
+    const
+    viewportWidth = this.context.$viewport.width(),
+    viewportHeight = this.context.$viewport.height(),
+    scale = this.context.options.getScale()
+
+    // Position canvas at viewport center
+    this.context.canvasOffset.x = viewportWidth / 2
+    this.context.canvasOffset.y = viewportHeight / 2
+
+    this.context.transformCanvas()
+  }
 
   enable(){
     if( !this.context.$viewport.length ) return
@@ -72,9 +84,14 @@ export default class Pannable implements HandleInterface {
       !this.context.constraints<PanActionType>('pan', 'start', e )
       && this.start(e)
     })
-    .on('click', e => {
-      this.panTo( 0, 3000 )
-    })
+
+    // TEST: Pan to
+    // .on('click', e => {
+    //   this.panTo( 0, 3000 )
+    // })
+    // .on('click', () => {
+    //   this.center()
+    // })
     
     this.context
     .events( document )

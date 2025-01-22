@@ -71,13 +71,10 @@ export default class Canvas extends EventEmitter {
       }
     })
     
-    // Initial canvas state
-    this.$.css({
-      left: '50%',
-      top: '50%',
-      transform: `translate(-50%, -50%) scale(${this.scale})`
-    })
-
+    /**
+     * Initial center canvas on the viewport
+     */
+    this.handles.manual.pan?.center()
 
     // Listen an process history stack
     // 'history.init'

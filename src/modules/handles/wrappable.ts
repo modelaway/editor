@@ -34,7 +34,7 @@ export default class Wrappable implements HandleInterface {
     return `
       ${this.context.options.WRAPPER_TAG} {
         display: inline-block;
-        border: ${this.context.options.WRAPPER_BORDER_WIDTH * this.context.getScaleQuo()}px solid var(--me-primary-color-transparent);
+        border: ${this.context.options.WRAPPER_BORDER_WIDTH}px solid var(--me-primary-color-transparent);
         box-sizing: border-box;
         box-shadow: 0 0 0 1px rgba(13, 110, 253, 0.1);
         transition: border-color 0.2s ease;

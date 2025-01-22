@@ -54,7 +54,9 @@ export default class Frame extends EventEmitter {
     // Generate new key for the new frame
     this.key = generateKey()
     this.$frame = $(this.createFrame( options.position ))
-    this.$frame.attr('title', options.title || 'Unnamed Frame' )
+
+    // Display frame's path & name
+    this.$frame.attr('pathname', options.title || 'Unnamed Frame' )
 
     const element = this.$frame.get(0)
     if( !element ) throw new Error('Frame node creation failed unexpectedly')

@@ -520,7 +520,7 @@ export default class Wrappable implements HandleInterface {
     .on('mousedown.wrapper', selector, ( e: any ) => {
       !this.context.constraints<WrappableActionType>('wrap', 'activate', e )
       && this.activate( $(e.target), e )
-    }, { selfExclude: true, stopPropagation: true })
+    }, { selfExclude: true })
 
     /**
      * Wrappable element deactivation by constraints

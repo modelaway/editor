@@ -1,3 +1,4 @@
+import type { FrameSpecs } from '../../types/frame'
 import $, { type Cash } from 'cash-dom'
 import EventEmitter from 'events'
 
@@ -9,6 +10,7 @@ import Plugins from '../plugins'
 import History from '../history'
 import Controls from './controls'
 import Functions from '../functions'
+import Lips from '../../lib/lips/lips'
 import Shell from '../../factory/shell'
 import Toolbar, { ToolbarInput } from '../../factory/toolbar'
 import Quickset, { QuicksetInput } from '../../factory/quickset'
@@ -20,14 +22,16 @@ import {
   TOOLS,
   VIEWS
 } from '../constants'
-import Lips from '../../lib/lips/lips'
 
 window.mlang = {
   default: 'en-US',
   current: window.navigator.language
 }
 
-type GlobalLipsContext = {}
+type GlobalLipsContext = {
+  selection: string[]
+  frame: FrameSpecs | null
+}
 
 export default class Editor {
   private events = new EventEmitter()
@@ -153,7 +157,8 @@ export default class Editor {
       window.mlang.current = this.settings.lang
 
     const context: GlobalLipsContext = {
-      selection: ['l3']
+      selection: [],
+      frame: null
     }
 
     this.lips = new Lips({ context })

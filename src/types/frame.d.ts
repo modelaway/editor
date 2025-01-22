@@ -16,7 +16,11 @@ export type FrameOption = {
     height: string
   }
 }
-
+export type FrameSpecs = {
+  key: string
+  title: string
+  content?: string
+}
 export interface FrameFlux {
   i18n: I18N
   fn: Functions

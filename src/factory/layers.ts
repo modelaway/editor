@@ -1,5 +1,6 @@
 import type Lips from '../lib/lips/lips'
 import type { Handler } from '../lib/lips'
+import type { FrameSpecs } from '../types/frame'
 import type { HandlerHook } from '../types/controls'
 import type { MovableOptions } from '../modules/controls/movable'
 import type { SortableOptions } from '../modules/controls/sortable'
@@ -161,12 +162,16 @@ export interface LayersInput {
 }
 
 type Context = {
-  selection: Array<string>
+  frame: FrameSpecs | null
+}
+type Static = {
+  newname?: string
 }
 interface State {
   layers: Map<string, LayerElement>
   activeLayer: string | null
   collapsed: boolean
+  rename: boolean
 }
 
 type ReorderSpec = {
@@ -187,10 +192,11 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
   const state: State = {
     layers: new Map(),
     activeLayer: null,
-    collapsed: false
+    collapsed: false,
+    rename: false
   }
 
-  const handler: Handler<LayersInput, State> = {
+  const handler: Handler<LayersInput, State, Static, Context> = {
     onInput({ host, mutations }){
       if( host.content ){
         const tvs = new Traverser
@@ -209,7 +215,7 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
         handle: '.header > mblock > minline',
         apex: ['right', 'bottom']
       }
-      this.movable = hook?.editor?.controls.movable<LayersInput, State>( this, movableOptions )
+      this.movable = hook?.editor?.controls.movable<LayersInput, State, Static, Context>( this, movableOptions )
 
       this.movable.on('started', ( position: Position ) => {})
       this.movable.on('moving', ( position: Position ) => {})
@@ -232,7 +238,7 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
         // nested: true,
         // multiDrag: true
       }
-      this.sortable = hook?.editor?.controls.sortable<LayersInput, State>( this, sortableOptions )
+      this.sortable = hook?.editor?.controls.sortable<LayersInput, State, Static, Context>( this, sortableOptions )
       
       this.sortable
       .on('sortable.select', ( $items: Cash[] ) => {
@@ -267,11 +273,41 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
         this.getNode().css( defPostion )
       }, 5 )
     },
+    onContext(){
+      if( !this.context.frame ) return
+
+      /**
+       * Update the content tree with the
+       * frame's content.
+       */
+      if( this.context.frame.content ){
+        const tvs = new Traverser
+        this.state.layers = tvs.traverse( cleanContent( this.context.frame.content ) )
+      }
+      else this.state.layers = new Map()
+    },
     onDestroy(){
       this.movable.dispose()
       this.sortable.dispose()
     },
-    onCollapse(){ this.state.collapsed = !this.state.collapsed },
+
+    onCollapse(){
+      this.state.collapsed = !this.state.collapsed
+    },
+    onRenameFrame( action: 'init' | 'input' | 'apply', e ){
+      if( !this.context.frame ) return
+
+      switch( action ){
+        case 'init': this.state.rename = true; break
+        case 'input': this.static.newname = e.target.value || e.target.innerText; break
+        case 'apply': {
+          this.state.rename = false
+
+          // TODO: Update frame name
+          this.context.frame.title = this.static.newname as string
+        } break
+      }
+    },
 
     reorderLayers( layers: ReorderSpec[], sourcePath: string, targetPath: string ){
       targetPath = targetPath.replace('#.', '')
@@ -323,7 +359,10 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
         <mblock class="host-title"
                 style="{ display: state.collapsed ? 'block' : 'none' }">
           <span class="host-type">{input.host.type} / </span>
-          <span>{input.host.title}</span>
+          <span contenteditable=state.rename
+                on-blur(onRenameFrame, 'apply')
+                on-input(onRenameFrame, 'input')
+                on-dblclick(onRenameFrame, 'init')>{context.frame ? context.frame.title : input.host.title}</span>
         </mblock>
       </mblock>
 
@@ -337,7 +376,7 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
     </mblock>
   `
 
-  return lips.render<LayersInput, State>('layers', { default: template, state, handler, stylesheet }, input )
+  return lips.render<LayersInput, State, Static, Context>('layers', { default: template, state, handler, stylesheet, context: ['frame'] }, input )
 }
 
 const stylesheet = `
@@ -368,7 +407,7 @@ const stylesheet = `
 
     .ill-icon,
     .toggle.icon { 
-      font-size: var(--me-icon-size-2);
+      font-size: var(--me-icon-size-2)!important;
     }
 
     .host-title {
@@ -426,13 +465,6 @@ const stylesheet = `
           /* color: #d2d7dd; */
           user-select: none;
           font-size: var(--me-small-font-size);
-          
-          &[contenteditable="true"]{
-            min-width: 5rem;
-            padding: 2px 8px;
-            border: 1px solid var(--me-border-color);
-            outline: none;
-          }
         }
       }
     }
@@ -511,6 +543,13 @@ const stylesheet = `
     pointer-events: none;
     transform-origin: 50% 50%;
     animation: ghost-appear var(--td) ease;
+  }
+
+  [contenteditable]{
+    display: inline-block;
+    min-width: 5rem;
+    padding: 0 8px;
+    outline: none;
   }
 
   @keyframes ghost-appear {

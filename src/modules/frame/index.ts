@@ -1,5 +1,5 @@
 import type Editor from '../editor'
-import type { FrameOption } from '../../types/frame'
+import type { FrameOption, FrameSpecs } from '../../types/frame'
 
 import $, { type Cash } from 'cash-dom'
 import EventEmitter from 'events'
@@ -31,14 +31,16 @@ interface TopographyOptions {
 }
 
 export default class Frame extends EventEmitter {
-  public key: string
   public editor: Editor
   public $frame: Cash
 
+  public key: string
+  public title: string
+  public coordinates: { x: string, y: string }
+  public styles: FrameStyles
+
   public $viewport: Cash
   public $canvas: Cash
-  public styles: FrameStyles
-  public coordinates: { x: string, y: string }
 
   private handles?: Handles
   private DOM: ShadowEvents
@@ -51,14 +53,15 @@ export default class Frame extends EventEmitter {
   constructor( editor: Editor, options: FrameOption ){
     super()
     this.editor = editor
+    this.title = options.title || 'Unnamed Frame'
     this.coordinates = options.coordinates || { x: '0px', y: '0px' }
 
     // Generate new key for the new frame
     this.key = generateKey()
-    this.$frame = $(this.createFrame( options.coordinates ))
+    this.$frame = $(this.createFrame( this.coordinates ))
 
     // Display frame's path & name
-    this.$frame.attr('pathname', options.title || 'Unnamed Frame' )
+    this.$frame.attr('pathname', this.title )
 
     const element = this.$frame.get(0)
     if( !element ) throw new Error('Frame node creation failed unexpectedly')
@@ -72,7 +75,7 @@ export default class Frame extends EventEmitter {
  
     this.$viewport = $(element.shadowRoot)
     this.$canvas = this.$viewport.children().first()
-    this.DOM = new ShadowEvents( element )
+    this.DOM = new ShadowEvents( element.shadowRoot as any )
 
     /**
      * Initialize frame styles manager with 
@@ -277,6 +280,18 @@ export default class Frame extends EventEmitter {
 
     this.DOM
     /**
+     * Mount frame to global context
+     */
+    .on('mouseup', () => {
+      const specs: FrameSpecs = {
+        key: this.key,
+        title: this.title,
+        content: this.getContent()
+      }
+
+      this.editor.lips.setContext('frame', specs )
+    })
+    /**
      * Show quickset options
      */
     .on('contextmenu', `[${VIEW_ACTIVE_SELECTOR}]`, function( this: Cash, e: Event ){
@@ -293,6 +308,7 @@ export default class Frame extends EventEmitter {
     } )
 
     .on('input', '[contenteditable]', () => this.emit('content.change', this.getContent() ) )
+    
     // .on('keydown', onUserAction )
     // .on('paste', onUserAction )
   }

@@ -1,4 +1,4 @@
-/* @import url('https://fonts.googleapis.com/css2?family=Urbanist:wght@100;200;300;400;500;600;700;800;900&display=swap'); */
+@import url('https://fonts.googleapis.com/css2?family=Urbanist:wght@100;200;300;400;500;600;700;800;900&display=swap');
 
 :root {
   --me-primary-color: rgba(20, 20, 20);
@@ -60,11 +60,15 @@ viewport mcanvas > div[mv-frame] { position: absolute; }
 viewport mcanvas > div[mv-frame]::before {
   content: attr(pathname);
   position: absolute;
+  min-width: 50px;
   top: -25px;
   z-index: 1000;
   width: 100%;
   height: 25px;
   color: var(--me-primary-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   pointer-events: none;
 }
 viewport mcanvas > div[mv-frame][frozen] { pointer-events: none; }
@@ -83,7 +87,7 @@ mshell,
 [mv-menu],
 [mv-quickset],
 [mv-form-input] * {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: Urbanist, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1;
   font-weight: 600;
 

@@ -2,15 +2,17 @@ import type Lips from '../lib/lips/lips'
 import type { Handler } from '../lib/lips'
 import type { HandlerHook } from '../types/controls'
 
+import MediaScreens from './components/mediascreens'
 import {
   CONTROL_LANG_SELECTOR,
-  CONTROL_QUICKSET_SELECTOR,
-  VIEW_CONTROL_OPTIONS
+  CONTROL_QUICKSET_SELECTOR
 } from '../modules/constants'
 
-/**
- * Process quickset options into HTML content
- */
+type Suggestions = {
+  key: string
+  option: QuicksetOption
+  position?: 'top' | 'bottom',
+}
 export type QuicksetInput = {
   key: string
   options: Record<string, QuicksetOption>
@@ -21,12 +23,16 @@ export type QuicksetState = {
   default: Record<string, QuicksetOption> | null
   extra: Record<string, QuicksetOption> | null
   super: Record<string, QuicksetOption> | null
-  subOption: Record<string, QuicksetOption> | null
+  subOption: QuicksetOption | null
   detached: Record<string, QuicksetOption> | null
   showExtra: boolean
+  suggestions: Suggestions | null
 }
 
 export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
+
+  // TODO: Rely on the all preregistered helpers instead
+  lips.register('mediascreens', MediaScreens() )
 
   const state: QuicksetState = {
     default: null,
@@ -35,7 +41,8 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
     subOption: null,
     detached: null,
 
-    showExtra: false
+    showExtra: false,
+    suggestions: null
   }
 
   const handler: Handler<QuicksetInput, QuicksetState> = {
@@ -85,21 +92,63 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
         this.getNode().css( defPostion )
       }, 5 )
     },
-    onShowExtraOptions( status ){ this.state.showExtra = status },
-    onShowSubOptions( key, option ){
-      if( option.disabled ) return
-      this.state.subOption = key && { ...option, key }
+
+    onShowExtraOptions( status: boolean ){
+      this.state.showExtra = status 
     },
-    onHandleOption( key, option, e ){
+    onShowSubOptions( key: string, option: QuicksetOption ){
+      if( option.disabled ) return
+      this.state.subOption = key ? { ...option, key } : null
+    },
+    onShowSuggestions( key: string, option: QuicksetOption ){
+      const position = 'top'
+
+      /**
+       * TODO: Determine the adequate position base on the 
+       * quickset location on the screen
+       */
+      
+      this.state.suggestions = { position, key, option }
+
+      /**
+       * Auto-close suggestions on external click
+       */
+      hook?.editor?.$viewport?.on('click.quickset-suggestions', () => {
+        this.state.suggestions = null
+
+        hook?.editor?.$viewport?.off('.quickset-suggestions')
+      })
+    },
+    onHandleOption( key: string, option: QuicksetOption, arg?: any ){
       if( option.disabled || !hook ) return
 
+      // Close opened suggestions
+      this.state.suggestions = null
+
       switch( option.type ){
-        case 'input': option.value = e.target.value; break
+        case 'input': option.value = arg.target.value; break
+        case 'suggestion': option.value = arg; break
       }
 
       option.meta
           ? typeof hook.metacall == 'function' && hook.metacall( key, option )
           : hook.events?.emit('quickset.handle', key, option )
+    },
+    onSmartHandle( key: string, option: QuicksetOption, arg?: any ){
+      // Close opened suggestions
+      this.state.suggestions = null
+      
+      if( option.sub ){
+        this.onShowSubOptions( key, option )
+        return
+      }
+
+      if( option.type === 'suggestion' ){
+        this.onShowSuggestions( key, option )
+        return
+      }
+      
+      this.onHandleOption( key, option, arg )
     },
 
     getStyle(){
@@ -127,7 +176,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
                     disabled=macro.disabled
                     placeholder="macro.label || macro.title"
                     value=macro.value
-                    on-change( onHandleOption, key, macro )>
+                    on-change( onSmartHandle, key, macro )>
           </mli>
         </case>
 
@@ -137,7 +186,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
                 title=macro.title
                 disabled=macro.disabled
                 ${CONTROL_LANG_SELECTOR}
-                on-click( macro.sub ? 'onShowSubOptions' : 'onHandleOption', key, macro )>
+                on-click( onSmartHandle, key, macro )>
             <micon class=macro.icon></micon>
 
             <if( macro.label )>
@@ -201,7 +250,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
                       disable=each.disabled
                       title=each.title
                     ${CONTROL_LANG_SELECTOR}
-                    on-click( onHandleOption, state.subOption.key +'.sub.'+ key, each )>
+                    on-click( onSmartHandle, state.subOption.key +'.sub.'+ key, each )>
                   <micon class=each.icon></micon>
                 </mli>
               </for>
@@ -219,6 +268,18 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
           </mul>
         </if>
       </mblock>
+
+      <if( state.suggestions )>
+        <const ...state.suggestions></const>
+
+        <mblock suggestions style="position == 'top' ? 'bottom: 4.2rem' : 'margin-top: .5rem'">
+          <mblock>
+            <if( option.helper )>
+              <{option.helper} ...option on-change( onHandleOption, key, option )/>
+            </if>
+          </mblock>
+        </mblock>
+      </if>
     </mblock>
   `
 
@@ -233,99 +294,117 @@ const stylesheet = `
   user-select: none;
   font-size: var(--me-font-size-2);
   
-  > mblock > mul {
+  > mblock {  }
+  > mblock > mul:not(:first-child) {
+    margin: 0 6px;
+  }
+
+  [suggestions],
+  [container] > mul {
     list-style: none;
     margin: 0;
-    padding: 3px;
     border-radius: var(--me-border-radius);
     background-color: var(--me-inverse-color);
-    box-shadow: var(--me-box-shadow);
     backdrop-filter: var(--me-backdrop-filter);
     transition: var(--me-active-transition);
   }
   
-  > mblock,
-  > mblock > mul,
-  > mblock > mul > mblock {
+  [container],
+  [container] > mul,
+  [container] > mul > mblock {
     display: flex;
     align-items: center;
     justify-content: space-around;
   }
 
-  [options="super"] {
-    border-left: 1px solid var(--me-border-color);
-  }
+  [container] {
+    padding: 6px 0;
 
-  > mblock { padding: 6px 0; }
-  > mblock > mul:not(:first-child) {
-    margin: 0 6px;
-  }
-  mli {
-    position: relative;
-    margin: 2px;
-    display: inline-flex;
-    align-items: center;
-    /* color: var(--me-trigger-text-color); */
-    border-radius: var(--me-border-radius-inside);
-    transition: var(--me-active-transition);
-
-    :not(.form-input){
-      padding: 8px;
+    > mul { 
+      padding: 3px;
+      box-shadow: var(--me-box-shadow);
     }
 
-    &.form-input {
-      display: flex;
-      font-size: var(--me-font-size);
+    mli {
+      position: relative;
+      margin: 2px;
+      display: inline-flex;
+      align-items: center;
+      /* color: var(--me-trigger-text-color); */
+      border-radius: var(--me-border-radius-inside);
+      transition: var(--me-active-transition);
 
-      &.addon > input {
-        padding-left: 2.3rem!important;
+      :not(.form-input){
+        padding: 8px;
       }
-      micon {
-        position: absolute;
-        color: var(--me-disabled-text-color);
-      }
-      input {
-        display: block;
-        padding: .6rem .9rem;
-        width: 100%;
+
+      &.form-input {
+        display: flex;
         font-size: var(--me-font-size);
-        border: 1px solid var(--me-border-color);
-        border-radius: var(--me-border-radius-inside);
-        background-clip: padding-box;
-        background-color: var(--me-input-color);
-        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 
-        &:focus {
-          outline: none;
+        &.addon > input {
+          padding-left: 2.3rem!important;
+        }
+        micon {
+          position: absolute;
+        }
+        input {
+          display: block;
+          padding: .6rem .9rem;
+          width: 100%;
+          font-size: var(--me-font-size);
+          border: 1px solid var(--me-border-color);
+          border-radius: var(--me-border-radius-inside);
+          background-clip: padding-box;
+          background-color: var(--me-input-color);
+          backdrop-filter: var(--me-backdrop-filter);
+          transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+
+          &:focus {
+            outline: none;
+          }
         }
       }
-    }
 
-    &[disabled] {
-      color: var(--me-disabled-text-color);
-      cursor: not-allowed;
+      &[disabled] {
+        color: var(--me-disabled-text-color);
+        cursor: not-allowed;
+      }
+      &[active] {
+        background-color: var(--me-primary-color);
+        color: #fff;
+      }
+      &:not(.label) {
+        cursor: pointer;
+      }
+      &:not(.label,.form-input,[disabled],[active]):hover {
+        background-color: var(--me-primary-color-transparent);
+      }
+      &.label > micon,
+      &.label > mlabel {
+        cursor: default;
+        text-wrap: nowrap;
+        padding-left: 10px;
+        font-size: var(--me-font-size-2);
+        color: var(--me-disabled-text-color);
+      }
+      &.label > micon { padding-left: 0; }
+      micon {
+        font-size: var(--me-icon-size-2)!important;
+      }
     }
-    &[active] {
-      background-color: var(--me-primary-color);
-      color: #fff;
+  }
+  [suggestions] {
+    position: absolute;
+    width: 100%;
+    box-shadow: var(--me-box-shadow-inverse);
+    transition: var(--me-active-transition);
+
+    > mblock { 
+      padding: 6px;
     }
-    &:not(.label) {
-      cursor: pointer;
-    }
-    &:not(.label,.form-input,[disabled],[active]):hover {
-      background-color: var(--me-primary-color-transparent);
-    }
-    &.label > micon,
-    &.label > mlabel {
-      cursor: default;
-      text-wrap: nowrap;
-      padding-left: 10px;
-      font-size: var(--me-font-size-2);
-      color: var(--me-disabled-text-color);
-    }
-    &.label > micon { padding-left: 0; }
-    micon {
-      font-size: var(--me-icon-size-2)!important;
-    }
+  }
+  [options="super"] {
+    border-left: 1px solid var(--me-border-color);
   }
 `

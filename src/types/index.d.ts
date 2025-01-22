@@ -98,10 +98,11 @@ type ToolbarOption = {
 }
 
 type QuicksetOption = {
+  key?: string
   icon: string
   title: string
   label?: string
-  type?: 'input' | 'option'
+  type?: 'input' | 'option' | 'suggestion'
   shortcut?: string
   sub?: Record<string, QuicksetOption>
   meta?: boolean
@@ -112,6 +113,11 @@ type QuicksetOption = {
   hidden?: boolean
   active?: boolean
   value?: any
+  /**
+   * Type suggestion comes with helper
+   * IMPORTANT: On helper by option (recommnended)
+   */
+  helper?: string
 }
 type QuicksetSettings = {
   visible?: boolean

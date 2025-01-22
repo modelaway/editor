@@ -148,9 +148,8 @@ export const EDITOR_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
     icon: 'bx bx-plus',
     title: 'Add New Frame',
     shortcut: 'command + f',
-    sub: {
-
-    }
+    type: 'suggestion',
+    helper: 'mediascreens'
   },
   'frame-layers': {
     icon: 'bx bx-list-minus',
@@ -306,7 +305,7 @@ export const VIEWS: Record<string, ToolbarOption> = {
     selected: '*',
     variants: {
       '*': {
-        icon: 'bx bx-square',
+        icon: 'bx bx-shape-square',
         title: 'Rectangle Shape',
         shortcut: 'command + y',
         tool: 'POINTER',

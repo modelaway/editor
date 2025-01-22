@@ -168,7 +168,6 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
 
       // console.log(`Option [${key}] -- `, option )
       this.viewOptionCaptions( type, key, option )
-      this.canDismissBody()
     },
 
     onHandleSelect( type: string, key: string, selected: string ){

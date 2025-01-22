@@ -28,6 +28,7 @@
   --me-slide-transition: 400ms;
   --me-backdrop-filter: blur(24px);
   --me-box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, 0.3);
+  --me-box-shadow-inverse: 0 0 1.5rem rgba(0, 0, 0, 0.3);
   --me-input-color: rgba(235, 235, 240, 0.7);
 }
 
@@ -57,7 +58,7 @@ viewport mcanvas {
 
 viewport mcanvas > div[mv-frame] { position: absolute; }
 viewport mcanvas > div[mv-frame]::before {
-  content: attr(title);
+  content: attr(pathname);
   position: absolute;
   top: -25px;
   z-index: 1000;

@@ -90,8 +90,12 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
       if( option.disabled ) return
       this.state.subOption = key && { ...option, key }
     },
-    onHandleOption( key, option ){
+    onHandleOption( key, option, e ){
       if( option.disabled || !hook ) return
+
+      switch( option.type ){
+        case 'input': option.value = e.target.value; break
+      }
 
       option.meta
           ? typeof hook.metacall == 'function' && hook.metacall( key, option )
@@ -112,9 +116,13 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
 
   const macros = {
     option: `
-      <switch( macro.type == 'input' )>
-        <case is="input>
-          <mli active=macro.active ${CONTROL_LANG_SELECTOR}>
+      <switch( macro.type )>
+        <case is="'input'">
+          <mli active=macro.active
+                class="'form-input'+( macro.icon && ' addon' )"
+                ${CONTROL_LANG_SELECTOR}>
+            <if( macro.icon )><micon class=macro.icon></micon></if>
+
             <input type="text"
                     disabled=macro.disabled
                     placeholder="macro.label || macro.title"
@@ -253,38 +261,71 @@ const stylesheet = `
     margin: 0 6px;
   }
   mli {
-    padding: 8px;
+    position: relative;
     margin: 2px;
     display: inline-flex;
     align-items: center;
     /* color: var(--me-trigger-text-color); */
     border-radius: var(--me-border-radius-inside);
     transition: var(--me-active-transition);
-  }
-  mli:not(.label) {
-    cursor: pointer;
-  }
-  mli[disabled] {
-    color: var(--me-disabled-text-color);
-    cursor: not-allowed;
-  }
-  mli[active] {
-    background-color: var(--me-primary-color);
-    color: #fff;
-  }
-  mli:not(.label,[disabled],[active]):hover {
-    background-color: var(--me-primary-color-transparent);
-  }
-  mli.label > micon,
-  mli.label > mlabel {
-    cursor: default;
-    text-wrap: nowrap;
-    padding-left: 10px;
-    font-size: var(--me-font-size-2);
-    color: var(--me-disabled-text-color);
-  }
-  mli.label > micon { padding-left: 0; }
-  mli micon {
-    font-size: var(--me-icon-size-2)!important;
+
+    :not(.form-input){
+      padding: 8px;
+    }
+
+    &.form-input {
+      display: flex;
+      font-size: var(--me-font-size);
+
+      &.addon > input {
+        padding-left: 2.3rem!important;
+      }
+      micon {
+        position: absolute;
+        color: var(--me-disabled-text-color);
+      }
+      input {
+        display: block;
+        padding: .6rem .9rem;
+        width: 100%;
+        font-size: var(--me-font-size);
+        border: 1px solid var(--me-border-color);
+        border-radius: var(--me-border-radius-inside);
+        background-clip: padding-box;
+        background-color: var(--me-input-color);
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+
+        &:focus {
+          outline: none;
+        }
+      }
+    }
+
+    &[disabled] {
+      color: var(--me-disabled-text-color);
+      cursor: not-allowed;
+    }
+    &[active] {
+      background-color: var(--me-primary-color);
+      color: #fff;
+    }
+    &:not(.label) {
+      cursor: pointer;
+    }
+    &:not(.label,.form-input,[disabled],[active]):hover {
+      background-color: var(--me-primary-color-transparent);
+    }
+    &.label > micon,
+    &.label > mlabel {
+      cursor: default;
+      text-wrap: nowrap;
+      padding-left: 10px;
+      font-size: var(--me-font-size-2);
+      color: var(--me-disabled-text-color);
+    }
+    &.label > micon { padding-left: 0; }
+    micon {
+      font-size: var(--me-icon-size-2)!important;
+    }
   }
 `

@@ -125,12 +125,12 @@ export const VIEW_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
  * Global control options
  */
 export const EDITOR_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
-  finder: {
+  explore: {
     type: 'input',
-    icon: 'bx bx-grid',
-    title: 'Finder',
+    icon: 'bx bx-search',
+    title: 'Explore',
     shortcut: 'command + z',
-    value: 'Bloc'
+    // value: 'Bloc'
   },
   undo: {
     icon: 'bx bx-undo',

@@ -83,7 +83,7 @@ editor.canvas.addFrame({
   // source: 'http://127.0.0.1:3000/publications/@modela/examples/wigo/index.html',
   title: 'Signin',
   device: 'tablet',
-  position: {
+  coordinates: {
     x: '0',
     y: '3000px'
   }

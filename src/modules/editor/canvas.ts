@@ -157,10 +157,10 @@ export default class Canvas extends EventEmitter {
 
   addFrame( options: FrameOption ){
     /**
-     * Position the new frame next to the last frame
-     * by the right side.
+     * Determine the location coordinates the new 
+     * frame next the last frame by the right side.
      */
-    if( !options.position ){
+    if( !options.coordinates ){
       const
       lastKey = Object.keys( this.list ).pop() || '*',
       lastFrame = this.get( lastKey )
@@ -171,13 +171,13 @@ export default class Canvas extends EventEmitter {
         _top = parseFloat( lastFrame.$frame.css('top') as string ),
         _width = parseFloat( lastFrame.$frame.css('width') as string )
 
-        options.position = {
+        options.coordinates = {
           x: `${_left + _width + FRAME_DEFAULT_MARGIN}px`,
           y: `${_top}px`
         }
       }
       // Use default origin for initial frame
-      else options.position = { x: `0px`, y: `0px` }
+      else options.coordinates = { x: `0px`, y: `0px` }
     }
 
     this.currentFrame = new Frame( this.editor, options )

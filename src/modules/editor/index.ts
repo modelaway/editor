@@ -271,7 +271,7 @@ export default class Editor {
      * ----------------------------------------------------
      */
     const
-    tinput: ToolbarInput = { 
+    tinput: ToolbarInput = {
       key: 'global',
       tools: TOOLS,
       views: VIEWS,
@@ -316,7 +316,21 @@ export default class Editor {
             layers.getNode().hide()
             controls.subInput({ [`options.${key}.active`]: false })
           }
-        }
+        } break
+
+        case 'frame-add': {
+          if( !option.value ) return
+
+          const frame = this.canvas.addFrame({
+            device: option.value.device,
+            size: {
+              width: option.value.width,
+              height: option.value.height
+            }
+          })
+          
+          
+        } break
       }
     })
     

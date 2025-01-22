@@ -38,6 +38,7 @@ export default class Frame extends EventEmitter {
   public $viewport: Cash
   public $canvas: Cash
   public styles: FrameStyles
+  public coordinates: { x: string, y: string }
 
   private handles?: Handles
   private DOM: ShadowEvents
@@ -50,10 +51,11 @@ export default class Frame extends EventEmitter {
   constructor( editor: Editor, options: FrameOption ){
     super()
     this.editor = editor
+    this.coordinates = options.coordinates || { x: '0px', y: '0px' }
 
     // Generate new key for the new frame
     this.key = generateKey()
-    this.$frame = $(this.createFrame( options.position ))
+    this.$frame = $(this.createFrame( options.coordinates ))
 
     // Display frame's path & name
     this.$frame.attr('pathname', options.title || 'Unnamed Frame' )
@@ -105,8 +107,8 @@ export default class Frame extends EventEmitter {
     this.emit('add')
   }
 
-  private createFrame( position?: FrameOption['position'] ){
-    return `<div ${CONTROL_FRAME_SELECTOR}="${this.key}" style="left:${position?.x || '0px'};top:${position?.y || '0px'};"></div>`
+  private createFrame( coordinates?: FrameOption['coordinates'] ){
+    return `<div ${CONTROL_FRAME_SELECTOR}="${this.key}" style="left:${coordinates?.x || '0px'};top:${coordinates?.y || '0px'};"></div>`
   }
   private getStyleSheet(){
     return `

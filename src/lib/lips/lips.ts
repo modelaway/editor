@@ -21,40 +21,49 @@ import * as Router from './router'
 const SPREAD_VAR_PATTERN = /^\.\.\./
 
 function preprocessTemplate( str: string ){
-  return (str || '').trim()
-            .replace( /<\{([^}]+)\}\s+(.*?)\/>/g, '<lips component="$1" $2></lips>')
-            .replace( /<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
-            .replace( /<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
-            .replace( /<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">')
-            .replace( /<log\(\s*(.*?)\s*\)>/g, '<log args="$1">')
-            .replace( /on-([a-zA-Z-]+)\(((?:function\s*(?:\w+\s*)?\([^)]*\)\s*{[\s\S]*?}|\([^)]*\)\s*=>[\s\S]*?|[^)]+))\)(?=[>\s])/g, ( match, event, expression ) => {
-              /**
-               * If we're dealing with complex functions, 
-               * we might need to handle nested brackets
-               */
-              if( expression.includes('{') ){
-                let 
-                openCount = 0,
-                closeCount = 0,
-                fullExpression = expression,
-                restOfString = match.slice( match.indexOf( expression ) + expression.length )
-                
-                // Handle potential nested braces
-                for( const char of restOfString ){
-                  if( char === '{' ) openCount++
-                  if( char === '}' ){
-                    closeCount++
-                    if( openCount === closeCount ) break
-                  }
-                  
-                  fullExpression += char
-                }
-                
-                return `on-${event}="${fullExpression.trim()}"`
-              }
-              
-              return `on-${event}="${expression.trim()}"`
-            })
+  const matchEventHandlers = ( input: string ) => {
+    const pattern = /on-([a-zA-Z-]+)\s*\(/g
+    let 
+      result = input,
+      match
+    
+    while( ( match = pattern.exec( input ) ) !== null ){
+      const event = match[1]
+      const startIndex = match.index + match[0].length
+      let 
+        parenthesesCount = 1,
+        position = startIndex
+      
+      while( position < input.length && parenthesesCount > 0 ){
+        if( input[position] === '(' ) parenthesesCount++
+        if( input[position] === ')' ) parenthesesCount--
+        position++
+      }
+      
+      if( parenthesesCount === 0 ){
+        const 
+        expression = input.slice( startIndex, position - 1 ).trim(),
+        prefix = input.slice( 0, match.index ),
+        replacement = `on-${event}="${expression}"`,
+        suffix = input.slice( position )
+        
+        result = prefix + replacement + suffix
+        input = result  // Update input for next iteration
+        pattern.lastIndex = prefix.length + replacement.length
+      }
+    }
+    
+    return result
+  }
+  
+  let result = (str || '').trim()
+                          .replace( /<\{([^}]+)\}\s+(.*?)\/>/g, '<lips component="$1" $2></lips>')
+                          .replace( /<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
+                          .replace( /<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
+                          .replace( /<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">')
+                          .replace( /<log\(\s*(.*?)\s*\)>/g, '<log args="$1">')
+  
+  return matchEventHandlers( result )
 }
 
 $.fn.extend({

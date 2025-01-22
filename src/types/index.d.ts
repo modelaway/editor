@@ -99,8 +99,9 @@ type ToolbarOption = {
 
 type QuicksetOption = {
   icon: string
-  label?: string
   title: string
+  label?: string
+  type?: 'input' | 'option'
   shortcut?: string
   sub?: Record<string, QuicksetOption>
   meta?: boolean
@@ -110,6 +111,7 @@ type QuicksetOption = {
   disabled?: boolean
   hidden?: boolean
   active?: boolean
+  value?: any
 }
 type QuicksetSettings = {
   visible?: boolean

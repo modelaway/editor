@@ -62,17 +62,35 @@ editor.mount('.editor')
 // Add a desktop frame to the board
 editor.canvas.addFrame({
   content: dummyFrameContent,
-  title: 'Frame Test'
+  title: 'Home'
 })
 // Add a mobile frame to the board
 editor.canvas.addFrame({
   content: dummyFrameContent,
-  title: 'Frame Test',
+  title: 'Home Mobile',
   device: 'mobile'
 })
 // Add empty tablet frame to the board
 editor.canvas.addFrame({
   // source: 'http://127.0.0.1:3000/publications/@modela/examples/wigo/index.html',
-  title: 'Empty Frame Test',
+  title: 'Blank',
+  device: 'tablet'
+})
+
+
+// Add empty tablet frame to the board
+editor.canvas.addFrame({
+  // source: 'http://127.0.0.1:3000/publications/@modela/examples/wigo/index.html',
+  title: 'Signin',
+  device: 'tablet',
+  position: {
+    x: '0',
+    y: '3000px'
+  }
+})
+// Add empty tablet frame to the board
+editor.canvas.addFrame({
+  // source: 'http://127.0.0.1:3000/publications/@modela/examples/wigo/index.html',
+  title: 'Signup',
   device: 'tablet'
 })

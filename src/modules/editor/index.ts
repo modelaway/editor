@@ -15,7 +15,7 @@ import Quickset, { QuicksetInput } from '../../factory/quickset'
 import Layers, { LayersInput } from '../../factory/layers'
 import { debug } from '../utils'
 import { 
-  GLOBAL_CONTROL_OPTIONS,
+  EDITOR_CONTROL_OPTIONS,
   GLOBAL_TOOLAR_OPTIONS,
   TOOLS,
   VIEWS
@@ -210,9 +210,9 @@ export default class Editor {
   private getOptions(): Record<string, QuicksetOption> {
 
     if( this.settings.viewLayers )
-      GLOBAL_CONTROL_OPTIONS['frame-layers'].active = true
+      EDITOR_CONTROL_OPTIONS['frame-layers'].active = true
 
-    return GLOBAL_CONTROL_OPTIONS
+    return EDITOR_CONTROL_OPTIONS
   }
 
   mount( selector: string ){

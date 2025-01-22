@@ -37,7 +37,7 @@ export const CONTROL_BLOCK_SELECTOR = 'mv-control-block'
 export const CONTROL_EDGE_MARGIN = 15
 export const CONTROL_MENU_MARGIN = 20
 export const CONTROL_QUICKSET_MARGIN = 6
-export const CONTROL_ZOOM_DEFAULT_SCALE = 1.2
+export const CONTROL_ZOOM_DEFAULT_SCALE = 0.08
 export const CONTROL_ZOOM_SCALE_STEP = 0.02
 export const CONTROL_ZOOOM_EVEN_SCALE = 1
 export const CONTROL_ZOOM_MIN_SCALE = 0.01
@@ -124,7 +124,14 @@ export const VIEW_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
 /**
  * Global control options
  */
-export const GLOBAL_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
+export const EDITOR_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
+  finder: {
+    type: 'input',
+    icon: 'bx bx-grid',
+    title: 'Finder',
+    shortcut: 'command + z',
+    value: 'Bloc'
+  },
   undo: {
     icon: 'bx bx-undo',
     title: 'Undo',
@@ -140,7 +147,10 @@ export const GLOBAL_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
   'frame-add': {
     icon: 'bx bx-plus',
     title: 'Add New Frame',
-    shortcut: 'command + f'
+    shortcut: 'command + f',
+    sub: {
+
+    }
   },
   'frame-layers': {
     icon: 'bx bx-list-minus',
@@ -197,6 +207,28 @@ export const GLOBAL_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
 }
 
 /**
+ * Global toolbar options
+ */
+export const GLOBAL_TOOLAR_OPTIONS: Record<string, ToolbarOption> = {
+  styles: {
+    icon: 'bx bx-slider-alt',
+    title: 'Styles'
+  },
+  assets: {
+    icon: 'bx bx-landscape',
+    title: 'Assets'
+  },
+  plugins: {
+    icon: 'bx bx-customize',
+    title: 'Plugins'
+  },
+  settings: {
+    icon: 'bx bx-cog',
+    title: 'Settings'
+  }
+}
+
+/**
  * Default tools
  */
 export const TOOLS: Record<string, ToolbarOption> = {
@@ -224,6 +256,10 @@ export const TOOLS: Record<string, ToolbarOption> = {
         parent: 'PENCIL'
       }
     }
+  },
+  TRANSFORM: {
+    icon: 'bx bx-selection',
+    title: 'Transform'
   },
   VECTOR: {
     icon: 'bx bx-vector',
@@ -270,7 +306,7 @@ export const VIEWS: Record<string, ToolbarOption> = {
     selected: '*',
     variants: {
       '*': {
-        icon: 'bx bx-shape-square',
+        icon: 'bx bx-square',
         title: 'Rectangle Shape',
         shortcut: 'command + y',
         tool: 'POINTER',
@@ -330,28 +366,6 @@ export const VIEWS: Record<string, ToolbarOption> = {
     icon: 'bx bx-clipboard',
     title: 'Board',
     tool: 'PENCIL'
-  }
-}
-
-/**
- * Global toolbar options
- */
-export const GLOBAL_TOOLAR_OPTIONS: Record<string, ToolbarOption> = {
-  styles: {
-    icon: 'bx bx-slider-alt',
-    title: 'Styles'
-  },
-  assets: {
-    icon: 'bx bx-landscape',
-    title: 'Assets'
-  },
-  plugins: {
-    icon: 'bx bx-customize',
-    title: 'Plugins'
-  },
-  settings: {
-    icon: 'bx bx-cog',
-    title: 'Settings'
   }
 }
 

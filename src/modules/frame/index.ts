@@ -18,10 +18,6 @@ import {
   ALLOWED_FRAME_CANVAS_HANDLES
 } from '../constants'
 
-const createFrame = ( key: string, position?: FrameOption['position'] ) => {
-  return `<div ${CONTROL_FRAME_SELECTOR}="${key}" style="top:${position?.top || '0px'};left:${position?.left || '0px'}"></div>`
-}
-
 interface Topography {
   x: number;
   y: number;
@@ -57,7 +53,8 @@ export default class Frame extends EventEmitter {
 
     // Generate new key for the new frame
     this.key = generateKey()
-    this.$frame = $(createFrame( this.key, options.position ))
+    this.$frame = $(this.createFrame( options.position ))
+    this.$frame.attr('title', options.title || 'Unnamed Frame' )
 
     const element = this.$frame.get(0)
     if( !element ) throw new Error('Frame node creation failed unexpectedly')
@@ -106,6 +103,9 @@ export default class Frame extends EventEmitter {
     this.emit('add')
   }
 
+  private createFrame( position?: FrameOption['position'] ){
+    return `<div ${CONTROL_FRAME_SELECTOR}="${this.key}" style="left:${position?.x || '0px'};top:${position?.y || '0px'};"></div>`
+  }
   private getStyleSheet(){
     return `
       :host {

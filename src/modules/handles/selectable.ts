@@ -40,12 +40,12 @@ export default class Selectable implements HandleInterface {
         position: absolute;
         z-index: 10000;
         border: 1px solid var(--me-primary-color);
-        backgroundColor: var(--me-primary-color-fade);
-        pointerEvents: none;
+        background-color: var(--me-primary-color-fade);
+        pointer-events: none;
 
         &.inclusive {
           border: 2px dashed var(--me-primary-color);
-          backgroundColor: var(--me-primary-color-fade);
+          background-color: var(--me-primary-color-fade);
           opacity: 0.7;
         }
       }

@@ -52,30 +52,6 @@ export default class SnapGuidable implements HandleInterface {
       }
     `
   }
-  private getRelativeRect( $element: Cash ): DOMRect {
-    if( !$element[0] || !this.context.$viewport[0] )
-      throw new Error('Invalid arguments')
-    
-    /**
-     * Calculate bounding client rect relative 
-     * to shadowRoot host's boundaries.
-     */
-    if( this.context.$viewport[0] instanceof ShadowRoot ){
-      const 
-      eRect = $element[0]?.getBoundingClientRect(),
-      vRect = this.context.$viewport[0]?.host.getBoundingClientRect()
-      
-      return {
-        left: eRect.left - vRect.left,
-        top: eRect.top - vRect.top,
-        right: eRect.right - vRect.left,
-        bottom: eRect.bottom - vRect.top,
-        width: eRect.width,
-        height: eRect.height
-      } as DOMRect
-    }
-    else return $element[0]?.getBoundingClientRect()
-  }
   private showGuide( axis: 'horizontal' | 'vertical', point: SnapPoint ){
     (axis === 'vertical'
           ? $(`<snapguide vertical></snapguide>`).css({ left: `${point.guidePosition}px`, top: 0 })
@@ -124,7 +100,7 @@ export default class SnapGuidable implements HandleInterface {
       otherRight = otherLeft + parseFloat( $other.css('width') as string ),
       otherBottom = otherTop + parseFloat( $other.css('height') as string ),
 
-      otherRect = self.getRelativeRect( $other )
+      otherRect = self.context.getRelativeRect( $other )
       if( !otherRect ) return
 
       // Snap to other elements' left and right edges

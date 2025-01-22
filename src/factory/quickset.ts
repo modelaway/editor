@@ -112,18 +112,32 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
 
   const macros = {
     option: `
-      <mli active=macro.active
-            class="macro.label ? 'label' : false"
-            title=macro.title
-            disabled=macro.disabled
-            ${CONTROL_LANG_SELECTOR}
-            on-click( macro.sub ? 'onShowSubOptions' : 'onHandleOption', key, macro )>
-        <micon class=macro.icon></micon>
+      <switch( macro.type == 'input' )>
+        <case is="input>
+          <mli active=macro.active ${CONTROL_LANG_SELECTOR}>
+            <input type="text"
+                    disabled=macro.disabled
+                    placeholder="macro.label || macro.title"
+                    value=macro.value
+                    on-change( onHandleOption, key, macro )>
+          </mli>
+        </case>
 
-        <if( macro.label )>
-          <mlabel ${CONTROL_LANG_SELECTOR} text=macro.label></mlabel>
-        </if>
-      </mli>
+        <default>
+          <mli active=macro.active
+                class="macro.label ? 'label' : false"
+                title=macro.title
+                disabled=macro.disabled
+                ${CONTROL_LANG_SELECTOR}
+                on-click( macro.sub ? 'onShowSubOptions' : 'onHandleOption', key, macro )>
+            <micon class=macro.icon></micon>
+
+            <if( macro.label )>
+              <mlabel ${CONTROL_LANG_SELECTOR} text=macro.label></mlabel>
+            </if>
+          </mli>
+        </default>
+      </switch>
     `
   }
 

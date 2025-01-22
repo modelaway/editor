@@ -58,8 +58,8 @@ export default class Canvas extends EventEmitter {
       createElement: ({ x, y }) => {
         const options = {
           position: {
-            left: `${x}px`,
-            top: `${y}px`
+            x: `${x}px`,
+            y: `${y}px`
           },
           size: {
             width: `${FRAME_MIN_WIDTH}px`,
@@ -175,12 +175,12 @@ export default class Canvas extends EventEmitter {
         _width = parseFloat( lastFrame.$frame.css('width') as string )
 
         options.position = {
-          left: `${_left + _width + FRAME_DEFAULT_MARGIN}px`,
-          top: `${_top}px`
+          x: `${_left + _width + FRAME_DEFAULT_MARGIN}px`,
+          y: `${_top}px`
         }
       }
       // Use default origin for initial frame
-      else options.position = { left: `0px`, top: `0px` }
+      else options.position = { x: `0px`, y: `0px` }
     }
 
     this.currentFrame = new Frame( this.editor, options )

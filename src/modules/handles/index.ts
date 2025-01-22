@@ -135,7 +135,7 @@ export default class Handles extends Inclusion {
 
       DRAG_SELECT_TAG: 'dragselect',
       DRAG_SELECT_MIN_SIZE: 5,
-      DRAG_SELECT_THRESHOLD: 5,
+      DRAG_SELECT_THRESHOLD: 10,
       
       ...options
     }
@@ -340,5 +340,29 @@ export default class Handles extends Inclusion {
   }
   getScaleQuo(){
     return 1 / this.options.getScale()
+  }
+  getRelativeRect( $element: Cash ): DOMRect {
+    if( !$element[0] || !this.$viewport[0] )
+      throw new Error('Invalid arguments')
+    
+    /**
+     * Calculate bounding client rect relative 
+     * to shadowRoot host's boundaries.
+     */
+    if( this.$viewport[0] instanceof ShadowRoot ){
+      const 
+      eRect = $element[0]?.getBoundingClientRect(),
+      vRect = this.$viewport[0]?.host.getBoundingClientRect()
+      
+      return {
+        left: eRect.left - vRect.left,
+        top: eRect.top - vRect.top,
+        right: eRect.right - vRect.left,
+        bottom: eRect.bottom - vRect.top,
+        width: eRect.width,
+        height: eRect.height
+      } as DOMRect
+    }
+    else return $element[0]?.getBoundingClientRect()
   }
 }

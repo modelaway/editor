@@ -31,7 +31,7 @@ export default class Pannable implements HandleInterface {
   }
   private handle( e: any ){
     if( !this.context.isPanning ) return
-
+    
     this.context.canvasOffset.x = e.pageX - this.startX
     this.context.canvasOffset.y = e.pageY - this.startY
 
@@ -44,6 +44,25 @@ export default class Pannable implements HandleInterface {
     this.context.$viewport.css('cursor', 'default')
   }
 
+  panTo( x: number, y: number ){
+    // Use current scale
+    const scale = this.context.options.getScale()
+    
+    /**
+     * Calculate the offset needed to center the 
+     * element.
+     * 
+     * IMPORTANT: The negative sign is needed to move
+     *            the canvas in the opposite direction
+     */
+    this.context.canvasOffset.x = -( x * scale )
+    this.context.canvasOffset.y = -( y * scale )
+
+    console.log( this.context.canvasOffset )
+
+    this.context.transformCanvas()
+  }
+
   enable(){
     if( !this.context.$viewport.length ) return
 
@@ -52,6 +71,9 @@ export default class Pannable implements HandleInterface {
     .on('mousedown.pan', e => {
       !this.context.constraints<PanActionType>('pan', 'start', e )
       && this.start(e)
+    })
+    .on('click', e => {
+      this.panTo( 0, 3000 )
     })
     
     this.context

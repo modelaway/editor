@@ -8,8 +8,8 @@ export type FrameOption = {
   title?: string
   device?: string
   position?: { 
-    left: string
-    top: string
+    x: string
+    y: string
   }
   size?: { 
     width: string

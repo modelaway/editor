@@ -22,6 +22,7 @@ const SPREAD_VAR_PATTERN = /^\.\.\./
 
 function preprocessTemplate( str: string ){
   return (str || '').trim()
+            .replace( /<\{([^}]+)\}\s+(.*?)\/>/g, '<lips component="$1" $2></lips>')
             .replace( /<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
             .replace( /<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
             .replace( /<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">')
@@ -977,15 +978,34 @@ export class Component<Input = void, State = void, Static = void, Context = void
       return $fragment
     }
 
-    function execComponent( $node: Cash ){
-      const name = $node.prop('tagName')?.toLowerCase() as string
-      if( !name )
-        throw new Error('Invalid component')
+    function getComponentName( $node: Cash, dynamic: boolean ){
+      /**
+       * Process dynamic component tag set by:
+       * 
+       * Syntax `<{dynamic-name}/>`
+       * processed to `<lips component="[dynamic-name]"></lips>`
+       * 
+       */
+      if( dynamic ){
+        if( !$node.attr('component') || $node.prop('tagName') !== 'LIPS' )
+          throw new Error('Invalid dynamic component name')
+        
+        const attr = $node.attr('component') as string
+        $node.removeAttr('component')
 
-      if( !self.lips )
-        throw new Error('Nexted component manager is disable')
+        return self.__evaluate__( attr, scope )
+      }
+      // Use direct node's tag
+      else return $node.prop('tagName')?.toLowerCase() as string
+    }
 
-      const 
+    function execComponent( $node: Cash, dynamic = false ){
+      const name = getComponentName( $node, dynamic )
+
+      if( !name ) throw new Error('Invalid component')
+      if( !self.lips ) throw new Error('Nexted component manager is disable')
+
+      const
       __key__ = `${self.prekey}.${name}$${self.NCC++}`,
       /**
        * Parse assigned attributes to be injected into
@@ -1210,6 +1230,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
       else if( $node.is('for') ) return execFor( $node )
       else if( $node.is('switch') ) return execSwitch( $node )
       else if( $node.is('async') ) return execAsync( $node )
+      else if( $node.is('lips') ) return execComponent( $node, true )
       else if( $node.is('log') ) return execLog( $node )
       
       // Identify and render macro components

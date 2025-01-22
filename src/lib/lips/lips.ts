@@ -86,16 +86,9 @@ $.fn.extend({
 
 export default class Lips<Context = any> {
   private debug = false
-  private context?: Context
   private store: Record<string, Template> = {}
 
   private __root?: Component
-  private __context?: Context
-
-  // Internal Update Clock (IUC)
-  private IUC?: NodeJS.Timeout
-  private IUC_BEAT = 5 // ms
-
   public i18n = new I18N()
 
   private _setContext: ( ctx: Context ) => void
@@ -110,33 +103,12 @@ export default class Lips<Context = any> {
     this._setContext = setContext
     this._getContext = getContext
 
-    // Ignite the IUC only when context is available
-    config?.context && this.setIUC()
-
     /**
      * Register native components
      * 
      * `<router routers=[] global, ...></router>` -- Internal Routing Component
      */
     this.register('router', Router )
-  }
-
-  private setIUC(){
-    this.IUC = setInterval( () => {
-      if( !this.context ) return
-
-      /**
-       * Apply update only when a new change 
-       * occured on the state.
-       * 
-       * Merge with initial/active state.
-       */
-      !this.__context
-          ? this._setContext( this.context )
-          : this.context
-            && isDiff( this.__context, this.context )
-            && this._setContext( this.context )
-    }, this.IUC_BEAT )
   }
 
   register( name: string, template: Template<any, any, any, any> ){
@@ -214,6 +186,9 @@ export default class Lips<Context = any> {
   }
 
   setContext( arg: Context | string, value?: any ){
+    // Always get latest state
+    const currentContext = this._getContext()
+
     /**
      * Change context only when tangible updates
      * are detected.
@@ -222,50 +197,29 @@ export default class Lips<Context = any> {
      * of Lips.
      */
     if( typeof arg === 'string' ){
-      if( !this.context )
-        this.context = {} as Context
-
-      if( isSuperDiff( this.context[ arg as keyof Context ], value ) ){
-        this.context[ arg as keyof Context ] = value
-
-        // Ignite IUC only on initial context
-        !this.IUC && this.setIUC()
-      }
+      const updates = { ...currentContext, [arg]: value }
+      isDiff( currentContext, updates ) && this._setContext( updates )
     }
     /**
      * no-array object guard
      */
     else if( !Array.isArray( arg ) ){
-      if( !this.context )
-        this.context = arg
-      
-      else if( Object.entries( this.context ).some( ([ key, value ]) => isSuperDiff( this.context?.[ key as keyof Context ], value ) ) )
-        this.context = { ...this.context, ...arg }
-
-      // Ignite IUC only on initial context
-      !this.IUC && this.setIUC()
+      const updates = { ...currentContext, ...arg }
+      isDiff( currentContext, updates ) && this._setContext( updates )
     }
     
     else throw new Error('Invalid context data')
   }
   useContext( fields: (keyof Context)[], fn: ( ...args: any[] ) => void ){
     effect( () => {
-      this.context = this._getContext()
-
-      /**
-       * Hold state value since last signal update.
-       * 
-       * IMPORTANT: Required to check changes on the state
-       *            during IUC processes.
-       */
-      this.__context = deepClone( this.context )
+      const context = this._getContext()
 
       const ctx: any = {}
       fields.forEach( field => {
-        if( !this.context ) return
-        ctx[ field ] = this.context[ field ]
+        if( !context ) return
+        ctx[ field ] = context[ field ]
       } )
-
+      
       /**
        * Propagate context change effect to component 
        * only when its registered scope have changed
@@ -391,7 +345,18 @@ export class Component<Input = void, State = void, Static = void, Context = void
      */
     Array.isArray( context )
     && context.length
-    && this.lips?.useContext( context, ctx => isDiff( this.context as Record<string, any>, ctx ) && setContext( ctx ) )
+    && this.lips?.useContext( context, ctx => {
+      if( !isDiff( this.context as Record<string, any>, ctx ) ) return
+      
+      setContext( ctx )
+      this.context = ctx
+      
+      /**
+       * Triggered anytime component context changed
+       */
+      typeof this.onContext == 'function' 
+      && this.onContext.bind(this)()
+    })
 
     this.SEC = effect( () => {
       this.input = getInput()

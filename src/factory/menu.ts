@@ -1,5 +1,5 @@
-import type Lips from '../lib/lips/lips'
-import type { Handler } from '../lib/lips'
+import type Lips from '../lips/lips'
+import type { Handler } from '../lips'
 import type { ViewCaption } from '../types/view'
 import type { HandlerHook } from '../types/controls'
 

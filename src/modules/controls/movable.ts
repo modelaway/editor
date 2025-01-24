@@ -1,5 +1,5 @@
 import type Editor from '../editor'
-import type { Component } from '../../lib/lips/lips'
+import type { Component } from '../../lips/lips'
 
 import $, { type Cash } from 'cash-dom'
 import { EventEmitter } from 'events'

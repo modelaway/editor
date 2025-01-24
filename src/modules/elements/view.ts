@@ -20,7 +20,7 @@ import {
   CONTROL_QUICKSET_MARGIN,
   VIEW_CONTROL_OPTIONS
 } from '../constants'
-import { Component } from '../../lib/lips/lips'
+import { Component } from '../../lips/lips'
 import Menu, { MenuInput, MenuState } from '../../factory/menu'
 import Finder, { FinderInput, FinderState } from '../../factory/finder'
 import Quickset, { QuicksetInput, QuicksetState } from '../../factory/quickset'

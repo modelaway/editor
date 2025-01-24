@@ -10,8 +10,8 @@ import Resizable from './resizable'
 import Wrappable from './wrappable'
 import Selectable from './selectable'
 import SnapGuidable from './snapguidable'
-import Stylesheet from '../../lib/stylesheet'
-import ShadowEvents from '../../lib/shadowEvents'
+import Stylesheet from '../stylesheet'
+import ShadowEvents from '../shadowEvents'
 import FrameStyle from '../frame/styles'
 
 export type HandleType = 'pan' 
@@ -36,10 +36,15 @@ export interface HandlesOptions {
   
   MIN_WIDTH: number
   MIN_HEIGHT: number
+
   MOVE_THRESHOLD?: number
+
   WRAPPER_TAG?: string
   WRAPPER_BORDER_WIDTH?: number
   WRAPPER_HANDLE_SIZE?: number
+  WRAPPER_HANDLE_AUTO?: boolean
+  WRAPPER_HANDLE_VISIBLE_EDGES?: boolean
+
   DRAG_SELECT_MIN_SIZE?: number
   DRAG_SELECT_THRESHOLD?: number
   DRAG_SELECT_TAG?: string
@@ -131,7 +136,9 @@ export default class Handles extends Inclusion {
 
       WRAPPER_TAG: 'rzwrapper',
       WRAPPER_BORDER_WIDTH: 1,
-      WRAPPER_HANDLE_SIZE: 6,
+      WRAPPER_HANDLE_SIZE: 9,
+      WRAPPER_HANDLE_AUTO: true,
+      WRAPPER_HANDLE_VISIBLE_EDGES: false,
 
       DRAG_SELECT_TAG: 'dragselect',
       DRAG_SELECT_MIN_SIZE: 5,

@@ -37,7 +37,7 @@ export const CONTROL_BLOCK_SELECTOR = 'mv-control-block'
 export const CONTROL_EDGE_MARGIN = 15
 export const CONTROL_MENU_MARGIN = 20
 export const CONTROL_QUICKSET_MARGIN = 6
-export const CONTROL_ZOOM_DEFAULT_SCALE = 0.08
+export const CONTROL_ZOOM_DEFAULT_SCALE = 0.1
 export const CONTROL_ZOOM_SCALE_STEP = 0.02
 export const CONTROL_ZOOOM_EVEN_SCALE = 1
 export const CONTROL_ZOOM_MIN_SCALE = 0.01
@@ -257,8 +257,9 @@ export const TOOLS: Record<string, ToolbarOption> = {
     }
   },
   TRANSFORM: {
-    icon: 'bx bx-selection',
-    title: 'Transform'
+    icon: 'bx bx-rotate-left',
+    title: 'Transform',
+    instructions: 'Apply super transformation like skew, rotate, scale, translate, ... to an element'
   },
   VECTOR: {
     icon: 'bx bx-vector',

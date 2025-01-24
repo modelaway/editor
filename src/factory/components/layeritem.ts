@@ -1,5 +1,5 @@
 import type { Cash } from 'cash-dom'
-import type { Handler } from '../../lib/lips'
+import type { Handler } from '../../lips'
 
 type LayerItemInput = LayerElement & {
   path: string

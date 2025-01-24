@@ -7,7 +7,7 @@ import Handles from '../handles'
 import Elements from '../elements'
 import FrameStyles from './styles'
 import { debug, generateKey } from '../utils'
-import ShadowEvents from '../../lib/shadowEvents'
+import ShadowEvents from '../shadowEvents'
 import {
   MEDIA_SCREENS,
   CONTROL_EDGE_MARGIN,

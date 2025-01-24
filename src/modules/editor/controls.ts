@@ -1,6 +1,6 @@
 import type Editor from '.'
 import type { Cash } from 'cash-dom'
-import type { Component } from '../../lib/lips/lips'
+import type { Component } from '../../lips/lips'
 
 import { EDITOR_EDGE_PADDING } from '../constants'
 import Movable, { type MovableOptions } from '../controls/movable'

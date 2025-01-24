@@ -1,4 +1,4 @@
-import type Lips from '../lib/lips/lips'
+import type Lips from '../lips/lips'
 
 export type ShellInput = {
 

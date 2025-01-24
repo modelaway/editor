@@ -1,5 +1,5 @@
 import type { HandlerHook } from '../types/controls'
-import type Lips from '../lib/lips/lips'
+import type Lips from '../lips/lips'
 
 import * as Components from './components'
 import {
@@ -8,7 +8,7 @@ import {
   VIEW_EMPTY_SELECTOR,
   FORM_SEPERATOR_SELECTOR
 } from '../modules/constants'
-import { Handler } from '../lib/lips'
+import { Handler } from '../lips'
 
 export type SearchResult = {
   key: string

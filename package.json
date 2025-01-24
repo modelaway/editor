@@ -18,7 +18,7 @@
   "private": false,
   "scripts": {
     "dev": "bun compile --watch",
-    "compile": "bun build --entrypoints ./src/exports/* ./src/plugins/* ./src/lib/lips/lips.ts --entry-naming [name].min.[ext] --minify --root . --outdir ./dist --target browser --format esm --sourcemap=external",
+    "compile": "bun build --entrypoints ./src/exports/* ./src/plugins/* ./src/lips/lips.ts --entry-naming [name].min.[ext] --minify --root . --outdir ./dist --target browser --format esm --sourcemap=external",
     "build:declaration": "tsc --project tsconfig.types.json",
     "prepack": "bun compile && bun run build:declaration",
     "test": "Echo 'Error: No test specified' && exit 1",

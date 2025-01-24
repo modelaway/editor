@@ -1,5 +1,5 @@
 
-import type { Handler } from '../../lib/lips'
+import type { Handler } from '../../lips'
 
 type State = {
   selected: string | null

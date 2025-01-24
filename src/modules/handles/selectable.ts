@@ -2,7 +2,7 @@ import type Handles from '.'
 import type { HandleInterface } from '.'
 import type Wrappable from './wrappable'
 import type FrameStyle from '../frame/styles'
-import type Stylesheet from '../../lib/stylesheet'
+import type Stylesheet from '../stylesheet'
 
 import $, { type Cash } from 'cash-dom'
 import { throttle } from '../utils'

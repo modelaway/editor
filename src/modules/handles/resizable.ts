@@ -108,7 +108,7 @@ export default class Resizable implements HandleInterface {
 
     // Left side resizing
     if( this.$handle?.hasClass('tl')
-        || this.$handle?.hasClass('lc')
+        || this.$handle?.hasClass('le')
         || this.$handle?.hasClass('bl') ){
       const widthChange = ( e.pageX - this.cursorX ) * scaleQuo
 
@@ -121,7 +121,7 @@ export default class Resizable implements HandleInterface {
 
     // Top side resizing
     if( this.$handle?.hasClass('tl')
-        || this.$handle?.hasClass('tc')
+        || this.$handle?.hasClass('te')
         || this.$handle?.hasClass('tr') ){
       const heightChange = ( e.pageY - this.cursorY ) * scaleQuo
 
@@ -134,7 +134,7 @@ export default class Resizable implements HandleInterface {
 
     // Right side resizing
     if( this.$handle?.hasClass('tr')
-        || this.$handle?.hasClass('rc')
+        || this.$handle?.hasClass('re')
         || this.$handle?.hasClass('br') ){
       const widthChange = ( e.pageX - this.cursorX ) * scaleQuo
       newWidth = Math.max( this.startWidth + widthChange, this.context.options.MIN_WIDTH )
@@ -143,7 +143,7 @@ export default class Resizable implements HandleInterface {
 
     // Bottom side resizing
     if( this.$handle?.hasClass('bl')
-        || this.$handle?.hasClass('bc')
+        || this.$handle?.hasClass('be')
         || this.$handle?.hasClass('br') ){
       const heightChange = ( e.pageY - this.cursorY ) * scaleQuo
       newHeight = Math.max( this.startHeight + heightChange, this.context.options.MIN_HEIGHT )

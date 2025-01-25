@@ -112,19 +112,25 @@ export default class Sortable<Input = void, State = void, Static = void, Context
   private handleAutoScroll( clientY: number ){
     const 
     scrollThreshold = 50,
-    viewportHeight = window.innerHeight
+    $container = this.$block?.find( this.options.list ).parent()
+    if( !$container?.length ) return
+
+    const 
+    containerHeight = $container.innerHeight() || 0,
+    containerOffset = $container.offset()?.top || 0,
+    relativeY = clientY - containerOffset
     
-    if( clientY < scrollThreshold )
-      this.startAutoScroll( -(this.options.scrollSpeed || SCROLL_SPEED) )
+    if( relativeY < scrollThreshold )
+      this.startAutoScroll( $container, -(this.options.scrollSpeed || SCROLL_SPEED) )
     
-    else if( clientY > viewportHeight - scrollThreshold )
-      this.startAutoScroll( this.options.scrollSpeed || SCROLL_SPEED )
+    else if( relativeY > containerHeight - scrollThreshold )
+      this.startAutoScroll( $container, this.options.scrollSpeed || SCROLL_SPEED )
     
     else this.stopAutoScroll()
   }
-  private startAutoScroll( speed: number ){
+  private startAutoScroll( $container: Cash, speed: number ){
     if( this.scrollInterval ) return
-    this.scrollInterval = window.setInterval( () => window.scrollBy( 0, speed ), 16 ) // ~60fps
+    this.scrollInterval = window.setInterval( () => $container[0]?.scrollBy( 0, speed ), 16 ) // ~60fps
   }
   private stopAutoScroll(){
     if( !this.scrollInterval ) return

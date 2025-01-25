@@ -25,7 +25,7 @@ export type MenuState = {
 }
 
 export default ( lips: Lips, input: MenuInput, hook: HandlerHook ) => {
-  lips.register('inputs', Components.inputs.default() )
+  lips.register('inputs', Components.inputs() )
 
   const state = {
     activeTab: null

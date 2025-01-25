@@ -1,7 +1,6 @@
-
-export * as inputs from './inputs'
-export * as styles from './styles'
-export * as assets from './assets'
-export * as plugins from './plugins'
-export * as settings from './settings'
-export * as tecaptions from './tecaptions'
+export { default as inputs} from './inputs'
+export { default as styles } from './styles'
+export { default as assets } from './assets'
+export { default as plugins } from './plugins'
+export { default as settings } from './settings'
+export { default as tecaptions } from './tecaptions'

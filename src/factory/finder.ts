@@ -26,7 +26,7 @@ export type FinderState = {
   results: Record<string, SearchResult>
 }
 export default ( lips: Lips, input: FinderInput, hook: HandlerHook ) => {
-  lips.register('inputs', Components.inputs.default() )
+  lips.register('inputs', Components.inputs() )
 
   const state = {
     query: '',

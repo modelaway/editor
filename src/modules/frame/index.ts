@@ -15,7 +15,8 @@ import {
   VIEW_KEY_SELECTOR,
   VIEW_ACTIVE_SELECTOR,
   CONTROL_FRAME_SELECTOR,
-  ALLOWED_FRAME_CANVAS_HANDLES
+  ALLOWED_FRAME_CANVAS_HANDLES,
+  CONTROL_WRAPPER_SELECTOR
 } from '../constants'
 
 interface Topography {
@@ -271,9 +272,9 @@ export default class Frame extends EventEmitter {
     const self = this
 
     /**
-     * Listen to View components or any editable tag
+     * Listen to View definitions or any editable tag
      */
-    const selectors = `:not([${CONTROL_MENU_SELECTOR}] *)`
+    const selectors = `:not([${CONTROL_MENU_SELECTOR}] *, [${CONTROL_WRAPPER_SELECTOR}], [${CONTROL_WRAPPER_SELECTOR}] > *)`
     this.editor.settings.hoverSelect ?
               this.DOM.on('mouseover', selectors, function( this: Cash ){ self.elements.lookup.bind( self.elements )( $(this) ) })
               : this.DOM.on('click', selectors, function( this: Cash ){ self.elements.lookup.bind( self.elements )( $(this) ) })

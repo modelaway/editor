@@ -1,6 +1,6 @@
 import type Frame from '../frame'
 import type { HandlerHook } from '../../types/controls'
-import type { ViewBlockProperties, ViewComponent, ViewBridge } from '../../types/view'
+import type { ViewBlockProperties, ViewDefinition, ViewInstance } from '../../types/view'
 
 import $, { type Cash } from 'cash-dom'
 import EventEmitter from 'events'
@@ -38,31 +38,20 @@ export default class View extends EventEmitter {
   private readonly frame: Frame
 
   /**
-   * Remote Cash element object of the view.
-   */
-  public $?: Cash
-
-  /**
    * Unique key identifying the view in
    * the editor context.
    */
   public key?: string
 
   /**
-   * View component as original define.
+   * View definition as original define.
    */
-  private vc?: ViewComponent
+  private vdef?: ViewDefinition
   
   /**
-   * Closes parent of this view that is also in
-   * the editor context view.
+   * View instance
    */
-  private $parent?: Cash
-
-  /**
-   * Between View & Component interaction bridge
-   */
-  public bridge: ViewBridge
+  public instance: ViewInstance
 
   /**
    * Quickset block component
@@ -81,7 +70,7 @@ export default class View extends EventEmitter {
     super()
 
     this.frame = frame
-    this.bridge = {
+    this.instance = {
       state: new State(),
       events: new EventEmitter(),
       assets: frame.editor.assets,
@@ -96,7 +85,7 @@ export default class View extends EventEmitter {
    * Run initial 
    */
   private initialize(){
-    if( !this.$?.length ) return
+    if( !this.instance.$?.length ) return
 
     try {
       /**
@@ -104,39 +93,36 @@ export default class View extends EventEmitter {
        */
       const { name, styles } = this.get()
       if( name && typeof styles === 'function' ){
-        const sheet = styles( this.bridge ).sheet
+        const sheet = styles( this.instance ).sheet
         sheet && this.frame.styles.addRules( sheet, { rel: this.key as string, scope: true } )
       }
 
       /**
-       * Override bridge primary css interface methods
+       * Override instance primary css interface methods
        * 
        * - .custom() return custom CSS properties of defined 
        *             in the document stylesheets
        * - .style() returns style properties of this view
        */
-      // if( this.bridge.css ){
-      //   // this.bridge.css.custom = async () => (await this.frame.remote?.customCSSProps() as Record<string, string>)
-      //   this.bridge.css.style = async () => this.frame.editor.fn.extractStyle( this.$ as Cash )
+      // if( this.instance.css ){
+      //   // this.instance.css.custom = async () => (await this.frame.remote?.customCSSProps() as Record<string, string>)
+      //   this.instance.css.style = async () => this.frame.editor.fn.extractStyle( this.instance.$ as Cash )
       // }
     }
     catch( error: any ){ debug( error.message ) }
 
-    // Make view's remove Cash object
-    this.bridge.$ = this.$
-
-    // Give away control to view component
+    // Give away control to view definition
     const takeover = this.getSpec('takeover')
-    typeof takeover == 'function' && takeover( this.bridge )
+    typeof takeover == 'function' && takeover( this.instance )
 
-    this.bridge.events.emit('mounted')
+    this.instance.events.emit('mounted')
     debug('view initialized')
 
     /**
-     * Override bridge primary fn interface methods
+     * Override instance primary fn interface methods
      */
-    if( this.bridge.fn ){
-      this.bridge.fn.syncQuickset = ( updates: Record<string, any>, fn?: () => void ) => {
+    if( this.instance.fn ){
+      this.instance.fn.syncQuickset = ( updates: Record<string, any>, fn?: () => void ) => {
         /**
          * Attach `options.` scope to update options' keys
          */
@@ -150,7 +136,7 @@ export default class View extends EventEmitter {
 
         typeof fn == 'function' && fn()
       }
-      this.bridge.fn.pushHistoryStack = () => this.emit('view.changed')
+      this.instance.fn.pushHistoryStack = () => this.emit('view.changed')
     }
   }
 
@@ -159,20 +145,20 @@ export default class View extends EventEmitter {
         || !Object.keys( values ).length )
       throw new Error('Invalid method argument')
 
-    this.vc = this.vc ? { ...this.vc, ...values } : values
-    debug('view component - ', this.vc )
+    this.vdef = this.vdef ? { ...this.vdef, ...values } : values
+    debug('view definition - ', this.vdef )
   }
-  get(): ViewComponent {
-    if( !this.vc )
+  get(): ViewDefinition {
+    if( !this.vdef )
       throw new Error('Invalid method called')
 
-    return this.vc
+    return this.vdef
   }
-  getSpec( type: keyof ViewComponent ): any {
-    if( !this.vc )
+  getSpec( type: keyof ViewDefinition ): any {
+    if( !this.vdef )
       throw new Error('Invalid method called')
 
-    return this.vc[ type ]
+    return this.vdef[ type ]
   }
 
   /**
@@ -183,27 +169,27 @@ export default class View extends EventEmitter {
   inspect( $this: Cash, name: string, activate = false ){
     debug('current target - ', $this.length )
 
-    this.$ = $this
-    if( !this.$.length )
+    this.instance.$ = $this
+    if( !this.instance.$.length )
       throw new Error('Invalid View Element')
     
     /**
      * Mount inspected view into editor context
      */
-    this.key = this.$.attr( VIEW_KEY_SELECTOR ) as string
+    this.key = this.instance.$.attr( VIEW_KEY_SELECTOR ) as string
     if( !this.key ){
       /**
        * Generate and assign view tracking key
        */
       this.key = hashKey()
 
-      this.$.attr({
+      this.instance.$.attr({
         [VIEW_KEY_SELECTOR]: this.key, // Set view key
         [VIEW_NAME_SELECTOR]: name // Set view node name identify
       })
     }
 
-    if( !this.vc ){
+    if( !this.vdef ){
       // Set view specifications
       this.set( this.frame.editor.store.getView( name ) )
       // Initialize view properties
@@ -216,7 +202,7 @@ export default class View extends EventEmitter {
   /**
    * Mount new view comopnent into the DOM
    */
-  mount( vc: ViewComponent, to: string ){
+  mount( vdef: ViewDefinition, to: string ){
     if( !this.frame.$canvas.length ) return
 
     /**
@@ -228,18 +214,18 @@ export default class View extends EventEmitter {
     if( !$to.length )
       throw new Error(`Invalid destination view - <key:${to}>`)
     
-    if( typeof vc.render !== 'function' )
-      throw new Error(`<${vc.name}> render function not specified`)
+    if( typeof vdef.render !== 'function' )
+      throw new Error(`<${vdef.name}> render function not specified`)
     
     /**
-     * Render new element with default component and 
+     * Render new element with default definition and 
      * defined global settings
      */
-    const element = vc.render( this.bridge )
+    const element = vdef.render( this.instance )
     debug('mount view - ', element )
 
     // Add view to the DOM
-    this.$ = $(element)
+    this.instance.$ = $(element)
 
     /**
      * Generate and assign tracking key to the 
@@ -247,9 +233,9 @@ export default class View extends EventEmitter {
      */
     this.key = hashKey()
 
-    this.$.attr({
+    this.instance.$.attr({
       [VIEW_KEY_SELECTOR]: this.key, // Set view key
-      [VIEW_NAME_SELECTOR]: vc.name // Set view node name identify
+      [VIEW_NAME_SELECTOR]: vdef.name // Set view node name identify
     })
 
     /**
@@ -259,7 +245,7 @@ export default class View extends EventEmitter {
     this.inject( renderingProps )
 
     // Set view specifications
-    this.set( vc )
+    this.set( vdef )
     // Initialize view properties
     this.initialize()
     // Auto-trigger current view
@@ -269,68 +255,60 @@ export default class View extends EventEmitter {
    * Create a clone/duplicate of an extisin view
    * in the editor context.
    */
-  mirror( viewInstance: View, $nextTo?: Cash ){
+  mirror( originalView: View, $nextTo?: Cash ){
     /**
      * Argument must be a new instance of view class
      */
-    if( typeof viewInstance !== 'object' 
-        || !viewInstance.key
-        || !viewInstance.$
+    if( typeof originalView.instance !== 'object' 
+        || !originalView.key
+        || !originalView.instance.$
         || this.key )
       return
 
     // Clone view element
-    this.$ = viewInstance.$.clone()
-    if( !this.$.length )
+    this.instance.$ = originalView.instance.$.clone()
+    if( !this.instance.$.length )
       throw new Error('View instance HTML element not found')
 
-    debug('mirror view - ', this.$.length )
+    debug('mirror view - ', this.instance.$.length )
+    $nextTo = $nextTo || originalView.instance.$
 
     /**
      * Add cloned view next to a given view element 
      * at a specific position
      */
-    $nextTo?.length
-        ? $nextTo.after( this.$ )
-        // Append cloned view directly next to the original view
-        : viewInstance.$.parent().append( this.$ )
-
+    $nextTo.after( this.instance.$ )
+    
     /**
      * Generate and assign view tracking key
      */
     this.key = hashKey()
-    this.$.attr( VIEW_KEY_SELECTOR, this.key )
+    this.instance.$.attr( VIEW_KEY_SELECTOR, this.key )
 
+    /**
+     * Shift cloned view from 15/15 pixels from 
+     * the original
+     */
+    this.instance.$.css({
+      left: `${parseFloat( $nextTo.css('left') as string ) + 15}px`,
+      top: `${parseFloat( $nextTo.css('top') as string ) + 15}px`
+    })
+    
     // Clone view specifications
-    this.set( viewInstance.get() )
+    this.set( originalView.get() )
     // Initialize view properties
     this.initialize()
   }
 
-  setParent( parent: HTMLElement ){
-    if( !parent ) return
-
-    this.$parent = $(parent)
-    debug('parent target - ', parent )
-
-    // Get parent's default component
-
-    // Auto-trigger current view's parent
-    this.triggerParent()
-  }
-  getParent(){
-    return this.$parent
-  }
-  
   inject( props: ViewBlockProperties[] ){
     if( !Array.isArray( props ) || !props.length ) return
 
     props.forEach( each => {
-      if( !this.$ ) return
+      if( !this.instance.$ ) return
 
       if( !each.selector ){
-        each.caption && this.$.data( VIEW_CAPTION_SELECTOR, each.caption )
-        each.allowedViewTypes && this.$.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
+        each.caption && this.instance.$.data( VIEW_CAPTION_SELECTOR, each.caption )
+        each.allowedViewTypes && this.instance.$.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
 
         return
       }
@@ -338,21 +316,21 @@ export default class View extends EventEmitter {
       /**
        * Assign props to specified content blocks
        */
-      const $block = this.$.find( each.selector )
+      const $block = this.instance.$.find( each.selector )
 
       each.caption && $block.data( VIEW_CAPTION_SELECTOR, each.caption )
       each.allowedViewTypes && $block.data( VIEW_TYPES_ALLOWED_SELECTOR, each.allowedViewTypes )
     } )
   }
   destroy(){
-    if( !this.$?.length ) 
+    if( !this.instance.$?.length ) 
       throw new Error('Invalid method called')
     
     // Dismiss controls related to the view
     this.dismiss()
 
     // Remove element from the DOM
-    this.$.remove()
+    this.instance.$.remove()
 
     /**
      * Clear all namespaces styles attached to this
@@ -361,25 +339,24 @@ export default class View extends EventEmitter {
      */
     this.frame.styles.removeRules( this.key as string )
 
-    this.$ = undefined
-    this.vc = undefined
+    this.instance.$ = undefined
+    this.vdef = undefined
     this.key = undefined
-    this.$parent = undefined
   }
 
   /**
    * Show view's editing quickset
    */
   showQuickset(){
-    if( !this.frame.editor.$viewport || !this.key || !this.$ )
+    if( !this.frame.editor.$viewport || !this.key || !this.instance.$ )
       throw new Error('Invalid method called')
 
     if( this.frame.editor.$viewport.find(`[${CONTROL_QUICKSET_SELECTOR}="${this.key}"]`).length ) 
       return
 
     const
-    { quickset, menu } = this.get() as ViewComponent,
-    options = typeof quickset == 'function' ? quickset( this.bridge ) : {},
+    { quickset, menu } = this.get() as ViewDefinition,
+    options = typeof quickset == 'function' ? quickset( this.instance ) : {},
     settings = {
       editing: true,
       visible: true,
@@ -387,7 +364,7 @@ export default class View extends EventEmitter {
     }
 
     // Calculate quickset position
-    let { x, y, height } = this.frame.getTopography( this.$ )
+    let { x, y, height } = this.frame.getTopography( this.instance.$ )
     debug('show view quickset: ', x, y )
 
     // Adjust by left edges
@@ -395,7 +372,7 @@ export default class View extends EventEmitter {
 
     /**
      * Create and hook quickset to view
-     * component operations.
+     * definition operations.
      */
     const 
     input: QuicksetInput = {
@@ -409,7 +386,7 @@ export default class View extends EventEmitter {
       position: { left: `${x}px`, top: `${y}px` }
     },
     hook: HandlerHook = { 
-      events: this.bridge.events,
+      events: this.instance.events,
       metacall: this.metacall.bind(this)
     }
     this.Quickset = Quickset( this.frame.editor.lips, input, hook )
@@ -417,7 +394,7 @@ export default class View extends EventEmitter {
 
     /**
      * Position quickset relatively to the view
-     * component.
+     * definition.
      */
     const
     tHeight = $quickset.find(':scope > [container]').height() || 0,
@@ -447,27 +424,27 @@ export default class View extends EventEmitter {
     // Update quickset position
     this.Quickset.subInput({ position: { left: `${x}px`, top: `${y}px` } })
     // Fire show quickset listeners
-    this.bridge.events.emit('quickset.show')
+    this.instance.events.emit('quickset.show')
   }
   showMenu(){
-    if( !this.frame.editor.$viewport || !this.key || !this.$ ) 
+    if( !this.frame.editor.$viewport || !this.key || !this.instance.$ ) 
       throw new Error('Invalid method called')
 
     if( this.frame.editor.$viewport.find(`[${CONTROL_MENU_SELECTOR}="${this.key}"]`).length ) 
       return
 
-    const { caption, menu } = this.get() as ViewComponent
+    const { caption, menu } = this.get() as ViewDefinition
     if( typeof menu !== 'function' ) return
 
     // Calculate menu position
-    let { x, y, width } = this.frame.getTopography( this.$ )
+    let { x, y, width } = this.frame.getTopography( this.instance.$ )
     debug('show view menu: ', x, y )
     
     const
     input = {
       caption,
       key: this.key,
-      options: menu( this.bridge )
+      options: menu( this.instance )
     },
     hook: HandlerHook = {
       metacall: this.metacall.bind(this)
@@ -512,10 +489,10 @@ export default class View extends EventEmitter {
     // Update menu's position
     this.Menu.subInput({ position: { left: `${x}px`, top: `${y}px` } })
     // Fire show menu listeners
-    this.bridge.events.emit('menu.show')
+    this.instance.events.emit('menu.show')
   }
   showFinder( $trigger: Cash ){
-    if( !this.frame.editor.$viewport || !this.key || !this.$ )
+    if( !this.frame.editor.$viewport || !this.key || !this.instance.$ )
       throw new Error('Invalid method called')
 
     /**
@@ -526,7 +503,7 @@ export default class View extends EventEmitter {
     const
     input = { key: this.key as string, list: this.frame.editor.store.searchView() },
     hook = {
-      events: this.bridge.events,
+      events: this.instance.events,
       metacall: this.metacall.bind(this)
     }
     this.Finder = Finder( this.frame.editor.lips, input, hook )
@@ -561,34 +538,10 @@ export default class View extends EventEmitter {
 
     $finder.css({ left: `${x}px`, top: `${y}px` })
   }
-  showMovable(){
-
-
-    // Fire show movable listeners
-    this.bridge.events.emit('movable.show')
-  }
   
-  move( direction?: string ){
-    if( !this.$?.length || !this.key ) 
-      throw new Error('Invalid method called')
-
-    switch( direction ){
-      case 'up': {
-        let $anchor = this.$.prev()
-        $anchor.length && this.$.before( $anchor )
-      } break
-      
-      case 'down': {
-        let $anchor = this.$.next()
-        $anchor.length && this.$.after( $anchor )
-      } break
-
-      default: this.showMovable()
-    }
-  }
   dismiss(){
     // Unhighlight triggered views
-    this.$?.removeAttr( VIEW_ACTIVE_SELECTOR )
+    this.instance.$?.removeAttr( VIEW_ACTIVE_SELECTOR )
     
     // Remove editing quickset if active
     this.Quickset?.destroy()
@@ -607,26 +560,26 @@ export default class View extends EventEmitter {
 
     /**
      * Fire dismiss function provided with 
-     * view component.
+     * view definition.
      */
     const dismiss = this.getSpec('dismiss')
-    typeof dismiss === 'function' && dismiss( this.bridge )
+    typeof dismiss === 'function' && dismiss( this.instance )
   }
   trigger(){
-    if( !this.key || !this.$ ) return
+    if( !this.key || !this.instance.$ ) return
     debug('trigger view')
 
     /**
      * Highlight triggered view: Delay due to 
      * pre-unhighlight effect.
      */
-    this.$?.attr( VIEW_ACTIVE_SELECTOR, 'true' )
+    this.instance.$?.attr( VIEW_ACTIVE_SELECTOR, 'true' )
 
     /**
      * Fire activation function provided with 
-     * view component.
+     * view definition.
      */
-    this.bridge.events.emit('activate')
+    this.instance.events.emit('activate')
   }
 
   triggerParent(){
@@ -661,8 +614,6 @@ export default class View extends EventEmitter {
 
       case 'view.sub.delete': this.frame.elements.remove( this.key ); break
       case 'view.sub.duplicate': this.frame.elements.duplicate( this.key ); break
-      case 'view.sub.move-up': this.frame.elements.move( this.key, 'up'); break
-      case 'view.sub.move-down': this.frame.elements.move( this.key, 'down'); break
       case 'view.sub.copy': this.frame.editor.clipboard = { type: 'view', key: this.key }; break
     }
   }

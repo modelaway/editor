@@ -1,11 +1,11 @@
-import type { ViewComponent } from '../types/view'
+import type { ViewDefinition } from '../types/view'
 
 const 
 options: Record<string, QuicksetOption> = {},
 
-Block: ViewComponent = {
+Block: ViewDefinition = {
   name: 'block',
-  node: 'div.block',
+  node: 'div',
   category: 'block',
   caption: {
     icon: 'bx bx-rectangle',

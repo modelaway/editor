@@ -1,4 +1,4 @@
-import type { ViewComponent } from '../types/view'
+import type { ViewDefinition } from '../types/view'
 
 const
 quicksetOptions: Record<string, QuicksetOption> = {
@@ -109,14 +109,14 @@ menuOptions: MenuSections = {
   }
 },
 
-Paragraph: ViewComponent = {
+Paragraph: ViewDefinition = {
   name: 'paragraph',
   node: 'p',
   category: 'text',
   caption: {
     icon: 'bx bx-paragraph',
     title: 'Paragraph',
-    description: 'Paragraph text area view component'
+    description: 'Paragraph text area view definition'
   },
   attributes: {},
 

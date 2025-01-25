@@ -1,4 +1,4 @@
-import type { ViewComponent } from '../types/view'
+import type { ViewDefinition } from '../types/view'
 
 const options: Record<string, QuicksetOption> = {
   upload: {
@@ -7,7 +7,7 @@ const options: Record<string, QuicksetOption> = {
   }
 }
 
-const Image: ViewComponent = {
+const Image: ViewDefinition = {
   name: 'image',
   node: 'img',
   category: 'media',

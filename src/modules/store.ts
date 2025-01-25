@@ -1,10 +1,10 @@
 import type Editor from './editor'
-import type { ViewComponent } from '../types/view'
+import type { ViewDefinition } from '../types/view'
 import { debug } from './utils'
 import { Cash } from 'cash-dom'
 
 type StoreMemory = {
-  views: Record<string, ViewComponent>,
+  views: Record<string, ViewDefinition>,
   templates: {}
 }
 
@@ -21,21 +21,21 @@ export default class Store {
     // this.settings = settings
   }
 
-  addView( view: ViewComponent ){
+  addView( view: ViewDefinition ){
     if( !view )
-      throw new Error('Undefined view component')
+      throw new Error('Undefined view definition')
 
-    // TODO: Check all other mandatory view component params
+    // TODO: Check all other mandatory view definition params
 
     if( this.STORE.views[ view.name ] )
-      throw new Error(`<${view.name}> view component already exists`)
+      throw new Error(`<${view.name}> view definition already exists`)
 
     this.STORE.views[ view.name ] = view
-    debug('view component registered - ', view.name )
+    debug('view definition registered - ', view.name )
   }
-  getView( name: string, $node?: Cash ): ViewComponent | null {
+  getView( name: string, $node?: Cash ): ViewDefinition | null {
     /**
-     * Get view component by name or HTML nodeName
+     * Get view definition by name or HTML nodeName
      * 
      * Always return new instance of a view
      * to keep initial view structure immutable
@@ -76,10 +76,10 @@ export default class Store {
   }
   removeView( name: string ){
     if( this.STORE.views[ name ] )
-      throw new Error(`<${name}> view component already exists`)
+      throw new Error(`<${name}> view definition already exists`)
 
     delete this.STORE.views[ name ]
-    debug('view component unregistered - ', name )
+    debug('view definition unregistered - ', name )
   }
   searchView( query?: string ){
     const results: Record<string, Listset> = {}

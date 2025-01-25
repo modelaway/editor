@@ -1,5 +1,5 @@
 import type Frame from '../frame'
-import type { ViewComponent } from '../../types/view'
+import type { ViewDefinition } from '../../types/view'
 
 import $, { type Cash } from 'cash-dom'
 import View from './view'
@@ -73,15 +73,15 @@ export default class Elements {
   }
 
   /**
-   * Add view component via editor contxt to the DOM
+   * Add view definition via editor contxt to the DOM
    */
   add( name: string, to: string ){
-    const vc = this.frame.editor.store.getView( name )
-    if( !vc )
+    const vdef = this.frame.editor.store.getView( name )
+    if( !vdef )
       throw new Error(`Unknown <${name}> view`)
 
     this.currentView = new View( this.frame )
-    this.currentView.mount( vc as ViewComponent, to )
+    this.currentView.mount( vdef as ViewDefinition, to )
 
     /**
      * Set this view in global namespace
@@ -124,28 +124,28 @@ export default class Elements {
 
     // Inspect new view
     else {
-      // Identify view component name or its HTML nodeName
+      // Identify view definition name or its HTML nodeName
       let cname = $currentTarget.attr( VIEW_NAME_SELECTOR )
                   || $currentTarget.prop('nodeName').toLowerCase()
 
-      let vc = this.frame.editor.store.getView( cname, $currentTarget )
-      if( !vc ) return
+      let vdef = this.frame.editor.store.getView( cname, $currentTarget )
+      if( !vdef ) return
 
       // Stop event propagation when there's a view match
       e?.stopPropagation()
       
       /**
-       * View component's name can be the same as its HTML
+       * View definition's name can be the same as its HTML
        * nodeName identifier.
        * 
        * Eg. `fieldset` name for <fieldset> tag/nodeName
        * 
-       * If not, then preempt to the view component's actual name
+       * If not, then preempt to the view definition's actual name
        * instead of the HTML nodeName.
        * 
        * Eg. `text` for <span> tag/nodeName
        */
-      cname = vc.name
+      cname = vdef.name
       
       // Dismiss all active elements
       this.dismissAll()
@@ -172,24 +172,24 @@ export default class Elements {
   propagate( $node: Cash ){
     if( !$node.length ) return
 
-    // Identify view component name or its HTML nodeName
+    // Identify view definition name or its HTML nodeName
     let cname = $node.attr( VIEW_NAME_SELECTOR )
                 || $node.prop('nodeName').toLowerCase()
 
-    const vc = this.frame.editor.store.getView( cname )
-    if( vc?.name ){
+    const vdef = this.frame.editor.store.getView( cname )
+    if( vdef?.name ){
       /**
-       * View component's name can be the same as its HTML 
+       * View definition's name can be the same as its HTML 
        * nodeName identifier.
        * 
        * Eg. `fieldset` name for <fieldset> tag/nodeName
        * 
-       * If not, then preempt to the view component's actual name 
+       * If not, then preempt to the view definition's actual name 
        * instead of the HTML nodeName.
        * 
        * Eg. `text` for <span> tag/nodeName
        */
-      cname = vc.name
+      cname = vdef.name
       
       /**
        * Check whether the view is not yet mounted in 
@@ -242,16 +242,5 @@ export default class Elements {
      * Set this view in global namespace
      */
     this.set( duplicateView )
-  }
-
-  /**
-   * Move view within the DOM
-   * 
-   * Direction: `up`, `down`, `any`
-   */
-  move( key: string, direction?: string ){
-    if( !this.has( key ) ) return
-    
-    this.get( key ).move( direction )
   }
 }

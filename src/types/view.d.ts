@@ -1,3 +1,4 @@
+import type { Cash } from 'cash-dom'
 import type { EventEmitter } from 'events'
 import type I18N from '../modules/i18n'
 import type Assets from '../modules/assets'
@@ -38,27 +39,27 @@ type ViewBlockProperties = {
   allowedViewTypes?: string[]
 }
 
-interface ViewBridge {
+interface ViewInstance {
   state: State
   i18n: I18N
   fn: Functions
   assets: Assets
   events: EventEmitter
-  $?: RJQueryStatic
+  $?: Cash
   css?: Stylesheet
 }
-interface ViewComponent {
+interface ViewDefinition {
   name: string
   node: string
   category: string
   caption: ViewCaption
   attributes: Record<string, any>
 
-  render: ( view: ViewBridge ) => string
-  takeover: ( view: ViewBridge ) => void
-  dismiss: ( view: ViewBridge ) => void
+  render: ( view: ViewInstance ) => string
+  takeover: ( view: ViewInstance ) => void
+  dismiss: ( view: ViewInstance ) => void
 
-  styles?: ( view: ViewBridge ) => StyleSettings
-  quickset?: ( view: ViewBridge ) => Record<string, QuicksetSet>
-  menu?: ( view: ViewBridge ) => MenuSections
+  styles?: ( view: ViewInstance ) => StyleSettings
+  quickset?: ( view: ViewInstance ) => Record<string, QuicksetSet>
+  menu?: ( view: ViewInstance ) => MenuSections
 }

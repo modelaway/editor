@@ -1,16 +1,16 @@
-import type { ViewComponent } from '../types/view'
+import type { ViewDefinition } from '../types/view'
 
 const
 options: Record<string, QuicksetOption> = {},
 
-Button: ViewComponent = {
+Button: ViewDefinition = {
   name: 'button',
   node: 'button',
   category: 'block',
   caption: {
     icon: 'bx bx-dice-2',
     title: 'Button',
-    description: 'Clickable action button view component'
+    description: 'Clickable action button view definition'
   },
   attributes: {},
   

@@ -1,5 +1,5 @@
 import type Editor from './editor'
-import type { ViewComponent } from '../types/view'
+import type { ViewDefinition } from '../types/view'
 
 import Text from '../natives/Text'
 import Block from '../natives/Block'
@@ -7,7 +7,7 @@ import Image from '../natives/Image'
 import Button from '../natives/Button'
 import Paragraph from '../natives/Paragraph'
 
-const Native: ViewComponent[] = [
+const Native: ViewDefinition[] = [
   Text,
   Block,
   Image,

@@ -1,4 +1,4 @@
-import type { ViewComponent, ViewBridge } from '../types/view'
+import type { ViewDefinition, ViewInstance } from '../types/view'
 
 const
 quicksetOptions: Record<string, QuicksetOption> = {
@@ -107,12 +107,12 @@ menuOptions: MenuSections = {
   }
 }
 
-function activate( view: ViewBridge ){
+function activate( view: ViewInstance ){
   return async () => {
     await view.$?.attr('contenteditable', 'true')
   }
 }
-function apply( view: ViewBridge ){
+function apply( view: ViewInstance ){
   return async ( attr: string, value: any ) => {
     const viewStyle = await view.css?.style()
 
@@ -123,12 +123,12 @@ function apply( view: ViewBridge ){
           if( !viewStyle ) return
           const isBold = viewStyle['font-weight'] === 'bold'
 
-          view.$.css({ 'font-weight': !isBold ? 'bold' : 'normal' })
+          view.$?.css({ 'font-weight': !isBold ? 'bold' : 'normal' })
           // Update quickset options
           view.fn.syncQuickset({ 'bold.active': !isBold })
         }
         else {
-          view.$.css({ 'font-weight': 'bold' })
+          view.$?.css({ 'font-weight': 'bold' })
           // Update quickset options
           view.fn.syncQuickset({ 'bold.active': true })
         }
@@ -140,12 +140,12 @@ function apply( view: ViewBridge ){
           if( !viewStyle ) return
           const isItalic = viewStyle['font-style'] === 'italic'
 
-          view.$.css({ 'font-style': !isItalic ? 'italic' : 'normal' })
+          view.$?.css({ 'font-style': !isItalic ? 'italic' : 'normal' })
           // Update quickset options
           view.fn.syncQuickset({ 'italic.active': !isItalic })
         }
         else {
-          view.$.css({ 'font-style': 'italic' })
+          view.$?.css({ 'font-style': 'italic' })
           // Update quickset options
           view.fn.syncQuickset({ 'italic.active': true })
         }
@@ -158,7 +158,7 @@ function apply( view: ViewBridge ){
           if( !viewStyle ) return
           const isApplied = viewStyle['text-decoration'] === attr
 
-          view.$.css({ 'text-decoration': !isApplied ? attr : 'none' })
+          view.$?.css({ 'text-decoration': !isApplied ? attr : 'none' })
           // Update quickset options
           view.fn.syncQuickset({
             'underline.active': attr == 'underline' && !isApplied,
@@ -166,7 +166,7 @@ function apply( view: ViewBridge ){
           })
         }
         else {
-          view.$.css({ 'text-decoration': attr })
+          view.$?.css({ 'text-decoration': attr })
           // Update quickset options
           view.fn.syncQuickset({
             'underline.active': attr == 'underline',
@@ -179,7 +179,7 @@ function apply( view: ViewBridge ){
       case 'alignment.left':
       case 'alignment.center':
       case 'alignment.justify': {
-        view.$.css({ 'text-align': attr.split('.')[1] })
+        view.$?.css({ 'text-align': attr.split('.')[1] })
         // Update quickset options
         view.fn.syncQuickset({
           'alignment.top.active': attr == 'alignment.top',
@@ -192,14 +192,14 @@ function apply( view: ViewBridge ){
   }
 }
 
-const Text: ViewComponent = {
+const Text: ViewDefinition = {
   name: 'text',
   node: 'span',
   category: 'text',
   caption: {
     icon: 'bx bx-text',
     title: 'Inline Text',
-    description: 'Short inline text view component'
+    description: 'Short inline text view definition'
   },
   attributes: {},
 

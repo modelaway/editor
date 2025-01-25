@@ -1,5 +1,6 @@
 import type Handles from '.'
 import type { HandleInterface } from '.'
+import { CONTROL_WRAPPER_SELECTOR } from '../constants'
 import type FrameStyle from '../frame/styles'
 import type Stylesheet from '../stylesheet'
 import $, { type Cash } from 'cash-dom'
@@ -35,7 +36,7 @@ export default class Wrappable implements HandleInterface {
     return `
       ${this.context.options.WRAPPER_TAG} {
         display: inline-block;
-        border: ${this.context.options.WRAPPER_BORDER_WIDTH}px solid var(--me-primary-color-transparent);
+        border: ${this.context.options.WRAPPER_BORDER_WIDTH}px solid var(--me-primary-color);
         box-sizing: border-box;
         box-shadow: 0 0 0 1px rgba(13, 110, 253, 0.1);
         transition: border-color 0.2s ease;
@@ -194,7 +195,7 @@ export default class Wrappable implements HandleInterface {
   private createWrapper(){
     const 
     tag = this.context.options.WRAPPER_TAG || 'div',
-    $wrapper = $(`<${tag}><scope></scope></${tag}>`)
+    $wrapper = $(`<${tag} ${CONTROL_WRAPPER_SELECTOR}><scope></scope></${tag}>`)
 
     // Default wrapper style properties
     $wrapper.css({

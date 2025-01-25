@@ -20,6 +20,11 @@ class Traverser {
   private layerCount: number = 0
   private zIndex: number = 0
 
+  private FLAGS  = [
+    'rzwrapper:selected',
+    'scope'
+  ]
+
   /**
    * Generate unique key for layer elements
    */
@@ -32,6 +37,19 @@ class Traverser {
     }
   }
 
+  private ignoreFlag( element: Element, flag?: string ): { element: Element, flag?: string } | null {
+    for( const tagname of this.FLAGS  ){
+      const [ name, flag ] = tagname.split(':') || []
+      if( !name ) return { element }
+
+      if( name.toUpperCase() === element.tagName ){
+        const firstchild = element.firstChild as Element
+        return firstchild && flag !== '*' ? this.ignoreFlag( firstchild, flag ) : null
+      }
+    }
+    
+    return { element, flag }
+  }
   /**
    * Get element type based on its structure
    */
@@ -48,11 +66,10 @@ class Traverser {
 
     else return 'text'
   }
-
   /**
    * Create layer element with its properties
    */
-  private createElement( element: Element, parentKey?: string ): LayerElement {
+  private createElement( element: Element, parentKey?: string, flag?: string ): LayerElement {
     const 
     $element = $(element)
     if( !$element.length )
@@ -81,6 +98,10 @@ class Traverser {
       styles: $element.attr('style-ref')
     }
 
+    switch( flag ){
+      // case 'selected': layer.selected = true
+    }
+
     // const componentName = $element.attr('data-component')
     // const componentRel = $element.attr('data-component-rel')
     // if( componentName && componentRel ){
@@ -91,9 +112,13 @@ class Traverser {
     // }
 
     if( layer.attribute === 'node' || layer.attribute === 'group' )
-      children?.each(( _, child ) => {
-        const childLayer = this.createElement( child, layer.key )
+      children?.each(( _, child: Element ) => {
+        const result = this.ignoreFlag( child )
+        if( !result || !result.element ) return
 
+        child = result.element
+
+        const childLayer = this.createElement( child, layer.key, result.flag )
         if( !layer.layers )
           layer.layers = new Map()
 
@@ -111,8 +136,13 @@ class Traverser {
     $root = $(rootElement),
     layers: Map<string, LayerElement> = new Map()
     
-    $root.each(( _, element ) => {
-      const layer = this.createElement( element )
+    $root.each(( _, element: Element ) => {
+      const result = this.ignoreFlag( element )
+      if( !result || !result.element ) return
+
+      element = result.element
+
+      const layer = this.createElement( element, undefined, result.flag )
       layers.set( layer.key, layer )
     })
 

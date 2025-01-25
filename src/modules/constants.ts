@@ -29,6 +29,7 @@ export const FRAME_DEFAULT_MARGIN = 140 // Pixel (px)
  * NOTE: Only custom attributes
  */
 export const CONTROL_LANG_SELECTOR = 'mlang'
+export const CONTROL_WRAPPER_SELECTOR = 'mwrap'
 export const CONTROL_FRAME_SELECTOR = 'mv-frame'
 export const CONTROL_MENU_SELECTOR = 'mv-menu'
 export const CONTROL_QUICKSET_SELECTOR = 'mv-quickset'
@@ -80,23 +81,6 @@ export const VIEW_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
         icon: 'bx bx-copy',
         title: 'Copy',
         shortcut: 'command + c',
-        meta: true
-      },
-      'move-up': { 
-        icon: 'bx bx-upvote',
-        title: 'Move up',
-        shortcut: 'command + up',
-        meta: true
-      },
-      'move-down': { 
-        icon: 'bx bx-downvote',
-        title: 'Move down',
-        shortcut: 'command + down',
-        meta: true
-      },
-      move: { 
-        icon: 'bx bx-move',
-        title: 'Move',
         meta: true
       },
       duplicate: { 

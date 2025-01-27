@@ -43,7 +43,7 @@ export const CONTROL_ZOOM_SCALE_STEP = 0.02
 export const CONTROL_ZOOOM_EVEN_SCALE = 1
 export const CONTROL_ZOOM_MIN_SCALE = 0.01
 export const CONTROL_SNAP_GRID_SIZE = 10
-export const CONTROL_SNAP_THRESHOLD = 5 // Snapping threshold: Distance within which snapping occurs
+export const CONTROL_SNAP_THRESHOLD = 2 // Snapping threshold: Distance within which snapping occurs
 
 export const FORM_INPUT_SELECTOR = 'mv-form-input'
 export const FORM_SEPERATOR_SELECTOR = 'mv-form-seperator'

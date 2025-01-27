@@ -1,7 +1,6 @@
 import type {
   LipsConfig,
   Template,
-  EventListener,
   Handler,
   ComponentScope,
   ComponentOptions,
@@ -10,13 +9,13 @@ import type {
 
 import $, { type Cash } from 'cash-dom'
 import I18N from './i18n'
+import Events from './events'
+import * as Router from './router'
 import Benchmark from './benchmark'
 import ParallelExecutor from './parallel'
 import Stylesheet from '../modules/stylesheet'
-import { isDiff, deepClone, deepAssign, isSuperDiff } from './utils'
+import { isDiff, deepClone, deepAssign } from './utils'
 import { effect, EffectControl, signal } from './signal'
-
-import * as Router from './router'
 
 const SPREAD_VAR_PATTERN = /^\.\.\./
 
@@ -227,11 +226,11 @@ export default class Lips<Context = any> {
       typeof fn === 'function'
       && Object.keys( ctx )
       && fn( ctx )
-    } )
+    })
   }
 }
 
-export class Component<Input = void, State = void, Static = void, Context = void> {
+export class Component<Input = void, State = void, Static = void, Context = void> extends Events {
   private template: string
   private macros: Record<string, string>
   private $?: Cash
@@ -246,8 +245,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
   private __stylesheet?: Stylesheet
   private __macros: Map<string, Cash> = new Map() // Cached macros templates
   private __components: Map<string, Component> = new Map() // Cached nexted components
-  private __events: Record<string, EventListener[]> = {}
-  private __once_events: Record<string, EventListener[]> = {}
   private __attachableEvents: { $node: Cash, _event: string, instruction: string, scope?: Record<string, any> }[] = []
 
   private __templateCache: Map<string, Cash> = new Map()
@@ -283,6 +280,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
   [key: string]: any
 
   constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet, macros }: ComponentScope<Input, State, Static, Context>, options?: ComponentOptions ){
+    super()
+
     this.template = preprocessTemplate( template )
     this.macros = macros || {}
 
@@ -1525,33 +1524,5 @@ export class Component<Input = void, State = void, Static = void, Context = void
     this.$?.length && $with.replaceWith( this.$ )
 
     return this
-  }
-
-  on( _event: string, fn: EventListener ){
-    if( !Array.isArray( this.__events[ _event ] ) )
-      this.__events[ _event ] = []
-
-    this.__events[ _event ].push( fn )
-    return this
-  }
-  once( _event: string, fn: EventListener ){
-    if( !Array.isArray( this.__once_events[ _event ] ) )
-      this.__once_events[ _event ] = []
-
-    this.__once_events[ _event ].push( fn )
-    return this
-  }
-  off( _event: string ){
-    delete this.__events[ _event ]
-    delete this.__once_events[ _event ]
-
-    return this
-  }
-  emit( _event: string, ...params: any[] ){
-    this.__events[ _event ]?.forEach( fn => fn( ...params ) )
-
-    // Once listeners
-    this.__once_events[ _event ]?.forEach( fn => fn( ...params ) )
-    delete this.__once_events[ _event ]
   }
 }

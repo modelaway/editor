@@ -209,22 +209,22 @@ export default class Lips<Context = any> {
     
     else throw new Error('Invalid context data')
   }
-  useContext( fields: (keyof Context)[], fn: ( ...args: any[] ) => void ){
-    effect( () => {
-      const context = this._getContext()
+  useContext<P extends Context>( fields: (keyof Context)[], fn: ( context: P ) => void ){
+    if( !fields.length ) return
 
-      const ctx: any = {}
-      fields.forEach( field => {
-        if( !context ) return
-        ctx[ field ] = context[ field ]
-      } )
+    effect( () => {
+      const context = this._getContext() as Context
+      if( !context ) return
+
+      const ctx = Object.fromEntries( fields.map( field => [ field, context[ field ] ]) ) as unknown as P
       
       /**
        * Propagate context change effect to component 
        * only when its registered scope have changed
        */
-      typeof fn === 'function'
-      && Object.keys( ctx )
+      ctx
+      && typeof fn === 'function'
+      && Object.keys( ctx ).length
       && fn( ctx )
     })
   }
@@ -344,24 +344,22 @@ export class Component<Input = void, State = void, Static = void, Context = void
      */
     Array.isArray( context )
     && context.length
-    && this.lips?.useContext( context, ctx => {
+    && this.lips?.useContext<Context>( context, ctx => {
       if( !isDiff( this.context as Record<string, any>, ctx ) ) return
-      
+
       setContext( ctx )
-      this.context = ctx
+      this.context = getContext()
       
       /**
        * Triggered anytime component context changed
        */
-      typeof this.onContext == 'function' 
+      typeof this.onContext == 'function'
       && this.onContext.bind(this)()
     })
 
     this.SEC = effect( () => {
       this.input = getInput()
       this.state = getState()
-
-      if( context ) this.context = getContext()
 
       // Reset the benchmark
       this.benchmark.reset()

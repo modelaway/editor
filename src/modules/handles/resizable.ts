@@ -1,5 +1,6 @@
 import type Handles from '.'
 import type { HandleInterface } from '.'
+import { enableHardwareAcceleration } from '../utils'
 import type SnapGuidable from './snapguidable'
 
 import $, { type Cash } from 'cash-dom'
@@ -27,10 +28,14 @@ export default class Resizable implements HandleInterface {
   private startHeight?: number
   private snapguide?: SnapGuidable
   private elementStates: ElementState[] = []
+  private pendingUpdates: Map<Cash, CSSProperties>
+  private animationFrame?: number
 
   constructor( context: Handles, snapguide?: SnapGuidable ){
     this.context = context
     this.snapguide = snapguide
+
+    this.pendingUpdates = new Map()
   }
 
   private captureElementStates( $wrapper: Cash ){
@@ -50,27 +55,43 @@ export default class Resizable implements HandleInterface {
     })
   }
 
+  private batchDOMUpdate( $element: Cash, styles: CSSProperties ){
+    this.pendingUpdates.set( $element, styles )
+    
+    if( !this.animationFrame )
+      this.animationFrame = requestAnimationFrame( () => {
+        this.pendingUpdates.forEach( ( styles, $element ) => $element.css( styles as any ) )
+        this.pendingUpdates.clear()
+
+        this.animationFrame = undefined
+      })
+  }
+
   private updateElementsRelatively( scaleX: number, scaleY: number, deltaX: number, deltaY: number ){
-    this.elementStates.forEach( state => {
+    const updates = this.elementStates.map( state => {
       // Calculate new dimensions
       const
       newWidth = Math.max( state.originalWidth * scaleX, 10 ),
-      newHeight = Math.max( state.originalHeight * scaleY, 10 )
+      newHeight = Math.max( state.originalHeight * scaleY, 10 ),
 
       // For left/top resizing, adjust position based on the change in dimensions
-      const
-      widthDiff = newWidth - state.originalWidth,
-      heightDiff = newHeight - state.originalHeight,
+      // widthDiff = newWidth - state.originalWidth,
+      // heightDiff = newHeight - state.originalHeight,
       newTop = state.originalTop + (deltaY ? (state.originalTop / this.startHeight!) * deltaY : 0),
       newLeft = state.originalLeft + (deltaX ? (state.originalLeft / this.startWidth!) * deltaX : 0)
 
-      state.$element.css({
-        width: `${newWidth}px`,
-        height: `${newHeight}px`,
-        top: `${newTop}px`,
-        left: `${newLeft}px`
-      })
+      return {
+        $element: state.$element,
+        styles: {
+          width: `${newWidth}px`,
+          height: `${newHeight}px`,
+          top: `${newTop}px`,
+          left: `${newLeft}px`
+        }
+      }
     })
+
+    updates.forEach( ({ $element, styles }) => this.batchDOMUpdate( $element, styles ) )
   }
 
   private start( e: any, $handle: Cash ){
@@ -89,7 +110,10 @@ export default class Resizable implements HandleInterface {
     this.startTop = parseFloat( this.$wrapper.css('top') as string ) || 0
     this.startLeft = parseFloat( this.$wrapper.css('left') as string ) || 0
 
+    enableHardwareAcceleration( this.$wrapper )
     this.captureElementStates( this.$wrapper )
+
+    this.elementStates.forEach( state => enableHardwareAcceleration( state.$element ) )
   }
   private handle( e: any ){
     if( !this.context.isResizing
@@ -160,7 +184,7 @@ export default class Resizable implements HandleInterface {
     }
 
     // Update wrapper dimensions
-    this.$wrapper.css({
+    this.batchDOMUpdate( this.$wrapper, {
       width: `${newWidth}px`,
       height: `${newHeight}px`,
       top: `${newTop}px`,

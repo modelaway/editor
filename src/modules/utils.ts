@@ -483,3 +483,11 @@ export function throttle<T extends (...args: any[]) => any>( func: T, wait: numb
     return result
   }
 }
+
+export function enableHardwareAcceleration( $element: Cash ){
+  $element.css({
+    'will-change': 'transform',
+    'transform': 'translateZ(0)',
+    'backface-visibility': 'hidden'
+  })
+}

@@ -8,6 +8,7 @@ import {
   CONTROL_SNAP_THRESHOLD
 } from '../constants'
 
+type Axis = 'horizontal' | 'vertical'
 interface SnapPoint {
   position: number
   guidePosition: number
@@ -29,6 +30,8 @@ interface SnapPoints {
 export default class SnapGuidable implements HandleInterface {
   private context: Handles
   private style: Stylesheet | FrameStyle
+  private pendingGuides: Array<{ axis: Axis, point: SnapPoint }> = []
+  private animationFrame?: number
   
   constructor( context: Handles ){
     this.context = context
@@ -59,11 +62,30 @@ export default class SnapGuidable implements HandleInterface {
     `
   }
 
-  private showGuide( axis: 'horizontal' | 'vertical', point: SnapPoint ){
-    (axis === 'vertical'
-          ? $(`<snapguide vertical></snapguide>`).css({ left: `${point.guidePosition}px`, top: 0 })
-          : $('<snapguide horizontal></snapguide>').css({ left: 0, top: `${point.guidePosition}px` }) )
-    .appendTo( this.context.$viewport )
+  private showGuide( axis: Axis, point: SnapPoint ){
+    this.pendingGuides.push({ axis, point })
+    
+    if( !this.animationFrame ){
+      this.animationFrame = requestAnimationFrame(() => {
+        const fragment = document.createDocumentFragment()
+        
+        this.pendingGuides.forEach( ({ axis, point }) => {
+          const 
+          $guide = $(`<snapguide ${axis}></snapguide>`),
+          position = axis === 'vertical'
+                      ? { left: `${point.guidePosition}px`, top: 0 }
+                      : { left: 0, top: `${point.guidePosition}px` }
+          
+          $guide.css( position )
+          fragment.appendChild( $guide[0] as Element )
+        })
+        
+        this.context.$viewport.append( fragment )
+
+        this.pendingGuides = []
+        this.animationFrame = undefined
+      })
+    }
   }
 
   calculate( $wrapper: Cash, newLeft: number, newTop: number, newWidth?: number, newHeight?: number ){
@@ -284,26 +306,30 @@ export default class SnapGuidable implements HandleInterface {
 
     // Moving element's edges to target's center
     if( snapPoints.edgeToCenterX.length > 0 ){
-      const leftDistance = Math.abs(newLeft - snapPoints.edgeToCenterX[0].position)
-      const rightDistance = Math.abs(newRight - snapPoints.edgeToCenterX[0].position)
+      const
+      leftDistance = Math.abs( newLeft - snapPoints.edgeToCenterX[0].position ),
+      rightDistance = Math.abs( newRight - snapPoints.edgeToCenterX[0].position )
       
-      if( leftDistance < CONTROL_SNAP_THRESHOLD && leftDistance < rightDistance ){
+      if( leftDistance < CONTROL_SNAP_THRESHOLD && leftDistance < rightDistance )
         finalLeft = snapPoints.edgeToCenterX[0].position
-      } else if( rightDistance < CONTROL_SNAP_THRESHOLD ){
+
+      else if( rightDistance < CONTROL_SNAP_THRESHOLD )
         finalLeft = snapPoints.edgeToCenterX[0].position - wrapperWidth
-      }
+      
       snapPoints.edgeToCenterX.forEach( point => self.showGuide('vertical', point ) )
     }
     
     if( snapPoints.edgeToCenterY.length > 0 ){
-      const topDistance = Math.abs(newTop - snapPoints.edgeToCenterY[0].position)
-      const bottomDistance = Math.abs(newBottom - snapPoints.edgeToCenterY[0].position)
+      const
+      topDistance = Math.abs( newTop - snapPoints.edgeToCenterY[0].position ),
+      bottomDistance = Math.abs( newBottom - snapPoints.edgeToCenterY[0].position )
       
-      if( topDistance < CONTROL_SNAP_THRESHOLD && topDistance < bottomDistance ){
+      if( topDistance < CONTROL_SNAP_THRESHOLD && topDistance < bottomDistance )
         finalTop = snapPoints.edgeToCenterY[0].position
-      } else if( bottomDistance < CONTROL_SNAP_THRESHOLD ){
+
+      else if( bottomDistance < CONTROL_SNAP_THRESHOLD )
         finalTop = snapPoints.edgeToCenterY[0].position - wrapperHeight
-      }
+      
       snapPoints.edgeToCenterY.forEach( point => self.showGuide('horizontal', point ) )
     }
 
@@ -311,6 +337,11 @@ export default class SnapGuidable implements HandleInterface {
   }
 
   hide(){
+    if( this.animationFrame ){
+      cancelAnimationFrame( this.animationFrame )
+      this.animationFrame = undefined
+    }
+    
     const $guides = this.context.$viewport.find('snapguide')
     $guides.css('opacity', '0')
     

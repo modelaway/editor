@@ -237,7 +237,7 @@ export default class Frame extends EventEmitter {
         default: return false
       }
     }
-  
+    
     /**
      * Propagate view control over the existing content
      */
@@ -305,7 +305,7 @@ export default class Frame extends EventEmitter {
 
       // Show quickset
       const view = self.elements.get( key )
-      view?.showQuickset()
+      view?.quickset()
     } )
 
     .on('input', '[contenteditable]', () => this.emit('content.change', this.getContent() ) )

@@ -119,7 +119,7 @@ export default class Elements {
       this.currentView = this.get( key )
       if( !this.currentView ) return
 
-      this.currentView.inspect( $currentTarget, this.currentView.getSpec('name'), true )
+      this.currentView.inspect( $currentTarget, this.currentView.getDefinition('name'), true )
     }
 
     // Inspect new view

@@ -84,7 +84,7 @@ export default class Editor {
   }
   public settings: ModelaSettings = {}
 
-  public lips: Lips
+  public lips: Lips<GlobalLipsContext>
   public $root?: Cash
   public $shell?: Cash
   public $viewport?: Cash

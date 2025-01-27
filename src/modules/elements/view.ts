@@ -18,7 +18,8 @@ import {
   CONTROL_EDGE_MARGIN,
   CONTROL_MENU_MARGIN,
   CONTROL_QUICKSET_MARGIN,
-  VIEW_CONTROL_OPTIONS
+  VIEW_CONTROL_OPTIONS,
+  CONTROL_WRAPPER_SELECTOR
 } from '../constants'
 import { Component } from '../../lips/lips'
 import Menu, { MenuInput, MenuState } from '../../factory/menu'
@@ -112,7 +113,7 @@ export default class View extends EventEmitter {
     catch( error: any ){ debug( error.message ) }
 
     // Give away control to view definition
-    const takeover = this.getSpec('takeover')
+    const takeover = this.getDefinition('takeover')
     typeof takeover == 'function' && takeover( this.instance )
 
     this.instance.events.emit('mounted')
@@ -154,7 +155,7 @@ export default class View extends EventEmitter {
 
     return this.vdef
   }
-  getSpec( type: keyof ViewDefinition ): any {
+  getDefinition( type: keyof ViewDefinition ): any {
     if( !this.vdef )
       throw new Error('Invalid method called')
 
@@ -265,13 +266,21 @@ export default class View extends EventEmitter {
         || this.key )
       return
 
+    let $original = originalView.instance.$
+
+    /**
+     * View wrapper awareness
+     */
+    if( $original.closest(`[${CONTROL_WRAPPER_SELECTOR}]`).length )
+      $original = $original.closest(`[${CONTROL_WRAPPER_SELECTOR}]`)
+    
     // Clone view element
-    this.instance.$ = originalView.instance.$.clone()
+    this.instance.$ = $original.clone()
     if( !this.instance.$.length )
       throw new Error('View instance HTML element not found')
 
     debug('mirror view - ', this.instance.$.length )
-    $nextTo = $nextTo || originalView.instance.$
+    $nextTo = $nextTo || $original
 
     /**
      * Add cloned view next to a given view element 
@@ -347,7 +356,7 @@ export default class View extends EventEmitter {
   /**
    * Show view's editing quickset
    */
-  showQuickset(){
+  quickset(){
     if( !this.frame.editor.$viewport || !this.key || !this.instance.$ )
       throw new Error('Invalid method called')
 
@@ -426,7 +435,7 @@ export default class View extends EventEmitter {
     // Fire show quickset listeners
     this.instance.events.emit('quickset.show')
   }
-  showMenu(){
+  menu(){
     if( !this.frame.editor.$viewport || !this.key || !this.instance.$ ) 
       throw new Error('Invalid method called')
 
@@ -491,7 +500,7 @@ export default class View extends EventEmitter {
     // Fire show menu listeners
     this.instance.events.emit('menu.show')
   }
-  showFinder( $trigger: Cash ){
+  finder( $trigger: Cash ){
     if( !this.frame.editor.$viewport || !this.key || !this.instance.$ )
       throw new Error('Invalid method called')
 
@@ -562,7 +571,7 @@ export default class View extends EventEmitter {
      * Fire dismiss function provided with 
      * view definition.
      */
-    const dismiss = this.getSpec('dismiss')
+    const dismiss = this.getDefinition('dismiss')
     typeof dismiss === 'function' && dismiss( this.instance )
   }
   trigger(){
@@ -601,7 +610,7 @@ export default class View extends EventEmitter {
     if( !this.key ) return
 
     switch( key ){
-      case 'menu': this.showMenu(); break
+      case 'menu': this.menu(); break
       case 'menu.dismiss': this.Menu?.destroy(); break
 
       case 'finder.search':

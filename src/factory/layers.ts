@@ -6,10 +6,8 @@ import type { MovableOptions } from '../modules/controls/movable'
 import type { SortableOptions } from '../modules/controls/sortable'
 
 import $, { type Cash } from 'cash-dom'
-import { VIEW_KEY_SELECTOR } from '../modules/constants'
-import LayerList from './components/layerlist'
-import LayerItem from './components/layeritem'
-import { deepAssign, deepClone, deepDelete, deepValue } from '../modules/utils'
+import { ELEMENT_KEY_SELECTOR } from '../modules/constants'
+import { deepAssign, deepDelete, deepValue } from '../modules/utils'
 
 export type Mutation = {
   action: 'add' | 'remove' | 'reorder' | 'modify'
@@ -81,9 +79,9 @@ class Traverser {
     groupAttr = $element.attr('group'),
     children = type !== 'text' ? $element.children() : null,
     layer: LayerElement = {
-      key: $element.attr( VIEW_KEY_SELECTOR ) || defkey,
+      key: $element.attr( ELEMENT_KEY_SELECTOR ) || defkey,
       parentKey,
-      name: $element.attr( VIEW_KEY_SELECTOR ) || defname,
+      name: $element.attr( ELEMENT_KEY_SELECTOR ) || defname,
       tagname: type === 'text' ? 'text' : element.tagName.toLowerCase(),
       type,
       attribute: groupAttr ? 'group' : children && children.length > 0 ? 'node' : 'element',
@@ -216,9 +214,6 @@ type ReorderSpec = {
  */
 export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
   
-  lips.register('layerlist', LayerList() )
-  lips.register('layeritem', LayerItem() )
-
   const state: State = {
     layers: new Map(),
     activeLayer: null,

@@ -3,7 +3,6 @@ import type { Handler } from '../lips'
 import type { ViewCaption } from '../types/view'
 import type { HandlerHook } from '../types/controls'
 
-import * as Components from './components'
 import {
   CONTROL_LANG_SELECTOR,
   CONTROL_MENU_SELECTOR,
@@ -25,8 +24,7 @@ export type MenuState = {
 }
 
 export default ( lips: Lips, input: MenuInput, hook: HandlerHook ) => {
-  lips.register('inputs', Components.inputs() )
-
+  
   const state = {
     activeTab: null
   }

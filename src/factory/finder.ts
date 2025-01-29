@@ -1,11 +1,10 @@
 import type { HandlerHook } from '../types/controls'
 import type Lips from '../lips/lips'
 
-import * as Components from './components'
 import {
   CONTROL_MENU_SELECTOR,
   CONTROL_LANG_SELECTOR,
-  VIEW_EMPTY_SELECTOR,
+  ELEMENT_EMPTY_SELECTOR,
   FORM_SEPERATOR_SELECTOR
 } from '../modules/constants'
 import { Handler } from '../lips'
@@ -26,8 +25,6 @@ export type FinderState = {
   results: Record<string, SearchResult>
 }
 export default ( lips: Lips, input: FinderInput, hook: HandlerHook ) => {
-  lips.register('inputs', Components.inputs() )
-
   const state = {
     query: '',
     results: []
@@ -81,7 +78,7 @@ export default ( lips: Lips, input: FinderInput, hook: HandlerHook ) => {
           </for>
         </if>
         <else>
-          <mblock ${VIEW_EMPTY_SELECTOR} ${CONTROL_LANG_SELECTOR}>No result</mblock>
+          <mblock ${ELEMENT_EMPTY_SELECTOR} ${CONTROL_LANG_SELECTOR}>No result</mblock>
         </else>
       </mblock>
     `

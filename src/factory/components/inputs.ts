@@ -20,7 +20,9 @@ const Inputs = () => {
                   disabled=input.disabled
                   pattern=input.pattern
                   autofocus=input.autofocus
-                  placeholder="input.placeholder || input.label">
+                  placeholder="input.placeholder || input.label"
+                  on-input( e => self.emit('input', e.target.value ) )
+                  on-change( e => self.emit('change', e.target.value ) )>
         </mblock>
       </case>
 
@@ -30,7 +32,8 @@ const Inputs = () => {
                   type=input.type
                   name=input.name
                   disabled=input.disabled
-                  checked=input.checked>
+                  checked=input.checked
+                  on-change( e => self.emit('change', e.target.checked ) )>
           <label for=id ${CONTROL_LANG_SELECTOR}>{input.label}</label>
         </mblock>
       </case>

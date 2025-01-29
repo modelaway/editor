@@ -2,7 +2,6 @@ import type Lips from '../lips/lips'
 import type { Handler } from '../lips'
 import type { HandlerHook } from '../types/controls'
 
-import MediaScreens from './components/mediascreens'
 import {
   CONTROL_LANG_SELECTOR,
   CONTROL_QUICKSET_SELECTOR
@@ -30,9 +29,6 @@ export type QuicksetState = {
 }
 
 export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
-
-  // TODO: Rely on the all preregistered helpers instead
-  lips.register('mediascreens', MediaScreens() )
 
   const state: QuicksetState = {
     default: null,

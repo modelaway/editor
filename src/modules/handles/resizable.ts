@@ -19,7 +19,7 @@ type ElementState = {
 export default class Resizable implements HandleInterface {
   private context: Handles
   private $handle?: Cash
-  private $wrapper?: Cash
+  private $holder?: Cash
   private cursorX = 0
   private cursorY = 0
   private startTop = 0
@@ -38,9 +38,9 @@ export default class Resizable implements HandleInterface {
     this.pendingUpdates = new Map()
   }
 
-  private captureElementStates( $wrapper: Cash ){
+  private captureElementStates( $holder: Cash ){
     this.elementStates = []
-    const $elements = $wrapper.find(`:scope > scope > ${this.context.options.element}`)
+    const $elements = $holder.find(`:scope > scope > [${this.context.options.attribute}]`)
     
     $elements.each( ( _, element ) => {
       const $element = $(element)
@@ -96,28 +96,28 @@ export default class Resizable implements HandleInterface {
 
   private start( e: any, $handle: Cash ){
     this.$handle = $handle
-    this.$wrapper = this.$handle?.closest( this.context.options.WRAPPER_TAG )
+    this.$holder = this.$handle?.closest( this.context.options.HOLDER_TAG )
 
-    if( !this.$wrapper?.length ) return
+    if( !this.$holder?.length ) return
 
     this.context.isResizing = true
 
     this.cursorX = e.pageX
     this.cursorY = e.pageY
 
-    this.startWidth = parseFloat( this.$wrapper.css('width') as string )
-    this.startHeight = parseFloat( this.$wrapper.css('height') as string )
-    this.startTop = parseFloat( this.$wrapper.css('top') as string ) || 0
-    this.startLeft = parseFloat( this.$wrapper.css('left') as string ) || 0
+    this.startWidth = parseFloat( this.$holder.css('width') as string )
+    this.startHeight = parseFloat( this.$holder.css('height') as string )
+    this.startTop = parseFloat( this.$holder.css('top') as string ) || 0
+    this.startLeft = parseFloat( this.$holder.css('left') as string ) || 0
 
-    enableHardwareAcceleration( this.$wrapper )
-    this.captureElementStates( this.$wrapper )
+    enableHardwareAcceleration( this.$holder )
+    this.captureElementStates( this.$holder )
 
     this.elementStates.forEach( state => enableHardwareAcceleration( state.$element ) )
   }
   private handle( e: any ){
     if( !this.context.isResizing
-        || !this.$wrapper?.length
+        || !this.$holder?.length
         || this.startWidth === undefined
         || this.startHeight === undefined ) return
 
@@ -175,7 +175,7 @@ export default class Resizable implements HandleInterface {
     }
 
     if( this.snapguide ){
-      const snapped = this.snapguide.calculate( this.$wrapper, newLeft, newTop, newWidth, newHeight )
+      const snapped = this.snapguide.calculate( this.$holder, newLeft, newTop, newWidth, newHeight )
 
       if( snapped ){
         newLeft = snapped.newLeft
@@ -183,8 +183,8 @@ export default class Resizable implements HandleInterface {
       }
     }
 
-    // Update wrapper dimensions
-    this.batchDOMUpdate( this.$wrapper, {
+    // Update holder dimensions
+    this.batchDOMUpdate( this.$holder, {
       width: `${newWidth}px`,
       height: `${newHeight}px`,
       top: `${newTop}px`,
@@ -206,7 +206,7 @@ export default class Resizable implements HandleInterface {
 
     this.context.isResizing = false
     this.$handle = undefined
-    this.$wrapper = undefined
+    this.$holder = undefined
     this.elementStates = []
     
     this.snapguide?.hide()

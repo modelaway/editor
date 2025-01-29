@@ -88,22 +88,22 @@ export default class SnapGuidable implements HandleInterface {
     }
   }
 
-  calculate( $wrapper: Cash, newLeft: number, newTop: number, newWidth?: number, newHeight?: number ){
+  calculate( $holder: Cash, newLeft: number, newTop: number, newWidth?: number, newHeight?: number ){
     if( !this.context.$canvas.length ) return
 
     const
-    borderTop = parseFloat( $wrapper.css('border-top-width') || '0' ),
-    borderLeft = parseFloat( $wrapper.css('border-left-width') || '0' ),
-    borderRight = parseFloat( $wrapper.css('border-right-width') || '0' ),
-    borderBottom = parseFloat( $wrapper.css('border-bottom-width') || '0' )
+    borderTop = parseFloat( $holder.css('border-top-width') || '0' ),
+    borderLeft = parseFloat( $holder.css('border-left-width') || '0' ),
+    borderRight = parseFloat( $holder.css('border-right-width') || '0' ),
+    borderBottom = parseFloat( $holder.css('border-bottom-width') || '0' )
     
     const
-    wrapperWidth = newWidth || parseFloat( $wrapper.css('width') as string ),
-    wrapperHeight = newHeight || parseFloat( $wrapper.css('height') as string ),
-    newRight = newLeft + wrapperWidth,
-    newBottom = newTop + wrapperHeight,
-    newCenterX = newLeft + (wrapperWidth / 2),
-    newCenterY = newTop + (wrapperHeight / 2)
+    holderWidth = newWidth || parseFloat( $holder.css('width') as string ),
+    holderHeight = newHeight || parseFloat( $holder.css('height') as string ),
+    newRight = newLeft + holderWidth,
+    newBottom = newTop + holderHeight,
+    newCenterX = newLeft + (holderWidth / 2),
+    newCenterY = newTop + (holderHeight / 2)
 
     let
     self = this,
@@ -128,7 +128,7 @@ export default class SnapGuidable implements HandleInterface {
     this.hide()
 
     const 
-    selector = `${this.context.options.element}:not(${this.context.options.WRAPPER_TAG},${this.context.options.WRAPPER_TAG} > scope,${this.context.options.WRAPPER_TAG} > .handle)`,
+    selector = `[${this.context.options.attribute}]:not(${this.context.options.HOLDER_TAG},${this.context.options.HOLDER_TAG} > scope,${this.context.options.HOLDER_TAG} > .handle)`,
     nodes = this.context.$canvas.find( selector )
 
     nodes?.each( function(){
@@ -269,7 +269,7 @@ export default class SnapGuidable implements HandleInterface {
       snapPoints.left.forEach( point => self.showGuide('vertical', point ) )
     }
     else if( snapPoints.right.length > 0 ){
-      finalLeft = snapPoints.right[0].position - wrapperWidth
+      finalLeft = snapPoints.right[0].position - holderWidth
       snapPoints.right.forEach( point => self.showGuide('vertical', point ) )
     }
 
@@ -278,29 +278,29 @@ export default class SnapGuidable implements HandleInterface {
       snapPoints.top.forEach( point => self.showGuide('horizontal', point ) )
     }
     else if( snapPoints.bottom.length > 0 ){
-      finalTop = snapPoints.bottom[0].position - wrapperHeight
+      finalTop = snapPoints.bottom[0].position - holderHeight
       snapPoints.bottom.forEach( point => self.showGuide('horizontal', point ) )
     }
 
     // Center-to-center snapping
     if( snapPoints.centerX.length > 0 ){
-      finalLeft = snapPoints.centerX[0].position - (wrapperWidth / 2)
+      finalLeft = snapPoints.centerX[0].position - (holderWidth / 2)
       snapPoints.centerX.forEach( point => self.showGuide('vertical', point ) )
     }
     
     if( snapPoints.centerY.length > 0 ){
-      finalTop = snapPoints.centerY[0].position - (wrapperHeight / 2)
+      finalTop = snapPoints.centerY[0].position - (holderHeight / 2)
       snapPoints.centerY.forEach( point => self.showGuide('horizontal', point ) )
     }
 
     // Moving element's center to target's edges
     if( snapPoints.centerToEdgeX.length > 0 ){
-      finalLeft = snapPoints.centerToEdgeX[0].position - (wrapperWidth / 2)
+      finalLeft = snapPoints.centerToEdgeX[0].position - (holderWidth / 2)
       snapPoints.centerToEdgeX.forEach( point => self.showGuide('vertical', point ) )
     }
     
     if( snapPoints.centerToEdgeY.length > 0 ){
-      finalTop = snapPoints.centerToEdgeY[0].position - (wrapperHeight / 2)
+      finalTop = snapPoints.centerToEdgeY[0].position - (holderHeight / 2)
       snapPoints.centerToEdgeY.forEach( point => self.showGuide('horizontal', point ) )
     }
 
@@ -314,7 +314,7 @@ export default class SnapGuidable implements HandleInterface {
         finalLeft = snapPoints.edgeToCenterX[0].position
 
       else if( rightDistance < CONTROL_SNAP_THRESHOLD )
-        finalLeft = snapPoints.edgeToCenterX[0].position - wrapperWidth
+        finalLeft = snapPoints.edgeToCenterX[0].position - holderWidth
       
       snapPoints.edgeToCenterX.forEach( point => self.showGuide('vertical', point ) )
     }
@@ -328,7 +328,7 @@ export default class SnapGuidable implements HandleInterface {
         finalTop = snapPoints.edgeToCenterY[0].position
 
       else if( bottomDistance < CONTROL_SNAP_THRESHOLD )
-        finalTop = snapPoints.edgeToCenterY[0].position - wrapperHeight
+        finalTop = snapPoints.edgeToCenterY[0].position - holderHeight
       
       snapPoints.edgeToCenterY.forEach( point => self.showGuide('horizontal', point ) )
     }

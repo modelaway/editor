@@ -1,16 +1,16 @@
 import type Handles from '.'
 import type { HandleInterface } from '.'
-import type Wrappable from './wrappable'
+import type Holdable from './holdable'
 
 import $ from 'cash-dom'
 
 export default class Creator implements HandleInterface {
   private context: Handles
-  private wrappable?: Wrappable
+  private holdable?: Holdable
   
-  constructor( context: Handles, wrappable?: Wrappable ){
+  constructor( context: Handles, holdable?: Holdable ){
     this.context = context
-    this.wrappable = wrappable
+    this.holdable = holdable
   }
 
   private handle( e: any ){
@@ -19,7 +19,7 @@ export default class Creator implements HandleInterface {
     /**
      * Ignore dblclick trigger on:
      * - target element
-     * - wrapper element
+     * - holder element
      */
     if( !$(e.target).is( this.context.$viewport ) ) return
 
@@ -38,9 +38,9 @@ export default class Creator implements HandleInterface {
       const $element = this.context.options.createElement({ x: cursorX, y: cursorY })
 
       // Auto-wrap created element
-      this.wrappable
+      this.holdable
       && $element.length
-      && this.wrappable.activate( $element )
+      && this.holdable.grab( $element )
     }
   }
 

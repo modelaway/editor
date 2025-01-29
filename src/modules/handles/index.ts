@@ -7,7 +7,7 @@ import Movable from './movable'
 import Pannable from './pannable'
 import Zoomable from './zoomable'
 import Resizable from './resizable'
-import Wrappable from './wrappable'
+import Holdable from './holdable'
 import Selectable from './selectable'
 import SnapGuidable from './snapguidable'
 import Stylesheet from '../stylesheet'
@@ -17,12 +17,12 @@ import FrameStyle from '../frame/styles'
 export type HandleType = 'pan' 
                       | 'zoom'
                       | 'create'
-                      | 'create:wrap'
+                      | 'create:hold'
                       | 'move'
-                      | 'wrap'
+                      | 'hold'
                       | 'resize'
                       | 'select'
-                      | 'select:wrap'
+                      | 'select:hold'
                       | 'snapguide'
                       | 'move:snapguide'
                       | 'resize:snapguide'
@@ -30,8 +30,7 @@ export interface HandlesOptions {
   enable?: HandleType[]
   $viewport: Cash
   $canvas: Cash
-  element: string
-  dom?: 'main' | 'shadow'
+  attribute: string
   frameStyle?: FrameStyle
   
   MIN_WIDTH: number
@@ -39,11 +38,11 @@ export interface HandlesOptions {
 
   MOVE_THRESHOLD?: number
 
-  WRAPPER_TAG?: string
-  WRAPPER_BORDER_WIDTH?: number
-  WRAPPER_HANDLE_SIZE?: number
-  WRAPPER_HANDLE_AUTO?: boolean
-  WRAPPER_HANDLE_VISIBLE_EDGES?: boolean
+  HOLDER_TAG?: string
+  HOLDER_BORDER_WIDTH?: number
+  HOLDER_HANDLE_SIZE?: number
+  HOLDER_HANDLE_AUTO?: boolean
+  HOLDER_HANDLE_VISIBLE_EDGES?: boolean
 
   DRAG_SELECT_MIN_SIZE?: number
   DRAG_SELECT_THRESHOLD?: number
@@ -71,28 +70,23 @@ class Inclusion extends EventEmitter {
    * Return DOM-wise events
    */
   events( arg: Cash | Document ){
-    switch( this.options.dom ){
-      case 'shadow': return new ShadowEvents( arg === document ? this.options.$viewport[0] : (arg as Cash)[0] as any )
-      case 'main':
-      default: return arg === document ? $(document) : (arg as Cash)
-    }
+    return this.options.$viewport[0] instanceof ShadowRoot
+                    ? (new ShadowEvents( arg === document ? this.options.$viewport[0] : (arg as Cash)[0] as any ))
+                    : (arg === document ? $(document) : (arg as Cash))
   }
   /**
    * Add styles based on type of DOM.
    */
   styles( rel: string, sheet: string ){
-    switch( this.options.dom ){
-      case 'shadow': {
-        if( !this.options.frameStyle )
-          throw new Error('Undefined frameStyle instance option')
+    if( this.options.$viewport[0] instanceof ShadowRoot ){
+      if( !this.options.frameStyle )
+        throw new Error('Undefined frameStyle instance option')
 
-        this.options.frameStyle.addRules( sheet, { rel })
-        return this.options.frameStyle
-      }
-
-      case 'main':
-      default: return new Stylesheet( rel, { sheet, meta: true })
+      this.options.frameStyle.addRules( sheet, { rel })
+      return this.options.frameStyle
     }
+    
+    else return new Stylesheet( rel, { sheet, meta: true })
   }
 }
 
@@ -102,7 +96,7 @@ export default class Handles extends Inclusion {
     move?: Movable
     pan?: Pannable
     zoom?: Zoomable
-    wrap?: Wrappable
+    hold?: Holdable
     create?: Creator
     resize?: Resizable
     select?: Selectable
@@ -134,11 +128,11 @@ export default class Handles extends Inclusion {
     this.options = {
       MOVE_THRESHOLD: 5,
 
-      WRAPPER_TAG: 'rzwrapper',
-      WRAPPER_BORDER_WIDTH: 1,
-      WRAPPER_HANDLE_SIZE: 9,
-      WRAPPER_HANDLE_AUTO: true,
-      WRAPPER_HANDLE_VISIBLE_EDGES: false,
+      HOLDER_TAG: 'rzh',
+      HOLDER_BORDER_WIDTH: 1,
+      HOLDER_HANDLE_SIZE: 9,
+      HOLDER_HANDLE_AUTO: true,
+      HOLDER_HANDLE_VISIBLE_EDGES: false,
 
       DRAG_SELECT_TAG: 'dragselect',
       DRAG_SELECT_MIN_SIZE: 5,
@@ -186,15 +180,15 @@ export default class Handles extends Inclusion {
         } break
         
         case 'create':
-        case 'create:wrap': {
+        case 'create:hold': {
           /**
-           * [*:wrap]: Create and wrap the element automatically
+           * [*:hold]: Create and hold the element automatically
            */
-          let wrappable
-          if( each === 'create:wrap' )
-            wrappable = this.manual.wrap || new Wrappable( this )
+          let holdable
+          if( each === 'create:hold' )
+            holdable = this.manual.hold || new Holdable( this )
 
-          this.manual.create = new Creator( this, wrappable )
+          this.manual.create = new Creator( this, holdable )
           this.manual.create.enable()
         } break
         
@@ -203,29 +197,29 @@ export default class Handles extends Inclusion {
           this.manual.zoom.enable()
         } break
         
-        case 'wrap': {
-          this.manual.wrap = new Wrappable( this )
-          this.manual.wrap.enable()
+        case 'hold': {
+          this.manual.hold = new Holdable( this )
+          this.manual.hold.enable()
         } break
 
         case 'select':
-        case 'select:wrap': {
+        case 'select:hold': {
           /**
-           * [*:wrap]: Move handle must have a 
-           * wrap dependency defined
+           * [*:hold]: Move handle must have a 
+           * hold dependency defined
            */
-          let wrappable
-          if( this.options.enable?.includes('wrap') || each === 'select:wrap' )
-            wrappable = this.manual.wrap || new Wrappable( this )
+          let holdable
+          if( this.options.enable?.includes('hold') || each === 'select:hold' )
+            holdable = this.manual.hold || new Holdable( this )
 
-          this.manual.select = new Selectable( this, wrappable )
+          this.manual.select = new Selectable( this, holdable )
           this.manual.select.enable()
         } break
         
         case 'move':
         case 'move:snapguide': {
-          if( !this.options.enable?.includes('wrap') )
-            throw new Error('Move handle only applies on wrappable elements. Expect `wrap` handle')
+          if( !this.options.enable?.includes('hold') )
+            throw new Error('Move handle only applies on holdable elements. Expect `hold` handle')
           
           /**
            * [*:snapguide]: Move handle must have a 
@@ -241,8 +235,8 @@ export default class Handles extends Inclusion {
         
         case 'resize':
         case 'resize:snapguide': {
-          if( !this.options.enable?.includes('wrap') )
-            throw new Error('Resize handle only applies on wrappable elements. Expect `wrap` handle')
+          if( !this.options.enable?.includes('hold') )
+            throw new Error('Resize handle only applies on holdable elements. Expect `hold` handle')
           
           /**
            * [*:snapguide]: Resize handle must have 
@@ -289,15 +283,15 @@ export default class Handles extends Inclusion {
    */
   constraints<ActionType>( type: HandleType, action?: ActionType | null, event?: KeyboardEvent ){
     switch( type ){
-      case 'wrap': {
+      case 'hold': {
         switch( action ){
-          case 'activate': return !event?.altKey || false
-          case 'deactivate': return this.isPanning 
-                                    || this.isMoving
-                                    || this.isZooming
-                                    || this.isResizing
-                                    || this.isSelecting
-                                    || false
+          case 'grab': return !event?.altKey || false
+          case 'release': return this.isPanning 
+                                  || this.isMoving
+                                  || this.isZooming
+                                  || this.isResizing
+                                  || this.isSelecting
+                                  || false
           // No constrain by default
           default: return false
         }

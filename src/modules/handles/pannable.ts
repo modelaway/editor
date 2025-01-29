@@ -19,7 +19,7 @@ export default class Pannable implements HandleInterface {
      * Do not initialize panning on: 
      * - resize `.handle`
      * - target element
-     * - wrapper element
+     * - holder element
      */
     if( !$(e.target).is( this.context.$viewport ) ) return
 

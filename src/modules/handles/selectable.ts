@@ -1,6 +1,6 @@
 import type Handles from '.'
 import type { HandleInterface } from '.'
-import type Wrappable from './wrappable'
+import type Holdable from './holdable'
 import type FrameStyle from '../frame/styles'
 import type Stylesheet from '../stylesheet'
 
@@ -11,7 +11,7 @@ type SelectActionType = 'start' | 'handle' | 'stop'
 
 export default class Selectable implements HandleInterface {
   private context: Handles
-  private wrappable?: Wrappable
+  private holdable?: Holdable
   private style: Stylesheet | FrameStyle
 
   private $coverage?: Cash
@@ -28,9 +28,9 @@ export default class Selectable implements HandleInterface {
 
   private throttled: any
 
-  constructor( context: Handles, wrappable?: Wrappable ){
+  constructor( context: Handles, holdable?: Holdable ){
     this.context = context
-    this.wrappable = wrappable
+    this.holdable = holdable
     this.style = this.context.styles('dragselect', this.getStyleSheet() )
   }
 
@@ -54,8 +54,8 @@ export default class Selectable implements HandleInterface {
   private getIntersectingElements( rect: DOMRect, left: number, top: number, width: number, height: number ): Cash | null {
     const
     stag = this.context.options.DRAG_SELECT_TAG,
-    wtag = this.context.options.WRAPPER_TAG,
-    $selectables = this.context.$canvas.find(`${this.context.options.element}:not(${stag},${wtag},${wtag} .handle)`)
+    wtag = this.context.options.HOLDER_TAG,
+    $selectables = this.context.$canvas.find(`[${this.context.options.attribute}]:not(${stag},${wtag},${wtag} .handle)`)
     
     if( !$selectables?.length ) return null
 
@@ -105,9 +105,9 @@ export default class Selectable implements HandleInterface {
     })
 
     // Unwrap elements that are no longer in selection
-    $elementsToUnwrap.length && this.wrappable?.deactivate( $elementsToUnwrap )
+    $elementsToUnwrap.length && this.holdable?.release( $elementsToUnwrap )
     // Wrap newly selected elements
-    $elementsToWrap.length && this.wrappable?.activate( $elementsToWrap )
+    $elementsToWrap.length && this.holdable?.grab( $elementsToWrap )
 
     // Update current selection based on mode
     if( this.isShiftKeyPressed ){
@@ -150,9 +150,9 @@ export default class Selectable implements HandleInterface {
     this.cursorX = this.startX
     this.cursorY = this.startY
 
-    // Store currently wrapped elements before starting new selection
+    // Store currently held elements before starting new selection
     if( !this.isShiftKeyPressed ){
-      this.$previouslySelected = this.context.$canvas.find(`${this.context.options.element}[data-is-wrapped="true"]`)
+      this.$previouslySelected = this.context.$canvas.find(`[${this.context.options.attribute}][data-is-held="true"]`)
       
       // Clear progressive selection for new drag operation
       this.$progressiveSelection = undefined
@@ -271,15 +271,15 @@ export default class Selectable implements HandleInterface {
          * First unwrap all elements to prepare for multi-wrap
          * then apply multi-wrap.
          */
-        this.wrappable?.deactivate( finalSelection )
-        this.wrappable?.activate( finalSelection )
+        this.holdable?.release( finalSelection )
+        this.holdable?.grab( finalSelection )
         
         this.context.emit('selection.end', finalSelection )
       }
     }
     // If the selection was too small and not in shift mode, restore previous selection
     else if( !this.isShiftKeyPressed && this.$previouslySelected?.length ){
-      this.wrappable?.activate( this.$previouslySelected )
+      this.holdable?.grab( this.$previouslySelected )
       this.$selectedElements = this.$previouslySelected
     }
 

@@ -8,7 +8,7 @@ type MoveActionType = 'start' | 'handle' | 'stop'
 
 export default class Movable implements HandleInterface {
   private context: Handles
-  private $wrapper?: Cash
+  private $holder?: Cash
   private cursorX = 0
   private cursorY = 0
   private startTop = 0
@@ -25,7 +25,7 @@ export default class Movable implements HandleInterface {
   }
 
   private start( e: any ){
-    const $target = $(e.target).closest( this.context.options.WRAPPER_TAG )
+    const $target = $(e.target).closest( this.context.options.HOLDER_TAG )
     if( !$target.length ) return
 
     e.preventDefault()
@@ -37,19 +37,19 @@ export default class Movable implements HandleInterface {
     const position = $target.css('position')
     if( !position || !['fixed', 'absolute'].includes( position ) ) return
 
-    this.$wrapper = $target
+    this.$holder = $target
     this.isPendingMove = true
 
     this.initialCursorX = this.cursorX = e.pageX
     this.initialCursorY = this.cursorY = e.pageY
 
-    this.startTop = parseFloat( this.$wrapper?.css('top') as string ) || 0
-    this.startLeft = parseFloat( this.$wrapper?.css('left') as string ) || 0
+    this.startTop = parseFloat( this.$holder?.css('top') as string ) || 0
+    this.startLeft = parseFloat( this.$holder?.css('left') as string ) || 0
   }
   private handle( e: any ){
     if( this.context.isPanning
         || this.context.isResizing
-        || !this.$wrapper?.length ) return
+        || !this.$holder?.length ) return
 
     const scaleQuo = this.context.getScaleQuo()
 
@@ -81,7 +81,7 @@ export default class Movable implements HandleInterface {
     newLeft = this.startLeft + deltaX
 
     if( this.snapguide ){
-      const snapped = this.snapguide.calculate( this.$wrapper, newLeft, newTop )
+      const snapped = this.snapguide.calculate( this.$holder, newLeft, newTop )
 
       if( snapped ){
         newTop = snapped.newTop
@@ -89,14 +89,14 @@ export default class Movable implements HandleInterface {
       }
     }
 
-    this.$wrapper.css({ top: `${newTop}px`, left: `${newLeft}px` })
+    this.$holder.css({ top: `${newTop}px`, left: `${newLeft}px` })
   }
   private stop(){
     if( !this.isPendingMove && !this.context.isMoving ) return
 
     this.context.isMoving = false
     this.isPendingMove = false
-    this.$wrapper = undefined
+    this.$holder = undefined
 
     this.snapguide?.hide()
   }
@@ -106,7 +106,7 @@ export default class Movable implements HandleInterface {
 
     this.context
     .events( this.context.$canvas )
-    .on('mousedown.move', this.context.options.element, e => {
+    .on('mousedown.move', `[${this.context.options.attribute}]`, e => {
       !this.context.constraints<MoveActionType>('move', 'start', e )
       && this.start( e )
     } )

@@ -4,7 +4,7 @@ const
 options: Record<string, QuicksetOption> = {},
 
 Block: ViewDefinition = {
-  name: 'block',
+  type: 'block',
   node: 'div',
   category: 'block',
   caption: {
@@ -22,8 +22,7 @@ Block: ViewDefinition = {
     .on('quickset.show', () => {})
     .on('menu.show', () => {})
   },
-  dismiss( view ){},
-
+  
   quickset(){
     return options
   }

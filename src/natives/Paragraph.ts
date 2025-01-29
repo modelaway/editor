@@ -110,7 +110,7 @@ menuOptions: MenuSections = {
 },
 
 Paragraph: ViewDefinition = {
-  name: 'paragraph',
+  type: 'paragraph',
   node: 'p',
   category: 'text',
   caption: {
@@ -145,13 +145,11 @@ Paragraph: ViewDefinition = {
     .on('view.styles', data => view.$?.css( data ) )
     .on('global.styles', data => view.$?.css( data ) )
 
-    .on('activate', data => view.$?.attr('contenteditable', 'true') )
+    .on('activate', () => view.$?.attr('contenteditable', 'true') )
+    .on('deactivate', () => view.$?.removeAttr('contenteditable') )
 
     console.log( view.css?.custom() )
     console.log( view.css?.style() )
-  },
-  dismiss( view ){
-    view.$?.removeAttr('contenteditable')
   },
 
   styles( view ){

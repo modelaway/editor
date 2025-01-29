@@ -3,10 +3,10 @@ import type { ViewDefinition } from '../types/view'
 const
 options: Record<string, QuicksetOption> = {},
 
-Button: ViewDefinition = {
-  type: 'button',
-  node: 'button',
-  category: 'block',
+Fonticon: ViewDefinition = {
+  type: 'fonticon',
+  node: 'icon',
+  category: 'media',
   caption: {
     icon: 'bx bx-dice-2',
     title: 'Button',
@@ -15,16 +15,12 @@ Button: ViewDefinition = {
   attributes: {},
   
   render(){
-    return `<button><span lang>Click me</span></button>`
+    return `<icon class="<class-def>"></icon>`
   },
-  takeover( view ){
-    view.events
-    .on('quickset.show', () => {})
-    .on('menu.show', () => {})
-  }
+  takeover( view ){}
 }
 
 /**
  * Button view (button) 
  */
-export default Button
+export default Fonticon

@@ -107,11 +107,6 @@ menuOptions: MenuSections = {
   }
 }
 
-function activate( view: ViewInstance ){
-  return async () => {
-    await view.$?.attr('contenteditable', 'true')
-  }
-}
 function apply( view: ViewInstance ){
   return async ( attr: string, value: any ) => {
     const viewStyle = await view.css?.style()
@@ -193,7 +188,7 @@ function apply( view: ViewInstance ){
 }
 
 const Text: ViewDefinition = {
-  name: 'text',
+  type: 'text',
   node: 'span',
   category: 'text',
   caption: {
@@ -219,11 +214,9 @@ const Text: ViewDefinition = {
     .on('view.styles', async data => await view.$?.css( data ) )
     .on('global.styles', async data => await view.$?.css( data ) )
 
-    .on('activate', activate( view ) )
+    .on('activate', () => view.$?.attr('contenteditable', 'true') )
+    .on('deactivate', () => view.$?.removeAttr('contenteditable') )
     .on('apply', apply( view ) )
-  },
-  dismiss( view ){
-    view.$?.removeAttr('contenteditable')
   },
   
   styles( view ){

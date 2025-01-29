@@ -1,17 +1,19 @@
-import type Editor from './editor'
-import type { ViewDefinition } from '../types/view'
+import type Editor from '.'
+import type { ViewDefinition } from '../../types/view'
 
-import Text from '../natives/Text'
-import Block from '../natives/Block'
-import Image from '../natives/Image'
-import Button from '../natives/Button'
-import Paragraph from '../natives/Paragraph'
+import Text from '../../natives/Text'
+import Block from '../../natives/Block'
+import Image from '../../natives/Image'
+import Button from '../../natives/Button'
+import Fonticon from '../../natives/Fonticon'
+import Paragraph from '../../natives/Paragraph'
 
 const Native: ViewDefinition[] = [
   Text,
   Block,
   Image,
   Button,
+  Fonticon,
   Paragraph
 ]
 
@@ -26,7 +28,7 @@ export function Loader( editor: Editor, options?: NativeOptions ){
    */
   if( !editor
       || !editor.store 
-      || typeof editor.store.addView !== 'function' )
+      || typeof editor.store.views.add !== 'function' )
     return
 
   return {
@@ -38,9 +40,9 @@ export function Loader( editor: Editor, options?: NativeOptions ){
         // Load only defined views
         if( Array.isArray( options?.views )
             && options.views.length
-            && !options.views.includes( view.name ) ) return
+            && !options.views.includes( view.type ) ) return
           
-        editor.store.addView( view )
+        editor.store.views.add( view )
       } )
 
       /**
@@ -56,9 +58,9 @@ export function Loader( editor: Editor, options?: NativeOptions ){
         // Load only defined views
         if( Array.isArray( options?.views )
             && options.views.length
-            && !options.views.includes( view.name ) ) return
+            && !options.views.includes( view.type ) ) return
           
-        editor.store.removeView( view.name )
+        editor.store.views.remove( view.type )
       } )
 
       /**

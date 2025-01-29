@@ -8,7 +8,7 @@ const options: Record<string, QuicksetOption> = {
 }
 
 const Image: ViewDefinition = {
-  name: 'image',
+  type: 'image',
   node: 'img',
   category: 'media',
   caption: {
@@ -19,7 +19,6 @@ const Image: ViewDefinition = {
   attributes: {},
   
   render(){
-
     return `<picture>
       <!-- Low-resolution image for small screens -->
       <!-- <source media="(max-width: 600px)" srcset="image-small.jpg"> -->
@@ -42,7 +41,6 @@ const Image: ViewDefinition = {
     //   view.fn.pushHistoryStack()
     // })
   },
-  dismiss( view ){},
 
   quickset(){
     return options

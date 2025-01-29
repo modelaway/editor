@@ -5,8 +5,8 @@ import $, { type Cash } from 'cash-dom'
 import View from './view'
 import Flow from './flow'
 import {
-  VIEW_KEY_SELECTOR,
-  VIEW_NAME_SELECTOR
+  ELEMENT_KEY_SELECTOR,
+  ELEMENT_TYPE_SELECTOR
 } from '../constants'
 
 export default class Elements {
@@ -75,25 +75,22 @@ export default class Elements {
   /**
    * Add view definition via editor contxt to the DOM
    */
-  add( name: string, to: string ){
-    const vdef = this.frame.editor.store.getView( name )
+  add( type: string, to: string ){
+    const vdef = this.frame.editor.store.views.get( type )
     if( !vdef )
-      throw new Error(`Unknown <${name}> view`)
+      throw new Error(`Unknown <${type}> view`)
 
     this.currentView = new View( this.frame )
     this.currentView.mount( vdef as ViewDefinition, to )
 
-    /**
-     * Set this view in global namespace
-     */
     this.set( this.currentView )
   }
 
   /**
-   * Dismiss all/any active elements
+   * Deactivate all/any active elements
    */
-  dismissAll(){
-    this.each( view => view.dismiss() )
+  deactivate(){
+    this.each( view => view.deactivate() )
   }
 
   /**
@@ -107,58 +104,54 @@ export default class Elements {
     /**
      * Inspect inert view
      */
-    const key = $currentTarget.attr( VIEW_KEY_SELECTOR ) as string
+    const key = $currentTarget.attr( ELEMENT_KEY_SELECTOR ) as string
     if( this.has( key ) ){
       // Stop event propagation when there's a view match
       e?.stopPropagation()
 
-      // Dismiss all active elements
-      this.dismissAll()
+      // Deactivate all active elements
+      this.deactivate()
       
       // Create new view instance or use existing.
       this.currentView = this.get( key )
       if( !this.currentView ) return
 
-      this.currentView.inspect( $currentTarget, this.currentView.getDefinition('name'), true )
+      this.currentView.inspect( $currentTarget, this.currentView.getDefinition('type'), true )
     }
 
     // Inspect new view
     else {
-      // Identify view definition name or its HTML nodeName
-      let cname = $currentTarget.attr( VIEW_NAME_SELECTOR )
+      // Identify view definition type or its HTML nodeName
+      let etype = $currentTarget.attr( ELEMENT_TYPE_SELECTOR )
                   || $currentTarget.prop('nodeName').toLowerCase()
 
-      let vdef = this.frame.editor.store.getView( cname, $currentTarget )
+      let vdef = this.frame.editor.store.views.get( etype, $currentTarget )
       if( !vdef ) return
 
       // Stop event propagation when there's a view match
       e?.stopPropagation()
       
       /**
-       * View definition's name can be the same as its HTML
+       * View definition's type can be the same as its HTML
        * nodeName identifier.
        * 
-       * Eg. `fieldset` name for <fieldset> tag/nodeName
+       * Eg. `fieldset` type for <fieldset> tag/nodeName
        * 
-       * If not, then preempt to the view definition's actual name
+       * If not, then preempt to the view definition's actual type
        * instead of the HTML nodeName.
        * 
        * Eg. `text` for <span> tag/nodeName
        */
-      cname = vdef.name
+      etype = vdef.type
       
-      // Dismiss all active elements
-      this.dismissAll()
+      // Deactivate all active elements
+      this.deactivate()
 
       // Create new view instance or use existing.
       this.currentView = new View( this.frame )
       if( !this.currentView ) return
 
-      this.currentView.inspect( $currentTarget, cname, true )
-
-      /**
-       * Set this view in global namespace
-       */
+      this.currentView.inspect( $currentTarget, etype, true )
       this.set( this.currentView )
     }
   }
@@ -172,40 +165,26 @@ export default class Elements {
   propagate( $node: Cash ){
     if( !$node.length ) return
 
-    // Identify view definition name or its HTML nodeName
-    let cname = $node.attr( VIEW_NAME_SELECTOR )
-                || $node.prop('nodeName').toLowerCase()
+    // Identify view definition type or its HTML nodeName
+    let etype = $node.attr( ELEMENT_TYPE_SELECTOR )
+                || $node.prop('nodeType').toLowerCase()
 
-    const vdef = this.frame.editor.store.getView( cname )
-    if( vdef?.name ){
-      /**
-       * View definition's name can be the same as its HTML 
-       * nodeName identifier.
-       * 
-       * Eg. `fieldset` name for <fieldset> tag/nodeName
-       * 
-       * If not, then preempt to the view definition's actual name 
-       * instead of the HTML nodeName.
-       * 
-       * Eg. `text` for <span> tag/nodeName
-       */
-      cname = vdef.name
+    const vdef = this.frame.editor.store.views.get( etype )
+    if( vdef?.type ){
+      etype = vdef.type
       
       /**
        * Check whether the view is not yet mounted in 
        * the editor context
        */
-      const key = $node.attr( VIEW_KEY_SELECTOR )
+      const key = $node.attr( ELEMENT_KEY_SELECTOR )
       if( !key || !this.has( key ) ){
         /**
          * Inspect view
          */
         const view = new View( this.frame )
-        view.inspect( $node, cname )
-
-        /**
-         * Set this view in global namespace
-         */
+        view.inspect( $node, etype )
+        
         this.set( view )
       }
     }
@@ -238,9 +217,6 @@ export default class Elements {
     const duplicateView = new View( this.frame )
     duplicateView.mirror( this.get( key ), $nextTo )
 
-    /**
-     * Set this view in global namespace
-     */
     this.set( duplicateView )
   }
 }

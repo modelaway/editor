@@ -37,11 +37,11 @@ export default class Canvas extends EventEmitter {
     this.$ = this.editor.$viewport?.find(':scope > mcanvas')
     
     this.handles = new Handles( this.editor, {
-      dom: 'main',
       enable: ALLOWED_CANVAS_HANDLES,
       $viewport: this.editor.$viewport,
       $canvas: this.$,
-      element: `div[${CONTROL_FRAME_SELECTOR}]`,
+      attribute: CONTROL_FRAME_SELECTOR,
+      
       MIN_WIDTH: FRAME_MIN_WIDTH,
       MIN_HEIGHT: FRAME_MIN_HEIGHT,
 

@@ -49,7 +49,7 @@ interface ViewInstance {
   css?: Stylesheet
 }
 interface ViewDefinition {
-  name: string
+  type: string
   node: string
   category: string
   caption: ViewCaption
@@ -57,7 +57,7 @@ interface ViewDefinition {
 
   render: ( view: ViewInstance ) => string
   takeover: ( view: ViewInstance ) => void
-  dismiss: ( view: ViewInstance ) => void
+  // dismiss: ( view: ViewInstance ) => void
 
   styles?: ( view: ViewInstance ) => StyleSettings
   quickset?: ( view: ViewInstance ) => Record<string, QuicksetSet>

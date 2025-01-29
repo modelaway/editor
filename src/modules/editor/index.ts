@@ -10,17 +10,16 @@ import Plugins from '../plugins'
 import History from '../history'
 import Controls from './controls'
 import Functions from '../functions'
-import Lips from '../../lips/lips'
 import Shell from '../../factory/shell'
+import Components from '../../factory/components'
 import Toolbar, { ToolbarInput } from '../../factory/toolbar'
 import Quickset, { QuicksetInput } from '../../factory/quickset'
 import Layers, { LayersInput } from '../../factory/layers'
+import Lips from '../../lips/lips'
 import { debug } from '../utils'
 import { 
   EDITOR_CONTROL_OPTIONS,
-  GLOBAL_TOOLAR_OPTIONS,
-  TOOLS,
-  VIEWS
+  GLOBAL_TOOLAR_OPTIONS
 } from '../constants'
 
 window.mlang = {
@@ -161,7 +160,13 @@ export default class Editor {
       frame: null
     }
 
+    /**
+     * Use Lips for partial COO rendering on 
+     * some part of the UI.
+     */
     this.lips = new Lips({ context })
+    // Register all partial components
+    Components( this.lips )
 
     /**
      * Manage history stack of all actions
@@ -278,8 +283,8 @@ export default class Editor {
     const
     tinput: ToolbarInput = {
       key: 'global',
-      tools: TOOLS,
-      views: VIEWS,
+      tools: this.store.tools.getOptions(),
+      views: this.store.views.getOptions(),
       globals: GLOBAL_TOOLAR_OPTIONS,
       // options: this.getOptions(),
       settings: {
@@ -326,14 +331,17 @@ export default class Editor {
         case 'frame-add': {
           if( !option.value ) return
 
+          console.log( option )
+
           const frame = this.canvas.addFrame({
             device: option.value.device,
             size: {
               width: option.value.width,
               height: option.value.height
-            }
+            },
+            rounded: option.value.rounded,
+            transparent: option.value.transparent
           })
-          
           
         } break
       }
@@ -377,7 +385,7 @@ export default class Editor {
       },
       settings: {
         visible: this.settings.viewLayers,
-      },
+      }
     },
     layers = Layers( this.lips, linput, { events: this.events, editor: this })
     layers.appendTo( this.$shell )

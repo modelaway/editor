@@ -11,13 +11,13 @@ export const EDITOR_EDGE_PADDING = 15 // Pixel
  * 
  * Could be `classname` or `tagname` or `data-*`
  */
-export const VIEW_KEY_SELECTOR = 'vkey'
-export const VIEW_NAME_SELECTOR = 'vname'
-export const VIEW_STYLE_SELECTOR = 'vstyle'
-export const VIEW_EMPTY_SELECTOR = 'vempty'
-export const VIEW_ACTIVE_SELECTOR = 'vactive'
-export const VIEW_CAPTION_SELECTOR = 'vcaption'
-export const VIEW_TYPES_ALLOWED_SELECTOR = 'vtypes-allowed'
+export const ELEMENT_KEY_SELECTOR = '__key'
+export const ELEMENT_TYPE_SELECTOR = '__type'
+export const ELEMENT_STYLE_SELECTOR = '__style'
+export const ELEMENT_EMPTY_SELECTOR = '__empty'
+export const ELEMENT_ACTIVE_SELECTOR = '__active'
+export const ELEMENT_CAPTION_SELECTOR = '__caption'
+export const ELEMENT_TYPES_ALLOWED_SELECTOR = '__types-allowed'
 
 export const FRAME_MIN_WIDTH = 100 // Pixel (px)
 export const FRAME_MIN_HEIGHT = 100 // Pixel (px)
@@ -29,7 +29,7 @@ export const FRAME_DEFAULT_MARGIN = 140 // Pixel (px)
  * NOTE: Only custom attributes
  */
 export const CONTROL_LANG_SELECTOR = 'mlang'
-export const CONTROL_WRAPPER_SELECTOR = 'mwrap'
+export const CONTROL_HOLDER_SELECTOR = 'mhold'
 export const CONTROL_FRAME_SELECTOR = 'mv-frame'
 export const CONTROL_MENU_SELECTOR = 'mv-menu'
 export const CONTROL_QUICKSET_SELECTOR = 'mv-quickset'
@@ -51,14 +51,14 @@ export const FORM_SEPERATOR_SELECTOR = 'mv-form-seperator'
 export const ALLOWED_CANVAS_HANDLES: HandleType[] = [
   'pan',
   'zoom',
-  'create:wrap',
-  'wrap',
+  'create:hold',
+  'hold',
   'move:snapguide',
   'resize:snapguide'
 ]
 export const ALLOWED_FRAME_CANVAS_HANDLES: HandleType[] = [
   'create',
-  'wrap',
+  'hold',
   'move',
   'resize',
   'select',
@@ -71,7 +71,7 @@ export const ALLOWED_FRAME_CANVAS_HANDLES: HandleType[] = [
  * - meta
  * - detached
  */
-export const VIEW_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
+export const ELEMENT_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
   view: {
     meta: true,
     icon: 'bx bx-square-rounded',
@@ -208,148 +208,6 @@ export const GLOBAL_TOOLAR_OPTIONS: Record<string, ToolbarOption> = {
   settings: {
     icon: 'bx bx-cog',
     title: 'Settings'
-  }
-}
-
-/**
- * Default tools
- */
-export const TOOLS: Record<string, ToolbarOption> = {
-  POINTER: {
-    icon: 'bx bx-pointer',
-    title: 'Pointer',
-    active: true
-  },
-  PICKER: {
-    icon: 'bx bxs-eyedropper',
-    title: 'Picker'
-  },
-  PENCIL: {
-    title: 'Pencil',
-    selected: 'pen',
-    variants: {
-      '*': {
-        icon: 'bx bx-pencil',
-        title: 'Pencil',
-        parent: 'PENCIL'
-      },
-      'pen': {
-        icon: 'bx bx-pen',
-        title: 'Pen',
-        parent: 'PENCIL'
-      }
-    }
-  },
-  TRANSFORM: {
-    icon: 'bx bx-rotate-left',
-    title: 'Transform',
-    instructions: 'Apply super transformation like skew, rotate, scale, translate, ... to an element'
-  },
-  VECTOR: {
-    icon: 'bx bx-vector',
-    title: 'Vector'
-  },
-  FLOW: {
-    icon: 'bx bx-git-merge',
-    title: 'Flow',
-    disabled: true
-  }
-}
-
-// TODO: temporarily remove to fetch data from store
-export const VIEWS: Record<string, ToolbarOption> = {
-  text: {
-    title: 'Text',
-    selected: '*',
-    variants: {
-      '*': {
-        icon: 'bx bx-text',
-        title: 'Inline text',
-        shortcut: 'command + y',
-        tool: 'TEXT',
-        parent: 'text'
-      },
-      'circle': {
-        icon: 'bx bx-paragraph',
-        title: 'Paragraph text',
-        shortcut: 'command + y',
-        tool: 'TEXT',
-        parent: 'text'
-      },
-      'blockquote': {
-        icon: 'bx bxs-quote-alt-left',
-        title: 'Blockquote',
-        shortcut: 'command + y',
-        tool: 'TEXT',
-        parent: 'text'
-      }
-    }
-  },
-  shape: {
-    title: 'Shape',
-    selected: '*',
-    variants: {
-      '*': {
-        icon: 'bx bx-shape-square',
-        title: 'Rectangle Shape',
-        shortcut: 'command + y',
-        tool: 'POINTER',
-        parent: 'shape',
-        instructions: 'Create a rectangle-like or square-like shape, resizable and adjustable at any position'
-      },
-      'circle': {
-        icon: 'bx bx-shape-circle',
-        title: 'Circle shape',
-        shortcut: 'command + y',
-        tool: 'POINTER',
-        parent: 'shape',
-        instructions: 'Create a circle shape, resizable and adjustable at any position'
-      },
-      'dynamic': {
-        icon: 'bx bx-shape-polygon',
-        title: 'Dynamic shape',
-        shortcut: 'command + y',
-        tool: 'POINTER',
-        parent: 'shape',
-        instructions: 'Create a free form shape using svg, with curves, resizable and adjustable at any position'
-      }
-    }
-  },
-  image: {
-    title: 'Image',
-    selected: '*',
-    variants: {
-      '*': {
-        icon: 'bx bx-image-alt',
-        title: 'Image',
-        shortcut: 'command + y',
-        tool: 'POINTER',
-        parent: 'image'
-      },
-      'icon': {
-        icon: 'bx bx-home-smile',
-        title: 'Font icons',
-        shortcut: 'command + y',
-        tool: 'POINTER',
-        parent: 'image'
-      }
-    }
-  },
-  video: {
-    icon: 'bx bx-movie-play',
-    title: 'Video',
-    shortcut: 'command + y',
-    tool: 'POINTER'
-  },
-  audio: {
-    icon: 'bx bx-equalizer',
-    title: 'Audio',
-    tool: 'POINTER'
-  },
-  board: {
-    icon: 'bx bx-clipboard',
-    title: 'Board',
-    tool: 'PENCIL'
   }
 }
 

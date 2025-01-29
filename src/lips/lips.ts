@@ -57,6 +57,7 @@ function preprocessTemplate( str: string ){
   
   let result = (str || '').trim()
                           .replace( /<\{([^}]+)\}\s+(.*?)\/>/g, '<lips component="$1" $2></lips>')
+                          .replace( /<(\w+)(\s+[^>]*)?\/>/g, '<$1$2></$1>')
                           .replace( /<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
                           .replace( /<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
                           .replace( /<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">')

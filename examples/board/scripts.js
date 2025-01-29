@@ -48,7 +48,7 @@ const natives = Natives.Loader( editor )
 natives.load()
 
 // Register custom view component
-editor.store.addView( cardView )
+editor.store.views.add( cardView )
 
 // Register custom plugin
 const i18nConfig = {
@@ -62,21 +62,23 @@ editor.mount('.editor')
 // Add a desktop frame to the board
 editor.canvas.addFrame({
   content: dummyFrameContent,
-  title: 'Home'
+  title: 'Home',
+  transparent: true
 })
 // Add a mobile frame to the board
 editor.canvas.addFrame({
   content: dummyFrameContent,
   title: 'Home Mobile',
-  device: 'mobile'
+  device: 'mobile',
+  transparent: true
 })
 // Add empty tablet frame to the board
 editor.canvas.addFrame({
   // source: 'http://127.0.0.1:3000/publications/@modela/examples/wigo/index.html',
   title: 'Blank',
-  device: 'tablet'
+  device: 'tablet',
+  transparent: true
 })
-
 
 // Add empty tablet frame to the board
 editor.canvas.addFrame({
@@ -86,11 +88,13 @@ editor.canvas.addFrame({
   coordinates: {
     x: '0',
     y: '3000px'
-  }
+  },
+  transparent: true
 })
 // Add empty tablet frame to the board
 editor.canvas.addFrame({
   // source: 'http://127.0.0.1:3000/publications/@modela/examples/wigo/index.html',
   title: 'Signup',
-  device: 'tablet'
+  device: 'tablet',
+  transparent: true
 })

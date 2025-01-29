@@ -122,7 +122,6 @@ type QuicksetOption = {
 type QuicksetSettings = {
   visible?: boolean
   editing?: boolean
-  detached?: boolean
 }
 type Fieldset = {
   label?: string

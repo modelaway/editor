@@ -7,6 +7,8 @@ export type FrameOption = {
   content?: string
   title?: string
   device?: string
+  rounded?: boolean
+  transparent?: boolean
   coordinates?: { 
     x: string
     y: string

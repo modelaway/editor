@@ -12,11 +12,11 @@ import {
   MEDIA_SCREENS,
   CONTROL_EDGE_MARGIN,
   CONTROL_MENU_SELECTOR,
-  VIEW_KEY_SELECTOR,
-  VIEW_ACTIVE_SELECTOR,
+  ELEMENT_KEY_SELECTOR,
+  ELEMENT_ACTIVE_SELECTOR,
   CONTROL_FRAME_SELECTOR,
   ALLOWED_FRAME_CANVAS_HANDLES,
-  CONTROL_WRAPPER_SELECTOR
+  CONTROL_HOLDER_SELECTOR
 } from '../constants'
 
 interface Topography {
@@ -36,14 +36,16 @@ export default class Frame extends EventEmitter {
   public $frame: Cash
 
   public key: string
-  public title: string
-  public coordinates: { x: string, y: string }
   public styles: FrameStyles
+  public handles?: Handles
 
   public $viewport: Cash
   public $canvas: Cash
 
-  private handles?: Handles
+  private options: FrameOption = {
+    title: 'Unnamed Frame',
+    coordinates: { x: '0px', y: '0px' }
+  }
   private DOM: ShadowEvents
 
   /**
@@ -54,15 +56,17 @@ export default class Frame extends EventEmitter {
   constructor( editor: Editor, options: FrameOption ){
     super()
     this.editor = editor
-    this.title = options.title || 'Unnamed Frame'
-    this.coordinates = options.coordinates || { x: '0px', y: '0px' }
-
+    this.options = {
+      ...this.options,
+      ...options
+    }
+    
     // Generate new key for the new frame
     this.key = generateKey()
-    this.$frame = $(this.createFrame( this.coordinates ))
+    this.$frame = $(this.createFrame( this.options.coordinates ))
 
     // Display frame's path & name
-    this.$frame.attr('pathname', this.title )
+    this.$frame.attr('pathname', this.options.title as string )
 
     const element = this.$frame.get(0)
     if( !element ) throw new Error('Frame node creation failed unexpectedly')
@@ -87,12 +91,12 @@ export default class Frame extends EventEmitter {
      * No explicit size is considered a default 
      * frame with the default screen resolution.
      */
-    options.size ? 
-            this.$frame.css( options.size )
+    this.options.size ? 
+            this.$frame.css( this.options.size )
             : this.setDeviceSize( options.device || 'default')
 
     // Append initial content
-    options.content && this.$canvas.append( options.content )
+    this.options.content && this.$canvas.append( this.options.content )
     // Add frame to the board
     this.editor.canvas.$?.append( this.$frame )
 
@@ -115,6 +119,15 @@ export default class Frame extends EventEmitter {
     return `<div ${CONTROL_FRAME_SELECTOR}="${this.key}" style="left:${coordinates?.x || '0px'};top:${coordinates?.y || '0px'};"></div>`
   }
   private getStyleSheet(){
+    const
+    rounded = this.options.rounded ? '2rem' : '0',
+    background = this.options.transparent 
+          ? `linear-gradient(45deg, #c6c6c6 25%, transparent 25%),
+            linear-gradient(-45deg, #c6c6c6 25%, transparent 25%),
+            linear-gradient(45deg, transparent 75%, #c6c6c6 75%),
+            linear-gradient(-45deg, transparent 75%, #c6c6c6 75%)`
+          : 'none'
+
     return `
       :host {
         position: relative;
@@ -128,11 +141,8 @@ export default class Frame extends EventEmitter {
         width: 100%;
         height: 100%;
         border: 1px solid var(--me-border-color);
-        background-image: 
-          linear-gradient(45deg, #c6c6c6 25%, transparent 25%),
-          linear-gradient(-45deg, #c6c6c6 25%, transparent 25%),
-          linear-gradient(45deg, transparent 75%, #c6c6c6 75%),
-          linear-gradient(-45deg, transparent 75%, #c6c6c6 75%);
+        border-radius: ${rounded};
+        background-image: ${background};
         background-size: 16px 16px;
         background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
         background-color: white;
@@ -154,15 +164,11 @@ export default class Frame extends EventEmitter {
       enable: ALLOWED_FRAME_CANVAS_HANDLES,
       $viewport: this.$viewport,
       $canvas: this.$canvas,
-      element: `*`,
+      attribute: ELEMENT_KEY_SELECTOR,
+      frameStyle: this.styles,
+
       MIN_WIDTH: 1,
       MIN_HEIGHT: 1,
-
-      /**
-       * Specify a shadow DOM incapsulation env
-       */
-      dom: 'shadow',
-      frameStyle: this.styles,
 
       /**
        * Give control of the canvas scale value
@@ -184,10 +190,10 @@ export default class Frame extends EventEmitter {
     // Define custom handles constraints
     this.handles.constraints = function( type, action, event ){
       switch( type ){
-        case 'wrap': {
+        case 'hold': {
           switch( action ){
-            case 'activate': return false
-            case 'deactivate': return event?.shiftKey 
+            case 'grab': return false
+            case 'release': return event?.shiftKey 
                                       || event?.metaKey
                                       || false
             case 'multiwrap': return !event?.shiftKey
@@ -274,7 +280,7 @@ export default class Frame extends EventEmitter {
     /**
      * Listen to View definitions or any editable tag
      */
-    const selectors = `:not([${CONTROL_MENU_SELECTOR}] *, [${CONTROL_WRAPPER_SELECTOR}], [${CONTROL_WRAPPER_SELECTOR}] > *)`
+    const selectors = `:not([${CONTROL_MENU_SELECTOR}] *, [${CONTROL_HOLDER_SELECTOR}], [${CONTROL_HOLDER_SELECTOR}] > *)`
     this.editor.settings.hoverSelect ?
               this.DOM.on('mouseover', selectors, function( this: Cash ){ self.elements.lookup.bind( self.elements )( $(this) ) })
               : this.DOM.on('click', selectors, function( this: Cash ){ self.elements.lookup.bind( self.elements )( $(this) ) })
@@ -286,7 +292,7 @@ export default class Frame extends EventEmitter {
     .on('mouseup', () => {
       const specs: FrameSpecs = {
         key: this.key,
-        title: this.title,
+        title: this.options.title as string,
         content: this.getContent()
       }
 
@@ -295,10 +301,10 @@ export default class Frame extends EventEmitter {
     /**
      * Show quickset options
      */
-    .on('contextmenu', `[${VIEW_ACTIVE_SELECTOR}]`, function( this: Cash, e: Event ){
+    .on('contextmenu', `[${ELEMENT_ACTIVE_SELECTOR}]`, function( this: Cash, e: Event ){
       e.preventDefault()
 
-      const key = $(this).attr( VIEW_KEY_SELECTOR )
+      const key = $(this).attr( ELEMENT_KEY_SELECTOR )
       debug('quickset event --', key )
 
       if( !key ) return

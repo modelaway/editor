@@ -1,19 +1,81 @@
+import type { MediaScreen } from '../../types/frame'
+
 import { MEDIA_SCREENS } from '../../modules/constants'
+import { Handler } from '../../lips'
+
+export type MSInput = {}
+
+type Setting = {
+  type: 'checkbox'
+  name: 'rounded' | 'transparent'
+  disabled: boolean
+  checked: boolean
+  label: string
+}
+type State = {
+  selected: MediaScreen & { key: string } | null
+  rounded: boolean
+  transparent: boolean
+}
+type Static = {
+  screens: Record<string, MediaScreen>
+  settings: Setting[]
+}
 
 /**
  * Global plugins template
  */
 const MediaScreens = () => {
-  const state = {
-    screens: MEDIA_SCREENS
+
+  const _static: Static = {
+    screens: MEDIA_SCREENS,
+    settings: [
+      {
+        type: 'checkbox',
+        name: 'rounded',
+        disabled: false,
+        checked: false,
+        label: 'Rounded frame edges'
+      },
+      {
+        type: 'checkbox',
+        name: 'transparent',
+        disabled: false,
+        checked: true,
+        label: 'Use transparent background'
+      }
+    ]
+  }
+
+  const state: State = {
+    selected: null,
+    rounded: false,
+    transparent: true
+  }
+
+  const handler: Handler<MSInput, State> = {
+    onScreenSelect( key: string, screen: MediaScreen ){
+      this.state.selected = { ...screen, key }
+    },
+    onSettingsChange( name: string, value: boolean ){
+      this.state[ name as 'rounded' | 'transparent' ] = value
+    },
+    onDone(){
+      this.emit('change', {
+        ...this.state.selected,
+        rounded: this.state.rounded,
+        transparent: this.state.transparent
+      })
+    }
   }
 
   const template = `
     <mblock>
       <mul>
-        <for in="state.screens">
-          <mli on-click(() => self.emit('change', { ...each, key }) )>
-            <mblock>
+        <for in="static.screens">
+          <mli>
+            <mblock class="state.selected && state.selected.key == key && 'selected'"
+                    on-click( onScreenSelect, key, each )>
               <switch( each.device )>
                 <case is="mobile"><micon class="bx bx-mobile"></micon></case>
                 <case is="tablet"><micon class="bx bx-tab"></micon></case>
@@ -27,6 +89,17 @@ const MediaScreens = () => {
           </mli>
         </for>
       </mul>
+
+      <mblock settings>
+        <for in=static.settings>
+          <inputs ...each on-change( onSettingsChange, each.name )/>
+        </for>
+      </mblock>
+
+      <mblock actions>
+        <button disabled=!state.selected
+                on-click( state.selected && 'onDone' )>Create</button>
+      </mblock>
     </mblock>
   `
 
@@ -61,7 +134,8 @@ const MediaScreens = () => {
             color: gray;
           }
 
-          &:hover {
+          &:hover,
+          &.selected {
             background-color: var(--me-primary-color-fade);
           }
           &:active {
@@ -70,9 +144,33 @@ const MediaScreens = () => {
         }
       }
     }
+
+    [settings] {
+      padding: 1.5rem 1rem 0 1rem;
+    }
+
+    [actions] {
+      text-align: right;
+      padding: 0 .5rem .5rem 1rem;
+
+      button {
+        padding: 0.7rem 1.5rem;
+        background-color: var(--me-primary-color);
+        color: var(--me-inverse-color);
+        border-radius: var(--me-border-radius-inside);
+        border: none;
+        cursor: pointer;
+
+        &:disabled {
+          background-color: var(--me-primary-color-fade);
+          color: var(--me-primary-color-transparent);
+          cursor: not-allowed;
+        }
+      }
+    }
   `
 
-  return { default: template, state, stylesheet }
+  return { default: template, state, _static, handler, stylesheet }
 }
 
 export default MediaScreens

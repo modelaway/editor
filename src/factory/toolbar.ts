@@ -2,11 +2,6 @@ import type Lips from '../lips/lips'
 import type { Handler } from '../lips'
 import type { HandlerHook } from '../types/controls'
 
-import Styles from './components/styles'
-import Assets from './components/assets'
-import Plugins from './components/plugins'
-import Settings from './components/settings'
-import TECaptions from './components/tecaptions'
 import { CONTROL_LANG_SELECTOR } from '../modules/constants'
 
 type ContentType = 'tool' | 'view' | 'global'
@@ -32,22 +27,19 @@ export type ToolbarState = {
   globals: Record<string, ToolbarOption>
   expanded: boolean
   content: Content | null
+  showPalette: boolean
 }
 
 export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
-  lips
-  .register('styles', Styles() )
-  .register('assets', Assets() )
-  .register('plugins', Plugins() )
-  .register('settings', Settings() )
-  .register('captions', TECaptions() )
   
   const state: ToolbarState = {
     tools: {},
     views: {},
     globals: {},
     expanded: false,
-    content: null
+    content: null,
+
+    showPalette: false,
   }
 
   const handler: Handler<ToolbarInput, ToolbarState> = {
@@ -86,6 +78,7 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
       const isExpanded = this.state.expanded
 
       this.state.expanded = true
+      this.state.showPalette = false
       this.state.content = { type, key, body }
 
       /**
@@ -249,8 +242,8 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
           <if( state.content )>
             <switch( state.content.type )>
               <case is="['tool', 'view']">
-                <captions ...state.content.body
-                          on-select( onHandleSelect, state.content.type, state.content.key )></captions>
+                <tecaptions ...state.content.body
+                            on-select( onHandleSelect, state.content.type, state.content.key )></tecaptions>
               </case>
               <case is="global">
                 <switch( state.content.key )>
@@ -271,6 +264,10 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
             </switch>
           </if>
         </mblock>
+
+        <mblock palette class="state.showPalette && 'expanded'">
+          <palette></palette>
+        </mblock>
       </mblock>
     </mblock>
   `
@@ -290,6 +287,7 @@ const stylesheet = `
     height: 100%;
 
     [toolbar],
+    [palette],
     [container] {
       height: 100%;
       border-radius: var(--me-border-radius);
@@ -366,19 +364,25 @@ const stylesheet = `
       }
     }
 
+    [palette],
     [container] {
       position: absolute;
       top: 0;
       left: 100%;
       margin: 0 8px;
-      width: 18rem;
       height: 100%;
-      transform: translateX(-150%);
-      transition: var(--me-slide-transition);
+      transform: translateX(-24rem);
+      transition: ease var(--me-slide-transition);
 
       &.expanded {
         transform: translateX(0%);
       }
+    }
+    [container]{
+      width: 18rem;
+    }
+    [palette] {
+      width: 3.5rem;
     }
   }
 `

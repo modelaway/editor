@@ -972,7 +972,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
     function execComponent( $node: Cash, dynamic = false ){
       const name = getComponentName( $node, dynamic )
-
+      
       if( !name ) throw new Error('Invalid component')
       if( !self.lips ) throw new Error('Nexted component manager is disable')
 
@@ -1096,8 +1096,25 @@ export class Component<Input = void, State = void, Static = void, Context = void
       $contents.length && $fnode.append( self.render( $contents, scope ) )
 
       // Process attributes
-      const attributes = ($node as any).attrs()
+      const 
+      extracted = ($node as any).attrs(),
+      attributes: Record<string, any> = {}
 
+      // Process attributes including spread operator
+      extracted && Object
+      .entries( extracted )
+      .forEach( ([ attr, value ]) => {
+        if( SPREAD_VAR_PATTERN.test( attr ) ){
+          const spreads = self.__evaluate__( attr.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
+          if( typeof spreads !== 'object' )
+            throw new Error(`Invalid spread operator ${attr}`)
+
+          for( const _key in spreads )
+            attributes[ _key ] = spreads[ _key ]
+        }
+        else attributes[ attr ] = value
+      })
+      
       attributes && Object
       .entries( attributes )
       .forEach( ([ attr, value ]) => {
@@ -1112,7 +1129,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
 
           return
         }
-
+        
         switch( attr ){
           // Inject inner html into the element
           case 'html': $fnode.html( self.__evaluate__( value as string, scope ) ); break

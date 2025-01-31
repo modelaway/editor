@@ -63,6 +63,7 @@ editor.mount('.editor')
 editor.canvas.addFrame({
   content: dummyFrameContent,
   title: 'Home',
+  rounded: true,
   transparent: true
 })
 // Add a mobile frame to the board

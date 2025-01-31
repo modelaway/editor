@@ -59,7 +59,7 @@ export default ( lips: Lips, input: MenuInput, hook: HandlerHook ) => {
             </if>
 
             <for in=each.fields>
-              <inputs ...each></inputs>
+              <forminput ...each/>
             </for>
           </fieldset>
         

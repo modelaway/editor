@@ -92,7 +92,7 @@ const MediaScreens = () => {
 
       <mblock settings>
         <for in=static.settings>
-          <inputs ...each on-change( onSettingsChange, each.name )/>
+          <forminput ...each on-change( onSettingsChange, each.name )/>
         </for>
       </mblock>
 

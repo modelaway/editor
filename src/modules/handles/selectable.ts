@@ -251,30 +251,30 @@ export default class Selectable implements HandleInterface {
     if( width > ( this.context.options.DRAG_SELECT_MIN_SIZE || 5 )
         && height > ( this.context.options.DRAG_SELECT_MIN_SIZE || 5 ) ){
       const rect = this.context.$canvas[0]?.getBoundingClientRect()
-      if( !rect ) return
+      if( rect ){
+        const
+        left = Math.min( this.cursorX, this.startX ),
+        top = Math.min( this.cursorY, this.startY )
 
-      const
-      left = Math.min( this.cursorX, this.startX ),
-      top = Math.min( this.cursorY, this.startY )
-
-      // Get final selection
-      const intersectingElements = this.getIntersectingElements( rect, left, top, width, height )
-      if( !intersectingElements ) return
-
-      const 
-      filteredSelection = this.filterSelection( intersectingElements, this.isShiftKeyPressed ),
-      // Do final wrap/unwrap update
-      finalSelection = this.updateProgressiveSelection( filteredSelection )
-      
-      if( finalSelection?.length ){
-        /**
-         * First unwrap all elements to prepare for multi-wrap
-         * then apply multi-wrap.
-         */
-        this.holdable?.release( finalSelection )
-        this.holdable?.grab( finalSelection )
-        
-        this.context.emit('selection.end', finalSelection )
+        // Get final selection
+        const intersectingElements = this.getIntersectingElements( rect, left, top, width, height )
+        if( intersectingElements ){
+          const 
+          filteredSelection = this.filterSelection( intersectingElements, this.isShiftKeyPressed ),
+          // Do final wrap/unwrap update
+          finalSelection = this.updateProgressiveSelection( filteredSelection )
+          
+          if( finalSelection?.length ){
+            /**
+             * First unwrap all elements to prepare for multi-wrap
+             * then apply multi-wrap.
+             */
+            this.holdable?.release( finalSelection )
+            this.holdable?.grab( finalSelection )
+            
+            this.context.emit('selection.end', finalSelection )
+          }
+        }
       }
     }
     // If the selection was too small and not in shift mode, restore previous selection
@@ -283,11 +283,12 @@ export default class Selectable implements HandleInterface {
       this.$selectedElements = this.$previouslySelected
     }
 
-    // Cleanup only if not in shift mode
-    if( !this.isShiftKeyPressed ){
-      this.$coverage?.remove()
+    // Cleanup
+    this.$coverage?.remove()
+    this.$coverage = undefined
 
-      this.$coverage = undefined
+    // Only if not in shift mode
+    if( !this.isShiftKeyPressed ){
       this.$previouslySelected = undefined
       this.$progressiveSelection = undefined
     }

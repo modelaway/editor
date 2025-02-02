@@ -3,7 +3,7 @@ import type { Component } from '../../lips/lips'
 
 import $, { type Cash } from 'cash-dom'
 import { EventEmitter } from 'events'
-import { throttle } from '../utils'
+import { deepClone, throttle } from '../utils'
 
 const
 ANIMATION_DEFAULT = 150,
@@ -18,6 +18,7 @@ DRAG_THRESHOLD = 5
 export type SortableOptions = {
   list: string
   item: string
+  uid: string  // Unique Item Identifier (attribute)
   handle?: string
   placeholder?: string
   animation?: number
@@ -52,7 +53,7 @@ export default class Sortable<Input = void, State = void, Static = void, Context
   private sourceGroup: string = ''
   private level: number = 0
   private startY: number = 0
-  private selectedItems: Map<Element, Cash> = new Map()
+  private selectedItems: Map<string, Cash> = new Map()
   private boundHandleKeyboard: ( e: KeyboardEvent ) => void
 
   constructor( editor: Editor, component: Component<Input, State, Static, Context>, options: SortableOptions ){
@@ -182,20 +183,20 @@ export default class Sortable<Input = void, State = void, Static = void, Context
 
     const 
     self = this,
-    mkey = $item[0]
-    if( this.selectedItems.has( mkey ) ) return
+    uid = $item.attr( this.options.uid )
+    if( !uid || this.selectedItems.has( uid ) ) return
 
     // Unselect any children when parent is selected
     $item
     .find( this.options.item )
-    .each( function(){ self.removeSelection( $(this), true ) } )
+    .each(function(){ self.removeSelection( $(this), true ) })
 
     // Unselect any parent when children is selected
     $item
     .closest(`.${this.options.selectedClass}`)
-    .each( function(){ self.removeSelection( $(this), true ) } )
+    .each(function(){ self.removeSelection( $(this), true ) })
 
-    this.selectedItems.set( mkey, $item )
+    this.selectedItems.set( uid, $item )
 
     $item
     .addClass( this.options.selectedClass as string )
@@ -204,15 +205,15 @@ export default class Sortable<Input = void, State = void, Static = void, Context
       'aria-grabbed': 'false'
     })
 
-    this.emit('sortable.select', [ ...this.selectedItems.values() ])
+    this.emit('sortable.select', [ ...this.selectedItems.keys() ])
   }
   removeSelection( $item: Cash, partial = false ){
     if( !$item[0] ) return
 
-    const mkey = $item[0]
-    if( !this.selectedItems.has( mkey ) ) return
+    const uid = $item.attr( this.options.uid ) as string
+    if( !this.selectedItems.has( uid ) ) return
 
-    this.selectedItems.delete( mkey )
+    this.selectedItems.delete( uid )
 
     $item
     .removeClass( this.options.selectedClass )
@@ -221,7 +222,7 @@ export default class Sortable<Input = void, State = void, Static = void, Context
       'aria-grabbed': 'false'
     })
 
-    !partial && this.emit('sortable.select', [ ...this.selectedItems.values() ])
+    !partial && this.emit('sortable.select', [ ...this.selectedItems.keys() ])
   }
   clearSelection( $list?: Cash ){
     this.selectedItems.clear()
@@ -446,7 +447,7 @@ export default class Sortable<Input = void, State = void, Static = void, Context
         const $item = $(e.currentTarget as Element)
         if( !$item[0] ) return
         
-        this.selectedItems.has( $item[0] )
+        this.selectedItems.has( $item.attr( this.options.uid ) as string )
                       ? this.removeSelection( $item )
                       : this.addSelection( $item )
       })
@@ -470,7 +471,7 @@ export default class Sortable<Input = void, State = void, Static = void, Context
 
       // Handle multi-selection drag
       if( this.options.multiDrag && this.selectedItems.size > 0 ){
-        if( !this.selectedItems.has( $item[0] ) ){
+        if( !this.selectedItems.has( $item.attr( this.options.uid ) as string ) ){
           this.clearSelection( $list )
           this.addSelection( $item )
         }

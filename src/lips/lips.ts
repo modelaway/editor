@@ -268,7 +268,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
   // Internal Update Clock (IUC)
   private IUC: NodeJS.Timeout
   private IUC_BEAT = 5 // ms
-  private SEC: EffectControl // Signal Effect Controls
+  private ICE: EffectControl // Internal Component Effect
   private parallel = new ParallelExecutor
 
   public lips?: Lips
@@ -358,15 +358,17 @@ export class Component<Input = void, State = void, Static = void, Context = void
       && this.onContext.bind(this)()
     })
 
-    this.SEC = effect( () => {
+    this.ICE = effect( () => {
       this.input = getInput()
       this.state = getState()
+      this.context = getContext()
 
       // Reset the benchmark
       this.benchmark.reset()
 
       /**
-       * Reinitialize NCC before any rendering
+       * Reinitialize NCC (Nexted Component Count) 
+       * before any rendering
        */
       this.NCC = 0
 
@@ -1493,7 +1495,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
      * Dispose signal effect dependency of this
      * component.
      */
-    this.SEC.dispose()
+    this.ICE.dispose()
 
     /**
      * Detached all events

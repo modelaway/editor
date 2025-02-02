@@ -19,7 +19,7 @@ class Traverser {
   private zIndex: number = 0
 
   private FLAGS  = [
-    'rzwrapper:selected',
+    'rzh:selected',
     'scope'
   ]
 
@@ -319,17 +319,33 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
     onCollapse(){
       this.state.collapsed = !this.state.collapsed
     },
-    onRenameFrame( action: 'init' | 'input' | 'apply', e ){
+    onRenameFrame( action: 'init' | 'focus' | 'input' | 'apply', e ){
       if( !this.context.frame ) return
 
       switch( action ){
         case 'init': this.state.rename = true; break
+        case 'focus': {
+          const 
+          range = document.createRange(),
+          selection = window.getSelection()
+
+          if( !selection ) return
+
+          range.selectNodeContents( e.target )
+          
+          selection.removeAllRanges()
+          selection.addRange(range)
+        } break
         case 'input': this.static.newname = e.target.value || e.target.innerText; break
         case 'apply': {
           this.state.rename = false
 
-          // TODO: Update frame name
+          // Update frame name
+          const frame = hook?.editor?.canvas.get( this.context.frame.key )
+          if( !frame ) return
+
           this.context.frame.title = this.static.newname as string
+          frame.setOptions({ title: this.static.newname })
         } break
       }
     },
@@ -385,7 +401,9 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
                 style="{ display: state.collapsed ? 'block' : 'none' }">
           <span class="host-type">{input.host.type} / </span>
           <span contenteditable=state.rename
+                autofocus=state.rename
                 on-blur(onRenameFrame, 'apply')
+                on-focus(onRenameFrame, 'focus')
                 on-input(onRenameFrame, 'input')
                 on-dblclick(onRenameFrame, 'init')>{context.frame ? context.frame.title : input.host.title}</span>
         </mblock>

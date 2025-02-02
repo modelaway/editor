@@ -59,18 +59,12 @@ export default class Frame extends EventEmitter {
   constructor( editor: Editor, options: FrameOption ){
     super()
     this.editor = editor
-    this.options = {
-      ...this.options,
-      ...options
-    }
+    this.options = { ...this.options, ...options }
     this.coordinates = this.options.coordinates || { x: 0, y: 0 }
     
     // Generate new key for the new frame
     this.key = generateKey()
     this.$frame = $(this.createFrame( this.coordinates ))
-
-    // Display frame's path & name
-    this.$frame.attr('pathname', this.options.title as string )
 
     const element = this.$frame.get(0)
     if( !element ) throw new Error('Frame node creation failed unexpectedly')
@@ -91,28 +85,9 @@ export default class Frame extends EventEmitter {
      * shadow root :host stylesheet
      */
     this.styles = new FrameStyles( element.shadowRoot, this.getStyleSheet() )
-    /**
-     * No explicit size is considered a default 
-     * frame with the default screen resolution.
-     */
-    if( this.options.size )
-      this.$frame.css( this.options.size )
-    
-    else {
-      this.setDeviceSize( options.device || 'default')
-      // Only media-screen size
-      this.options.resizefree = false
-    }
 
-    // Allow frame to be rotate-free or not
-    !this.options.rotatefree && this.$frame.attr('norotate', 'true')
-    // Allow frame to be resize-free or not
-    !this.options.resizefree && this.$frame.attr('noresize', 'true')
-    // Allow frame to be move-free or not
-    !this.options.movefree && this.$frame.attr('nomove', 'true')
-
-    // Append initial content
-    this.options.content && this.$canvas.append( this.options.content )
+    // Apply rendering options
+    this.applyOptions()
     // Add frame to the board
     this.editor.canvas.$?.append( this.$frame )
 
@@ -168,6 +143,33 @@ export default class Frame extends EventEmitter {
         overflow: auto;
       }
     `
+  }
+  private applyOptions(){
+    // Display frame's path & name
+    this.$frame.attr('pathname', this.options.title as string )
+
+    /**
+     * No explicit size is considered a default 
+     * frame with the default screen resolution.
+     */
+    if( this.options.size )
+      this.$frame.css( this.options.size )
+    
+    else {
+      this.setDeviceSize( this.options.device || 'default')
+      // Only media-screen size
+      this.options.resizefree = false
+    }
+
+    // Allow frame to be rotate-free or not
+    !this.options.rotatefree && this.$frame.attr('norotate', 'true')
+    // Allow frame to be resize-free or not
+    !this.options.resizefree && this.$frame.attr('noresize', 'true')
+    // Allow frame to be move-free or not
+    !this.options.movefree && this.$frame.attr('nomove', 'true')
+
+    // Append initial content
+    this.options.content && this.$canvas.append( this.options.content )
   }
   private controls(){
     // Define initial :root css variables (Custom properties)
@@ -349,6 +351,13 @@ export default class Frame extends EventEmitter {
     
   }
 
+  setOptions( options: Partial<FrameOption> ){
+    // TODO: Allow only applyable options
+
+    
+    this.options = { ...this.options, ...options }
+    this.applyOptions()
+  }
   setDeviceSize( device: string ){
     if( device === 'default' ){
       const 

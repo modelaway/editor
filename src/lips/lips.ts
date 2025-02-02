@@ -349,7 +349,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
       if( !isDiff( this.context as Record<string, any>, ctx ) ) return
 
       setContext( ctx )
-      this.context = getContext()
       
       /**
        * Triggered anytime component context changed

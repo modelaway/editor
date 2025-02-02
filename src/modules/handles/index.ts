@@ -281,12 +281,13 @@ export default class Handles extends Inclusion {
    * @return: true - There's a contraint. Should not proceed
    *          false - Allowed to proceed
    */
-  constraints<ActionType>( type: HandleType, action?: ActionType | null, event?: KeyboardEvent ){
+  constraints<ActionType>( type: HandleType, action?: ActionType | null, event?: any ){
     switch( type ){
       case 'hold': {
         switch( action ){
           case 'grab': return !event?.altKey || false
-          case 'release': return this.isPanning 
+          case 'release': return event?.altKey
+                                  || this.isPanning 
                                   || this.isMoving
                                   || this.isZooming
                                   || this.isResizing

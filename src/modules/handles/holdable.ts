@@ -326,11 +326,18 @@ export default class Holdable implements HandleInterface {
 
     $holder.find(':scope > scope').append( $target )
 
-    // Fire element activation listeners
-    this.context.emit(`${$target.attr( this.context.options.attribute )}:focus`)
+    /**
+     * Fire element grab listeners
+     * 
+     * 1. Element specific `[<element-key>]:grab` event
+     * 2. Wildcard `grab` event with element `key` as argument
+     */
+    const key = $target.attr( this.context.options.attribute )
+    this.context.emit(`hold:${key}:grab`)
+    this.context.emit('hold:grab', key )
 
     /**
-     * Automatically add default handles 
+     * Automatically add default handles
      * to the wrap
      */
     this.context.options.HOLDER_HANDLE_AUTO && this.handle( $target )
@@ -367,10 +374,22 @@ export default class Holdable implements HandleInterface {
 
       // Remove holder if no other elements remain
       $holder.remove()
+
+      /**
+       * Fire element release listeners
+       * 
+       * 1. Element specific `[<element-key>]:release` event
+       * 2. Wildcard `release` event with element `key` as argument
+       */
+      const key = $target.attr( this.context.options.attribute )
+      this.context.emit(`hold:${key}:release`)
+      this.context.emit('hold:release', key )
     }
     
     // Handle multiple elements unwrapping
     else {
+      const self = this
+
       $elements.each( function(){
         const
         $target = $(this),
@@ -397,7 +416,22 @@ export default class Holdable implements HandleInterface {
         .removeAttr('data-original-style')
         .removeAttr('data-is-held')
         .insertBefore( $holder )
+
+        /**
+         * Fire each element release listeners
+         * 
+         * 1. Element specific `[<element-key>]:release` event
+         * 2. Wildcard `release` event with element `key` as argument
+         */
+        const key = $target.attr( self.context.options.attribute )
+        self.context.emit(`hold:${key}:release`)
+        self.context.emit('hold:release', key )
       })
+
+      /**
+       * Fire cluster elements release listeners
+       */
+      this.context.emit('hold:cluster-release', $elements )
 
       // Only remove holder if this isn't a selective unwrap
       !selective && $holder.remove()
@@ -473,6 +507,24 @@ export default class Holdable implements HandleInterface {
 
     $first.before( $holder )
     $holder.find(':scope > scope').append( $targets )
+
+    /**
+     * Fire each element grab listeners
+     * 
+     * 1. Element specific `[<element-key>]:grab` event
+     * 2. Wildcard `grab` event with element `key` as argument
+     */
+    $targets.each( function(){
+      const key = $(this).attr( self.context.options.attribute )
+
+      self.context.emit(`hold:${key}:grab`)
+      self.context.emit('hold:grab', key )
+    })
+
+    /**
+     * Fire cluster elements grab listeners
+     */
+    self.context.emit('hold:cluster-grab', $targets )
 
     /**
      * Automatically add default handles 

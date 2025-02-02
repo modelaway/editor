@@ -1,10 +1,10 @@
-import type { FrameSpecs } from '../../types/frame'
+import type { FrameOption, FrameSpecs } from '../../types/frame'
 import $, { type Cash } from 'cash-dom'
 import EventEmitter from 'events'
 
 import I18N from '../i18n'
 import Store from '../store'
-import Canvas from './canvas'
+import Canvas from '../canvas'
 import Assets from '../assets'
 import Plugins from '../plugins'
 import History from '../history'
@@ -331,9 +331,8 @@ export default class Editor {
         case 'frame-add': {
           if( !option.value ) return
 
-          console.log( option )
-
-          const frame = this.canvas.addFrame({
+          const
+          options: FrameOption = {
             device: option.value.device,
             size: {
               width: option.value.width,
@@ -341,7 +340,13 @@ export default class Editor {
             },
             rounded: option.value.rounded,
             transparent: option.value.transparent
-          })
+          },
+          adaptability: FrameBasedCanvasAdaptability = {
+            autopan: true
+          },
+          frame = this.canvas.addFrame( options, adaptability )
+
+          // TODO: 
           
         } break
       }

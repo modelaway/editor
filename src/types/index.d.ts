@@ -16,6 +16,11 @@ type Position = {
   center?: string
 }
 
+type FrameBasedCanvasAdaptability = {
+  autopan?: boolean
+  autocenter?: boolean
+}
+
 type InputOptions = {
   type: 'text' | 'number' | 'checkbox' | 'radio' | 'select' | 'search'
   name: string

@@ -1,5 +1,6 @@
 import type Handles from '.'
 import type { HandleInterface } from '.'
+import type CanvasBounds from '../canvas/bounds'
 
 import $ from 'cash-dom'
 
@@ -44,9 +45,11 @@ export default class Pannable implements HandleInterface {
     this.context.$viewport.css('cursor', 'default')
   }
 
-  panTo( x: number, y: number ){
-    // Use current scale
-    const scale = this.context.options.getScale()
+  panTo({ x, y }: Point ){
+    const
+    viewportWidth = this.context.$viewport.width(),
+    viewportHeight = this.context.$viewport.height(),
+    scale = this.context.options.getScale()
     
     /**
      * Calculate the offset needed to center the 
@@ -55,22 +58,29 @@ export default class Pannable implements HandleInterface {
      * IMPORTANT: The negative sign is needed to move
      *            the canvas in the opposite direction
      */
-    this.context.canvasOffset.x = -( x * scale )
-    this.context.canvasOffset.y = -( y * scale )
-
-    console.log( this.context.canvasOffset )
+    this.context.canvasOffset.x = (viewportWidth / 2) - (x * scale)
+    this.context.canvasOffset.y = (viewportHeight / 2) - (y * scale)
 
     this.context.transformCanvas()
   }
-  center(){
+  center( bounds?: CanvasBounds ){
     const
     viewportWidth = this.context.$viewport.width(),
     viewportHeight = this.context.$viewport.height(),
     scale = this.context.options.getScale()
 
-    // Position canvas at viewport center
-    this.context.canvasOffset.x = viewportWidth / 2
-    this.context.canvasOffset.y = viewportHeight / 2
+    /**
+     * Center the virtual canvas in the viewport center
+     */
+    if( bounds ){
+      this.context.canvasOffset.x = (viewportWidth / 2) - (bounds.centerX * scale)
+      this.context.canvasOffset.y = (viewportHeight / 2) - (bounds.centerY * scale)
+    }
+    // Position anything at viewport center
+    else {
+      this.context.canvasOffset.x = viewportWidth / 2
+      this.context.canvasOffset.y = viewportHeight / 2
+    }
 
     this.context.transformCanvas()
   }

@@ -66,36 +66,33 @@ editor.canvas.addFrame({
   rounded: true,
   transparent: true
 })
-// Add a mobile frame to the board
-editor.canvas.addFrame({
-  content: dummyFrameContent,
-  title: 'Home Mobile',
-  device: 'mobile',
-  transparent: true
-})
-// Add empty tablet frame to the board
-editor.canvas.addFrame({
-  // source: 'http://127.0.0.1:3000/publications/@modela/examples/wigo/index.html',
-  title: 'Blank',
-  device: 'tablet',
-  transparent: true
-})
 
-// Add empty tablet frame to the board
-editor.canvas.addFrame({
-  // source: 'http://127.0.0.1:3000/publications/@modela/examples/wigo/index.html',
-  title: 'Signin',
-  device: 'tablet',
-  coordinates: {
-    x: '0',
-    y: '3000px'
+// Add many frames to the board at once
+editor.canvas.addFrames([
+  {
+    content: dummyFrameContent,
+    title: 'Home Mobile',
+    device: 'mobile',
+    transparent: true
   },
-  transparent: true
-})
-// Add empty tablet frame to the board
-editor.canvas.addFrame({
-  // source: 'http://127.0.0.1:3000/publications/@modela/examples/wigo/index.html',
-  title: 'Signup',
-  device: 'tablet',
-  transparent: true
-})
+  {
+    // source: 'http://127.0.0.1:3000/publications/@modela/examples/wigo/index.html',
+    title: 'Blank',
+    device: 'tablet',
+    transparent: true
+  },
+  {
+    title: 'Signin',
+    device: 'tablet',
+    coordinates: {
+      x: 0,
+      y: 3000
+    },
+    transparent: true
+  },
+  {
+    title: 'Signup',
+    device: 'tablet',
+    transparent: true
+  }
+])

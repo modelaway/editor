@@ -44,7 +44,7 @@ export default class Frame extends EventEmitter {
 
   public coordinates: Point
   private options: FrameOption = {
-    title: 'Unnamed Frame',
+    title: 'New Frame',
     rotatefree: true,
     resizefree: true,
     movefree: true

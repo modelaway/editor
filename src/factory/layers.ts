@@ -351,11 +351,13 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
     },
 
     reorderLayers( layers: ReorderSpec[], sourcePath: string, targetPath: string ){
-      targetPath = targetPath.replace('#.', '')
+      const PATH_PREFIX_REGEX = /#\.?/
+
+      targetPath = targetPath.replace( PATH_PREFIX_REGEX, '')
 
       layers.forEach( each => {
         const
-        path = each.path.replace('#.', ''),
+        path = each.path.replace( PATH_PREFIX_REGEX, ''),
         source = `${path}.${each.key}`,
         target = `${targetPath}.${each.key}`,
         layer = deepValue( this.state.layers, source )

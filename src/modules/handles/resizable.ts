@@ -98,7 +98,9 @@ export default class Resizable implements HandleInterface {
     this.$handle = $handle
     this.$holder = this.$handle?.closest( this.context.options.HOLDER_TAG )
 
-    if( !this.$holder?.length ) return
+    const NO_RESIZE_ALLOWED_ATTR = `[${this.context.options.attribute}][noresize]`
+    if( !this.$holder?.length
+        || this.$holder?.find( NO_RESIZE_ALLOWED_ATTR ).length ) return
 
     this.context.isResizing = true
 
@@ -200,7 +202,6 @@ export default class Resizable implements HandleInterface {
     this.elementStates.length > 1
     && this.updateElementsRelatively( scaleX, scaleY, deltaX, deltaY )
   }
-
   private stop(){
     if( !this.context.isResizing ) return
 

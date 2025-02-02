@@ -42,9 +42,12 @@ export default class Frame extends EventEmitter {
   public $viewport: Cash
   public $canvas: Cash
 
+  public coordinates: Point
   private options: FrameOption = {
     title: 'Unnamed Frame',
-    coordinates: { x: '0px', y: '0px' }
+    rotatefree: true,
+    resizefree: true,
+    movefree: true
   }
   private DOM: ShadowEvents
 
@@ -60,10 +63,11 @@ export default class Frame extends EventEmitter {
       ...this.options,
       ...options
     }
+    this.coordinates = this.options.coordinates || { x: 0, y: 0 }
     
     // Generate new key for the new frame
     this.key = generateKey()
-    this.$frame = $(this.createFrame( this.options.coordinates ))
+    this.$frame = $(this.createFrame( this.coordinates ))
 
     // Display frame's path & name
     this.$frame.attr('pathname', this.options.title as string )
@@ -91,9 +95,21 @@ export default class Frame extends EventEmitter {
      * No explicit size is considered a default 
      * frame with the default screen resolution.
      */
-    this.options.size ? 
-            this.$frame.css( this.options.size )
-            : this.setDeviceSize( options.device || 'default')
+    if( this.options.size )
+      this.$frame.css( this.options.size )
+    
+    else {
+      this.setDeviceSize( options.device || 'default')
+      // Only media-screen size
+      this.options.resizefree = false
+    }
+
+    // Allow frame to be rotate-free or not
+    !this.options.rotatefree && this.$frame.attr('norotate', 'true')
+    // Allow frame to be resize-free or not
+    !this.options.resizefree && this.$frame.attr('noresize', 'true')
+    // Allow frame to be move-free or not
+    !this.options.movefree && this.$frame.attr('nomove', 'true')
 
     // Append initial content
     this.options.content && this.$canvas.append( this.options.content )
@@ -116,7 +132,7 @@ export default class Frame extends EventEmitter {
   }
 
   private createFrame( coordinates?: FrameOption['coordinates'] ){
-    return `<div ${CONTROL_FRAME_SELECTOR}="${this.key}" style="left:${coordinates?.x || '0px'};top:${coordinates?.y || '0px'};"></div>`
+    return `<div ${CONTROL_FRAME_SELECTOR}="${this.key}" style="left:${coordinates?.x || 0}px;top:${coordinates?.y || 0}px;"></div>`
   }
   private getStyleSheet(){
     const
@@ -265,11 +281,11 @@ export default class Frame extends EventEmitter {
   }
 
   freeze(){
-    this.$frame.addClass('frozen')
+    this.$frame.attr('frozen', 'true')
     this.emit('frame.changed', 'freeze')
   }
   unfreeze(){
-    this.$frame.removeClass('frozen')
+    this.$frame.removeAttr('frozen')
     this.emit('frame.changed', 'unfreeze')
   }
 

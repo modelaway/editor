@@ -41,6 +41,7 @@ export type ComponentOptions = {
 export type LipsConfig = {
   context?: any
   debug?: boolean
+  watchdom?: boolean
 }
 export type StyleSettings = {
   sheet?: string

@@ -9,10 +9,10 @@ import type {
 
 import $, { type Cash } from 'cash-dom'
 import I18N from './i18n'
+import DWS from './dws'
 import Events from './events'
 import * as Router from './router'
 import Benchmark from './benchmark'
-import ParallelExecutor from './parallel'
 import Stylesheet from '../modules/stylesheet'
 import { isDiff, deepClone, deepAssign } from './utils'
 import { effect, EffectControl, signal } from './signal'
@@ -90,6 +90,7 @@ export default class Lips<Context = any> {
 
   private __root?: Component
   public i18n = new I18N()
+  public watcher?: DWS
 
   private _setContext: ( ctx: Context ) => void
   private _getContext: () => Context
@@ -97,6 +98,9 @@ export default class Lips<Context = any> {
   constructor( config?: LipsConfig ){
     if( config?.debug ) 
       this.debug = config.debug
+
+    if( config?.watchdom )
+      this.watcher = new DWS()
     
     const [ getContext, setContext ] = signal<Context>( config?.context || {} )
 
@@ -126,7 +130,6 @@ export default class Lips<Context = any> {
 
     return this
   }
-
   unregister( name: string ){
     delete this.store[ name ]
 
@@ -229,6 +232,10 @@ export default class Lips<Context = any> {
       && fn( ctx )
     })
   }
+
+  dispose(){
+    this.watcher?.dispose()
+  }
 }
 
 export class Component<Input = void, State = void, Static = void, Context = void> extends Events {
@@ -248,8 +255,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
   private __components: Map<string, Component> = new Map() // Cached nexted components
   private __attachableEvents: { $node: Cash, _event: string, instruction: string, scope?: Record<string, any> }[] = []
 
-  private __templateCache: Map<string, Cash> = new Map()
-
   /**
    * Nexted Component Count (NCC) in tree
    * hieralchy and discovery order
@@ -259,7 +264,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
   private debug = false
   private isRendered = false
   private enableSmartDiff = true
-  private enableTemplateCache = true
 
   private _setInput: ( input: Input ) => void
   private _setState: ( state: State ) => void
@@ -269,7 +273,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
   private IUC: NodeJS.Timeout
   private IUC_BEAT = 5 // ms
   private ICE: EffectControl // Internal Component Effect
-  private parallel = new ParallelExecutor
 
   public lips?: Lips
   private benchmark: Benchmark
@@ -396,7 +399,13 @@ export class Component<Input = void, State = void, Static = void, Context = void
         // Assign CSS relationship attribute
         this.$.attr('rel', this.__name__ )
       }
-      
+
+      /**
+       * Watch when component's element get 
+       * attached to the DOM
+       */
+      this.lips?.watcher?.watch( this as any )
+
       /**
        * Attach/Reattach extracted events
        * listeners anytime component get rendered.
@@ -529,17 +538,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
       console.warn('Undefined node element to render')
       return $nodes
     }
-
-    /**
-     * Try to get from cache first
-     */
-    // const
-    // cacheKey = this.getCacheKey( $nodes?.prop('outerHTML') || this.template, scope ),
-    // cached = this.getCachedTemplate( cacheKey )
-    // if( cached ){
-    //   this.benchmark.inc('cacheHit')
-    //   return cached
-    // }
 
     const self = this
     /**
@@ -1249,12 +1247,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
      * BENCHMARK: Tracking total occurence of recursive rendering
      */
     self.benchmark.inc('renderCount')
-
-    /**
-     * Cache the result before returning
-     */
-    // this.cacheTemplate( cacheKey, _$ )
-
+  
     return _$
   }
   /**
@@ -1266,45 +1259,12 @@ export class Component<Input = void, State = void, Static = void, Context = void
       throw new Error('Component template is empty')
 
     const $clone = this.render()
-    // if( this.enableSmartDiff && this.$ )
-    //   this.$ = this.updateChangedParts( this.$, $clone )
     
-    // else {
-      this.$?.replaceWith( $clone )
-      this.$ = $clone
-    // }
-
+    this.$?.replaceWith( $clone )
+    this.$ = $clone
     // Reassign CSS relationship attribute
     this.$.attr('rel', this.__name__ )
   }
-
-  /**
-   * Create a unique key based on template 
-   * and scope values
-   */
-  private getCacheKey( template: string, scope: VariableScope = {} ): string {
-    // 
-    const scopeValues = Object.entries( scope )
-                              .map(([ key, value ]) => `${key}:${JSON.stringify(value.value)}`)
-                              .join('|')
-
-    return `${template}:${scopeValues}`
-  }
-
-  private cacheTemplate( key: string, $node: Cash ): void {
-    this.enableTemplateCache && this.__templateCache.set( key, $node.clone() )
-  }
-  private getCachedTemplate( key: string ): Cash | undefined {
-    if( !this.enableTemplateCache )
-      return
-
-    return this.__templateCache.get( key )?.clone()
-  }
-  // Add benchmark tracking for optimizations
-  // private initBenchmark(): void {
-  //   this.benchmark.addMetric('cacheHit', 'Template cache hits')
-  //   this.benchmark.addMetric('diffSkip', 'Nodes skipped by smart diff')
-  // }
 
   /**
    * Smart Diffing Implementation
@@ -1466,27 +1426,27 @@ export class Component<Input = void, State = void, Static = void, Context = void
   }
 
   attachEvents(){
-    this.parallel.add( () => this.__attachableEvents.forEach( ({ $node, _event, instruction, scope }) => {
+    this.__attachableEvents.forEach( ({ $node, _event, instruction, scope }) => {
       $node.off( _event )
       && this.__attachEvent__( $node, _event, instruction, scope )
-    } ) )
+    })
 
     /**
      * Also propagate to nexted component
      */
-    this.parallel.add( () => Object
-                              .values( this.__components )
-                              .forEach( component => component.attachEvents() ) )
+    Object
+    .values( this.__components )
+    .forEach( component => component.attachEvents() )
   }
   detachEvents(){
-    this.parallel.add( () => this.__attachableEvents.forEach( ({ $node, _event }) => this.__detachEvent__( $node, _event ) ) )
+    this.__attachableEvents.forEach( ({ $node, _event }) => this.__detachEvent__( $node, _event ) )
 
     /**
      * Also propagate to nexted component
      */
-    this.parallel.add( () => Object
-                              .values( this.__components )
-                              .forEach( component => component.detachEvents() ) )
+    Object
+    .values( this.__components )
+    .forEach( component => component.detachEvents() )
   }
   
   destroy(){
@@ -1495,6 +1455,11 @@ export class Component<Input = void, State = void, Static = void, Context = void
      * component.
      */
     this.ICE.dispose()
+    /**
+     * Stop watcher when component's element get 
+     * detached from the DOM
+     */
+    this.lips?.watcher?.unwatch( this as any )
 
     /**
      * Detached all events

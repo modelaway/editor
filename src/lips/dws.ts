@@ -1,0 +1,111 @@
+import type { Component } from './lips'
+
+type WatchData = {
+  timeout: NodeJS.Timeout
+  type: 'attach' | 'detach'
+}
+
+/**
+ * DOM Watch Service
+ */
+export default class DWS {
+  private domObserver: MutationObserver
+  private observedComponents = new Map<Component, WatchData>()
+  private readonly TIMEOUT = 10000 // 10 seconds
+
+  constructor(){
+    this.domObserver = new MutationObserver( () => {
+      this.observedComponents.forEach( ( watchData, component ) => {
+        try {
+          const $node = component.getNode()
+          if( !$node ){
+            this.unwatch( component )
+            return
+          }
+          
+          if( watchData.type === 'attach' && document.contains( $node[0] as Element ) ){
+            this.unwatch( component )
+            component.emit('attached')
+            // console.log('attached', component )
+
+            typeof component.onAttach == 'function'
+            && component.onAttach.bind( component )()
+          }
+          else if( watchData.type === 'detach' && !document.contains( $node[0] as Element ) ){
+            this.unwatch( component )
+            component.emit('detached')
+
+            typeof component.onDetach == 'function'
+            && component.onDetach.bind( component )()
+          }
+        }
+        catch( error ){
+          console.log('DWS error --', error )
+        }
+      })
+
+      // Stop observing if no components left to watch
+      !this.observedComponents.size && this.domObserver.disconnect()
+    })
+  }
+
+  watch( component: Component, type: 'attach' | 'detach' = 'attach' ){
+    const $node = component.getNode()
+    if( !$node ) return
+
+    // For attachment, check if already in DOM
+    if( type === 'attach' && document.contains( $node[0] as Element ) ){
+      component.emit('attached')
+
+      typeof component.onAttach == 'function'
+      && component.onAttach.bind( component )()
+      return
+    }
+
+    // For detachment, check if already out of DOM
+    if( type === 'detach' && !document.contains( $node[0] as Element ) ){
+      component.emit('detached')
+
+      typeof component.onDetach == 'function'
+      && component.onDetach.bind( component )()
+      return
+    }
+
+    // Clean up any existing watch
+    this.unwatch( component )
+
+    // Start new watch
+    const timeout = setTimeout( () => {
+      this.unwatch( component )
+      component.emit(`${type}ment-timeout`)
+    }, this.TIMEOUT )
+
+    this.observedComponents.set( component, { timeout, type })
+
+    // Start observing if first component
+    this.observedComponents.size === 1
+    && this.domObserver.observe( document.body, { childList: true, subtree: true })
+
+    // Set up detachment watching once attached
+    type === 'attach'
+    && component.once('attached', () => this.watch( component, 'detach' ))
+  }
+
+  unwatch( component: Component ){
+    const watchData = this.observedComponents.get( component )
+    if( watchData ){
+      clearTimeout( watchData.timeout )
+      this.observedComponents.delete( component )
+    }
+
+    // Stop observing if no components left
+    !this.observedComponents.size && this.domObserver.disconnect()
+  }
+
+  dispose(){
+    this.domObserver.disconnect()
+    this.observedComponents.forEach( watchData => clearTimeout( watchData.timeout ) )
+
+    this.observedComponents.clear()
+  }
+}

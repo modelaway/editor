@@ -7,7 +7,7 @@ type LayerItemInput = LayerElement & {
 }
 type LayerItemState = {
   collapsed: boolean
-  editable: boolean
+  rename: boolean
   newname?: string
 }
 type LayerItemStatic = {
@@ -27,7 +27,7 @@ type LayerItemStatic = {
 const LayerItem = () => {
   const state: LayerItemState = {
     collapsed: true,
-    editable: false
+    rename: false
   }
 
   const _static: LayerItemStatic = {
@@ -46,12 +46,24 @@ const LayerItem = () => {
       
       // TODO: Track key for memoizing purpose
     },
-    onRenameLayer( key: string, action: 'init' | 'input' | 'apply', e ){
+    onRenameLayer( key: string, action: 'init' | 'focus' | 'input' | 'apply', e ){
       switch( action ){
-        case 'init': this.state.editable = true; break
+        case 'init': this.state.rename = true; break
+        case 'focus': {
+          const 
+          range = document.createRange(),
+          selection = window.getSelection()
+
+          if( !selection ) return
+
+          range.selectNodeContents( e.target )
+          
+          selection.removeAllRanges()
+          selection.addRange(range)
+        } break
         case 'input': this.static.newname = e.target.value || e.target.innerText; break
         case 'apply': {
-          this.state.editable = false
+          this.state.rename = false
 
           // TODO: Emit event to update layer name to parent state
           // console.log('rename to --', key, this.static.newname )
@@ -64,7 +76,8 @@ const LayerItem = () => {
     <mli sortable
           layer=input.key
           path=input.path
-          data-level=input.depth
+          level=input.depth
+          attribute=input.attribute
           class="context.selection.includes( input.key ) && 'selected'">
       <mblock class="nested-indicator"></mblock>
 
@@ -82,13 +95,6 @@ const LayerItem = () => {
                       on-click( onCollapse, input.key )></micon>
 
               <micon class="ill-icon bx bx-object-horizontal-left"></micon>
-            </case>
-            <case is="node">
-              <micon class="'toggle-icon bx '+( state.collapsed ? 'bx-chevron-down' : 'bx-chevron-right')"
-                      style="padding: 0 4px"
-                      on-click( onCollapse, input.key )></micon>
-
-              <micon class="ill-icon bx bx-hash"></micon>
             </case>
             <default>
               <switch( input.type )>
@@ -111,8 +117,10 @@ const LayerItem = () => {
             </default>
           </switch>
           
-          <mlabel contenteditable=state.editable
+          <mlabel contenteditable=state.rename
+                  autofocus=state.rename
                   on-blur(onRenameLayer, input.key, 'apply')
+                  on-focus(onRenameLayer, input.key, 'focus')
                   on-input(onRenameLayer, input.key, 'input')
                   on-dblclick(onRenameLayer, input.key, 'init')>{input.name}</mlabel>
 
@@ -123,7 +131,7 @@ const LayerItem = () => {
         </minline>
       </mblock>
 
-      <if( input.layers && (input.attribute === 'node' || input.attribute === 'group') )>
+      <if( input.layers && input.attribute === 'group' )>
         <layerlist list=input.layers
                     layer=input.key
                     path="input.path +'.'+ input.key"

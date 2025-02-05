@@ -3,33 +3,48 @@ import type { Component } from '../../lips/lips'
 
 import $, { type Cash } from 'cash-dom'
 import { EventEmitter } from 'events'
-import { deepClone, throttle } from '../utils'
+import { throttle } from '../utils'
 
 const
-ANIMATION_DEFAULT = 150,
-GHOST_CLASS = 'sortable-ghost',
-DRAG_CLASS = 'sortable-drag',
 SELECTED_CLASS = 'selected',
+DRAG_CLASS = 'sortable-drag',
+GHOST_CLASS = 'sortable-ghost',
+GROUP_DROP_CLASS = 'sortable-group-drop',
 PLACEHOLDER_CLASS = 'sortable-placeholder',
+
+ANIMATION_DEFAULT = 150,
 Z_INDEX_GHOST = 1000,
 SCROLL_SPEED = 20,
-DRAG_THRESHOLD = 5
+DRAG_THRESHOLD = 5,
+DRAG_ZONE_SIZE = 0.3 // 30% of item height for group insertion
+
+export type ReorderedItems = {
+  $: Cash
+  key: string
+  path: string
+  sourceIndex: number
+  targetIndex: number
+}
+export type Reordered = {
+  items: ReorderedItems[]
+  sourcePath: string
+  targetPath: string
+  level: number
+}
 
 export type SortableOptions = {
   list: string
   item: string
-  uid: string  // Unique Item Identifier (attribute)
+  uid: string  // Unique item identifier (attribute)
+  pathattr: string // Item path identifier (attribute)
+  groupattr?: string // Group item identifier (attribute)
   handle?: string
   placeholder?: string
   animation?: number
   ghostClass?: string
   dragClass?: string
   selectedClass?: string
-  group?: string | {
-    name: string
-    pull?: boolean | string[]
-    put?: boolean | string[]
-  }
+  groupDropClass?: string
   nested?: boolean
   multiDrag?: boolean
   dragThreshold?: number
@@ -50,7 +65,6 @@ export default class Sortable<Input = void, State = void, Static = void, Context
   private $placeholder: Cash | null = null
   private $dragElements: Cash[] = []
 
-  private sourceGroup: string = ''
   private level: number = 0
   private startY: number = 0
   private selectedItems: Map<string, Cash> = new Map()
@@ -67,6 +81,7 @@ export default class Sortable<Input = void, State = void, Static = void, Context
       ghostClass: GHOST_CLASS,
       dragClass: DRAG_CLASS,
       selectedClass: SELECTED_CLASS,
+      groupDropClass: GROUP_DROP_CLASS,
       nested: true,
       multiDrag: true,
       dragThreshold: DRAG_THRESHOLD,
@@ -77,7 +92,9 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     this.boundHandleKeyboard = this.handleKeyboard.bind(this)
     
     this.component.getNode() && this.bind()
-    this.component.on('render', () => this.bind() )
+    this.component.on('attached', () => this.bind() )
+    this.component.on('detached', () => this.unbind() )
+    this.component.on('attachment-timeout', () => console.warn('Sortable component failed to attach within timeout period') )
   }
 
   private handleKeyboard( e: KeyboardEvent ){
@@ -140,42 +157,18 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     this.scrollInterval = undefined
   }
 
-  private getGroup( el: Element ): string {
-    if( typeof this.options.group === 'string' ) return this.options.group
-    if( typeof this.options.group === 'object' ) return this.options.group.name
-
-    return $(el).closest( this.options.list ).attr('data-group') || ''
-  }
-  private canTransfer( fromGroup: string, toGroup: string ): boolean {
-    if( !this.options.group ) return false
-    if( typeof this.options.group === 'string' ) return true
-    
-    const group = this.options.group
-    if( !group.pull || !group.put ) return false
-
-    const 
-    canPull = Array.isArray( group.pull ) ? 
-              group.pull.includes( toGroup ) : 
-              group.pull === true,
-    
-    canPut = Array.isArray( group.put ) ? 
-             group.put.includes( fromGroup ) : 
-             group.put === true
-
-    return canPull && canPut
-  }
   private getLevel( el: Element ): number {
     return $(el).parents( this.options.list ).length
   }
   private emitReorder( $item: Cash, $list: Cash ){
-    this.emit('sortable.reorder', {
-      $items: [ $item ],
-      $sourceList: $list,
-      $targetList: $list,
-      oldIndices: [ $item.index() ],
-      newIndex: $item.index(),
-      level: this.getLevel( $item[0] as Element )
-    })
+    // this.emit('sortable.reorder', {
+    //   $items: [ $item ],
+    //   $sourceList: $list,
+    //   $targetList: $list,
+    //   oldIndices: [ $item.index() ],
+    //   newIndex: $item.index(),
+    //   level: this.getLevel( $item[0] as Element )
+    // })
   }
 
   addSelection( $item: Cash ){
@@ -282,7 +275,7 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     this.$placeholder = $('<div/>').addClass( this.options.placeholder || PLACEHOLDER_CLASS )
                                     .attr('role', 'presentation')
                                     .css({
-                                      height: totalHeight,
+                                      height: 5,
                                       marginBottom: $item.css('marginBottom') || '0px'
                                     })
 
@@ -295,6 +288,7 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     
     this.$block?.append( this.$ghost )
   }
+
   private readonly onDrag = throttle( ( x: number, y: number ) => {
     if( !this.dragging || !this.$block?.length ) return
 
@@ -309,50 +303,84 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     
     const 
     $below = $(elemBelow),
-    $belowList = $below.closest( this.options.list )
+    $belowItem = $below.is( this.options.item ) ? $below : $below.closest( this.options.item ),
+    $belowList = $below.is( this.options.list ) ? $below : $below.closest( this.options.list )
     if( !$belowList.length ) return
 
-    // const 
-    // targetGroup = this.getGroup( $belowList[0] as Element ),
-    // targetLevel = this.getLevel( $belowList[0] as Element )
-    
-    // if( !this.canTransfer( this.sourceGroup, targetGroup ) ) return
-    // if( !this.options.nested && targetLevel !== this.level ) return
-    
+    // Get item's position and dimensions
+    const belowOffset = $belowItem.offset()
+    if( !belowOffset ) return
+
     const
-    $belowItems = $belowList.find( this.options.item ),
-    ghostCenter = y
-
+    itemTop = belowOffset.top,
+    itemHeight = $belowItem.outerHeight() || 0,
+    itemBottom = itemTop + itemHeight,
+    ghostCenter = y,
+    $belowListItems = $belowList.find( this.options.item )
+    
     let placed = false
-    $belowItems.each( ( _, each ) => {
-      const $each = $(each)
-      if( this.$dragElements.some( $drag => $drag.is( $each ) ) ) return
 
-      const elemCenter = ($each.offset()?.top || 0) + $each.outerHeight() / 2
-      if( ghostCenter > elemCenter ){
-        this.$placeholder?.insertAfter( $each )
-        placed = true
+    // Check if hovering over a group item
+    if( $belowItem.length && this.options.groupattr && $belowItem.attr( this.options.groupattr ) === 'group' ){
+      // Calculate drag zones
+      const 
+      topZone = itemTop + (itemHeight * DRAG_ZONE_SIZE),
+      bottomZone = itemBottom - (itemHeight * DRAG_ZONE_SIZE)
+
+      // If in middle zone of group, place inside group
+      if( ghostCenter > topZone && ghostCenter < bottomZone ){
+        const $groupList = $belowItem.find(this.options.list).first()
+        
+        if( $groupList.length ){
+          this.$placeholder?.prependTo($groupList)
+          $belowItem.addClass( GROUP_DROP_CLASS )
+
+          placed = true
+        }
       }
-    })
+    }
 
-    if( !placed && $belowItems.length )
-      this.$placeholder?.insertBefore( $belowItems.first() )
+    // If not placing in group, handle normal positioning
+    if( !placed ){
+      // Remove any existing group drop styling
+      this.$block.find(`.${GROUP_DROP_CLASS}`).removeClass( GROUP_DROP_CLASS )
 
-    else if( !placed )
-      $belowList.append( this.$placeholder as Cash )
+      $belowListItems.each(( _, each ) => {
+        const 
+        $each = $(each),
+        eachOffset = $each.offset()
 
+        if( !eachOffset || this.$dragElements.some( $drag => $drag.is( $each ) ) ) return
+
+        const elemCenter = eachOffset.top + ( $each.outerHeight() || 0 ) / 2
+        if( ghostCenter > elemCenter ){
+          this.$placeholder?.insertAfter( $each )
+          placed = true
+        }
+      })
+
+      !placed && $belowListItems.length
+      && this.$placeholder?.insertBefore( $belowListItems.first() )
+    }
   }, 16, { leading: true, trailing: true })
+
   private endDrag(){
     if( !this.dragging ) return
-    
+
+    const items: ReorderedItems[] = this.$dragElements.map( ( $: Cash, idx: number ) => ({
+      $,
+      path: $.attr( this.options.pathattr ) as string,
+      key: $.attr( this.options.uid ) as string,
+      sourceIndex: this.$dragElements.map( $each => $each.index() )[ idx ],
+      targetIndex: (this.$placeholder?.index() || 0) + idx
+    }))
+
     this.emit('sortable.reorder', {
-      $items: this.$dragElements,
-      $sourceList: this.$sourceList,
-      $targetList: this.$placeholder?.closest( this.options.list ),
-      oldIndices: this.$dragElements.map( $each => $each.index() ),
-      newIndex: this.$placeholder?.index(),
+      items,
+      sourcePath: this.$sourceList?.attr( this.options.pathattr ),
+      targetPath: this.$placeholder?.closest( this.options.list ).attr( this.options.pathattr ),
       level: this.getLevel( this.$placeholder?.[0] as Element )
-    })
+    } as Reordered )
 
     // Store placeholder reference before later removal
     const $placeholder = this.$placeholder
@@ -371,6 +399,9 @@ export default class Sortable<Input = void, State = void, Static = void, Context
       $placeholder?.parent().length
       && $each.insertBefore( $placeholder )
     })
+
+    // Clean up any remaining group-drop-target classes
+    this.$block?.find('.'+ this.options.groupDropClass ).removeClass( this.options.groupDropClass )
     
     this.options.ghostClass && this.$block?.find('.'+ this.options.ghostClass ).remove()
     this.options.placeholder && this.$block?.find('.'+ this.options.placeholder ).remove()
@@ -382,7 +413,6 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     
     // Clear state
     this.dragging = false
-    this.sourceGroup = ''
     this.level = 0
 
     this.$ghost = null
@@ -452,58 +482,62 @@ export default class Sortable<Input = void, State = void, Static = void, Context
                       : this.addSelection( $item )
       })
 
-    $list
-    .on('mousedown', this.options.handle || this.options.item, ( e: MouseEvent ) => {
-      // Only left mouse button
-      if( e.button !== 0 ) return
-      e.stopPropagation()
-
-      let $item = $(e.target as Element)
-      if( $item.not( this.options.item ) )
-        $item = $item.closest( this.options.item )
-
-      if( !$item.length || !$item[0] ) return
-      e.preventDefault()
+    const $items = this.$block.find(this.options.handle || this.options.item)
+    
+    $items.each((_, each) => {
+      const $each = $(each)
       
-      this.$sourceList = $item.closest( this.options.list )
-      this.sourceGroup = this.getGroup( this.$sourceList[0] as Element )
-      this.level = this.getLevel( $item[0] as Element )
+      $each.on('mousedown', ( e: MouseEvent ) => {
+        // Only left mouse button
+        if( e.button !== 0 ) return
+        e.stopPropagation()
 
-      // Handle multi-selection drag
-      if( this.options.multiDrag && this.selectedItems.size > 0 ){
-        if( !this.selectedItems.has( $item.attr( this.options.uid ) as string ) ){
-          this.clearSelection( $list )
-          this.addSelection( $item )
-        }
+        let $item = $(e.target as Element)
+        if( $item.not( this.options.item ) )
+          $item = $item.closest( this.options.item )
 
-        this.$dragElements = [ ...this.selectedItems.values() ]
-      }
-      else this.$dragElements = [ $item ]
-      
-      const threshold = this.options.dragThreshold || DRAG_THRESHOLD
-      let
-      hasReachedThreshold = false,
-      startX = e.clientX
-
-      const checkThreshold = ( moveEvent: MouseEvent ) => {
-        if( !hasReachedThreshold ){
-          const deltaX = Math.abs( moveEvent.clientX - startX )
-          const deltaY = Math.abs( moveEvent.clientY - this.startY )
-          
-          if( deltaX > threshold || deltaY > threshold ){
-            hasReachedThreshold = true
-            this.startDrag( $item, moveEvent.clientY )
-          }
-        }
+        if( !$item.length || !$item[0] ) return
+        e.preventDefault()
         
-        hasReachedThreshold && this.onDrag( moveEvent.clientX, moveEvent.clientY )
-      }
+        this.$sourceList = $item.closest( this.options.list )
+        this.level = this.getLevel( $item[0] as Element )
 
-      $(document)
-      .on('mousemove.sortable', checkThreshold )
-      .on('mouseup.sortable', () => {
-        hasReachedThreshold && this.endDrag()
-        $(document).off('.sortable')
+        // Handle multi-selection drag
+        if( this.options.multiDrag && this.selectedItems.size > 0 ){
+          if( !this.selectedItems.has( $item.attr( this.options.uid ) as string ) ){
+            this.clearSelection( $list )
+            this.addSelection( $item )
+          }
+
+          this.$dragElements = [ ...this.selectedItems.values() ]
+        }
+        else this.$dragElements = [ $item ]
+        
+        const threshold = this.options.dragThreshold || DRAG_THRESHOLD
+        let
+        hasReachedThreshold = false,
+        startX = e.clientX
+
+        const checkThreshold = ( moveEvent: MouseEvent ) => {
+          if( !hasReachedThreshold ){
+            const deltaX = Math.abs( moveEvent.clientX - startX )
+            const deltaY = Math.abs( moveEvent.clientY - this.startY )
+            
+            if( deltaX > threshold || deltaY > threshold ){
+              hasReachedThreshold = true
+              this.startDrag( $item, moveEvent.clientY )
+            }
+          }
+          
+          hasReachedThreshold && this.onDrag( moveEvent.clientX, moveEvent.clientY )
+        }
+
+        $(document)
+        .on('mousemove.sortable', checkThreshold )
+        .on('mouseup.sortable', () => {
+          hasReachedThreshold && this.endDrag()
+          $(document).off('.sortable')
+        })
       })
     })
   }

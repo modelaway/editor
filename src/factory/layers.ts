@@ -3,7 +3,7 @@ import type { Handler } from '../lips'
 import type { FrameSpecs } from '../types/frame'
 import type { HandlerHook } from '../types/controls'
 import type { MovableOptions } from '../modules/controls/movable'
-import type { SortableOptions } from '../modules/controls/sortable'
+import type { SortableOptions, ReorderedItems, Reordered } from '../modules/controls/sortable'
 
 import $, { type Cash } from 'cash-dom'
 import { ELEMENT_KEY_SELECTOR } from '../modules/constants'
@@ -84,7 +84,7 @@ class Traverser {
       name: $element.attr( ELEMENT_KEY_SELECTOR ) || defname,
       tagname: type === 'text' ? 'text' : element.tagName.toLowerCase(),
       type,
-      attribute: groupAttr ? 'group' : children && children.length > 0 ? 'node' : 'element',
+      attribute: groupAttr || (children && children.length > 0) ? 'group' : 'element',
       position: {
         x: type !== 'text' && $element.offset()?.left || 0,
         y: type !== 'text' && $element.offset()?.top || 0,
@@ -109,7 +109,7 @@ class Traverser {
     //   }
     // }
 
-    if( layer.attribute === 'node' || layer.attribute === 'group' )
+    if( layer.attribute === 'group' )
       children?.each(( _, child: Element ) => {
         const result = this.ignoreFlag( child )
         if( !result || !result.element ) return
@@ -181,6 +181,7 @@ export type LayersHost = {
 }
 export type LayersSettings = {
   visible?: boolean
+  reduced?: boolean
 }
 export interface LayersInput {
   host: LayersHost
@@ -191,6 +192,7 @@ export interface LayersInput {
 
 type Context = {
   frame: FrameSpecs | null
+  selection: string[]
 }
 type Static = {
   newname?: string
@@ -198,46 +200,37 @@ type Static = {
 interface State {
   layers: Map<string, LayerElement>
   activeLayer: string | null
-  collapsed: boolean
+  reduced: boolean
   rename: boolean
-}
-
-type ReorderSpec = {
-  key: string
-  path: string
-  sourceIndex: string
-  targetIndex: number
 }
 
 /**
  * Element Layers management list
  */
 export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
-  
   const state: State = {
     layers: new Map(),
     activeLayer: null,
-    collapsed: false,
+    reduced: true,
     rename: false
   }
 
   const handler: Handler<LayersInput, State, Static, Context> = {
-    onInput({ host, mutations }){
+    onInput({ host, settings }){
       if( host.content ){
         const tvs = new Traverser
         this.state.layers = tvs.traverse( cleanContent( host.content ) )
       }
 
-      if( mutations ){
-
-      }
+      if( settings?.reduced !== undefined ) 
+        this.state.reduced = settings.reduced
     },
     onMount(){
       /**
        * Attach movable control to layer component
        */
       const movableOptions: MovableOptions = {
-        handle: '.header > mblock > minline',
+        handle: '[header] > mblock > minline',
         apex: ['right', 'bottom']
       }
       this.movable = hook?.editor?.controls.movable<LayersInput, State, Static, Context>( this, movableOptions )
@@ -256,6 +249,9 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
         list: 'mul',
         item: 'mli',
         handle: 'mli > .layer-bar > .move-handle',
+        uid: 'layer', // Unique Item Identifier
+        pathattr: 'path',
+        groupattr: 'attribute',
         // ghostClass: 'ghost',
         // dragClass: 'dragging',
         // selectedClass: 'selected',
@@ -266,37 +262,27 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
       this.sortable = hook?.editor?.controls.sortable<LayersInput, State, Static, Context>( this, sortableOptions )
       
       this.sortable
-      .on('sortable.select', ( $items: Cash[] ) => {
-        this.setContext('selection', $items.map( el => el.attr('layer') as string ) )
+      .on('sortable.select', ( selected: string[] ) => {
+        this.setContext('selection', selected )
       })
-      .on('sortable.reorder', ({ $items, $sourceList, $targetList, oldIndices, newIndex }: any ) => {
-        const 
-        layers: ReorderSpec[] = $items.map( ( $element: Cash, idx: number ) => ({
-          path: $element.attr('path'),
-          key: $element.attr('layer'),
-          sourceIndex: oldIndices[ idx ],
-          targetIndex: newIndex + idx
-        })),
-        sourcePath = $sourceList.attr('path'),
-        targetPath = $targetList.attr('path')
-
-        layers.length
+      .on('sortable.reorder', ({ items, sourcePath, targetPath, level }: Reordered ) => {
+        items.length
         && sourcePath
         && targetPath
-        && this.reorderLayers( layers, sourcePath, targetPath )
+        && this.reorderLayers( items, sourcePath, targetPath )
       })
-
+    },
+    onAttach(){
       // Set to default position
-      ;(!this.input.position || typeof this.input.position === 'string')
-      && setTimeout( () => {
-        const
-        indication = typeof this.input.position === 'string' ? this.input.position : 'bottom-right',
-        defPostion = hook?.editor?.controls.letPosition( this.getNode(), indication )
-        if( !defPostion ) return
-        
-        this.input.position = defPostion
-        this.getNode().css( defPostion )
-      }, 5 )
+      if( this.input.position && typeof this.input.position !== 'string' ) return
+    
+      const
+      indication = typeof this.input.position === 'string' ? this.input.position : 'bottom-right',
+      defPostion = hook?.editor?.controls.letPosition( this.getNode(), indication )
+      if( !defPostion ) return
+      
+      this.input.position = defPostion
+      this.getNode().css( defPostion )
     },
     onContext(){
       if( !this.context.frame ) return
@@ -316,8 +302,8 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
       this.sortable.dispose()
     },
 
-    onCollapse(){
-      this.state.collapsed = !this.state.collapsed
+    onReduce(){
+      this.state.reduced = !this.state.reduced
     },
     onRenameFrame( action: 'init' | 'focus' | 'input' | 'apply', e ){
       if( !this.context.frame ) return
@@ -349,8 +335,17 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
         } break
       }
     },
+    onGroup(){
+      if( !this.context.selection.length ) return
+      
+    },
+    onDelete(){
+      if( !this.context.selection.length ) return
+    
+    },
+    onRefresh(){},
 
-    reorderLayers( layers: ReorderSpec[], sourcePath: string, targetPath: string ){
+    reorderLayers( layers: ReorderedItems[], sourcePath: string, targetPath: string ){
       const PATH_PREFIX_REGEX = /#\.?/
 
       targetPath = targetPath.replace( PATH_PREFIX_REGEX, '')
@@ -387,20 +382,22 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
 
   const template = `
     <mblock style=self.getStyle()>
-      <mblock class="header">
+      <const display="{ display: !state.reduced ? 'block' : 'none' }"/>
+
+      <mblock header>
         <mblock>
           <minline>
             <micon class="bx bx-list-minus ill-icon"></micon>
             <mlabel>Layers</mlabel>
           </minline>
 
-          <micon class="'toggle-icon bx '+( state.collapsed ? 'bx-chevron-down' : 'bx-chevron-right')"
+          <micon class="'toggle-icon bx '+( !state.reduced ? 'bx-chevron-down' : 'bx-chevron-right')"
                   style="padding: 0 0 0 10px;"
-                  on-click( onCollapse )></micon>
+                  on-click( onReduce )></micon>
         </mblock>
 
         <mblock class="host-title"
-                style="{ display: state.collapsed ? 'block' : 'none' }">
+                style=display>
           <span class="host-type">{input.host.type} / </span>
           <span contenteditable=state.rename
                 autofocus=state.rename
@@ -411,17 +408,33 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
         </mblock>
       </mblock>
 
-      <mblock class="body" style="{ display: state.collapsed ? 'block' : 'none' }">
+      <mblock body style=display>
         <if( state.layers )>
           <layerlist list=state.layers
                       depth=0
                       collapsed></layerlist>
         </if>
       </mblock>
+
+      <mblock footer style=display>
+        <micon class="ill-icon bx bx-refresh"
+                title="Refresh"
+                on-click( onRefresh )></micon>
+
+        <micon class="ill-icon bx bx-hash"
+                activated=!!context.selection.length
+                title="Group"
+                on-click( onGroup )></micon>
+
+        <micon class="ill-icon bx bx-trash"
+                activated=!!context.selection.length
+                title="Delete"
+                on-click( onDelete )></micon>
+      </mblock>
     </mblock>
   `
 
-  return lips.render<LayersInput, State, Static, Context>('layers', { default: template, state, handler, stylesheet, context: ['frame'] }, input )
+  return lips.render<LayersInput, State, Static, Context>('layers', { default: template, state, handler, stylesheet, context: ['frame', 'selection'] }, input )
 }
 
 const stylesheet = `
@@ -434,7 +447,7 @@ const stylesheet = `
   cursor: default;
   overflow: hidden;
 
-  .header {
+  [header] {
     mblock {
       user-select: none;
       padding: 10px;
@@ -463,7 +476,33 @@ const stylesheet = `
       }
     }
   }
-  .body {
+  [footer] {
+    padding: .2rem .5rem;
+    text-align: center;
+    box-shadow: var(--me-box-shadow);
+    background-color: var(--me-inverse-color-brute);
+
+    .ill-icon {
+      padding: 0.1rem;
+      margin: 0.3rem 0.1rem;
+      border: 1px solid var(--me-border-color);
+      border-radius: var(--me-border-radius-gentle);
+      color: var(--me-primary-color);
+
+      &:hover {
+        background-color: var(--me-primary-color-fade);
+      }
+      &:active {
+        background-color: var(--me-primary-color-transparent);
+      }
+
+      &[activated="true"] {
+        background-color: var(--me-primary-color);
+        color: var(--me-inverse-color);
+      }
+    }
+  }
+  [body] {
     min-width: 18rem;
     height: 45vh;
     padding-top: 1px;
@@ -546,7 +585,7 @@ const stylesheet = `
         .nested-indicator { opacity: 1 }
       } */
       
-      &[data-level] .nested-indicator {
+      &[level] .nested-indicator {
         position: absolute;
         left: -12px;
         width: 2px;
@@ -563,17 +602,20 @@ const stylesheet = `
     }
 
     .sortable-placeholder {
-      background: var(--pb);
-      margin: 4px 0;
+      background: var(--hb);
       transition: all var(--td) ease;
     }
 
     .sortable-drag { opacity: 0; }
+    .sortable-group-drop {
+      background-color: var(--me-primary-color-fade);
+      border-left: 3px solid var(--me-primary-color);
+      transition: all var(--td) ease;
+    }
 
     .selected {
       border-left: 3px solid var(--hb);
     }
-
     .level-change {
       animation: level-shift var(--td) ease;
     }

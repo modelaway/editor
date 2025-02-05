@@ -9,6 +9,7 @@
   --me-primary-color-fade: rgba(0, 0, 45, .09);
   --me-secondary-color-fade: rgba(220, 220, 220, 0.198);
   --me-inverse-color: rgba(255, 255, 255, 0.6);
+  --me-inverse-color-brute: rgb(255, 255, 255);
   
   --me-small-font-size: 12px;
   --me-font-size: 14px;
@@ -21,7 +22,7 @@
   --me-border-radius: 15px;
   --me-border-radius-inside: 10px;
   --me-border-radius-gentle: 6px;
-  --me-border-color: rgba(0, 0, 20, .1);
+  --me-border-color: rgb(235, 235, 245);
   --me-trigger-text-color: #fff;
   --me-active-text-color: #038fcc;
   --me-disabled-text-color: #a6a6a6;

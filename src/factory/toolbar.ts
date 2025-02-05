@@ -39,7 +39,7 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
     expanded: false,
     content: null,
 
-    showPalette: false,
+    showPalette: false
   }
 
   const handler: Handler<ToolbarInput, ToolbarState> = {
@@ -48,19 +48,18 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
       this.state.views = views || {}
       this.state.globals = globals || {}
     },
-    onMount(){
+    onAttach(){
       // Set to default position
-      ;(!this.input.position || typeof this.input.position === 'string')
-      && setTimeout( () => {
-        const
-        indication = typeof this.input.position === 'string' ? this.input.position : 'left-center',
-        defPostion = hook?.editor?.controls.letPosition( this.getNode(), indication )
+      if( this.input.position && typeof this.input.position !== 'string') return
+      
+      const
+      indication = typeof this.input.position === 'string' ? this.input.position : 'left-center',
+      defPostion = hook?.editor?.controls.letPosition( this.getNode(), indication )
 
-        if( !defPostion ) return
-        
-        this.input.position = defPostion
-        this.getNode().css( defPostion )
-      }, 5 )
+      if( !defPostion ) return
+      
+      this.input.position = defPostion
+      this.getNode().css( defPostion )
     },
 
     getStyle(){

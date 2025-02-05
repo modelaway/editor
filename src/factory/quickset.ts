@@ -75,18 +75,17 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
         }
       } )
     },
-    onMount(){
+    onAttach(){
       // Set to default position
-      ;(!this.input.position || typeof this.input.position === 'string')
-      && setTimeout( () => {
-        const
-        indication = typeof this.input.position === 'string' ? this.input.position : 'bottom-center',
-        defPostion = hook?.editor?.controls.letPosition( this.getNode(), indication )
-        if( !defPostion ) return
-        
-        this.input.position = defPostion
-        this.getNode().css( defPostion )
-      }, 5 )
+      if( this.input.position && typeof this.input.position !== 'string' ) return
+    
+      const
+      indication = typeof this.input.position === 'string' ? this.input.position : 'bottom-center',
+      defPostion = hook?.editor?.controls.letPosition( this.getNode(), indication )
+      if( !defPostion ) return
+      
+      this.input.position = defPostion
+      this.getNode().css( defPostion )
     },
 
     onShowExtraOptions( status: boolean ){

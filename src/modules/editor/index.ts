@@ -164,7 +164,7 @@ export default class Editor {
      * Use Lips for partial COO rendering on 
      * some part of the UI.
      */
-    this.lips = new Lips({ context })
+    this.lips = new Lips({ context, watchdom: true })
     // Register all partial components
     Components( this.lips )
 
@@ -390,6 +390,7 @@ export default class Editor {
       },
       settings: {
         visible: this.settings.viewLayers,
+        reduced: false
       }
     },
     layers = Layers( this.lips, linput, { events: this.events, editor: this })

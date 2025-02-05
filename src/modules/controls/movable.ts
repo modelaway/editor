@@ -55,7 +55,9 @@ export default class Movable<Input = void, State = void, Static = void, Context 
     }
     
     this.component.getNode() && this.bind()
-    this.component.on('render', () => this.bind() )
+    this.component.on('attached', () => this.bind() )
+    this.component.on('detached', () => this.unbind() )
+    this.component.on('attachment-timeout', () => console.warn('Movable component failed to attach within timeout period') )
   }
 
   private getBlockPosition(): CalcPosition | undefined {

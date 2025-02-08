@@ -235,6 +235,7 @@ export default class Lips<Context = any> {
 
   dispose(){
     this.watcher?.dispose()
+    this.__root?.destroy()
   }
 }
 
@@ -248,7 +249,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
   public static: Static
   public context: Context
 
-  private __name__: string
+  public __name__: string
   private __state?: State // Partial state
   private __stylesheet?: Stylesheet
   private __macros: Map<string, Cash> = new Map() // Cached macros templates

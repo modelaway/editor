@@ -22,6 +22,8 @@ export default class DWS {
             this.unwatch( component )
             return
           }
+
+          // console.log('Hello - ', watchData, component.__name__, document.contains( $node[0] as Element ) )
           
           if( watchData.type === 'attach' && document.contains( $node[0] as Element ) ){
             this.unwatch( component )

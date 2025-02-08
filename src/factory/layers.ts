@@ -193,6 +193,7 @@ export interface LayersInput {
 type Context = {
   frame: FrameSpecs | null
   selection: string[]
+  viewLayers: boolean
 }
 type Static = {
   newname?: string
@@ -352,11 +353,14 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
 
       layers.forEach( each => {
         const
-        path = each.path.replace( PATH_PREFIX_REGEX, ''),
+        path = each.path.replace( PATH_PREFIX_REGEX, '')
+        if( !path ) return
+
+        const
         source = `${path}.${each.key}`,
         target = `${targetPath}.${each.key}`,
         layer = deepValue( this.state.layers, source )
-        
+
         this.state.layers = deepAssign( this.state.layers, { [ target ]: layer }, each.targetIndex )
         /**
          * Delete layer from source path
@@ -366,11 +370,11 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
          */
         if( source !== target )
           this.state.layers = deepDelete( this.state.layers, source )
-      } )
+      })
     },
     getStyle(){
       let style: Record<string, string> = {
-        display: this.input.settings?.visible ? 'block' : 'none'
+        display: this.context.viewLayers ? 'block' : 'none'
       }
 
       if( typeof this.input.position === 'object' )
@@ -434,7 +438,9 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
     </mblock>
   `
 
-  return lips.render<LayersInput, State, Static, Context>('layers', { default: template, state, handler, stylesheet, context: ['frame', 'selection'] }, input )
+  const context = ['frame', 'selection', 'viewLayers']
+
+  return lips.render<LayersInput, State, Static, Context>('layers', { default: template, state, handler, stylesheet, context }, input )
 }
 
 const stylesheet = `
@@ -517,108 +523,6 @@ const stylesheet = `
     padding: 7px 8px;
     cursor: pointer;
     font-size: var(--me-icon-size);
-  }
-
-  mli {
-    border-top: 1px solid var(--me-border-color);
-    border-bottom: 1px solid var(--me-border-color);
-    margin: -1px 0;
-    cursor: default;
-    
-    .layer-bar {
-      display: flex;
-      align-items: center;
-
-      .move-handle {
-        padding-right: 3px;
-        visibility: hidden;
-        cursor: move;
-      }
-
-      &:hover {
-        background-color: var(--me-primary-color-fade);
-        .move-handle { visibility: visible; }
-      }
-
-      > minline {
-        width: 100%;
-        display: inline-flex;
-        align-items: center;
-
-        mlabel { 
-          /* color: #d2d7dd; */
-          user-select: none;
-          font-size: var(--me-small-font-size);
-        }
-      }
-    }
-
-    &.dragging {
-      opacity: 0.9;
-    }
-    
-    &.ghost {
-      position: fixed;
-      pointer-events: none;
-      z-index: 1000;
-      background: black;
-      width: 100%;
-      height: 40px;
-    }
-  }
-
-  mul[sortable] {
-    --td: 150ms;
-    --go: .9;
-    --pb: var(--me-primary-color-transparent);
-    --sb: rgba(65,145,255,.5);
-    --hb: var(--me-primary-color);
-
-    .mli[sortable] {
-      transition: all var(--td) ease;
-      transform-origin: 50% 50%;
-      animation: reorder var(--td) ease;
-
-      /* 
-      &:hover {
-        background: var(--hb);
-        .nested-indicator { opacity: 1 }
-      } */
-      
-      &[level] .nested-indicator {
-        position: absolute;
-        left: -12px;
-        width: 2px;
-        height: 100%;
-        background: var(--sb);
-        opacity: 0;
-        transition: opacity var(--td) ease;
-      }
-    }
-
-    .sortable-handle {
-      cursor: grab;
-      &:active { cursor: grabbing }
-    }
-
-    .sortable-placeholder {
-      background: var(--hb);
-      transition: all var(--td) ease;
-    }
-
-    .sortable-drag { opacity: 0; }
-    .sortable-group-drop {
-      background-color: var(--me-primary-color-fade);
-      border-left: 3px solid var(--me-primary-color);
-      transition: all var(--td) ease;
-    }
-
-    .selected {
-      border-left: 3px solid var(--hb);
-    }
-    .level-change {
-      animation: level-shift var(--td) ease;
-    }
   }
 
   .sortable-ghost {

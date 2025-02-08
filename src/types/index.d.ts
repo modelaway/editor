@@ -194,7 +194,12 @@ type ModelaPluginOption = {
   name: string,
   config: Record<string, any>
 }
-type ModelaSettings = {
+type ModelaUIPreferences = {
+  viewQuickSet?: boolean
+  viewToolbar?: boolean
+  viewLayers?: boolean
+}
+type ModelaSettings = ModelaUIPreferences & {
   lang?: string
 
   // Elements' manipulation settings
@@ -203,9 +208,9 @@ type ModelaSettings = {
   autoPropagate?: boolean
 
   plugins?: (string | ModelaPluginOption)[]
+}
 
-  // Workspace view preferences
-  viewControls?: boolean
-  viewToolbar?: boolean
-  viewLayers?: boolean
+type ModelaLipsContext = ModelaUIPreferences & {
+  selection: string[]
+  frame: FrameSpecs | null
 }

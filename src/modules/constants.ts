@@ -128,19 +128,19 @@ export const EDITOR_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
     shortcut: 'command + y',
     disabled: true
   },
-  'frame-add': {
+  addframe: {
     icon: 'bx bx-plus',
     title: 'Add New Frame',
     shortcut: 'command + f',
     type: 'suggestion',
     helper: 'mediascreens'
   },
-  'frame-layers': {
+  layers: {
     icon: 'bx bx-list-minus',
     title: 'Show Layers',
     shortcut: 'command + l'
   },
-  'screen-mode': {
+  screenmode: {
     icon: 'bx bx-devices',
     title: 'Device Screens',
     disabled: false,

@@ -1,4 +1,3 @@
-import type { FrameOption, FrameSpecs } from '../../types/frame'
 import $, { type Cash } from 'cash-dom'
 import EventEmitter from 'events'
 
@@ -8,33 +7,19 @@ import Canvas from '../canvas'
 import Assets from '../assets'
 import Plugins from '../plugins'
 import History from '../history'
-import Controls from './controls'
+import Controls from '../controls'
 import Functions from '../functions'
 import Shell from '../../factory/shell'
 import Components from '../../factory/components'
-import Toolbar, { ToolbarInput } from '../../factory/toolbar'
-import Quickset, { QuicksetInput } from '../../factory/quickset'
-import Layers, { LayersInput } from '../../factory/layers'
 import Lips from '../../lips/lips'
 import { debug } from '../utils'
-import { 
-  EDITOR_CONTROL_OPTIONS,
-  GLOBAL_TOOLAR_OPTIONS
-} from '../constants'
 
 window.mlang = {
   default: 'en-US',
   current: window.navigator.language
 }
 
-type GlobalLipsContext = {
-  selection: string[]
-  frame: FrameSpecs | null
-}
-
 export default class Editor {
-  private events = new EventEmitter()
-
   /**
    * State set to enable external methods to 
    * respond to API calls or not.
@@ -77,16 +62,21 @@ export default class Editor {
     /**
      * Workspace view preferences
      */
-    viewControls: true,
+    viewQuickSet: true,
     viewLayers: true,
     viewToolbar: true
   }
   public settings: ModelaSettings = {}
 
-  public lips: Lips<GlobalLipsContext>
+  public lips: Lips<ModelaLipsContext>
   public $root?: Cash
   public $shell?: Cash
   public $viewport?: Cash
+
+  /**
+   * Editor's event interface
+   */
+  public events = new EventEmitter()
 
   /**
    * Copy element clipboard
@@ -155,9 +145,13 @@ export default class Editor {
     if( this.settings.lang )
       window.mlang.current = this.settings.lang
 
-    const context: GlobalLipsContext = {
+    const context: ModelaLipsContext = {
       selection: [],
-      frame: null
+      frame: null,
+
+      viewLayers: this.settings.viewLayers,
+      viewToolbar: this.settings.viewToolbar,
+      viewQuickSet: this.settings.viewQuickSet,
     }
 
     /**
@@ -213,18 +207,6 @@ export default class Editor {
     this.plugins = new Plugins( this )
   }
 
-  /**
-   * Update global controls options by settings
-   * and preferences.
-   */
-  private getOptions(): Record<string, QuicksetOption> {
-
-    if( this.settings.viewLayers )
-      EDITOR_CONTROL_OPTIONS['frame-layers'].active = true
-
-    return EDITOR_CONTROL_OPTIONS
-  }
-
   mount( selector: string ){
     if( !this.enabled ){
       debug('Modela functions disabled')
@@ -238,7 +220,6 @@ export default class Editor {
     // Enable modela editor
     this.enable()
   }
-
   unmount(){
     if( !this.enabled ){
       debug('Modela functions disabled')
@@ -257,9 +238,6 @@ export default class Editor {
     this.enabled = false
   }
 
-  /**
-   * Enable control actions' event listeners
-   */
   enable(){
     if( !this.$root?.length ) return
     
@@ -276,151 +254,22 @@ export default class Editor {
     if( !this.$viewport?.length )
       throw new Error('Unexpected error occured')
     
-    /**----------------------------------------------------
-     * Initialize global toolbar
-     * ----------------------------------------------------
-     */
-    const
-    tinput: ToolbarInput = {
-      key: 'global',
-      tools: this.store.tools.getOptions(),
-      views: this.store.views.getOptions(),
-      globals: GLOBAL_TOOLAR_OPTIONS,
-      // options: this.getOptions(),
-      settings: {
-        visible: this.settings.viewToolbar,
-      }
-    },
-    toolbar = Toolbar( this.lips, tinput, { events: this.events, editor: this })
-    toolbar.appendTo( this.$shell )
-
-    this.events.on('toolbar.handle', ( key, option ) => {
-      console.log('global toolbar --', key, option )
-    })
-    
-    /**----------------------------------------------------
-     * Initialize global controls
-     * ----------------------------------------------------
-     */
-    const 
-    cinput: QuicksetInput = {
-      key: 'global',
-      options: this.getOptions(),
-      settings: {
-        visible: this.settings.viewControls,
-      }
-    },
-    controls = Quickset( this.lips, cinput, { events: this.events, editor: this })
-    controls.appendTo( this.$shell )
-
-    this.events.on('quickset.handle', ( key, option ) => {
-      console.log('global controls --', key, option )
-
-      switch( key ){
-        case 'frame-layers': {
-          if( !option.active ){
-            layers.getNode().show()
-            controls.subInput({ [`options.${key}.active`]: true })
-          }
-          else {
-            layers.getNode().hide()
-            controls.subInput({ [`options.${key}.active`]: false })
-          }
-        } break
-
-        case 'frame-add': {
-          if( !option.value ) return
-
-          const
-          options: FrameOption = {
-            device: option.value.device,
-            size: {
-              width: option.value.width,
-              height: option.value.height
-            },
-            rounded: option.value.rounded,
-            transparent: option.value.transparent
-          },
-          adaptability: FrameBasedCanvasAdaptability = {
-            autopan: true
-          },
-          frame = this.canvas.addFrame( options, adaptability )
-
-          // TODO: 
-          
-        } break
-      }
-    })
-    
-    /**----------------------------------------------------
-     * Initialize frame layers control
-     * ----------------------------------------------------
-     */
-    const
-    linput: LayersInput = {
-      host: {
-        key: 'global',
-        type: 'frame',
-        title: 'Home',
-        content: `
-          <div class="alert">
-            <p>Some text here</p>
-          </div>
-          <section class="header-block">
-            <div class="container-fluid">
-              <div class="row">
-                <div class="col-xl-4 col-lg-4 col-md-4 logo">
-                  <a href="/" title="Angular, React, Sass"><img src="https://www.webrecto.com/common/images/logo.png"
-                      alt="Angular, React, Sass" title="Angular, React, Sass" /></a>
-                </div>
-                <div class="col-xl-8 col-lg-8 col-md-8 text-right">
-                  <div class="header-menu">
-                    <ul>
-                      <li>Angular</li>
-                      <li>React</li>
-                      <li>NextJs</li>
-                      <li>Sass</li>
-                    </ul>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        `
-      },
-      settings: {
-        visible: this.settings.viewLayers,
-        reduced: false
-      }
-    },
-    layers = Layers( this.lips, linput, { events: this.events, editor: this })
-    layers.appendTo( this.$shell )
-
-    this.events.on('layers.handle', ( key, option ) => {
-      console.log('frame layers --', key, option )
-    })
-
     /**
      * Enable canvas controls
      */
     this.canvas.enable()
 
     /**
-     * List to history record stack Stats
+     * Enable user interface controls 
      */
-    // this.history.on('history.record', ({ canRedo, canUndo }) => controls.subInput({
-    //   'options.undo.disabled': !canUndo,
-    //   'options.redo.disabled': !canRedo
-    // }))
+    this.controls.enable()
   }
-
   disable(){
     this.$shell?.off()
     this.$shell?.remove()
     this.$root?.off()
 
     this.canvas.disable()
-
-    this.history.removeAllListeners()
+    this.controls.disable()
   }
 }

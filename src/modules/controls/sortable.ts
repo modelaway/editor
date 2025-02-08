@@ -266,23 +266,15 @@ export default class Sortable<Input = void, State = void, Static = void, Context
       pointerEvents: 'none'
     })
 
-    /**
-     * Create placeholder covering total height 
-     * of selected items
-     */
-    const totalHeight = this.$dragElements.reduce( ( sum, $each ) => sum + $each.outerHeight(), 0 )
-
     this.$placeholder = $('<div/>').addClass( this.options.placeholder || PLACEHOLDER_CLASS )
                                     .attr('role', 'presentation')
-                                    .css({
-                                      height: 5,
-                                      marginBottom: $item.css('marginBottom') || '0px'
-                                    })
+
+    // Insert placeholder after the last dragged item initially
+    const $lastDragElement = this.$dragElements[ this.$dragElements.length - 1 ]
+    this.$placeholder.insertAfter( $lastDragElement )
 
     this.$dragElements.forEach( $each => {
-      this.options.dragClass
-      && $each.addClass( this.options.dragClass )
-
+      this.options.dragClass && $each.addClass( this.options.dragClass )
       $each.attr('aria-grabbed', 'true')
     })
     
@@ -303,9 +295,17 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     
     const 
     $below = $(elemBelow),
-    $belowItem = $below.is( this.options.item ) ? $below : $below.closest( this.options.item ),
-    $belowList = $below.is( this.options.list ) ? $below : $below.closest( this.options.list )
-    if( !$belowList.length ) return
+    $belowItem = $below.is( this.options.item ) ? $below : $below.closest( this.options.item )
+    let $belowList = $below.is( this.options.list ) ? $below : $below.closest( this.options.list )
+
+    /**
+     * Find the nearest list if we're not over a valid target
+     */
+    if( !$belowList?.length ){
+      if( !this.$sourceList ) return
+
+      $belowList = this.$sourceList
+    }
 
     // Get item's position and dimensions
     const belowOffset = $belowItem.offset()
@@ -361,44 +361,66 @@ export default class Sortable<Input = void, State = void, Static = void, Context
 
       !placed && $belowListItems.length
       && this.$placeholder?.insertBefore( $belowListItems.first() )
+
+      // If list is empty, append placeholder
+      !placed && !$belowListItems.length
+      && this.$placeholder?.appendTo( $belowList )
     }
   }, 16, { leading: true, trailing: true })
 
   private endDrag(){
     if( !this.dragging ) return
 
-    const items: ReorderedItems[] = this.$dragElements.map( ( $: Cash, idx: number ) => ({
-      $,
-      path: $.attr( this.options.pathattr ) as string,
-      key: $.attr( this.options.uid ) as string,
-      sourceIndex: this.$dragElements.map( $each => $each.index() )[ idx ],
-      targetIndex: (this.$placeholder?.index() || 0) + idx
-    }))
+    // Store placeholder reference and validate its position
+    const 
+    $placeholder = this.$placeholder,
+    $placeholderParent = $placeholder?.parent()
+    let inserted = false
 
-    this.emit('sortable.reorder', {
-      items,
-      sourcePath: this.$sourceList?.attr( this.options.pathattr ),
-      targetPath: this.$placeholder?.closest( this.options.list ).attr( this.options.pathattr ),
-      level: this.getLevel( this.$placeholder?.[0] as Element )
-    } as Reordered )
+    if( $placeholder?.length && $placeholderParent?.length ){
+      /**
+       * Move all selected elements to new position
+       * Validate each move to prevent hierarchy errors
+       */
+      this.$dragElements
+      .reverse()
+      .forEach( $each => {
+        $each
+        .removeClass( this.options.dragClass )
+        .attr('aria-grabbed', 'false')
+        
+        // Skip if placeholder not in DOM
+        if( !$placeholder.parent().length ) return
 
-    // Store placeholder reference before later removal
-    const $placeholder = this.$placeholder
+        /**
+         * Prevent inserting element into itself or its 
+         * children. Check if placeholder is inside the 
+         * current element (would create invalid hierarchy)
+         */
+        if( $placeholder.parents().get().includes( $each[0] as any ) ) return
+        if( $each.is( $placeholder ) ) return
+        
+        $each.insertBefore( $placeholder )
+        inserted = true
+      })
+    }
 
-    /**
-     * Move all selected elements to new position
-     */
-    this.$dragElements
-    .reverse()
-    .forEach( $each => {
-      $each
-      .removeClass( this.options.dragClass )
-      .attr('aria-grabbed', 'false')
-      
-      // Skip if placeholder not in DOM
-      $placeholder?.parent().length
-      && $each.insertBefore( $placeholder )
-    })
+    if( inserted ){
+      const items: ReorderedItems[] = this.$dragElements.map( ( $: Cash, idx: number ) => ({
+        $,
+        path: $.attr( this.options.pathattr ) as string,
+        key: $.attr( this.options.uid ) as string,
+        sourceIndex: this.$dragElements.map( $each => $each.index() )[ idx ],
+        targetIndex: (this.$placeholder?.index() || 0) + idx
+      }))
+
+      this.emit('sortable.reorder', {
+        items,
+        sourcePath: this.$sourceList?.attr( this.options.pathattr ),
+        targetPath: this.$placeholder?.closest( this.options.list ).attr( this.options.pathattr ),
+        level: this.getLevel( this.$placeholder?.[0] as Element )
+      } as Reordered )
+    }
 
     // Clean up any remaining group-drop-target classes
     this.$block?.find('.'+ this.options.groupDropClass ).removeClass( this.options.groupDropClass )
@@ -421,7 +443,7 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     this.$dragElements = []
 
     this.stopAutoScroll()
-  }
+}
 
   private addAccessibilityAttributes(){
     this.$block
@@ -482,62 +504,56 @@ export default class Sortable<Input = void, State = void, Static = void, Context
                       : this.addSelection( $item )
       })
 
-    const $items = this.$block.find(this.options.handle || this.options.item)
-    
-    $items.each((_, each) => {
-      const $each = $(each)
+    $list.on('mousedown', this.options.handle || this.options.item, ( e: MouseEvent ) => {
+      // Only left mouse button
+      if( e.button !== 0 ) return
+      e.stopPropagation()
+
+      let $item = $(e.target as Element)
+      if( $item.not( this.options.item ) )
+        $item = $item.closest( this.options.item )
+
+      if( !$item.length || !$item[0] ) return
+      e.preventDefault()
       
-      $each.on('mousedown', ( e: MouseEvent ) => {
-        // Only left mouse button
-        if( e.button !== 0 ) return
-        e.stopPropagation()
+      this.$sourceList = $item.closest( this.options.list )
+      this.level = this.getLevel( $item[0] as Element )
 
-        let $item = $(e.target as Element)
-        if( $item.not( this.options.item ) )
-          $item = $item.closest( this.options.item )
-
-        if( !$item.length || !$item[0] ) return
-        e.preventDefault()
-        
-        this.$sourceList = $item.closest( this.options.list )
-        this.level = this.getLevel( $item[0] as Element )
-
-        // Handle multi-selection drag
-        if( this.options.multiDrag && this.selectedItems.size > 0 ){
-          if( !this.selectedItems.has( $item.attr( this.options.uid ) as string ) ){
-            this.clearSelection( $list )
-            this.addSelection( $item )
-          }
-
-          this.$dragElements = [ ...this.selectedItems.values() ]
+      // Handle multi-selection drag
+      if( this.options.multiDrag && this.selectedItems.size > 0 ){
+        if( !this.selectedItems.has( $item.attr( this.options.uid ) as string ) ){
+          this.clearSelection( $list )
+          this.addSelection( $item )
         }
-        else this.$dragElements = [ $item ]
-        
-        const threshold = this.options.dragThreshold || DRAG_THRESHOLD
-        let
-        hasReachedThreshold = false,
-        startX = e.clientX
 
-        const checkThreshold = ( moveEvent: MouseEvent ) => {
-          if( !hasReachedThreshold ){
-            const deltaX = Math.abs( moveEvent.clientX - startX )
-            const deltaY = Math.abs( moveEvent.clientY - this.startY )
-            
-            if( deltaX > threshold || deltaY > threshold ){
-              hasReachedThreshold = true
-              this.startDrag( $item, moveEvent.clientY )
-            }
-          }
+        this.$dragElements = [ ...this.selectedItems.values() ]
+      }
+      else this.$dragElements = [ $item ]
+      
+      const threshold = this.options.dragThreshold || DRAG_THRESHOLD
+      let
+      hasReachedThreshold = false,
+      startX = e.clientX
+
+      const checkThreshold = ( moveEvent: MouseEvent ) => {
+        if( !hasReachedThreshold ){
+          const deltaX = Math.abs( moveEvent.clientX - startX )
+          const deltaY = Math.abs( moveEvent.clientY - this.startY )
           
-          hasReachedThreshold && this.onDrag( moveEvent.clientX, moveEvent.clientY )
+          if( deltaX > threshold || deltaY > threshold ){
+            hasReachedThreshold = true
+            this.startDrag( $item, moveEvent.clientY )
+          }
         }
+        
+        hasReachedThreshold && this.onDrag( moveEvent.clientX, moveEvent.clientY )
+      }
 
-        $(document)
-        .on('mousemove.sortable', checkThreshold )
-        .on('mouseup.sortable', () => {
-          hasReachedThreshold && this.endDrag()
-          $(document).off('.sortable')
-        })
+      $(document)
+      .on('mousemove.sortable', checkThreshold )
+      .on('mouseup.sortable', () => {
+        hasReachedThreshold && this.endDrag()
+        $(document).off('.sortable')
       })
     })
   }

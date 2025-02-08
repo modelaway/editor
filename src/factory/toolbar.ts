@@ -2,6 +2,7 @@ import type Lips from '../lips/lips'
 import type { Handler } from '../lips'
 import type { HandlerHook } from '../types/controls'
 
+import $ from 'cash-dom'
 import { CONTROL_LANG_SELECTOR } from '../modules/constants'
 
 type ContentType = 'tool' | 'view' | 'global'
@@ -47,6 +48,19 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
       this.state.tools = tools || {}
       this.state.views = views || {}
       this.state.globals = globals || {}
+    },
+    onMount(){
+      // Shortcut keyboards
+      $(document).on('keypress', ':not(input,textarea,[contenteditable="true"])', ( e: KeyboardEvent ) => {
+        console.log('KEYBOARD -- ', e.key )
+
+        switch( e.key.toUpperCase() ){
+          case 'P': this.selectTool('POINTER'); break
+          case 'T': this.selectView('text'); break
+
+          // ....
+        }
+      })
     },
     onAttach(){
       // Set to default position
@@ -103,12 +117,19 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
       this.viewBodyContent({ type, key, body })
     },
 
-    selectTool( key ){
+    selectTool( key: string, variant?: string ){
       for( const k in this.state.tools ){
         this.state.tools[ k ].active = ( k === key )
       }
+
+      /**
+       * Put in context selected tool
+       * 
+       * TOI - Tool of interest
+       */
+      hook?.editor?.lips.setContext('toi', variant ? `${key}.${variant}` : key )
     },
-    selectView( key ){
+    selectView( key: string, variant?: string ){
       for( const k in this.state.views ){
         // View with variants
         if( this.state.views[ k ].variants )
@@ -132,6 +153,13 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
         // Diactivate if activated
         else this.state.views[ k ].active = false
       }
+
+      /**
+       * Put in context selected view
+       * 
+       * VOI - View of interest
+       */
+      hook?.editor?.lips.setContext('voi', variant ? `${key}.${variant}` : key )
     },
 
     onHandleOption( type: ContentType, key: string, option: ToolbarOption ){
@@ -140,15 +168,21 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
       // console.log(`Option [${key}] -- `, option )
       switch( type ){
         case 'tool': {
-          this.selectTool( key )
-          // Show option details when block is already expanded
-          this.state.expanded && this.viewOptionCaptions( type, key, option )
+          if( option.custom ) this.viewOptionCaptions( type, key, option )
+          else {
+            this.selectTool( key )
+            // Show option details when block is already expanded
+            this.state.expanded && this.viewOptionCaptions( type, key, option )
+          }
         } break
 
         case 'view': {
-          this.selectView( key )
-          // Show option details when block is already expanded
-          this.state.expanded && this.viewOptionCaptions( type, key, option )
+          if( option.custom ) this.viewOptionCaptions( type, key, option )
+          else {
+            this.selectView( key )
+            // Show option details when block is already expanded
+            this.state.expanded && this.viewOptionCaptions( type, key, option )
+          }
         } break
 
         case 'global': this.viewBodyContent({ type, key, body: option }); break
@@ -165,8 +199,18 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
     onHandleSelect( type: string, key: string, selected: string ){
       // console.log('selected --', key, selected )
       switch( type ){
-        case 'tool': if( this.state.tools[ key ] ) this.state.tools[ key ].selected = selected; break
-        case 'view': if( this.state.views[ key ] ) this.state.views[ key ].selected = selected; break
+        case 'tool': {
+          if( !this.state.tools[ key ] ) return
+
+          this.state.tools[ key ].selected = selected
+          this.selectTool( key, selected )
+        } break
+        case 'view': {
+          if( !this.state.views[ key ] ) return
+          
+          this.state.views[ key ].selected = selected
+          this.selectView( key, selected )
+        } break
       }
     }
   }
@@ -197,7 +241,7 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
             <mul options="tools">
               <for in=state.tools>
                 <if( !each.hidden )>
-                  <if( each.variants )>
+                  <if( each.variants && !each.custom )>
                     <const selected="each.variants[ each.selected || '*' ]"></const>
                     <option type="tool" ...selected active=each.active></option>
                   </if>
@@ -214,7 +258,7 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
             <mul options="views">
               <for in=state.views>
                 <if( !each.hidden )>
-                  <if( each.variants )>
+                  <if( each.variants && !each.custom )>
                     <const selected="each.variants[ each.selected || '*' ]"></const>
                     <option type="view" ...selected active=each.active></option>
                   </if>

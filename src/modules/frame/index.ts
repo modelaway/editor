@@ -315,6 +315,10 @@ export default class Frame extends EventEmitter {
       }
 
       this.editor.lips.setContext('frame', specs )
+
+      const { toi, voi } = this.editor.lips.getContext()
+      console.log('TOI', toi )
+      console.log('VOI', voi )
     })
     /**
      * Show quickset options

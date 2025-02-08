@@ -99,7 +99,9 @@ type ToolbarOption = {
   selected?: string
   disabled?: boolean
   instructions?: string
+  
   variants?: Record<string, ToolbarOption>
+  custom?: boolean
 }
 
 type QuicksetOption = {
@@ -213,4 +215,7 @@ type ModelaSettings = ModelaUIPreferences & {
 type ModelaLipsContext = ModelaUIPreferences & {
   selection: string[]
   frame: FrameSpecs | null
+
+  toi?: string
+  voi?: string
 }

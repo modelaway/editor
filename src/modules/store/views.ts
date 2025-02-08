@@ -157,7 +157,21 @@ export default class ViewStore {
         icon: 'bx bx-clipboard',
         title: 'Board',
         tool: 'PENCIL'
-      }
+      },
+      custom: {
+        title: 'Text',
+        icon: 'bx bx-dots-horizontal-rounded',
+        custom: true,
+        variants: {
+          'link': {
+            icon: 'bx bx-link',
+            title: 'Link text',
+            shortcut: 'command + y',
+            tool: 'TEXT',
+            parent: 'text'
+          }
+        }
+      },
     }
 
     // this.list

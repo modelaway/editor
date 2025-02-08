@@ -10,8 +10,8 @@ import Quickset, { QuicksetInput } from '../../factory/quickset'
 import Movable, { type MovableOptions } from './movable'
 import Sortable, { type SortableOptions } from './sortable'
 import { 
-  EDITOR_CONTROL_OPTIONS,
-  GLOBAL_TOOLAR_OPTIONS
+  EDITOR_QUICKSET_OPTIONS,
+  EDITOR_TOOLBAR_OPTIONS
 } from '../constants'
 
 export default class Controls {
@@ -31,9 +31,9 @@ export default class Controls {
   private getOptions(): Record<string, QuicksetOption> {
 
     if( this.editor.settings.viewLayers )
-      EDITOR_CONTROL_OPTIONS.layers.active = true
+      EDITOR_QUICKSET_OPTIONS.layers.active = true
 
-    return EDITOR_CONTROL_OPTIONS
+    return EDITOR_QUICKSET_OPTIONS
   }
 
   private actions( context: 'quickset' | 'toolbar' | 'layers' ){
@@ -90,7 +90,7 @@ export default class Controls {
       key: 'global',
       tools: store.tools.getOptions(),
       views: store.views.getOptions(),
-      globals: GLOBAL_TOOLAR_OPTIONS,
+      globals: EDITOR_TOOLBAR_OPTIONS,
       // options: this.getOptions(),
       settings: {
         visible: settings.viewToolbar,
@@ -156,7 +156,7 @@ export default class Controls {
       },
       settings: {
         visible: settings.viewLayers,
-        reduced: false
+        reduced: true
       }
     }
     

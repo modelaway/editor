@@ -108,7 +108,7 @@ export const ELEMENT_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
 /**
  * Global control options
  */
-export const EDITOR_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
+export const EDITOR_QUICKSET_OPTIONS: Record<string, QuicksetOption> = {
   explore: {
     type: 'input',
     icon: 'bx bx-search',
@@ -178,21 +178,21 @@ export const EDITOR_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
     icon: 'bx bx-message-square-dots',
     title: 'Comments',
     shortcut: 'command + shift + s',
-    disabled: false
+    disabled: true
   },
   code: {
     icon: 'bx bx-code-alt',
     title: 'Code',
     shortcut: 'command + shift + c',
     super: true,
-    disabled: false
+    disabled: true
   }
 }
 
 /**
  * Global toolbar options
  */
-export const GLOBAL_TOOLAR_OPTIONS: Record<string, ToolbarOption> = {
+export const EDITOR_TOOLBAR_OPTIONS: Record<string, ToolbarOption> = {
   styles: {
     icon: 'bx bx-slider-alt',
     title: 'Styles'

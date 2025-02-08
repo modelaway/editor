@@ -213,6 +213,9 @@ export default class Lips<Context = any> {
     
     else throw new Error('Invalid context data')
   }
+  getContext(){
+    return this._getContext()
+  }
   useContext<P extends Context>( fields: (keyof Context)[], fn: ( context: P ) => void ){
     if( !fields.length ) return
 

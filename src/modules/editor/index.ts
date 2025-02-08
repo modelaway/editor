@@ -146,12 +146,17 @@ export default class Editor {
       window.mlang.current = this.settings.lang
 
     const context: ModelaLipsContext = {
-      selection: [],
-      frame: null,
+      selection: [], // Selected layers/element in the canvas
+      frame: null, // Active frame metadata
 
+      // View and Tool of interest
+      toi: undefined,
+      voi: undefined,
+
+      // UI Preferences
       viewLayers: this.settings.viewLayers,
       viewToolbar: this.settings.viewToolbar,
-      viewQuickSet: this.settings.viewQuickSet,
+      viewQuickSet: this.settings.viewQuickSet
     }
 
     /**

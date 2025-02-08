@@ -69,6 +69,10 @@ const LayerItem = () => {
           // console.log('rename to --', key, this.static.newname )
         } break
       }
+    },
+
+    onToggleVisibility( key: string, status: boolean ){
+
     }
   }
   
@@ -83,7 +87,7 @@ const LayerItem = () => {
 
       <mblock class="layer-bar">
         <micon class="'toggle-icon visibility bx '+( input.hidden ? 'bx-hide' : 'bx-show')"
-                on-click( onToggleVisibility, input.key )></micon>
+                on-click( onToggleVisibility, input.key, !input.hidden )></micon>
 
         <micon class="ill-icon move-handle bx bx-grid-vertical"></micon>
 
@@ -91,10 +95,8 @@ const LayerItem = () => {
           <switch( input.attribute )>
             <case is="group">
               <micon class="'toggle-icon bx '+( state.collapsed ? 'bx-chevron-down' : 'bx-chevron-right')"
-                      style="padding: 0 4px"
+                      style="padding: 0 4px 0 0"
                       on-click( onCollapse, input.key )></micon>
-
-              <micon class="ill-icon bx bx-object-horizontal-left"></micon>
             </case>
             <default>
               <switch( input.type )>
@@ -141,7 +143,54 @@ const LayerItem = () => {
     </mli>
   `
 
-  return { context: ['selection'], state, _static, handler, default: template }
+  const stylesheet = `
+    border-top: 1px solid var(--me-border-color);
+    border-bottom: 1px solid var(--me-border-color);
+    margin: -1px 0;
+    cursor: default;
+    
+    .layer-bar {
+      display: flex;
+      align-items: center;
+
+      .move-handle {
+        padding-right: 3px;
+        visibility: hidden;
+        cursor: move;
+      }
+
+      &:hover {
+        background-color: var(--me-primary-color-fade);
+        .move-handle { visibility: visible; }
+      }
+
+      > minline {
+        width: 100%;
+        display: inline-flex;
+        align-items: center;
+
+        mlabel { 
+          /* color: #d2d7dd; */
+          user-select: none;
+          font-size: var(--me-small-font-size);
+        }
+      }
+    }
+
+    &.dragging {
+      opacity: 0.9;
+    }
+    &.ghost {
+      position: fixed;
+      pointer-events: none;
+      z-index: 1000;
+      background: black;
+      width: 100%;
+      height: 40px;
+    }
+  `
+
+  return { context: ['selection'], state, _static, handler, default: template, stylesheet }
 }
 
 export default LayerItem

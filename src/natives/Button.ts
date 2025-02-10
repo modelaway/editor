@@ -4,9 +4,9 @@ const
 options: Record<string, QuicksetOption> = {},
 
 Button: ViewDefinition = {
-  type: 'button',
-  node: 'button',
-  category: 'block',
+  type: 'block',
+  name: 'button',
+  tagname: 'button',
   caption: {
     icon: 'bx bx-dice-2',
     title: 'Button',

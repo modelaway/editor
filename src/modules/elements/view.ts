@@ -7,7 +7,7 @@ import EventEmitter from 'events'
 import State from './state'
 import {
   ELEMENT_KEY_SELECTOR,
-  ELEMENT_TYPE_SELECTOR,
+  ELEMENT_NAME_SELECTOR,
   ELEMENT_ACTIVE_SELECTOR,
   ELEMENT_CAPTION_SELECTOR,
   ELEMENT_TYPES_ALLOWED_SELECTOR,
@@ -92,8 +92,8 @@ export default class View extends EventEmitter {
       /**
        * Initialize default styles of the view
        */
-      const { type, styles } = this.get()
-      if( type && typeof styles === 'function' ){
+      const { name, styles } = this.get()
+      if( name && typeof styles === 'function' ){
         const sheet = styles( this.instance ).sheet
         sheet && this.frame.styles.addRules( sheet, { rel: this.key as string, scope: true } )
       }
@@ -111,6 +111,10 @@ export default class View extends EventEmitter {
       // }
     }
     catch( error: any ){ debug( error.message ) }
+
+    const { name, tagname } = this.get()
+    this.instance.state.set('name', name )
+    this.instance.state.set('tagname', tagname )
 
     // Give away control to view definition
     const takeover = this.getDefinition('takeover')
@@ -134,7 +138,6 @@ export default class View extends EventEmitter {
         .map( ([ key, value ]) => _updates[`options.${key}`] = value )
 
         this.Quickset?.subInput( _updates )
-
         typeof fn == 'function' && fn()
       }
       this.instance.fn.pushHistoryStack = () => this.emit('view.changed')
@@ -161,11 +164,11 @@ export default class View extends EventEmitter {
 
     return this.vdef
   }
-  getDefinition( type: keyof ViewDefinition ): any {
+  getDefinition( name: keyof ViewDefinition ): any {
     if( !this.vdef )
       throw new Error('Invalid method called')
 
-    return this.vdef[ type ]
+    return this.vdef[ name ]
   }
 
   /**
@@ -173,7 +176,7 @@ export default class View extends EventEmitter {
    * context view using native elements cognition
    * process.
    */
-  inspect( $this: Cash, type: string, activate = false ){
+  inspect( $this: Cash, name: string, activate = false ){
     debug('current target - ', $this.length )
 
     this.instance.$ = $this
@@ -194,13 +197,13 @@ export default class View extends EventEmitter {
 
       this.instance.$.attr({
         [ELEMENT_KEY_SELECTOR]: this.key as string, // Set view key
-        [ELEMENT_TYPE_SELECTOR]: type // Set view node name identify
+        [ELEMENT_NAME_SELECTOR]: name // Set view node name identify
       })
     }
 
     if( !this.vdef ){
       // Set view specifications
-      this.set( this.frame.editor.store.views.get( type ) )
+      this.set( this.frame.editor.store.views.get( name ) )
       // Initialize view properties
       this.initialize()
     }
@@ -224,7 +227,7 @@ export default class View extends EventEmitter {
       throw new Error(`Invalid destination view - <key:${to}>`)
     
     if( typeof vdef.render !== 'function' )
-      throw new Error(`<${vdef.type}> render function not specified`)
+      throw new Error(`<${vdef.name}> render function not specified`)
     
     /**
      * Render new element with default definition and 
@@ -244,7 +247,7 @@ export default class View extends EventEmitter {
 
     this.instance.$.attr({
       [ELEMENT_KEY_SELECTOR]: this.key as string, // Set view key
-      [ELEMENT_TYPE_SELECTOR]: vdef.type // Set view node name identify
+      [ELEMENT_NAME_SELECTOR]: vdef.name // Set view node name identify
     })
 
     /**

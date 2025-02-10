@@ -4,9 +4,9 @@ const
 options: Record<string, QuicksetOption> = {},
 
 Fonticon: ViewDefinition = {
-  type: 'fonticon',
-  node: 'icon',
-  category: 'media',
+  type: 'media',
+  name: 'fonticon',
+  tagname: 'icon',
   caption: {
     icon: 'bx bx-dice-2',
     title: 'Button',

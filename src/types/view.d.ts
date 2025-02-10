@@ -50,8 +50,8 @@ interface ViewInstance {
 }
 interface ViewDefinition {
   type: string
-  node: string
-  category: string
+  name: string
+  tagname: string
   caption: ViewCaption
   attributes: Record<string, any>
 

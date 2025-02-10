@@ -40,7 +40,7 @@ export function Loader( editor: Editor, options?: NativeOptions ){
         // Load only defined views
         if( Array.isArray( options?.views )
             && options.views.length
-            && !options.views.includes( view.type ) ) return
+            && !options.views.includes( view.name ) ) return
           
         editor.store.views.add( view )
       } )
@@ -58,9 +58,9 @@ export function Loader( editor: Editor, options?: NativeOptions ){
         // Load only defined views
         if( Array.isArray( options?.views )
             && options.views.length
-            && !options.views.includes( view.type ) ) return
+            && !options.views.includes( view.name ) ) return
           
-        editor.store.views.remove( view.type )
+        editor.store.views.remove( view.name )
       } )
 
       /**

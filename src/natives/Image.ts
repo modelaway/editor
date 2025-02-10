@@ -8,9 +8,9 @@ const options: Record<string, QuicksetOption> = {
 }
 
 const Image: ViewDefinition = {
-  type: 'image',
-  node: 'img',
-  category: 'media',
+  type: 'media',
+  name: 'image',
+  tagname: 'img',
   caption: {
     icon: 'bx bx-image',
     title: 'Image',

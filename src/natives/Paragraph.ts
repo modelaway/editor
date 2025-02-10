@@ -110,9 +110,9 @@ menuOptions: MenuSections = {
 },
 
 Paragraph: ViewDefinition = {
-  type: 'paragraph',
-  node: 'p',
-  category: 'text',
+  type: 'text',
+  name: 'paragraph',
+  tagname: 'p',
   caption: {
     icon: 'bx bx-paragraph',
     title: 'Paragraph',

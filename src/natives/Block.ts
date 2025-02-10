@@ -5,8 +5,8 @@ options: Record<string, QuicksetOption> = {},
 
 Block: ViewDefinition = {
   type: 'block',
-  node: 'div',
-  category: 'block',
+  name: 'block',
+  tagname: 'div',
   caption: {
     icon: 'bx bx-rectangle',
     title: 'Custom Block',

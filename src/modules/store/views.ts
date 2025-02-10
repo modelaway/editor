@@ -19,30 +19,30 @@ export default class ViewStore {
 
     // TODO: Check all other mandatory view definition params
 
-    if( this.list[ view.type ] )
-      throw new Error(`<${view.type}> view definition already exists`)
+    if( this.list[ view.name ] )
+      throw new Error(`<${view.name}> view definition already exists`)
 
-    this.list[ view.type ] = view
-    debug('view definition registered - ', view.type )
+    this.list[ view.name ] = view
+    debug('view definition registered - ', view.name )
   }
-  get( type: string, $node?: Cash ): ViewDefinition | null {
+  get( name: string, $node?: Cash ): ViewDefinition | null {
     /**
-     * Get view definition by type or HTML nodeName
+     * Get view definition by name or HTML nodeName
      * 
      * Always return new instance of a view
      * to keep initial view structure immutable
      */
-    if( type in this.list )
-      return { ...this.list[ type ] }
+    if( name in this.list )
+      return { ...this.list[ name ] }
     
     /**
      * Views are registered with their canonical
-     * type not by nodeName. So also check registered 
+     * name not by nodeName. So also check registered 
      * views list by nodeName.
      */
     const
     compArray = Object.values( this.list ),
-    matches = compArray.filter( each => (each.node == type) )
+    matches = compArray.filter( each => (each.tagname == name) )
 
     if( matches.length ) return { ...matches[0] }
     
@@ -54,10 +54,10 @@ export default class ViewStore {
      * Useful mostly for custom view lookup
      */
     if( $node?.length ){
-      const possibleMatches = compArray.filter( each => (new RegExp(`^${type}.`).test( each.node )) )
+      const possibleMatches = compArray.filter( each => (new RegExp(`^${name}.`).test( each.tagname )) )
       if( possibleMatches.length )
         for( const each of possibleMatches )
-          if( $node.is( each.node ) )
+          if( $node.is( each.tagname ) )
             return { ...each }
     }
     
@@ -186,42 +186,42 @@ export default class ViewStore {
 
     Object
     .entries( this.list )
-    .map( ([type, { node, category, caption }]) => {
-      if( !category ) return
+    .map( ([name, { type, tagname, caption }]) => {
+      if( !type ) return
 
       if( query ){
         const regex = new RegExp( query )
 
         // Filter by query
-        if( !regex.test( category )
-            && !regex.test( type )
-            && !regex.test( node )
+        if( !regex.test( type )
+            && !regex.test( name )
+            && !regex.test( tagname )
             && !regex.test( caption.title )
             && !regex.test( caption.description ) ) return
       }
 
-      if( !results[ category ] )
-        results[ category ] = {
-          label: category,
+      if( !results[ type ] )
+        results[ type ] = {
+          label: type,
           seperate: true,
           items: []
         }
 
-      results[ category ].items.push({
+      results[ type ].items.push({
         icon: caption.icon as string,
         title: caption.title,
-        value: type
+        value: name
       })
     } )
 
     return results
   }
-  remove( type: string ){
-    if( this.list[ type ] )
-      throw new Error(`<${type}> view definition already exists`)
+  remove( name: string ){
+    if( this.list[ name ] )
+      throw new Error(`<${name}> view definition already exists`)
 
-    delete this.list[ type ]
-    debug('view definition unregistered - ', type )
+    delete this.list[ name ]
+    debug('view definition unregistered - ', name )
   }
 
   clear(){

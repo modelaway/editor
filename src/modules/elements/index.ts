@@ -6,7 +6,7 @@ import View from './view'
 import Flow from './flow'
 import {
   ELEMENT_KEY_SELECTOR,
-  ELEMENT_TYPE_SELECTOR
+  ELEMENT_NAME_SELECTOR
 } from '../constants'
 
 export default class Elements {
@@ -75,10 +75,10 @@ export default class Elements {
   /**
    * Add view definition via editor contxt to the DOM
    */
-  add( type: string, to: string ){
-    const vdef = this.frame.editor.store.views.get( type )
+  add( name: string, to: string ){
+    const vdef = this.frame.editor.store.views.get( name )
     if( !vdef )
-      throw new Error(`Unknown <${type}> view`)
+      throw new Error(`Unknown <${name}> view`)
 
     this.currentView = new View( this.frame )
     this.currentView.mount( vdef as ViewDefinition, to )
@@ -116,33 +116,33 @@ export default class Elements {
       this.currentView = this.get( key )
       if( !this.currentView ) return
 
-      this.currentView.inspect( $currentTarget, this.currentView.getDefinition('type'), true )
+      this.currentView.inspect( $currentTarget, this.currentView.getDefinition('name'), true )
     }
 
     // Inspect new view
     else {
-      // Identify view definition type or its HTML nodeName
-      let etype = $currentTarget.attr( ELEMENT_TYPE_SELECTOR )
+      // Identify view definition name or its HTML nodeName
+      let ename = $currentTarget.attr( ELEMENT_NAME_SELECTOR )
                   || $currentTarget.prop('nodeName').toLowerCase()
 
-      let vdef = this.frame.editor.store.views.get( etype, $currentTarget )
+      let vdef = this.frame.editor.store.views.get( ename, $currentTarget )
       if( !vdef ) return
 
       // Stop event propagation when there's a view match
       e?.stopPropagation()
       
       /**
-       * View definition's type can be the same as its HTML
+       * View definition's name can be the same as its HTML
        * nodeName identifier.
        * 
-       * Eg. `fieldset` type for <fieldset> tag/nodeName
+       * Eg. `fieldset` name for <fieldset> tag/nodeName
        * 
-       * If not, then preempt to the view definition's actual type
+       * If not, then preempt to the view definition's actual name
        * instead of the HTML nodeName.
        * 
        * Eg. `text` for <span> tag/nodeName
        */
-      etype = vdef.type
+      ename = vdef.name
       
       // Deactivate all active elements
       this.deactivate()
@@ -151,7 +151,7 @@ export default class Elements {
       this.currentView = new View( this.frame )
       if( !this.currentView ) return
 
-      this.currentView.inspect( $currentTarget, etype, true )
+      this.currentView.inspect( $currentTarget, ename, true )
       this.set( this.currentView )
     }
   }
@@ -165,13 +165,13 @@ export default class Elements {
   propagate( $node: Cash ){
     if( !$node.length ) return
 
-    // Identify view definition type or its HTML nodeName
-    let etype = $node.attr( ELEMENT_TYPE_SELECTOR )
+    // Identify view definition name or its HTML nodeName
+    let ename = $node.attr( ELEMENT_NAME_SELECTOR )
                 || $node.prop('nodeType').toLowerCase()
 
-    const vdef = this.frame.editor.store.views.get( etype )
-    if( vdef?.type ){
-      etype = vdef.type
+    const vdef = this.frame.editor.store.views.get( ename )
+    if( vdef?.name ){
+      ename = vdef.name
       
       /**
        * Check whether the view is not yet mounted in 
@@ -183,7 +183,7 @@ export default class Elements {
          * Inspect view
          */
         const view = new View( this.frame )
-        view.inspect( $node, etype )
+        view.inspect( $node, ename )
         
         this.set( view )
       }

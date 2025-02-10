@@ -189,8 +189,8 @@ function apply( view: ViewInstance ){
 
 const Text: ViewDefinition = {
   type: 'text',
-  node: 'span',
-  category: 'text',
+  name: 'text',
+  tagname: 'span',
   caption: {
     icon: 'bx bx-text',
     title: 'Inline Text',

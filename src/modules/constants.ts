@@ -12,7 +12,7 @@ export const EDITOR_EDGE_PADDING = 15 // Pixel
  * Could be `classname` or `tagname` or `data-*`
  */
 export const ELEMENT_KEY_SELECTOR = '__key'
-export const ELEMENT_TYPE_SELECTOR = '__type'
+export const ELEMENT_NAME_SELECTOR = '__name'
 export const ELEMENT_STYLE_SELECTOR = '__style'
 export const ELEMENT_EMPTY_SELECTOR = '__empty'
 export const ELEMENT_ACTIVE_SELECTOR = '__active'
@@ -110,11 +110,11 @@ export const ELEMENT_CONTROL_OPTIONS: Record<string, QuicksetOption> = {
  */
 export const EDITOR_QUICKSET_OPTIONS: Record<string, QuicksetOption> = {
   explore: {
-    type: 'input',
+    type: 'search',
     icon: 'bx bx-search',
     title: 'Explore',
     shortcut: 'command + z',
-    // value: 'Bloc'
+    helper: 'explorer'
   },
   undo: {
     icon: 'bx bx-undo',

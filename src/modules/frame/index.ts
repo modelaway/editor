@@ -200,7 +200,7 @@ export default class Frame extends EventEmitter {
        * canvas by handles
        */
       createElement: ({ x, y }) => {
-        console.log('Add element to frame canvas')
+        debug('Add element to frame canvas')
 
         return $()
       }
@@ -317,8 +317,8 @@ export default class Frame extends EventEmitter {
       this.editor.lips.setContext('frame', specs )
 
       const { toi, voi } = this.editor.lips.getContext()
-      console.log('TOI', toi )
-      console.log('VOI', voi )
+      debug('TOI', toi )
+      debug('VOI', voi )
     })
     /**
      * Show quickset options

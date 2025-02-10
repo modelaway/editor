@@ -5,6 +5,7 @@ import assets from './assets'
 import palette from './palette'
 import plugins from './plugins'
 import settings from './settings'
+import explorer from './explorer'
 import forminput from './forminput'
 import layerlist from './layerlist'
 import layeritem from './layeritem'
@@ -17,6 +18,7 @@ const modules = {
   palette,
   plugins,
   settings,
+  explorer,
   forminput,
   layerlist,
   layeritem,
@@ -30,6 +32,7 @@ export {
   palette,
   plugins,
   settings,
+  explorer,
   forminput,
   layerlist,
   layeritem,

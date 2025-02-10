@@ -109,7 +109,7 @@ type QuicksetOption = {
   icon: string
   title: string
   label?: string
-  type?: 'input' | 'option' | 'suggestion'
+  type?: 'input' | 'search' | 'option' | 'suggestion'
   shortcut?: string
   sub?: Record<string, QuicksetOption>
   meta?: boolean

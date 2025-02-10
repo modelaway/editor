@@ -95,13 +95,21 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
       if( option.disabled ) return
       this.state.subOption = key ? { ...option, key } : null
     },
-    onShowSuggestions( key: string, option: QuicksetOption ){
+    onShowSuggestions( key: string, option: QuicksetOption, arg?: any ){
       const position = 'top'
 
       /**
        * TODO: Determine the adequate position base on the 
        * quickset location on the screen
        */
+
+
+      switch( option.type ){
+        case 'search': option.value = this.input.options[ key ].value = arg.target.value; break
+        case 'suggestion': option.value = arg; break
+      }
+
+      console.log( this.input.options )
       
       this.state.suggestions = { position, key, option }
 
@@ -122,7 +130,6 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
 
       switch( option.type ){
         case 'input': option.value = arg.target.value; break
-        case 'suggestion': option.value = arg; break
       }
 
       option.meta
@@ -132,14 +139,14 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
     onSmartHandle( key: string, option: QuicksetOption, arg?: any ){
       // Close opened suggestions
       this.state.suggestions = null
-      
+
       if( option.sub ){
         this.onShowSubOptions( key, option )
         return
       }
 
-      if( option.type === 'suggestion' ){
-        this.onShowSuggestions( key, option )
+      if( option.type && ['search', 'suggestion'].includes( option.type ) ){
+        this.onShowSuggestions( key, option, arg )
         return
       }
       
@@ -161,7 +168,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
   const macros = {
     option: `
       <switch( macro.type )>
-        <case is="'input'">
+        <case is="['input', 'search']">
           <mli active=macro.active
                 class="'form-input'+( macro.icon && ' addon' )"
                 ${CONTROL_LANG_SELECTOR}>
@@ -171,7 +178,8 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
                     disabled=macro.disabled
                     placeholder="macro.label || macro.title"
                     value=macro.value
-                    on-change( onSmartHandle, key, macro )>
+                    on-change( onSmartHandle, key, macro )
+                    on-input( macro.type === 'search' ? 'onSmartHandle' : null, key, macro )>
           </mli>
         </case>
 

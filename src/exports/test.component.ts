@@ -24,27 +24,30 @@ function Demo1(){
       <span text=input.person>me</span>:
       (<span text="state.online ? 'Online' : 'Offline'"></span>)
       <span text=static.verb>...</span>
-      <for from="0" to="2">
-        <if( state.time == 'morning' )>
-          <switch by=state.speech>
-            <case is="hi">
-              <span on-click="handleConnect, !state.online">Hi - </span>
-              <span text=index></span>
-            </case>
-            <case is="hello"><span>Hello - <span text=index></span></span></case>
-            <case is="bonjour"><span>Bonjour - </span><span text=index></span></case>
-            <default>Salut</default>
-          </switch>
-        </if>
-        <else-if( state.time == 'afternoon' )>
-          <span>Good afternoon - </span>
-          <span text=index></span>
-        </else-if>
-        <else>
-          <span text=input.default></span>
-          <span html="<b>Everyone</b>"></span>
-        </else>
-      </for>
+
+      <div>
+        <for from="0" to="2">
+          <if( state.time == 'morning' )>
+            <switch( state.speech )>
+              <case is="hi">
+                <span on-click="handleConnect, !state.online">Hi - </span>
+                <span text=index></span>
+              </case>
+              <case is="hello"><span>Hello - <span text=index></span></span></case>
+              <case is="bonjour"><span>Bonjour - </span><span text=index></span></case>
+              <default>Salut</default>
+            </switch>
+          </if>
+          <else-if( state.time == 'afternoon' )>
+            <span>Good afternoon - </span>
+            <span text=index></span>
+          </else-if>
+          <else>
+            <span text=input.default></span>
+            <span html="<b>Everyone</b>"></span>
+          </else>
+        </for>
+      </div>
 
       <br>
       <ul>
@@ -1028,11 +1031,85 @@ function DemoLayers(){
   component = Layers( lips, { host }).appendTo('body')
 }
 
-// Demo1()
+function DemoInput(){
+  type State = {
+    value: string
+    attrs: {
+      hidden: boolean
+      title: string
+    }
+    numbers: number[],
+    speech: string
+  }
+
+  const
+  state: State = {
+    value: '',
+    attrs: {
+      hidden: true,
+      title: 'Spread'
+    },
+    numbers: [0,5,3,6,2,3,6,7,4],
+    speech: 'hi'
+  },
+  template = `
+    <div style="">
+      <input value=state.value
+              on-input(handleInput)/>
+
+      <br><br>
+      <div html=state.value style="color: green"></div>
+      <p ...state.attrs checked>Spread----</p>
+
+      <if( state.value.includes('b') )><p><b>{state.value}</b></p></if>
+      <else-if( state.value.includes('i') )><p><i>{state.value}</i></p></else-if>
+      <else><p>{state.value}</p></else>
+
+      <div>
+        <for in=state.numbers>
+          <span>{each}</span>.
+        </for>
+      </div>
+
+      <br>
+      <switch( state.speech )>
+        <case is="hi">
+          <span on-click="handleConnect, !state.online">Hi - </span>
+          <span text=index></span>
+        </case>
+        <case is="hello"><span>Hello - <span text=index></span></span></case>
+        <case is="bonjour"><span>Bonjour - </span><span text=index></span></case>
+        <default>Salut</default>
+      </switch>
+    </div>
+  `,
+  handler: Handler<any, State> = {
+    handleInput( e ){
+      this.state.value = e.target.value
+      this.state.attrs.hidden = e.target.value.length == 2
+
+      if( e.target.value.length === 4 ){
+        this.state.numbers = [4,3,2,3,3,32]
+        this.state.speech = 'buuuu'
+      }
+
+      if( e.target.value.length == 2 )
+        this.state.speech = 'hello'
+    }
+  }
+
+  const component = new Component('DemoInput', template, { state, handler }, { debug: true })
+
+  component.appendTo('body')
+}
+
+
+Demo1()
 // Demo2()
 // Demo3()
 // Demo4()
 // Demo5()
 // Demo6()
 // DemoCart()
-DemoLayers()
+// DemoLayers()
+// DemoInput()

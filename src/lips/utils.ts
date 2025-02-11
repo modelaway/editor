@@ -244,6 +244,113 @@ export function isDiff( a: any, b: any ){
   return false
 }
 
+export function isEqual(a: any, b: any): boolean {
+  // Handle identical references and primitive equality
+  if (a === b) return true
+  
+  // Handle null/undefined cases
+  if (a == null || b == null) return a === b
+  
+  // Get the type of both values
+  const typeA = typeof a
+  const typeB = typeof b
+  
+  // If types don't match, they're not equal
+  if (typeA !== typeB) return false
+  
+  // Handle primitives that weren't caught by ===
+  if (typeA !== 'object') {
+    // Special case for NaN
+    if (typeA === 'number' && isNaN(a) && isNaN(b)) return true
+    return false // Other primitives would have been caught by ===
+  }
+  
+  // Handle special object types
+  if (a instanceof Date) {
+    return b instanceof Date && a.getTime() === b.getTime()
+  }
+  
+  if (a instanceof RegExp) {
+    return b instanceof RegExp && a.source === b.source && a.flags === b.flags
+  }
+  
+  if (a instanceof Error) {
+    return b instanceof Error && 
+           a.name === b.name && 
+           a.message === b.message &&
+           (a.stack === b.stack || (!a.stack && !b.stack))
+  }
+  
+  if (typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView(a)) {
+    // Handle TypedArrays and DataView
+    if (!ArrayBuffer.isView(b)) return false
+    if (a.byteLength !== b.byteLength) return false
+    // Convert to Uint8Array for byte-by-byte comparison
+    const viewA = new Uint8Array(a.buffer, a.byteOffset, a.byteLength)
+    const viewB = new Uint8Array(b.buffer, b.byteOffset, b.byteLength)
+    for (let i = 0; i < viewA.length; i++) {
+      if (viewA[i] !== viewB[i]) return false
+    }
+    return true
+  }
+  
+  if (a instanceof Promise || a instanceof WeakMap || a instanceof WeakSet) {
+    // These types can't be meaningfully compared
+    return a === b
+  }
+  
+  // For functions, compare their string representation
+  if (typeof a === 'function') {
+    if (typeof b !== 'function') return false
+    return a.toString() === b.toString() && a.name === b.name
+  }
+  
+  // Use isDiff for objects, arrays, Maps, and Sets, but invert its result
+  // We also ensure both values are the same type of object
+  if (a.constructor !== b.constructor) return false
+  
+  if (a instanceof Map || a instanceof Set || Array.isArray(a) || 
+      Object.getPrototypeOf(a) === Object.prototype) {
+    return !isDiff(a, b)
+  }
+  
+  // For other object types (custom classes), compare properties
+  const prototypeA = Object.getPrototypeOf(a)
+  if (prototypeA !== Object.getPrototypeOf(b)) return false
+  
+  // Get all properties including non-enumerable ones
+  const propsA = Object.getOwnPropertyNames(a)
+  const propsB = Object.getOwnPropertyNames(b)
+  
+  if (propsA.length !== propsB.length) return false
+  
+  for (const prop of propsA) {
+    if (!Object.prototype.hasOwnProperty.call(b, prop)) return false
+    if (!isEqual(a[prop], b[prop])) return false
+  }
+  
+  // If the prototype is not Object.prototype or null, compare up the chain
+  if (prototypeA !== null && prototypeA !== Object.prototype) {
+    const protoPropsA = Object.getOwnPropertyNames(prototypeA)
+    const protoPropsB = Object.getOwnPropertyNames(Object.getPrototypeOf(b))
+    
+    if (protoPropsA.length !== protoPropsB.length) return false
+    
+    for (const prop of protoPropsA) {
+      // Skip constructor
+      if (prop === 'constructor') continue
+      if (!isEqual(prototypeA[prop], Object.getPrototypeOf(b)[prop])) return false
+    }
+  }
+  
+  return true
+}
+
+// Helper type guard for primitive checks (from your isDiff implementation)
+function isPrimitive(value: any): boolean {
+  return value === null || (typeof value !== 'object' && typeof value !== 'function')
+}
+
 /**
  * Helper function to check if Set contains only primitives
  */
@@ -269,94 +376,6 @@ function isPrimitiveMap( map: Map<any, any> ): boolean {
       return false
 
   return true
-}
-
-/**
- * Extended deep comparison that handles additional JS types not covered by isDiff
- * @param a First value to compare
- * @param b Second value to compare
- * @returns true if values are different, false if they are equal
- */
-export function isSuperDiff( a: unknown, b: unknown ): boolean {
-  // Early reference equality check
-  if( a === b ) return false
-  
-  // Handle primitive types explicitly
-  const typeA = typeof a
-  const typeB = typeof b
-  
-  // Different types mean different values
-  if( typeA !== typeB ) return true
-  
-  // Handle primitive types
-  switch( typeA ){
-    case 'undefined': return false // Both undefined (caught by ===)
-    case 'boolean': return false // Caught by ===
-    case 'number':
-      // Handle special number cases
-      if( Number.isNaN( a as number ) && Number.isNaN( b as number ) )
-        return false
-
-      if( !Number.isFinite( a as number ) && !Number.isFinite( b as number ) )
-        return Math.sign( a as number ) !== Math.sign( b as number )
-
-      return false // Caught by ===
-    case 'string': return false // Caught by ===
-    case 'symbol': return true  // Different symbols (same caught by ===)
-    case 'function': return ( a as Function ).toString() !== ( b as Function ).toString()
-    case 'bigint': return false // Caught by ===
-  }
-  
-  // Handle null
-  if( a === null || b === null ) return true
-  
-  // From here on, we're dealing with objects
-  
-  // Handle TypedArrays
-  if( ArrayBuffer.isView( a ) ){
-    if( !ArrayBuffer.isView( b ) ) return true
-    if( a.byteLength !== b.byteLength ) return true
-    if( a.constructor !== b.constructor ) return true
-    
-    const aArr = a as TypedArray
-    const bArr = b as TypedArray
-    
-    for( let i = 0; i < aArr.length; i++ )
-      if( aArr[i] !== bArr[i] )
-        return true
-    
-    return false
-  }
-  
-  // Handle ArrayBuffer
-  if( a instanceof ArrayBuffer ){
-    if( !( b instanceof ArrayBuffer ) ) return true
-    if( a.byteLength !== b.byteLength ) return true
-    
-    const 
-    viewA = new Uint8Array( a ),
-    viewB = new Uint8Array( b )
-    
-    for( let i = 0; i < viewA.length; i++ )
-      if( viewA[i] !== viewB[i] )
-        return true
-    
-    return false
-  }
-  
-  // Handle Promise objects (can only check instance)
-  if( a instanceof Promise )
-    return !( b instanceof Promise )
-  
-  // Handle Error objects
-  if( a instanceof Error )
-    return !( b instanceof Error ) 
-            || a.message !== b.message
-            || a.name !== b.name
-            || isSuperDiff( a.stack, b.stack )
-  
-  // Pass through to original isDiff for other cases
-  return isDiff( a, b )
 }
 
 export function deepClone( obj: any, seen = new WeakMap() ){

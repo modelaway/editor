@@ -14,7 +14,7 @@ import Events from './events'
 import * as Router from './router'
 import Benchmark from './benchmark'
 import Stylesheet from '../modules/stylesheet'
-import { isDiff, deepClone, deepAssign, isEqual } from './utils'
+import { isDiff, deepClone, deepAssign } from './utils'
 import { effect, EffectControl, signal } from './signal'
 
 const SPREAD_VAR_PATTERN = /^\.\.\./
@@ -83,25 +83,6 @@ $.fn.extend({
     return tn.toLowerCase()
   }
 })
-
-/**
- * (FGU) Fine-Grain Update Dependencies
- */
-
-type FGUMetadata = {
-  isSyntax: boolean
-}
-type FGUDeps = {
-  $node: Cash,
-  update: () => void
-  metadata?: FGUMetadata
-  component?: Component
-}
-type Metavars<I, S, C> = { 
-  state: S,
-  input: I,
-  context: C
-}
 
 export default class Lips<Context = any> {
   private debug = false
@@ -272,11 +253,10 @@ export class Component<Input = void, State = void, Static = void, Context = void
   public context: Context
 
   public __name__: string
-  private __previous?: Metavars<Input, State, Context>
+  private __state?: State // Partial state
   private __stylesheet?: Stylesheet
   private __macros: Map<string, Cash> = new Map() // Cached macros templates
   private __components: Map<string, Component> = new Map() // Cached nexted components
-  private __dependencies: Map<string, Set<FGUDeps>> = new Map()
   private __attachableEvents: { $node: Cash, _event: string, instruction: string, scope?: Record<string, any> }[] = []
 
   /**
@@ -287,6 +267,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
   private prekey = '0'
   private debug = false
   private isRendered = false
+  private enableSmartDiff = true
 
   private _setInput: ( input: Input ) => void
   private _setState: ( state: State ) => void
@@ -315,6 +296,8 @@ export class Component<Input = void, State = void, Static = void, Context = void
     if( options?.lips ) this.lips = options.lips    
     if( options?.debug ) this.debug = options.debug
     if( options?.prekey ) this.prekey = options.prekey
+    if( options?.enableSmartDiff ) this.enableSmartDiff = options.enableSmartDiff
+    if( options?.enableTemplateCache ) this.enableTemplateCache = options.enableTemplateCache
 
     this.__name__ = name
 
@@ -358,7 +341,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
        * Merge with initial/active state.
        */
       this.state
-      && isDiff( this.__previous?.state as Record<string, any>, this.state as Record<string, any> )
+      && isDiff( this.__state as Record<string, any>, this.state as Record<string, any> )
       && this.setState( this.state )
     }, this.IUC_BEAT )
 
@@ -382,10 +365,9 @@ export class Component<Input = void, State = void, Static = void, Context = void
     })
 
     this.ICE = effect( () => {
-      const
-      input = getInput(),
-      state = getState(),
-      context = getContext()
+      this.input = getInput()
+      this.state = getState()
+      this.context = getContext()
 
       // Reset the benchmark
       this.benchmark.reset()
@@ -400,12 +382,15 @@ export class Component<Input = void, State = void, Static = void, Context = void
        * Reset attachble events list before every rendering
        */
       this.__attachableEvents = []
-
+      
       /**
-       * Initial render - parse template and establish 
-       * dependencies
+       * Render/Rerender component
        */
-      if( !this.isRendered ){
+      if( this.isRendered ){
+        this.detachEvents()
+        this.rerender()
+      }
+      else {
         /**
          * Triggered before component get rendered
          * for the first time.
@@ -417,44 +402,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
         
         // Assign CSS relationship attribute
         this.$.attr('rel', this.__name__ )
-        this.isRendered = true
-        
-        /**
-         * Attach/Reattach extracted events
-         * listeners anytime component get rendered.
-         * 
-         * This to avoid loosing binding to attached
-         * DOM element's events
-         */
-        this.attachEvents()
-        
-        /**
-         * Triggered after component get mounted for
-         * the first time.
-         */
-        typeof this.onMount == 'function'
-        && this.onMount.bind(this)( this.input )
       }
-      /**
-       * Update only dependent nodes
-       */
-      else this.__updateDepNodes__({ state, input, context }, this.__previous )
-      
-      /**
-       * Save as previous meta variables for next cycle.
-       * 
-       * IMPORTANT: Required to check changes on the state
-       *            during IUC processes.
-       */
-      this.__previous = {
-        input: deepClone( input ),
-        state: deepClone( state ),
-        context: deepClone( context )
-      }
-
-      this.state = state
-      this.input = input
-      this.context = context
 
       /**
        * Watch when component's element get 
@@ -463,12 +411,29 @@ export class Component<Input = void, State = void, Static = void, Context = void
       this.lips?.watcher?.watch( this as any )
 
       /**
+       * Attach/Reattach extracted events
+       * listeners anytime component get rendered.
+       * 
+       * This to avoid loosing binding to attached
+       * DOM element's events
+       */
+      this.attachEvents()
+
+      /**
        * Log benchmark table
        * 
        * NOTE: Only show in debugging mode
        */
       this.benchmark.log()
 
+      /**
+       * Hold state value since last signal update.
+       * 
+       * IMPORTANT: Required to check changes on the state
+       *            during IUC processes.
+       */
+      this.__state = deepClone( this.state )
+      
       /**
        * Triggered after component get mounted for
        * the first time.
@@ -624,50 +589,38 @@ export class Component<Input = void, State = void, Static = void, Context = void
       const attributes = ($node as any).attrs()
       if( !attributes ) return 
       
-      let hasReactiveAttr: string | boolean = false
-      const internal = () => {
-        Object
-        .entries( attributes )
-        .forEach( ([ key, assign ]) => {
-          // Process spread assign
-          if( SPREAD_VAR_PATTERN.test( key ) ){
-            const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
-            if( typeof spreads !== 'object' )
-              throw new Error(`Invalid spread operator ${key}`)
+      Object
+      .entries( attributes )
+      .forEach( ([ key, assign ]) => {
+        // Process spread assign
+        if( SPREAD_VAR_PATTERN.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
+          if( typeof spreads !== 'object' )
+            throw new Error(`Invalid spread operator ${key}`)
 
-            for( const _key in spreads ){
-              if( scope[ _key ]?.type === 'const' )
-                throw new Error(`<const ${_key}=[value]/> by spread operator ${key}. [${_key}] variable already defined`)
-            
-              scope[ _key ] = {
-                value: spreads[ _key ],
-                type: 'const'
-              }
-            }
-
-            hasReactiveAttr = self.__isReactive__( key ) && key
-          }
-          else {
-            if( scope[ key ]?.type === 'const' )
-              throw new Error(`<const ${key}=[value]/> variable already defined`)
-
-            if( !assign ) return
-
-            hasReactiveAttr = self.__isReactive__( assign as string ) && assign as string
-
-            scope[ key ] = {
-              value: self.__evaluate__( assign as string, scope ),
+          for( const _key in spreads ){
+            if( scope[ _key ]?.type === 'const' )
+              throw new Error(`<const ${_key}=[value]/> by spread operator ${key}. [${_key}] variable already defined`)
+          
+            scope[ _key ] = {
+              value: spreads[ _key ],
               type: 'const'
             }
           }
-        } )
-      }
+        }
+        else {
+          if( scope[ key ]?.type === 'const' )
+            throw new Error(`<const ${key}=[value]/> variable already defined`)
 
-      internal()
+          if( !assign ) return
 
-      hasReactiveAttr
-      && self.__trackDep__( hasReactiveAttr, $node, internal, { isSyntax: true })
-      
+          scope[ key ] = {
+            value: self.__evaluate__( assign as string, scope ),
+            type: 'const'
+          }
+        }
+      } )
+        
       /**
        * BENCHMARK: Tracking total elements rendered
        */
@@ -679,142 +632,97 @@ export class Component<Input = void, State = void, Static = void, Context = void
       $contents = $node.contents() as Cash
       if( !$contents.length ) return $()
 
-      const
-      $in = $node.attr('in') as any,
-      $from = $node.attr('from') as any,
-      $to = $node.attr('to') as any
-
-      if( !$in && !$from && !$to ) return $()
+      const _in = self.__evaluate__( $node.attr('in') as string, scope )
+      let
+      $fragment = $(),
+      _from = $node.attr('from') as any,
+      _to = $node.attr('to') as any
       
-      const internal = () => {
-        let
-        _in = self.__evaluate__( $in as string, scope ),
-        _from = self.__evaluate__( $from as string, scope ),
-        _to = self.__evaluate__( $to as string, scope )
+      if( _from !== undefined ){
+        _from = parseFloat( _from )
 
-        let $fragment = $()
+        if( _to == undefined )
+          throw new Error('Expected <from> <to> attributes of the for loop to be defined')
 
-        if( _from !== undefined ){
-          _from = parseFloat( _from )
+        _to = parseFloat( _to )
 
-          if( _to == undefined )
-            throw new Error('Expected <from> <to> attributes of the for loop to be defined')
-
-          _to = parseFloat( _to )
-
-          for( let x = _from; x <= _to; x++ )
-            if( $contents.length ){
-              const forScope: VariableScope = {
-                ...scope,
-                index: { value: x, type: 'const' }
-              }
-
-              $fragment = $fragment.add( self.render( $contents, forScope ) )
+        for( let x = _from; x <= _to; x++ )
+          if( $contents.length ){
+            const forScope: VariableScope = {
+              ...scope,
+              index: { value: x, type: 'const' }
             }
-        }
 
-        else if( Array.isArray( _in ) ){
-          let index = 0
-          for( const each of _in ){
-            if( $contents.length ){
-              const forScope: VariableScope = {
-                ...scope, 
-                each: { value: each, type: 'const' },
-                index: { value: index, type: 'const' }
-              }
-
-              $fragment = $fragment.add( self.render( $contents, forScope ) )
-            }
-            
-            index++
+            $fragment = $fragment.add( self.render( $contents, forScope ) )
           }
-        }
-
-        else if( _in instanceof Map ){
-          let index = 0
-          for( const [ key, value ] of _in ){
-            if( $contents.length ){
-              const forScope: VariableScope = {
-                ...scope, 
-                key: { value: key, type: 'const' },
-                each: { value: value, type: 'const' },
-                index: { value: index, type: 'const' }
-              }
-
-              $fragment = $fragment.add( self.render( $contents, forScope ) )
-            }
-            
-            index++
-          }
-        }
-
-        else if( typeof _in == 'object' ){
-          let index = 0
-          for( const key in _in ){
-            if( $contents.length ){
-              const forScope: VariableScope = {
-                ...scope, 
-                key: { value: key, type: 'const' },
-                each: { value: _in[ key ], type: 'const' },
-                index: { value: index, type: 'const' }
-              }
-
-              $fragment = $fragment.add( self.render( $contents, forScope ) )
-            }
-            
-            index++
-          }
-        }
-          
-        /**
-         * BENCHMARK: Tracking total elements rendered
-         */
-        self.benchmark.inc('elementCount')
-
-        return $fragment
       }
 
-      let $fragment = internal()
-      
-      /**
-       * Track the condition dependency
-       */
-      ;( self.__isReactive__( $in ) 
-        || self.__isReactive__( $from )
-        || self.__isReactive__( $to ) )
-      && self.__trackDep__( $in || $from || $to, $node, () => {
-        const 
-        $newContent = internal(),
-        $parent = $fragment.parent()
-        if( !$parent.length ){
-          console.warn('Fragment has no parent, cannot replace content')
-          return
+      else if( Array.isArray( _in ) ){
+        let index = 0
+        for( const each of _in ){
+          if( $contents.length ){
+            const forScope: VariableScope = {
+              ...scope, 
+              each: { value: each, type: 'const' },
+              index: { value: index, type: 'const' }
+            }
+
+            $fragment = $fragment.add( self.render( $contents, forScope ) )
+          }
+          
+          index++
         }
+      }
 
-        const $next = $fragment.next()
-        // Remove old fragment first since it's just a collection of nodes
-        $fragment.remove()
+      else if( _in instanceof Map ){
+        let index = 0
+        for( const [ key, value ] of _in ){
+          if( $contents.length ){
+            const forScope: VariableScope = {
+              ...scope, 
+              key: { value: key, type: 'const' },
+              each: { value: value, type: 'const' },
+              index: { value: index, type: 'const' }
+            }
 
-        // Insert new content at the right position
-        $next.length 
-        && $next.parent().length
-                  ? $next.before( $newContent )
-                  : $parent.append( $newContent )
+            $fragment = $fragment.add( self.render( $contents, forScope ) )
+          }
+          
+          index++
+        }
+      }
 
-        // Update the fragment reference for future updates
-        $fragment = $newContent
-      }, { isSyntax: true })
+      else if( typeof _in == 'object' ){
+        let index = 0
+        for( const key in _in ){
+          if( $contents.length ){
+            const forScope: VariableScope = {
+              ...scope, 
+              key: { value: key, type: 'const' },
+              each: { value: _in[ key ], type: 'const' },
+              index: { value: index, type: 'const' }
+            }
+
+            $fragment = $fragment.add( self.render( $contents, forScope ) )
+          }
+          
+          index++
+        }
+      }
+        
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
 
       return $fragment
     }
 
     function execSwitch( $node: Cash ){
       const by = $node.attr('by')
-      if( !by ) return $()
+      let $fragment = $()
 
-      const internal = () => {
-        let $fragment = $()
-
+      if( by ){
         const switchBy = self.__evaluate__( by, scope )
         let matched = false
         
@@ -840,43 +748,12 @@ export class Component<Input = void, State = void, Static = void, Context = void
           if( !matched && $child.is('default') && $contents.length )
             $fragment = $fragment.add( self.render( $contents, scope ) )
         })
-          
-        /**
-         * BENCHMARK: Tracking total elements rendered
-         */
-        self.benchmark.inc('elementCount')
-
-        return $fragment
       }
-
-      let $fragment = internal()
-
+        
       /**
-       * Track the condition dependency
+       * BENCHMARK: Tracking total elements rendered
        */
-      self.__isReactive__( by )
-      && self.__trackDep__( by, $node, () => {
-        const 
-        $newContent = internal(),
-        $parent = $fragment.parent()
-        if( !$parent.length ){
-          console.warn('Fragment has no parent, cannot replace content')
-          return
-        }
-
-        const $next = $fragment.next()
-        // Remove old fragment first since it's just a collection of nodes
-        $fragment.remove()
-
-        // Insert new content at the right position
-        $next.length 
-        && $next.parent().length
-                  ? $next.before( $newContent )
-                  : $parent.append( $newContent )
-
-        // Update the fragment reference for future updates
-        $fragment = $newContent
-      }, { isSyntax: true })
+      self.benchmark.inc('elementCount')
 
       return $fragment
     }
@@ -885,117 +762,96 @@ export class Component<Input = void, State = void, Static = void, Context = void
       const $ifContents = $node.contents()
       if( !$ifContents.length ) return $()
 
-      let $fragment = $()
+      const 
+      $fragment = $(),
+      condition = $node.attr('by')
 
-      const condition = $node.attr('by')
-      if( !condition ) return $fragment
+      // Evaluate the primary <if(condition)>
+      if( condition && $ifContents.length ){
+        if( self.__evaluate__( condition, scope ) )
+          return self.render( $ifContents, scope )
 
-      const internal = () => {
-        // Evaluate the primary <if(condition)>
-        if( condition && $ifContents.length ){
-          if( self.__evaluate__( condition, scope ) )
-            return self.render( $ifContents, scope )
+        // Check for <else-if(condition)> and <else>
+        let $sibling = $node.nextAll('else-if, else').first()
+        while( $sibling.length > 0 ){
+          const $contents = $sibling.contents()
 
-          // Check for <else-if(condition)> and <else>
-          let $sibling = $node.nextAll('else-if, else').first()
-          while( $sibling.length > 0 ){
-            const $contents = $sibling.contents()
-
-            if( $sibling.is('else-if') ){
-              const elseIfCondition = $sibling.attr('by') as string
-              if( self.__evaluate__( elseIfCondition, scope ) && $contents.length )
-                return self.render( $contents, scope )
-            } 
-            else if( $sibling.is('else') && $contents.length )
+          if( $sibling.is('else-if') ){
+            const elseIfCondition = $sibling.attr('by') as string
+            if( self.__evaluate__( elseIfCondition, scope ) && $contents.length )
               return self.render( $contents, scope )
-            
-            $sibling = $sibling.nextAll('else-if, else').first()
-          }
-        }
+          } 
+          else if( $sibling.is('else') && $contents.length )
+            return self.render( $contents, scope )
           
-        /**
-         * BENCHMARK: Tracking total elements rendered
-         */
-        self.benchmark.inc('elementCount')
-
-        return $()
+          $sibling = $sibling.nextAll('else-if, else').first()
+        }
       }
-
-      $fragment = internal()
-
-      /**
-       * Track the condition dependency
-       */
-      self.__isReactive__( condition )
-      && self.__trackDep__( condition, $node, () => {
-        const $newContent = internal()
         
-        // Replace old fragment content if it exists
-        if( $fragment?.length )
-          $fragment.replaceWith( $newContent )
-
-        $fragment = $newContent
-      }, { isSyntax: true })
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
 
       return $fragment
     }
 
-    // function execAsync( $node: Cash ){
-    //   const attr = $node.attr('await') as string
-    //   if( !attr )
-    //     throw new Error('Undefined async <await> attribute')
+    function execAsync( $node: Cash ){
+      const attr = $node.attr('await') as string
+      if( !attr )
+        throw new Error('Undefined async <await> attribute')
 
-    //   const
-    //   $preload = $node.find('preload').clone(),
-    //   $resolve = $node.find('resolve').clone(),
-    //   $catch = $node.find('catch').clone()
-    //   let $fragment = $()
+      const
+      $preload = $node.find('preload').clone(),
+      $resolve = $node.find('resolve').clone(),
+      $catch = $node.find('catch').clone()
+      let $fragment = $()
 
-    //   // Initially append preload content
-    //   const preloadContent = $preload.contents()
-    //   if( preloadContent.length )
-    //     $fragment = $fragment.add( self.render( preloadContent, scope ) )
+      // Initially append preload content
+      const preloadContent = $preload.contents()
+      if( preloadContent.length )
+        $fragment = $fragment.add( self.render( preloadContent, scope ) )
         
-    //   const
-    //   [ fn, ...args ] = attr.trim().split(/\s*,\s*/),
-    //   _await = (self[ fn ] || self.__evaluate__( fn, scope )).bind(self) as any
+      const
+      [ fn, ...args ] = attr.trim().split(/\s*,\s*/),
+      _await = (self[ fn ] || self.__evaluate__( fn, scope )).bind(self) as any
       
-    //   if( typeof _await !== 'function' )
-    //     throw new Error(`Undefined <${fn}> handler method`)
+      if( typeof _await !== 'function' )
+        throw new Error(`Undefined <${fn}> handler method`)
 
-    //   const _args = args.map( each => (self.__evaluate__( each, scope )) )
+      const _args = args.map( each => (self.__evaluate__( each, scope )) )
 
-    //   _await( ..._args )
-    //   .then( ( response: any ) => {
-    //     const 
-    //     resolveContent = $resolve?.contents(),
-    //     responseScope: VariableScope = {
-    //       ...scope,
-    //       response: { value: response, type: 'const' }
-    //     }
+      _await( ..._args )
+      .then( ( response: any ) => {
+        const 
+        resolveContent = $resolve?.contents(),
+        responseScope: VariableScope = {
+          ...scope,
+          response: { value: response, type: 'const' }
+        }
         
-    //     resolveContent.length
-    //     && $fragment.replaceWith( self.render( resolveContent, responseScope ) )
-    //   })
-    //   .catch( ( error: unknown ) => {
-    //     const 
-    //     catchContent = $catch?.contents(),
-    //     errorScope: VariableScope = {
-    //       ...scope,
-    //       error: { value: error, type: 'const' }
-    //     }
+        resolveContent.length
+        && $fragment.replaceWith( self.render( resolveContent, responseScope ) )
+      })
+      .catch( ( error: unknown ) => {
+        const 
+        catchContent = $catch?.contents(),
+        errorScope: VariableScope = {
+          ...scope,
+          error: { value: error, type: 'const' }
+        }
 
-    //     catchContent.length
-    //     && $fragment.replaceWith( self.render( catchContent, errorScope ) )
-    //   })
+        catchContent.length
+        && $fragment.replaceWith( self.render( catchContent, errorScope ) )
+      })
       
-    //   /**
-    //    * BENCHMARK: Tracking total elements rendered
-    //    */
-    //   self.benchmark.inc('elementCount')
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
 
-    //   return $fragment
-    // }
+      return $fragment
+    }
 
     function execLog( $node: Cash ){
       const args = $node.attr('args')
@@ -1248,170 +1104,111 @@ export class Component<Input = void, State = void, Static = void, Context = void
       extracted = ($node as any).attrs(),
       attributes: Record<string, any> = {}
 
-      let spreadAttr: string | boolean = false
-
-      const
-      internal = () => {
-        attributes && Object
-        .entries( attributes )
-        .forEach( ([ attr, value ]) => {
-          // Record attachable events to the element
-          if( /^on-/.test( attr ) ){
-            self.__attachableEvents.push({
-              $node: $fnode,
-              _event: attr.replace(/^on-/, ''),
-              instruction: value as string,
-              scope
-            })
-
-            return
-          }
-          
-          switch( attr ){
-            // Inject inner html into the element
-            case 'html': {
-              const injectHTML = () => $fnode.html( self.__evaluate__( value as string, scope ) )
-
-              injectHTML()
-
-              self.__isReactive__( value )
-              && self.__trackDep__( value, $fnode, injectHTML )
-            } break
-
-            // Inject text into the element
-            case 'text': {
-              const injectText = () => {
-                let text = self.__evaluate__( value as string, scope )
-
-                // Apply translation
-                if( self.lips && !$node.is('[no-translate]') ){
-                  const { text: _text } = self.lips.i18n.translate( text )
-                  text = _text
-                }
-
-                $fnode.text( text )
-              }
-
-              injectText()
-
-              self.__isReactive__( value )
-              && self.__trackDep__( value, $fnode, injectText )
-            } break
-
-            // Convert object style attribute to string
-            case 'style': {
-              const applyStyle = () => {
-                const style = self.__evaluate__( value as string, scope )
-                
-                // Defined in object format
-                if( typeof style === 'object' ){
-                  let str = ''
-
-                  Object
-                  .entries( style )
-                  .forEach( ([ k, v ]) => str += `${k}:${v};` )
-                  
-                  str.length && $fnode.attr('style', str )
-                }
-                // Defined in string format
-                else $fnode.attr('style', style )
-              }
-
-              applyStyle()
-
-              self.__isReactive__( value )
-              && self.__trackDep__( value, $fnode, applyStyle )
-            } break
-
-            // Inject the evaulation result of any other attributes
-            default: {
-              const assignAttribute = () => {
-                const res = value ?
-                              self.__evaluate__( value as string, scope )
-                              /**
-                               * IMPORTANT: An attribute without a value is
-                               * considered neutral but `true` of a value by
-                               * default.
-                               * 
-                               * Eg. <counter initial=3 throttle/>
-                               * 
-                               * the `throttle` attribute is hereby an input with a
-                               * value `true`.
-                               */
-                              : value !== undefined ? value : true
-
-                /**
-                 * (?) evaluation return signal to uset the attribute.
-                 * 
-                 * Very useful case where the attribute don't necessarily
-                 * have values by default.
-                 */
-                res === undefined || res === false
-                                  ? $fnode.removeAttr( attr )
-                                  : $fnode.attr( attr, res )
-              }
-
-              assignAttribute()
-
-              self.__isReactive__( value )
-              && self.__trackDep__( value, $fnode, assignAttribute )
-            }
-          }
-        })
-        
-        /**
-         * BENCHMARK: Tracking total elements rendered
-         */
-        self.benchmark.inc('elementCount')
-      },
       // Process attributes including spread operator
-      useSpread = () => {
-        extracted && Object
-        .entries( extracted )
-        .forEach( ([ attr, value ]) => {
-          if( SPREAD_VAR_PATTERN.test( attr ) ){
-            const spreads = self.__evaluate__( attr.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
-            if( typeof spreads !== 'object' )
-              throw new Error(`Invalid spread operator ${attr}`)
+      extracted && Object
+      .entries( extracted )
+      .forEach( ([ attr, value ]) => {
+        if( SPREAD_VAR_PATTERN.test( attr ) ){
+          const spreads = self.__evaluate__( attr.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
+          if( typeof spreads !== 'object' )
+            throw new Error(`Invalid spread operator ${attr}`)
 
-            for( const _key in spreads )
-              attributes[ _key ] = spreads[ _key ]
+          for( const _key in spreads )
+            attributes[ _key ] = spreads[ _key ]
+        }
+        else attributes[ attr ] = value
+      })
+      
+      attributes && Object
+      .entries( attributes )
+      .forEach( ([ attr, value ]) => {
+        // Record attachable events to the element
+        if( /^on-/.test( attr ) ){
+          self.__attachableEvents.push({
+            $node: $fnode,
+            _event: attr.replace(/^on-/, ''),
+            instruction: value as string,
+            scope
+          })
+
+          return
+        }
+        
+        switch( attr ){
+          // Inject inner html into the element
+          case 'html': $fnode.html( self.__evaluate__( value as string, scope ) ); break
+
+          // Inject text into the element
+          case 'text': {
+            let text = self.__evaluate__( value as string, scope )
+
+            // Apply translation
+            if( self.lips && !$node.is('[no-translate]') ){
+              const { text: _text } = self.lips.i18n.translate( text )
+              text = _text
+            }
+
+            $fnode.text( text )
+          } break
+
+          // Convert object style attribute to string
+          case 'style': {
+            const style = self.__evaluate__( value as string, scope )
             
-            if( self.__isReactive__( attr ) ) spreadAttr = attr
+            // Defined in object format
+            if( typeof style === 'object' ){
+              let str = ''
+
+              Object
+              .entries( style )
+              .forEach( ([ k, v ]) => str += `${k}:${v};` )
+              
+              str.length && $fnode.attr('style', str )
+            }
+            // Defined in string format
+            else $fnode.attr('style', style )
+          } break
+
+          // Inject the evaulation result of any other attributes
+          default: {
+            const res = value ?
+                          self.__evaluate__( value as string, scope )
+                          /**
+                           * IMPORTANT: An attribute without a value is
+                           * considered neutral but `true` of a value by
+                           * default.
+                           * 
+                           * Eg. <counter initial=3 throttle/>
+                           * 
+                           * the `throttle` attribute is hereby an input with a
+                           * value `true`.
+                           */
+                          : true
+
+            /**
+             * (?) evaluation return signal to uset the attribute.
+             * 
+             * Very useful case where the attribute don't necessarily
+             * have values by default.
+             */
+            res === undefined || res === false
+                              ? $fnode.removeAttr( attr )
+                              : $fnode.attr( attr, res )
           }
-          else attributes[ attr ] = value
-        })
-      }
+        }
+      })
       
-      useSpread()
-      internal()
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
 
-      // IMPORTANT: Track by spread attribute
-      spreadAttr
-      && self.__trackDep__( spreadAttr, $fnode, () => {
-        useSpread()
-        internal()
-      } )
-
-      return $fnode
-    }
-
-    function execText( $node: Cash ){
-      const
-      text = $node.text(),
-      textNode = document.createTextNode( self.__interpolate__( text, scope ) )
-      
-      let $fnode = $(textNode)
-      
-      self.__isReactive__( text )
-      && self.__trackDep__( text, $fnode, () => textNode.textContent = self.__interpolate__( text, scope ) )
-      
       return $fnode
     }
 
     function parse( $node: Cash ){
       if( $node.get(0)?.nodeType === Node.TEXT_NODE )
-        return execText( $node )
+        return document.createTextNode( self.__interpolate__( $node.text(), scope ) )
 
       // Render in-build syntax components
       if( $node.is('let') ) return execLet( $node )
@@ -1424,7 +1221,7 @@ export class Component<Input = void, State = void, Static = void, Context = void
       else if( $node.is('else-if, else') ) return
       else if( $node.is('for') ) return execFor( $node )
       else if( $node.is('switch') ) return execSwitch( $node )
-      // else if( $node.is('async') ) return execAsync( $node )
+      else if( $node.is('async') ) return execAsync( $node )
       else if( $node.is('lips') ) return execComponent( $node, true )
       else if( $node.is('log') ) return execLog( $node )
       
@@ -1471,6 +1268,87 @@ export class Component<Input = void, State = void, Static = void, Context = void
     this.$ = $clone
     // Reassign CSS relationship attribute
     this.$.attr('rel', this.__name__ )
+  }
+
+  /**
+   * Smart Diffing Implementation
+   */
+  private nodesEqual( $old: Cash, $new: Cash ): boolean {
+    if( !this.enableSmartDiff ) return false
+    
+    // Compare tag names
+    if( $old.prop('tagName') !== $new.prop('tagName') ) return false
+    
+    // Compare attributes
+    const 
+    oldAttrs = ($old as any).attrs(),
+    newAttrs = ($new as any).attrs()
+
+    if( !this.attributesEqual( oldAttrs, newAttrs ) )return false
+    
+    // Compare text content for text nodes
+    if( $old[0]?.nodeType === Node.TEXT_NODE 
+        && $new[0]?.nodeType === Node.TEXT_NODE )
+      return $old.text() === $new.text()
+    
+    // Compare children length
+    if( $old.children().length !== $new.children().length ) return false
+    
+    return true
+  }
+
+  private attributesEqual( oldAttrs: Record<string, any>, newAttrs: Record<string, any> ): boolean {
+    const
+    oldKeys = Object.keys( oldAttrs ),
+    newKeys = Object.keys( newAttrs )
+    
+    if( oldKeys.length !== newKeys.length ) return false
+    
+    return oldKeys.every( key => {
+      // Special handling for event handlers (on-*)
+      if( key.startsWith('on-') ) return true
+
+      return oldAttrs[ key ] === newAttrs[ key ]
+    })
+  }
+
+  private updateChangedParts( $old: Cash, $new: Cash ): Cash {
+    if( !this.enableSmartDiff ) return $new
+    
+    // If nodes are equal, keep the old one
+    if( this.nodesEqual( $old, $new ) ){
+      this.benchmark.inc('diffSkip')
+      return $old
+    }
+    
+    // Update attributes if needed
+    const
+    oldAttrs = ($old as any).attrs(),
+    newAttrs = ($new as any).attrs()
+    
+    Object
+    .keys( newAttrs )
+    .forEach( key => oldAttrs[ key ] !== newAttrs[ key ] && $old.attr( key, newAttrs[ key ]) )
+    
+    // Remove attributes that are not in new node
+    Object
+    .keys( oldAttrs )
+    .forEach( key => !( key in newAttrs ) && $old.removeAttr( key ) )
+    
+    // Update children recursively
+    const
+    $oldChildren = $old.children(),
+    $newChildren = $new.children()
+    
+    $oldChildren.each( ( ch, oldChild ) => {
+      const
+      $oldChild = $(oldChild),
+      $newChild = $newChildren.eq( ch )
+      
+      $newChild.length && this.updateChangedParts( $oldChild, $newChild )
+    })
+    
+    return $old
   }
 
   private __evaluate__( script: string, scope?: VariableScope ){
@@ -1549,92 +1427,6 @@ export class Component<Input = void, State = void, Static = void, Context = void
   }
   private __detachEvent__( element: Cash | Component, _event: string ){
     element.off( _event )
-  }
-
-  private __extractDeps__( expr: string ): string[] {
-    const 
-    deps = new Set<string>(),
-    pattern = /\b(state|input|context)(?:\.[a-zA-Z_]\w*)+(?=\.[a-zA-Z_]\w*\(|\s|;|,|\)|$)/g
-    
-    let match
-    while( ( match = pattern.exec( expr ) ) !== null )
-      deps.add( match[0] )
-
-    return Array.from( deps )
-  }
-  private __isReactive__( expr: string ): boolean {
-    return /(state|input|context)\.[\w.]+/.test( expr )
-  }
-  private __trackDep__( expr: string, $node: Cash, update: () => void, metadata?: FGUMetadata, component?: Component ){
-    const deps = this.__extractDeps__( expr )
-    
-    deps.forEach( dep => {
-      if( !this.__dependencies.has( dep ) )
-        this.__dependencies.set( dep, new Set() )
-      
-      this.__dependencies.get( dep )?.add({
-        $node,
-        update,
-        metadata,
-        component
-      })
-    })
-  }
-  private __valuePath__( obj: any, path: string[] ): any {
-    return path.reduce( ( curr, part ) => curr?.[ part ], obj )
-  }
-  private __updateDepNodes__( current: Metavars<Input, State, Context>, previous?: Metavars<Input, State, Context> ){
-    /**
-     * We only care about paths that have registered 
-     * dependencies. No need to scan entire state/input/context
-     */
-    this.__dependencies.forEach( ( dependents, path ) => {
-      const
-      [ scope, ...parts ] = path.split('.'),
-      ovalue = previous && this.__valuePath__( previous[ scope as keyof Metavars<Input, State, Context>  ], parts ),
-      nvalue = this.__valuePath__( current[ scope as keyof Metavars<Input, State, Context> ], parts )
-
-      console.log( path, ovalue, nvalue, isEqual( ovalue, nvalue ) )
-      /**
-       * Skip if value hasn't changed
-       */
-      if( isEqual( ovalue, nvalue ) ) return
-      
-      /**
-       * Handle updates for each dependent node/component
-       */
-      dependents.forEach( ({ $node, update, metadata, component }) => {
-        console.log('dependents --', metadata, $node )
-        /**
-         * Only clean up non-syntactic dependencies 
-         * or node no longer in DOM
-         */
-        if( !metadata?.isSyntax && !$node.closest('body').length ){
-          dependents.delete({ $node, update, component })
-          return
-        }
-
-        console.log('update --', $node, metadata )
-        update()
-      })
-
-      /**
-       * Clean up if no more dependents
-       */
-      if( !dependents.size )
-        this.__dependencies.delete( path )
-    })
-
-    /**
-     * Batch process component updates
-     */
-    // if( componentUpdates.size ){
-    //   batch( () => {
-    //     componentUpdates.forEach( ( updates, component ) => {
-    //       updates.forEach( update => update() )
-    //     })
-    //   })
-    // }
   }
 
   attachEvents(){

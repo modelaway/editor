@@ -1,4 +1,4 @@
-import type { Handler, Template } from '.'
+import type { Handler, Template } from '..'
 
 type RouteDef = {
   path: string
@@ -196,4 +196,4 @@ export const handler: Handler<Input, undefined, Static> = {
   }
 }
 
-export default `<wrapper></wrapper>`
+export default `<wrapper/>`

@@ -1,5 +1,5 @@
 import type Editor from '../editor'
-import type { Component } from '../../lips/lips'
+import type Component from '../../lips/component'
 
 import $, { type Cash } from 'cash-dom'
 import { EventEmitter } from 'events'
@@ -55,9 +55,9 @@ export default class Movable<Input = void, State = void, Static = void, Context 
     }
     
     this.component.getNode() && this.bind()
-    this.component.on('attached', () => this.bind() )
-    this.component.on('detached', () => this.unbind() )
-    this.component.on('attachment-timeout', () => console.warn('Movable component failed to attach within timeout period') )
+    this.component.on('component:attached', () => this.bind() )
+    this.component.on('component:detached', () => this.unbind() )
+    this.component.on('component:attachment-timeout', () => console.warn('Movable component failed to attach within timeout period') )
   }
 
   private getBlockPosition(): CalcPosition | undefined {

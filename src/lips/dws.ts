@@ -27,7 +27,7 @@ export default class DWS {
           
           if( watchData.type === 'attach' && document.contains( $node[0] as Element ) ){
             this.unwatch( component )
-            component.emit('attached')
+            component.emit('component:attached', component )
             // console.log('attached', component )
 
             typeof component.onAttach == 'function'
@@ -35,7 +35,7 @@ export default class DWS {
           }
           else if( watchData.type === 'detach' && !document.contains( $node[0] as Element ) ){
             this.unwatch( component )
-            component.emit('detached')
+            component.emit('component:detached', component )
 
             typeof component.onDetach == 'function'
             && component.onDetach.bind( component )()
@@ -57,7 +57,7 @@ export default class DWS {
 
     // For attachment, check if already in DOM
     if( type === 'attach' && document.contains( $node[0] as Element ) ){
-      component.emit('attached')
+      component.emit('component:attached', component )
 
       typeof component.onAttach == 'function'
       && component.onAttach.bind( component )()
@@ -66,7 +66,7 @@ export default class DWS {
 
     // For detachment, check if already out of DOM
     if( type === 'detach' && !document.contains( $node[0] as Element ) ){
-      component.emit('detached')
+      component.emit('component:detached', component )
 
       typeof component.onDetach == 'function'
       && component.onDetach.bind( component )()
@@ -79,7 +79,7 @@ export default class DWS {
     // Start new watch
     const timeout = setTimeout( () => {
       this.unwatch( component )
-      component.emit(`${type}ment-timeout`)
+      component.emit(`component:${type}ment-timeout`, component )
     }, this.TIMEOUT )
 
     this.observedComponents.set( component, { timeout, type })
@@ -90,7 +90,7 @@ export default class DWS {
 
     // Set up detachment watching once attached
     type === 'attach'
-    && component.once('attached', () => this.watch( component, 'detach' ))
+    && component.once('component:attached', () => this.watch( component, 'detach' ))
   }
 
   unwatch( component: Component ){

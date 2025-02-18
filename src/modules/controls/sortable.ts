@@ -1,5 +1,5 @@
 import type Editor from '../editor'
-import type { Component } from '../../lips/lips'
+import type Component from '../../lips/component'
 
 import $, { type Cash } from 'cash-dom'
 import { EventEmitter } from 'events'
@@ -92,9 +92,9 @@ export default class Sortable<Input = void, State = void, Static = void, Context
     this.boundHandleKeyboard = this.handleKeyboard.bind(this)
     
     this.component.getNode() && this.bind()
-    this.component.on('attached', () => this.bind() )
-    this.component.on('detached', () => this.unbind() )
-    this.component.on('attachment-timeout', () => console.warn('Sortable component failed to attach within timeout period') )
+    this.component.on('component:attached', () => this.bind() )
+    this.component.on('component:detached', () => this.unbind() )
+    this.component.on('component:attachment-timeout', () => console.warn('Sortable component failed to attach within timeout period') )
   }
 
   private handleKeyboard( e: KeyboardEvent ){

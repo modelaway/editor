@@ -12,6 +12,9 @@ type TypedArray =
   | BigInt64Array
   | BigUint64Array
 
+export const SPREAD_VAR_PATTERN = /^\.\.\./
+export const ARGUMENT_VAR_PATTERN = /^\[(\w+,?)+\]$/
+
 /**
  * Deep difference checker with support for Map, Set,
  * and various JS built-in types

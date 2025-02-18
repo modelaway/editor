@@ -1,6 +1,7 @@
 import type { Template, Handler } from '../lips'
 
-import Lips, { Component } from '../lips/lips'
+import Lips from '../lips/lips'
+import Component from '../lips/component'
 import english from '../languages/en.json'
 import french from '../languages/fr.json'
 import Layers from '../factory/layers'
@@ -108,8 +109,7 @@ function Demo1(){
   setTimeout( () => {
     component.setState({ time: 'afternoon' })
     component.setInput({ person: 'Brigit' })
-  }, 5000 )
-
+  }, 2000 )
 }
 
 function Demo2(){
@@ -242,7 +242,6 @@ function Demo5(){
 
   const lips = new Lips({ debug: true })
   lips.register('easycount', easyCount )
-
 
   const
   _static = {
@@ -1032,55 +1031,89 @@ function DemoLayers(){
 }
 
 function DemoInput(){
+  type TemplateInput = {
+    initial: number
+    limit: number
+  }
+  type TemplateState = {
+    count: number
+  }
+
+  const easyCount: Template<TemplateInput, TemplateState> = {
+    state: {
+      count: 0
+    },
+    handler: {
+      onInput(){ this.state.count = Number( this.input.initial ) },
+      handleClick( e: Event ){
+        if( this.state.count >= this.input.limit )
+          return
+
+        this.state.count++
+      }
+    },
+    default: `
+      <div>
+        {input.__slot__}:<span text=state.count></span>
+        <br>
+        <button on-click( handleClick )>Count</button>
+      </div>
+    `
+  }
+
+  const lips = new Lips({ debug: true })
+  lips.register('easycount', easyCount )
+
   type State = {
     value: string
+    initial: number
     attrs: {
       hidden: boolean
       title: string
     }
-    numbers: number[],
+    numbers: number[]
     speech: string
   }
 
   const
   state: State = {
-    value: '',
+    value: 'dupont',
+    initial: 5,
     attrs: {
       hidden: true,
       title: 'Spread'
     },
-    numbers: [0,5,3,6,2,3,6,7,4],
+    numbers: [],
     speech: 'hi'
   },
   template = `
-    <div style="">
+    <div style="{ border: '1px solid '+(state.value.length > 5 ? 'red' : 'gray') }">
       <input value=state.value
               on-input(handleInput)/>
 
-      <br><br>
-      <div html=state.value style="color: green"></div>
-      <p ...state.attrs checked>Spread----</p>
-
-      <if( state.value.includes('b') )><p><b>{state.value}</b></p></if>
-      <else-if( state.value.includes('i') )><p><i>{state.value}</i></p></else-if>
-      <else><p>{state.value}</p></else>
-
-      <div>
-        <for in=state.numbers>
-          <span>{each}</span>.
-        </for>
-      </div>
-
       <br>
-      <switch( state.speech )>
-        <case is="hi">
-          <span on-click="handleConnect, !state.online">Hi - </span>
-          <span text=index></span>
-        </case>
-        <case is="hello"><span>Hello - <span text=index></span></span></case>
-        <case is="bonjour"><span>Bonjour - </span><span text=index></span></case>
-        <default>Salut</default>
-      </switch>
+      <div html=state.value style="color: green"></div>
+      <p ...state.attrs checked on-click(() => console.log('I got clicked'))>
+        <span>Major word in speech is: {state.speech} <span> - {state.value +'-plus'}</span></span>
+        <br><br>
+        <small>Initial count: {state.initial}</small>
+      </p>
+
+      <easycount [count] initial=state.initial>
+        <span>{state.value}</span>
+      </easycount>
+
+      <button on-click(() => self.state.initial = 2 )>Change initial</button>
+
+      <if( state.value.includes('b') )>
+        <p><b>{state.value}</b></p>
+      </if>
+      <else-if( state.value.includes('i') )>
+        <p><i>{state.value}</i></p>
+      </else-if>
+      <else>
+        <p>{state.value}</p>
+      </else>
     </div>
   `,
   handler: Handler<any, State> = {
@@ -1088,23 +1121,25 @@ function DemoInput(){
       this.state.value = e.target.value
       this.state.attrs.hidden = e.target.value.length == 2
 
+      if( e.target.value.length == 2 ){
+        this.state.speech = 'hello'
+        this.state.numbers = [0,5,3,6,2,3,6,7,4]
+      }
+
       if( e.target.value.length === 4 ){
         this.state.numbers = [4,3,2,3,3,32]
         this.state.speech = 'buuuu'
       }
-
-      if( e.target.value.length == 2 )
-        this.state.speech = 'hello'
     }
   }
 
-  const component = new Component('DemoInput', template, { state, handler }, { debug: true })
-
-  component.appendTo('body')
+  lips
+  .render('DemoInput', { default: template, state, handler }, {})
+  .appendTo('body')
 }
 
 
-Demo1()
+// Demo1()
 // Demo2()
 // Demo3()
 // Demo4()
@@ -1112,4 +1147,4 @@ Demo1()
 // Demo6()
 // DemoCart()
 // DemoLayers()
-// DemoInput()
+DemoInput()

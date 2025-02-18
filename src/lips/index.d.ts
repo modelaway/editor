@@ -1,9 +1,19 @@
-import type { Component } from './lips'
 import type Lips from './lips'
+import type Component from './component'
 
 export type LanguageDictionary = Record<string, Record<string, string> | string>
 export type VariableScope = Record<string, { value: any, type: 'let' | 'const' }>
 
+export type DeclarationTagType = 'sibling' | 'child'
+export type DeclarationTag = {
+  type: DeclarationTagType
+  many?: boolean
+}
+export type Declaration = {
+  name: string
+  contents?: boolean
+  tags?: Record<string, DeclarationTag>
+}
 export interface Handler<Input = void, State = void, Static = void, Context = void> {
   onCreate?: ( this: Component<Input, State, Static, Context> ) => void
   onInput?: ( this: Component<Input, State, Static, Context>, input: Input ) => void
@@ -14,13 +24,14 @@ export interface Handler<Input = void, State = void, Static = void, Context = vo
   [index: string]: ( this: Component<Input, State, Static, Context>, ...args: any[] ) => void
 }
 export type Template<Input = void, State = void, Static = void, Context = void> = {
+  default: string
   state?: any
   _static?: any
   context?: any
   handler?: Handler<Input, State, Static, Context>
   stylesheet?: string
   macros?: Record<string, string>
-  default: string
+  declaration?: Declaration
 }
 export type ComponentScope<Input = void, State = void, Static = void, Context = void> = {
   input?: any
@@ -30,6 +41,7 @@ export type ComponentScope<Input = void, State = void, Static = void, Context = 
   handler?: Handler<Input, State, Static, Context>
   stylesheet?: string
   macros?: Record<string, string>
+  declaration?: Declaration
 }
 export type ComponentOptions = {
   debug?: boolean

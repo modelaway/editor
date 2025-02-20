@@ -76,7 +76,7 @@ export type FGUDependency = {
 export type FGUDependencies = Map<string, Set<FGUDependency>>
 
 export type RenderedNode = {
-  _$: Cash
+  $log: Cash
   dependencies: FGUDependencies
 }
 export interface MeshRender {

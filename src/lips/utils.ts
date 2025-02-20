@@ -1,3 +1,5 @@
+import $ from 'cash-dom'
+
 // TypeScript type for TypedArrays
 type TypedArray =
   | Int8Array
@@ -11,6 +13,20 @@ type TypedArray =
   | Float64Array
   | BigInt64Array
   | BigUint64Array
+
+$.fn.extend({
+  attrs: function(){
+    const 
+    obj: any = {},
+    elem = this[0]
+
+    elem
+    && elem.nodeType !== Node.TEXT_NODE
+    && $.each( elem.attributes, function( this: any ){ obj[ this.name ] = this.value })
+
+    return obj
+  }
+})
 
 export const SPREAD_VAR_PATTERN = /^\.\.\./
 export const ARGUMENT_VAR_PATTERN = /^\[(.*?)\]$/
@@ -512,6 +528,57 @@ export function deepAssign<T>( original: T, toSet: Record<string, any> ): T {
   }
 
   return modified
+}
+
+export function preprocessor( str: string ): string {
+  const matchEventHandlers = ( input: string ) => {
+    const pattern = /on-([a-zA-Z-]+)\s*\(/g
+    let
+    result = input,
+    match
+    
+    while( ( match = pattern.exec( input ) ) !== null ){
+      const event = match[1]
+      const startIndex = match.index + match[0].length
+      let 
+        parenthesesCount = 1,
+        position = startIndex
+      
+      while( position < input.length && parenthesesCount > 0 ){
+        if( input[position] === '(' ) parenthesesCount++
+        if( input[position] === ')' ) parenthesesCount--
+        position++
+      }
+      
+      if( parenthesesCount === 0 ){
+        const 
+        expression = input.slice( startIndex, position - 1 ).trim(),
+        prefix = input.slice( 0, match.index ),
+        replacement = `on-${event}="${expression}"`,
+        suffix = input.slice( position )
+        
+        result = prefix + replacement + suffix
+        input = result  // Update input for next iteration
+        pattern.lastIndex = prefix.length + replacement.length
+      }
+    }
+    
+    return result
+  }
+  
+  let result = (str || '').trim()
+                          .replace(/>\s*</g, '><')
+                          .replace(/\s{2,}/g, ' ')
+                          .replace(/[\r\n\t]/g, '')
+                          .replace( /<\{([^}]+)\}\s+(.*?)\/>/g, '<lips dtag="$1" $2></lips>')
+                          .replace( /<(\w+)(\s+[^>]*)?\/>/g, '<$1$2></$1>')
+                          .replace( /<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
+                          .replace( /<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
+                          .replace( /<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">')
+                          .replace( /<log\(\s*(.*?)\s*\)>/g, '<log args="$1">')
+                          .replace( /\[(.*?)\]/g, match => match.replace(/\s+/g, '') )
+
+  return matchEventHandlers( result )
 }
 
 // Example usage:

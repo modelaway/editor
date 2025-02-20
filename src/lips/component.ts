@@ -7,89 +7,24 @@ import type {
   MeshRender,
   MeshTemplate,
   RenderedNode,
-  FGUDependency,
   FGUDependencies
 } from '.'
 
-import $, { Cash } from 'cash-dom'
 import Events from './events'
+import $, { Cash } from 'cash-dom'
 import Benchmark from './benchmark'
-import NodeManager, { NodeMeta, NodeType } from './nodemanager'
 import Stylesheet from '../modules/stylesheet'
+import { effect, EffectControl, signal } from './signal'
+import NodeManager, { type NodeMeta, type NodeType } from './nodemanager'
 import { 
   isDiff,
   isEqual,
   deepClone,
   deepAssign,
+  preprocessor,
   SPREAD_VAR_PATTERN,
   ARGUMENT_VAR_PATTERN
 } from './utils'
-import { effect, EffectControl, signal } from './signal'
-
-function preprocessTemplate( str: string ){
-  const matchEventHandlers = ( input: string ) => {
-    const pattern = /on-([a-zA-Z-]+)\s*\(/g
-    let
-    result = input,
-    match
-    
-    while( ( match = pattern.exec( input ) ) !== null ){
-      const event = match[1]
-      const startIndex = match.index + match[0].length
-      let 
-        parenthesesCount = 1,
-        position = startIndex
-      
-      while( position < input.length && parenthesesCount > 0 ){
-        if( input[position] === '(' ) parenthesesCount++
-        if( input[position] === ')' ) parenthesesCount--
-        position++
-      }
-      
-      if( parenthesesCount === 0 ){
-        const 
-        expression = input.slice( startIndex, position - 1 ).trim(),
-        prefix = input.slice( 0, match.index ),
-        replacement = `on-${event}="${expression}"`,
-        suffix = input.slice( position )
-        
-        result = prefix + replacement + suffix
-        input = result  // Update input for next iteration
-        pattern.lastIndex = prefix.length + replacement.length
-      }
-    }
-    
-    return result
-  }
-  
-  let result = (str || '').trim()
-                          .replace(/>\s*</g, '><')
-                          .replace(/\s{2,}/g, ' ')
-                          .replace(/[\r\n\t]/g, '')
-                          .replace( /<\{([^}]+)\}\s+(.*?)\/>/g, '<lips dtag="$1" $2></lips>')
-                          .replace( /<(\w+)(\s+[^>]*)?\/>/g, '<$1$2></$1>')
-                          .replace( /<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
-                          .replace( /<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
-                          .replace( /<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">')
-                          .replace( /<log\(\s*(.*?)\s*\)>/g, '<log args="$1">')
-                          .replace( /\[(.*?)\]/g, match => match.replace(/\s+/g, '') )
-
-  return matchEventHandlers( result )
-}
-
-$.fn.extend({
-  attrs: function(){
-    const 
-    obj: any = {},
-    elem = this[0]
-
-    elem
-    && elem.nodeType !== Node.TEXT_NODE
-    && $.each( elem.attributes, function( this: any ){ obj[ this.name ] = this.value })
-
-    return obj
-  }
-})
 
 type Metavars<I, S, C> = { 
   state: S,
@@ -152,7 +87,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
   constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet, macros }: ComponentScope<Input, State, Static, Context>, options?: ComponentOptions ){
     super()
 
-    this.template = preprocessTemplate( template )
+    this.template = preprocessor( template )
     this.macros = macros || {}
 
     if( options?.lips ) this.lips = options.lips    
@@ -265,8 +200,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
         && this.onCreate.bind(this)()
         this.emit('component:create', this )
 
-        const { _$ } = this.render( undefined, undefined, this.__dependencies )
-        this.$ = _$
+        const { $log } = this.render( undefined, undefined, this.__dependencies )
+        this.$ = $log
         // this.__dependencies = dependencies
         
         // Assign CSS relationship attribute
@@ -421,7 +356,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
     if( $nodes && !$nodes.length ){
       console.warn('Undefined node element to render')
-      return { _$: $nodes, dependencies }
+      return { $log: $nodes, dependencies }
     }
 
     const self = this
@@ -603,16 +538,16 @@ export default class Component<Input = void, State = void, Static = void, Contex
       // First check template from cache
       const $macroCached = self.__macros.get( name )
       if( $macroCached?.length ){
-        const { _$ } = self.render( $macroCached, scope, dependencies )
-        $fragment = $fragment.add( _$ )
+        const { $log } = self.render( $macroCached, scope, dependencies )
+        $fragment = $fragment.add( $log )
       }
       
       else {
         const
-        $macro = $( preprocessTemplate( self.macros[ name ] ) ),
-        { _$ } = self.render( $macro, scope, dependencies )
+        $macro = $( preprocessor( self.macros[ name ] ) ),
+        { $log } = self.render( $macro, scope, dependencies )
 
-        $fragment = $fragment.add( _$ )
+        $fragment = $fragment.add( $log )
 
         // Cache macro template to be reused
         self.__macros.set( name, $macro )
@@ -701,11 +636,11 @@ export default class Component<Input = void, State = void, Static = void, Contex
            */
           if( !render.argv.includes( key ) ) return
 
-          const partialUpdate = ( _scope?: VariableScope ) => {
+          const partialUpdate = ( memo?: VariableScope ) => {
             render.update({
               [key]: {
                 type: 'const',
-                value: value ? self.__evaluate__( value, _scope || scope ) : true
+                value: value ? self.__evaluate__( value, memo || scope ) : true
               }
             })
           }
@@ -839,7 +774,10 @@ export default class Component<Input = void, State = void, Static = void, Contex
           }
 
           // Regular body contents
-          else input = { ...input, ...self.__mesh__( $nodeContents, argv, scope ) }
+          else input = {
+            ...input,
+            ...self.__mesh__( $nodeContents, argv, scope )
+          }
         }
 
         console.log( input )
@@ -875,10 +813,10 @@ export default class Component<Input = void, State = void, Static = void, Contex
         .entries( attrs )
         .forEach( ([ key, value ]) => {
           if( SPREAD_VAR_PATTERN.test( key ) ){
-            const spreadvalues = ( _scope?: VariableScope ) => {
+            const spreadvalues = ( memo?: VariableScope ) => {
               const
               extracted: Record<string, any> = {},
-              spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, _scope || scope )
+              spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo || scope )
               if( typeof spreads !== 'object' )
                 throw new Error(`Invalid spread operator ${key}`)
 
@@ -898,9 +836,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
             }
           }
           else {
-            const evalue = ( _scope?: VariableScope ) => {
+            const evalue = ( memo?: VariableScope ) => {
               component.subInput({
-                [key]: value ? self.__evaluate__( value as string, _scope || scope ) : true
+                [key]: value ? self.__evaluate__( value as string, memo || scope ) : true
               })
             }
             
@@ -941,7 +879,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
         // Process contents recursively if they exist
         $contents.length
-        && $fragment.append( self.__withPath__( `${elementPath}/content`, () => self.render( $contents, scope, dependencies )._$ ) )
+        && $fragment.append( self.__withPath__( `${elementPath}/content`, () => self.render( $contents, scope, dependencies ).$log ) )
 
         // Process attributes
         const 
@@ -953,8 +891,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
             switch( attr ){
               // Inject inner html into the element
               case 'html': {
-                const updateHTML = ( _scope?: VariableScope ) => {
-                  $fragment.html( self.__evaluate__( value as string, _scope || scope ) )
+                const updateHTML = ( memo?: VariableScope ) => {
+                  $fragment.html( self.__evaluate__( value as string, memo || scope ) )
                 }
 
                 updateHTML()
@@ -971,8 +909,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
               // Inject text into the element
               case 'text': {
-                const updateText = ( _scope?: VariableScope ) => {
-                  let text = self.__evaluate__( value as string, _scope || scope )
+                const updateText = ( memo?: VariableScope ) => {
+                  let text = self.__evaluate__( value as string, memo || scope )
 
                   // Apply translation
                   if( self.lips && !$node.is('[no-translate]') ){
@@ -997,8 +935,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
               // Convert object style attribute to string
               case 'style': {
-                const updateStyle = ( _scope?: VariableScope ) => {
-                  const style = self.__evaluate__( value as string, _scope || scope )
+                const updateStyle = ( memo?: VariableScope ) => {
+                  const style = self.__evaluate__( value as string, memo || scope )
                   
                   // Defined in object format
                   if( typeof style === 'object' ){
@@ -1028,9 +966,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
               // Inject the evaluation result of any other attributes
               default: {
-                const updateAttrs = ( _scope?: VariableScope ) => {
+                const updateAttrs = ( memo?: VariableScope ) => {
                   const res = value ?
-                              self.__evaluate__( value as string, _scope || scope )
+                              self.__evaluate__( value as string, memo || scope )
                               /**
                                * IMPORTANT: An attribute without a value is
                                * considered neutral but `true` of a value by
@@ -1087,10 +1025,10 @@ export default class Component<Input = void, State = void, Static = void, Contex
         .forEach( key => {
           if( !SPREAD_VAR_PATTERN.test( key ) ) return
 
-          const updateSpreadAttrs = ( _scope?: VariableScope ) => {
+          const updateSpreadAttrs = ( memo?: VariableScope ) => {
             const
             extracted: Record<string, any> = {},
-            spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, _scope || scope )
+            spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo || scope )
             if( typeof spreads !== 'object' )
               throw new Error(`Invalid spread operator ${key}`)
 
@@ -1142,8 +1080,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
         if( content && self.__isReactive__( content, scope ) ){
           const
           deps = self.__extractTextDeps__( content, scope ),
-          updateTextContent = ( _scope?: VariableScope ) => {
-            const text = self.__interpolate__( content, _scope || scope )
+          updateTextContent = ( memo?: VariableScope ) => {
+            const text = self.__interpolate__( content, memo || scope )
             if( !$fragment[0] ) return
             $fragment[0].textContent = text
           }
@@ -1217,7 +1155,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
       }
     }
     
-    return { _$, dependencies }
+    return { $log: _$, dependencies }
   }
   /**
    * Rerender component using the original content 
@@ -1227,7 +1165,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
     if( !this.template )
       throw new Error('Component template is empty')
 
-    const { _$: $clone } = this.render()
+    const { $log: $clone } = this.render()
     
     this.$?.replaceWith( $clone )
     this.$ = $clone
@@ -1252,9 +1190,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
           this.partial = self.render( $contents, { ...scope, ...argvalues } )
 
           /**
-           * Share partial dependenies with main thread
-           * to have a parallel update on the same node
-           * both ways.
+           * Share partial FGU dependenies with main component thread
+           * for parallel updates (main & partial) on the meshed node.
            * 
            * 1. From main FGU dependency track
            * 2. From mesh rendering track
@@ -1265,12 +1202,13 @@ export default class Component<Input = void, State = void, Static = void, Contex
                           : dependents.forEach( dependent => self.__dependencies?.get( path )?.add( dependent ) )
           } )
 
-          return this.partial._$
+          return this.partial.$log
         },
         update( argvalues?: VariableScope ){
           if( !this.partial ) return
           const { dependencies } = this.partial
-
+          
+          // Execute partial mesh update
           dependencies.forEach( ( dependents, path ) => {
             dependents.forEach( ({ $node, update }) => {
               if( !$node.closest('body').length ){
@@ -1438,6 +1376,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
     const pattern = /\b(state|input|context)(?:\.[a-zA-Z_]\w*)+(?=\.[a-zA-Z_]\w*\(|\s|;|,|\)|$)/g
     let matches = Array.from( expr.matchAll( pattern ) )
 
+    /**
+     * Extract scope interpolation expressions
+     */
     if( scope && Object.keys( scope ).length ){
       const scopeRegex = new RegExp(`\\b(${Object.keys( scope ).join('|')})`, 'g')
       

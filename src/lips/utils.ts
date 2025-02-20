@@ -30,6 +30,7 @@ $.fn.extend({
 
 export const SPREAD_VAR_PATTERN = /^\.\.\./
 export const ARGUMENT_VAR_PATTERN = /^\[(.*?)\]$/
+export const DYNAMIC_TAG_PLACEHOLDER = '<!---[DTLOG]--->'
 
 /**
  * Deep difference checker with support for Map, Set,
@@ -570,7 +571,7 @@ export function preprocessor( str: string ): string {
                           .replace(/>\s*</g, '><')
                           .replace(/\s{2,}/g, ' ')
                           .replace(/[\r\n\t]/g, '')
-                          .replace( /<\{([^}]+)\}\s+(.*?)\/>/g, '<lips dtag="$1" $2></lips>')
+                          .replace( /<\{([^}]+)\}\s*(.*?)\/>/g, '<lips dtag="$1" $2></lips>')
                           .replace( /<(\w+)(\s+[^>]*)?\/>/g, '<$1$2></$1>')
                           .replace( /<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
                           .replace( /<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')

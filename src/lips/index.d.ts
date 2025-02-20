@@ -70,16 +70,18 @@ export type EventListener = ( ...args: any[] ) => void
  * (FGU) Fine-Grain Update Dependencies
  */
 export type FGUDependency = {
-  $node: Cash,
-  update: ( scope?: VariableScope ) => void
+  path: string
+  $fragment: Cash
+  update: ( scope?: VariableScope ) => Cash | void
 }
-export type FGUDependencies = Map<string, Set<FGUDependency>>
+export type FGUDependencies = Map<string, Map<string, FGUDependency>>
 
 export type RenderedNode = {
   $log: Cash
   dependencies: FGUDependencies
 }
 export interface MeshRender {
+  path: string | null
   argv: string[]
   partial?: RenderedNode
   mesh( argv?: VariableScope ): Cash

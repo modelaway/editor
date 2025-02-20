@@ -1,4 +1,4 @@
-import type { Declaration, Handler } from '..'
+import type { Declaration, Handler, MeshRender, MeshTemplate } from '..'
 
 export const declaration: Declaration = {
   name: 'if',
@@ -11,42 +11,43 @@ export const declaration: Declaration = {
 
 export interface Input {
   by: boolean
-
+  render?: MeshRender
+  'else-if'?: MeshTemplate[]
+  'else'?: MeshTemplate
+}
+export interface State {
+  render?: MeshRender | null
 }
 
-export const handler: Handler<Input> = {
+export const state = {
+  render: null
+}
+
+export const handler: Handler<Input, State> = {
   onInput(){
-    console.log( this.input )
+    // Render -- if
+    if( this.input.by )
+      this.state.render = this.input.render
+    
+    else {
+      let elseifMatch = false
+      
+      // Render -- else-if
+      if( Array.isArray( this.input['else-if'] ) && this.input['else-if'].length )
+        this.input['else-if'].forEach( each => {
+          if( !each.by ) return
+          
+          this.state.render = each.render
+          elseifMatch = true
+        } )
+      
+      // Render -- else or No fallback
+      if( !elseifMatch  )
+        this.state.render = this.input.else ? this.input.else.render : null
+    }
 
-    // const $ifContents = $node.contents()
-    // if( !$ifContents.length ) return $()
-
-    // const 
-    // $fragment = $(),
-    // condition = $node.attr('by')
-
-    // // Evaluate the primary <if(condition)>
-    // if( condition && $ifContents.length ){
-    //   if( self.__evaluate__( condition, scope ) )
-    //     return self.render( $ifContents, scope )
-
-    //   // Check for <else-if(condition)> and <else>
-    //   let $sibling = $node.nextAll('else-if, else').first()
-    //   while( $sibling.length > 0 ){
-    //     const $contents = $sibling.contents()
-
-    //     if( $sibling.is('else-if') ){
-    //       const elseIfCondition = $sibling.attr('by') as string
-    //       if( self.__evaluate__( elseIfCondition, scope ) && $contents.length )
-    //         return self.render( $contents, scope )
-    //     } 
-    //     else if( $sibling.is('else') && $contents.length )
-    //       return self.render( $contents, scope )
-        
-    //     $sibling = $sibling.nextAll('else-if, else').first()
-    //   }
-    // }
+    console.log( this.state.render )
   }
 }
 
-export default `<!--[IERP]-->`
+export default `<div><{state.render}/></div>`

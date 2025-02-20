@@ -1034,7 +1034,6 @@ function DemoInput(){
   type TemplateInput = {
     initial: number
     limit: number
-    render( ref: any, argv: Record<string, any> ): void
   }
   type TemplateState = {
     count: number

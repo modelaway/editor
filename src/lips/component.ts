@@ -1,7 +1,17 @@
 import type Lips from './lips'
-import type { Handler, ComponentScope, ComponentOptions, VariableScope } from '.'
+import type { 
+  Handler,
+  ComponentScope,
+  ComponentOptions,
+  VariableScope,
+  MeshRender,
+  MeshTemplate,
+  RenderedNode,
+  FGUDependency,
+  FGUDependencies
+} from '.'
 
-import $, { type Cash } from 'cash-dom'
+import $, { Cash } from 'cash-dom'
 import Events from './events'
 import Benchmark from './benchmark'
 import NodeManager, { NodeMeta, NodeType } from './nodemanager'
@@ -56,13 +66,14 @@ function preprocessTemplate( str: string ){
                           .replace(/>\s*</g, '><')
                           .replace(/\s{2,}/g, ' ')
                           .replace(/[\r\n\t]/g, '')
-                          .replace( /<\{([^}]+)\}\s+(.*?)\/>/g, '<lips component="$1" $2></lips>')
+                          .replace( /<\{([^}]+)\}\s+(.*?)\/>/g, '<lips dtag="$1" $2></lips>')
                           .replace( /<(\w+)(\s+[^>]*)?\/>/g, '<$1$2></$1>')
                           .replace( /<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
                           .replace( /<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
                           .replace( /<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">')
                           .replace( /<log\(\s*(.*?)\s*\)>/g, '<log args="$1">')
-  
+                          .replace( /\[(.*?)\]/g, match => match.replace(/\s+/g, '') )
+
   return matchEventHandlers( result )
 }
 
@@ -77,23 +88,9 @@ $.fn.extend({
     && $.each( elem.attributes, function( this: any ){ obj[ this.name ] = this.value })
 
     return obj
-  },
-  // tagname: function(){
-  //   const tn = (this as any).prop('tagName')
-  //   if( !tn ) return null
-
-  //   return tn.toLowerCase()
-  // }
+  }
 })
 
-/**
- * (FGU) Fine-Grain Update Dependencies
- */
-type FGUDeps = {
-  $node: Cash,
-  update: () => void
-  component?: Component
-}
 type Metavars<I, S, C> = { 
   state: S,
   input: I,
@@ -115,8 +112,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private __stylesheet?: Stylesheet
   private __macros: Map<string, Cash> = new Map() // Cached macros templates
   private __components: Map<string, Component> = new Map() // Cached nexted components
+  private __dependencies?: FGUDependencies = new Map() // Initial FGU dependencies
   private __attachableEvents: { $node: Cash, _event: string, instruction: string, scope?: Record<string, any> }[] = []
-  __dependencies: Map<string, Set<FGUDeps>> = new Map()
 
   /**
    * Nexted Component Count (NCC) in tree
@@ -268,10 +265,12 @@ export default class Component<Input = void, State = void, Static = void, Contex
         && this.onCreate.bind(this)()
         this.emit('component:create', this )
 
-        this.$ = this.render()
+        const { _$ } = this.render( undefined, undefined, this.__dependencies )
+        this.$ = _$
+        // this.__dependencies = dependencies
         
         // Assign CSS relationship attribute
-        this.$.attr('rel', this.__name__ )
+        this.$?.attr('rel', this.__name__ )
         this.isRendered = true
         
         /**
@@ -291,14 +290,14 @@ export default class Component<Input = void, State = void, Static = void, Contex
         && this.onMount.bind(this)()
         this.emit('component:mount', this )
       }
-      /**
-       * Update only dependent nodes
-       */
       else {
-        this.__updateDepNodes__({ state, input, context }, this.__previous )
+        /**
+         * Update only dependent nodes
+         */
+        this.__updateDepNodes__( { state, input, context }, this.__previous )
         
         /**
-         * Triggered anytime component gets rendered
+         * Triggered anytime component gets updated
          */
         typeof this.onUpdate == 'function' && this.onUpdate.bind(this)()
         this.emit('component:update', this )
@@ -417,13 +416,16 @@ export default class Component<Input = void, State = void, Static = void, Contex
     return this.$?.find( selector )
   }
 
-  render( $nodes?: Cash, scope: VariableScope = {} ){
+  render( $nodes?: Cash, scope: VariableScope = {}, sharedDeps?: FGUDependencies ): RenderedNode {
+    const dependencies: FGUDependencies = sharedDeps || new Map()
+
     if( $nodes && !$nodes.length ){
       console.warn('Undefined node element to render')
-      return $nodes
+      return { _$: $nodes, dependencies }
     }
 
     const self = this
+    
     /**
      * Initialize an empty cash object to 
      * act like a DocumentFragment
@@ -511,7 +513,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
       internal()
 
       hasReactiveAttr
-      && self.__trackDep__( hasReactiveAttr, $node, internal )
+      && self.__trackDep__( dependencies, hasReactiveAttr, $node, internal )
       
       /**
        * BENCHMARK: Tracking total elements rendered
@@ -541,11 +543,11 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * Also inject macro slotted body into macro input
        * as `__slot__`
        */
-      const nodeContents = $node.contents()
-      if( nodeContents && nodeContents.length ){
-        const $el = self.render( nodeContents, scope )
-        macroInput.__slot__ = $el.html() || $el.text()
-      }
+      // const nodeContents = $node.contents()
+      // if( nodeContents && nodeContents.length ){
+      //   const $el = self.render( nodeContents, scope, dependencies )
+      //   macroInput.__slot__ = $el.html() || $el.text()
+      // }
 
       /**
        * Parse assigned attributes to be injected into
@@ -600,12 +602,17 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
       // First check template from cache
       const $macroCached = self.__macros.get( name )
-      if( $macroCached?.length )
-        $fragment = $fragment.add( self.render( $macroCached, scope ) )
+      if( $macroCached?.length ){
+        const { _$ } = self.render( $macroCached, scope, dependencies )
+        $fragment = $fragment.add( _$ )
+      }
       
       else {
-        const $macro = $( preprocessTemplate( self.macros[ name ] ) )
-        $fragment = $fragment.add( self.render( $macro, scope ) )
+        const
+        $macro = $( preprocessTemplate( self.macros[ name ] ) ),
+        { _$ } = self.render( $macro, scope, dependencies )
+
+        $fragment = $fragment.add( _$ )
 
         // Cache macro template to be reused
         self.__macros.set( name, $macro )
@@ -619,131 +626,182 @@ export default class Component<Input = void, State = void, Static = void, Contex
       return $fragment
     }
 
-    function getComponentName( $node: Cash, dynamic: boolean ){
-      /**
-       * Process dynamic component tag set by:
-       * 
-       * Syntax `<{dynamic-name}/>`
-       * processed to `<lips component="[dynamic-name]"></lips>`
-       * 
-       */
-      if( dynamic ){
-        if( !$node.attr('component') || $node.prop('tagName') !== 'LIPS' )
-          throw new Error('Invalid dynamic component name')
-        
-        const attr = $node.attr('component') as string
-        $node.removeAttr('component')
-
-        return self.__evaluate__( attr, scope )
-      }
-      // Use direct node's tag
-      else return $node.prop('tagName')?.toLowerCase() as string
+    function isMesh( arg: any ){
+      return typeof arg === 'object'
+              && typeof arg.mesh === 'function'
+              && typeof arg.update === 'function'
     }
 
-    function execComponent( $node: Cash, dynamic = false ){
+    function execDynamic( $node: Cash ){
+      if( !$node.attr('dtag') || $node.prop('tagName') !== 'LIPS' )
+        throw new Error('Invalid dynamic tag name')
+      
+      const attr = $node.attr('dtag') as string
+      $node.removeAttr('dtag')
+
+      const result = self.__evaluate__( attr, scope )
+
+      return isMesh( result )
+                      /**
+                       * Process dynamic content rendering tag set by:
+                       * 
+                       * Syntax `<{input.render}/>`
+                       * processed to `<lips dtag=input.render></lips>`
+                       */
+                      ? execDynamicElement( $node, result )
+                      /**
+                      * Process dynamic tag set by:
+                      * 
+                      * Syntax `<{dynamic-name}/>`
+                      * processed to `<lips dtag="[dynamic-name]"></lips>`
+                      */
+                      : execComponent( $node, result )
+    }
+    function execDynamicElement( $node: Cash, render: MeshRender ){
+      const 
+      elementPath = self.__generatePath__('element'),
+      meta: NodeMeta = {
+        path: elementPath,
+        type: 'element'
+      },
+      renderExec = ( nodeRef: any ) => {
+        let $fragment = $()
+
+        const
+        argvalues: VariableScope = {},
+        { attrs } = self.__getAttributes__( $node )
+
+        attrs && Object
+        .entries( attrs )
+        .forEach( ([ key, value ]) => {
+          /**
+           * Only consume declared arguments' value
+           */
+          if( !render.argv.includes( key ) ) return
+
+          argvalues[ key ] = {
+            type: 'const',
+            value: value ? self.__evaluate__( value, scope ) : true
+          }
+        })
+
+        $fragment = $fragment.add( render.mesh( argvalues ) )
+
+        /**
+         * IMPORTANT:
+         * 
+         * Set update dependency track only after $fragment 
+         * contain rendered content
+         */
+        attrs && Object
+        .entries( attrs )
+        .forEach( ([ key, value ]) => {
+          /**
+           * Only update declared arguments' value
+           */
+          if( !render.argv.includes( key ) ) return
+
+          const partialUpdate = ( _scope?: VariableScope ) => {
+            render.update({
+              [key]: {
+                type: 'const',
+                value: value ? self.__evaluate__( value, _scope || scope ) : true
+              }
+            })
+          }
+
+          if( self.__isReactive__( value as string, scope ) ){
+            const deps = self.__extractExpressionDeps__( value as string, scope )
+
+            deps.forEach( dep => {
+              nodeRef.__deps.add( dep )
+              self.__trackDep__( dependencies, dep, $fragment, partialUpdate )
+            })
+          }
+        } )
+
+        return $fragment
+      }
+
+      return self.FGN.register( elementPath, meta, renderExec )
+    }
+    function execComponent( $node: Cash, dynamicName?: string ){
       const 
       componentPath = self.__generatePath__('component'),
       meta: NodeMeta = {
-        $raw: $node,
-        $parent: null,
-        index: self.__pathCounter - 1,
-        scope: {},
         path: componentPath,
         type: 'component'
       },
-      renderExec = () => {
-        const name = getComponentName( $node, dynamic )
+      renderExec = ( nodeRef: any ) => {
+        const name = dynamicName || $node.prop('tagName')?.toLowerCase() as string
         
         if( !name ) throw new Error('Invalid component')
         if( !self.lips ) throw new Error('Nexted component manager is disable')
 
         const
         __key__ = `${self.prekey}.${name}$${self.NCC++}`,
+        { argv, attrs, events } = self.__getAttributes__( $node )
+
         /**
          * Parse assigned attributes to be injected into
          * the component as input.
          */
+        let
         input: any = {},
-        { attrs, events } = self.__getAttributes__( $node, scope )
+        $fragment = $()
 
+        /**
+         * Cast attributes to compnent inputs
+         */
         attrs && Object
         .entries( attrs )
         .forEach( ([ key, value ]) => {
           if( key == 'key' ) return
-        
-          input[ key ] = value ?
-                          self.__evaluate__( value as string, scope )
-                          /**
-                           * IMPORTANT: An attribute without a value is
-                           * considered neutral but `true` of a value by
-                           * default.
-                           * 
-                           * Eg. <counter initial=3 throttle/>
-                           * 
-                           * the `throttle` attribute is hereby an input with a
-                           * value `true`.
-                           */
-                          : true
+
+          if( SPREAD_VAR_PATTERN.test( key ) ){
+            const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
+            if( typeof spreads !== 'object' )
+              throw new Error(`Invalid spread operator ${key}`)
+
+            for( const _key in spreads )
+              input[ _key ] = spreads[ _key ]
+          }
+
+          else input[ key ] = value
+                  ? self.__evaluate__( value as string, scope )
+                  /**
+                    * IMPORTANT: An attribute without a value is
+                    * considered neutral but `true` of a value by
+                    * default.
+                    * 
+                    * Eg. <counter initial=3 throttle/>
+                    * 
+                    * the `throttle` attribute is hereby an input with a
+                    * value `true`.
+                    */
+                  : true
         })
 
         /**
-         * Also inject component slotted body into inputs
-         * as `__slot__`
-         */
-        const
-        nodeContents = $node.contents()
-        if( nodeContents && nodeContents.length ){
-          const $el = self.render( nodeContents, scope )
-          input.__slot__ = $el.html() || $el.text()
-        }
-      
-        let $fragment = $()
-        
-        /**
-         * Update previously cached component by
-         * injecting updated inputs
-         */
-        const cached = self.__components.get( __key__ )
-        if( cached ){
-          cached.setInput( deepClone( input ) )
-
-          // Replace the original node with the fragment in the DOM
-          $fragment = $fragment.add( cached.getNode() )
-        }
-        /**
          * Render the whole component for first time
          */
-        else {
-          const template = self.lips.import( name )
-          if( !template )
-            throw new Error(`<${name}> template not found`)
-          
+        const template = self.lips.import( name )
+        if( !template )
+          throw new Error(`<${name}> template not found`)
+        
+        /**
+         * Also inject component slotted body into inputs
+         */
+        const $nodeContents = $node.contents()
+        if( $nodeContents.length ){
+          /**
+           * Parse a syntactic declaration body content
+           */
           if( template.declaration ){
-            /**
-             * Pass raw content nodes to component
-             * instead of `__slot__`
-             */
-            if( template.declaration.contents )
-              input.contents = $node.contents()
-
             /**
              * Extract node syntax component declaration tag nodes
              */
             if( template.declaration.tags ){
-              const transfer = ( $tagnode: Cash ) => {
-                return {
-                  ...self.__getAttributes__( $tagnode ),
-                  render: ( $ref: Cash, scope?: any ) => {
-                    const $content = $tagnode.contents()
-                    if( !$content.length ) return
-
-                    const $rendered = self.render( $content, scope )
-                    $ref.replaceWith( $rendered )
-                    $ref = $rendered
-                  }
-                }
-              }
-
               Object
               .entries( template.declaration?.tags )
               .forEach( ([ tagname, { type, many }]) => {
@@ -752,49 +810,111 @@ export default class Component<Input = void, State = void, Static = void, Contex
                     const $siblings = $node.siblings( tagname )
                     if( many ){
                       input[ tagname ] = []
-                      $siblings.each(function(){ input[ tagname ].push( transfer( $(this) ) ) })
+                      $siblings.each(function(){
+                        input[ tagname ].push( self.__mesh__( $(this), argv, scope, true ) )
+                      })
                     }
-                    else input[ tagname ] = transfer( $node.siblings( tagname ).first() )
+                    else input[ tagname ] = self.__mesh__( $node.siblings( tagname ).first(), argv, scope, true )
                   } break
 
                   case 'child': {
                     const $children = $node.children( tagname )
                     if( many ){
                       input[ tagname ] = []
-                      $children.each(function(){ input[ tagname ].push( transfer( $(this) ) ) })
+                      $children.each(function(){ 
+                        input[ tagname ].push( self.__mesh__( $(this), argv, scope, true ) )
+                      })
                     }
-                    else input[ tagname ] = transfer( $node.children( tagname ).first() )
+                    else input[ tagname ] = self.__mesh__( $node.children( tagname ).first(), argv, scope, true )
                   } break
                 }
               } )
             }
+
+            /**
+             * Pass raw content nodes to component
+             */
+            else if( template.declaration.contents )
+              input.__contents__ = $nodeContents
           }
 
-          const
-          { state, _static, handler, context, default: _default, stylesheet } = template,
-          component = new Component( name, _default, {
-            state: deepClone( state ),
-            input: deepClone( input ),
-            context,
-            _static: deepClone( _static ),
-            handler,
-            stylesheet
-          }, {
-            debug: self.debug,
-            lips: self.lips,
-            prekey: __key__
-          })
-          
-          $fragment = $fragment.add( component.getNode() )
-          // Replace the original node with the fragment in the DOM
-          self.__components.set( __key__, component )
-
-          // Listen to this nexted component's events
-          Object
-          .entries( events )
-          .forEach( ([ _event, instruction ]) => self.__attachEvent__( component, _event, instruction, scope ) )
+          // Regular body contents
+          else input = { ...input, ...self.__mesh__( $nodeContents, argv, scope ) }
         }
+
+        console.log( input )
+
+        const
+        { state, _static, handler, context, default: _default, stylesheet } = template,
+        component = new Component( name, _default, {
+          state: deepClone( state ),
+          input: deepClone( input ),
+          context,
+          _static: deepClone( _static ),
+          handler,
+          stylesheet
+        }, {
+          debug: self.debug,
+          lips: self.lips,
+          prekey: __key__
+        })
         
+        $fragment = $fragment.add( component.getNode() )
+        // Replace the original node with the fragment in the DOM
+        self.__components.set( __key__, component )
+
+        // Listen to this nexted component's events
+        Object
+        .entries( events )
+        .forEach( ([ _event, instruction ]) => self.__attachEvent__( component, _event, instruction, scope ) )
+        
+        /**
+         * Setup input track
+         */
+        attrs && Object
+        .entries( attrs )
+        .forEach( ([ key, value ]) => {
+          if( SPREAD_VAR_PATTERN.test( key ) ){
+            const spreadvalues = ( _scope?: VariableScope ) => {
+              const
+              extracted: Record<string, any> = {},
+              spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, _scope || scope )
+              if( typeof spreads !== 'object' )
+                throw new Error(`Invalid spread operator ${key}`)
+
+              for( const _key in spreads )
+                extracted[ _key ] = spreads[ _key ]
+
+              component.subInput( extracted )
+            }
+            
+            if( self.__isReactive__( key as string, scope ) ){
+              const deps = self.__extractExpressionDeps__( value as string, scope )
+              
+              deps.forEach( dep => {
+                nodeRef.__deps.add( dep )
+                self.__trackDep__( dependencies, dep, $fragment, spreadvalues )
+              })
+            }
+          }
+          else {
+            const evalue = ( _scope?: VariableScope ) => {
+              component.subInput({
+                [key]: value ? self.__evaluate__( value as string, _scope || scope ) : true
+              })
+            }
+            
+            if( self.__isReactive__( value as string, scope ) ){
+              const deps = self.__extractExpressionDeps__( value as string, scope )
+              
+              deps.forEach( dep => {
+                nodeRef.__deps.add( dep )
+                self.__trackDep__( dependencies, dep, $fragment, evalue )
+              })
+            }
+          }
+        })
+
         /**
          * BENCHMARK: Tracking total elements rendered
          */
@@ -805,15 +925,10 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
       return self.FGN.register( componentPath, meta, renderExec )
     }
-
     function execElement( $node: Cash ): Cash {
       const 
       elementPath = self.__generatePath__('element'),
       meta: NodeMeta = {
-        $raw: $node,
-        $parent: null,
-        index: self.__pathCounter - 1,
-        scope: {},
         path: elementPath,
         type: 'element'
       },
@@ -826,11 +941,11 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
         // Process contents recursively if they exist
         $contents.length
-        && $fragment.append( self.__withPath__( `${elementPath}/content`, () => self.render( $contents, {} ) ) )
+        && $fragment.append( self.__withPath__( `${elementPath}/content`, () => self.render( $contents, scope, dependencies )._$ ) )
 
         // Process attributes
         const 
-        { attrs, events } = self.__getAttributes__( $node, scope ),
+        { attrs, events } = self.__getAttributes__( $node ),
         processAttrs = ( list: Record<string, any>, track: boolean = false ) => {
           list && Object
           .entries( list )
@@ -838,26 +953,26 @@ export default class Component<Input = void, State = void, Static = void, Contex
             switch( attr ){
               // Inject inner html into the element
               case 'html': {
-                const updateHTML = () => {
-                  $fragment.html( self.__evaluate__( value as string, scope ) )
+                const updateHTML = ( _scope?: VariableScope ) => {
+                  $fragment.html( self.__evaluate__( value as string, _scope || scope ) )
                 }
 
                 updateHTML()
 
-                if( track && self.__isReactive__( value as string ) ){
-                  const deps = self.__extractExpressionDeps__( value as string )
+                if( track && self.__isReactive__( value as string, scope ) ){
+                  const deps = self.__extractExpressionDeps__( value as string, scope )
 
                   deps.forEach( dep => {
                     nodeRef.__deps.add( dep )
-                    self.__trackDep__( dep, $fragment, updateHTML )
+                    self.__trackDep__( dependencies, dep, $fragment, updateHTML )
                   })
                 }
               } break
 
               // Inject text into the element
               case 'text': {
-                const updateText = () => {
-                  let text = self.__evaluate__( value as string, scope )
+                const updateText = ( _scope?: VariableScope ) => {
+                  let text = self.__evaluate__( value as string, _scope || scope )
 
                   // Apply translation
                   if( self.lips && !$node.is('[no-translate]') ){
@@ -870,20 +985,20 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
                 updateText()
                 
-                if( track && self.__isReactive__( value as string ) ){
-                  const deps = self.__extractExpressionDeps__( value as string )
+                if( track && self.__isReactive__( value as string, scope ) ){
+                  const deps = self.__extractExpressionDeps__( value as string, scope )
 
                   deps.forEach( dep => {
                     nodeRef.__deps.add( dep )
-                    self.__trackDep__( dep, $fragment, updateText )
+                    self.__trackDep__( dependencies, dep, $fragment, updateText )
                   })
                 }
               } break
 
               // Convert object style attribute to string
               case 'style': {
-                const updateStyle = () => {
-                  const style = self.__evaluate__( value as string, scope )
+                const updateStyle = ( _scope?: VariableScope ) => {
+                  const style = self.__evaluate__( value as string, _scope || scope )
                   
                   // Defined in object format
                   if( typeof style === 'object' ){
@@ -901,21 +1016,21 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
                 updateStyle()
                 
-                if( track && self.__isReactive__( value as string ) ){
-                  const deps = self.__extractExpressionDeps__( value as string )
+                if( track && self.__isReactive__( value as string, scope ) ){
+                  const deps = self.__extractExpressionDeps__( value as string, scope )
 
                   deps.forEach( dep => {
                     nodeRef.__deps.add( dep )
-                    self.__trackDep__( dep, $fragment, updateStyle )
+                    self.__trackDep__( dependencies, dep, $fragment, updateStyle )
                   })
                 }
               } break
 
               // Inject the evaluation result of any other attributes
               default: {
-                const updateAttrs = () => {
+                const updateAttrs = ( _scope?: VariableScope ) => {
                   const res = value ?
-                              self.__evaluate__( value as string, {} )
+                              self.__evaluate__( value as string, _scope || scope )
                               /**
                                * IMPORTANT: An attribute without a value is
                                * considered neutral but `true` of a value by
@@ -941,12 +1056,12 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
                 updateAttrs()
                 
-                if( track && self.__isReactive__( value as string ) ){
-                  const deps = self.__extractExpressionDeps__( value as string )
+                if( track && self.__isReactive__( value as string, scope ) ){
+                  const deps = self.__extractExpressionDeps__( value as string, scope )
 
                   deps.forEach( dep => {
                     nodeRef.__deps.add( dep )
-                    self.__trackDep__( dep, $fragment, updateAttrs )
+                    self.__trackDep__( dependencies, dep, $fragment, updateAttrs )
                   })
                 }
               }
@@ -972,10 +1087,10 @@ export default class Component<Input = void, State = void, Static = void, Contex
         .forEach( key => {
           if( !SPREAD_VAR_PATTERN.test( key ) ) return
 
-          const updateSpreadAttrs = () => {
+          const updateSpreadAttrs = ( _scope?: VariableScope ) => {
             const
             extracted: Record<string, any> = {},
-            spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
+            spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, _scope || scope )
             if( typeof spreads !== 'object' )
               throw new Error(`Invalid spread operator ${key}`)
 
@@ -988,12 +1103,12 @@ export default class Component<Input = void, State = void, Static = void, Contex
           delete attrs[ key ]
           updateSpreadAttrs()
 
-          if( key && self.__isReactive__( key as string ) ){
-            const deps = self.__extractExpressionDeps__( key as string )
+          if( key && self.__isReactive__( key, scope ) ){
+            const deps = self.__extractExpressionDeps__( key, scope )
 
             deps.forEach( dep => {
               nodeRef.__deps.add( dep )
-              self.__trackDep__( dep, $fragment, updateSpreadAttrs )
+              self.__trackDep__( dependencies, dep, $fragment, updateSpreadAttrs )
             })
           }
         })
@@ -1014,10 +1129,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
       const
       textPath = self.__generatePath__('element'),
       meta: NodeMeta = {
-        $raw: $node,
-        $parent: null,
-        index: self.__pathCounter - 1,
-        scope: {},
         path: textPath,
         type: 'element'
       },
@@ -1028,18 +1139,18 @@ export default class Component<Input = void, State = void, Static = void, Contex
         $fragment = $(document.createTextNode( self.__interpolate__( content, scope ) ) )
 
         // Track for update rendering
-        if( content && self.__isReactive__( content ) ){
+        if( content && self.__isReactive__( content, scope ) ){
           const
-          deps = self.__extractTextDeps__( content ),
-          updateTextContent = () => {
-            const text = self.__interpolate__( content, scope )
+          deps = self.__extractTextDeps__( content, scope ),
+          updateTextContent = ( _scope?: VariableScope ) => {
+            const text = self.__interpolate__( content, _scope || scope )
             if( !$fragment[0] ) return
             $fragment[0].textContent = text
           }
           
           deps.forEach( dep => {
             nodeRef.__deps.add( dep )
-            self.__trackDep__( dep, $fragment, updateTextContent )
+            self.__trackDep__( dependencies, dep, $fragment, updateTextContent )
           })
         }
 
@@ -1065,7 +1176,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * for their should be already process by <if>
        */
       else if( $node.is('else-if, else') ) return
-      else if( $node.is('lips') ) return execComponent( $node, true )
+      else if( $node.is('lips') ) return execDynamic( $node )
       else if( $node.is('log') ) return execLog( $node )
       
       // Identify and render macro components
@@ -1106,7 +1217,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
       }
     }
     
-    return _$
+    return { _$, dependencies }
   }
   /**
    * Rerender component using the original content 
@@ -1116,38 +1227,104 @@ export default class Component<Input = void, State = void, Static = void, Contex
     if( !this.template )
       throw new Error('Component template is empty')
 
-    const $clone = this.render()
+    const { _$: $clone } = this.render()
     
     this.$?.replaceWith( $clone )
     this.$ = $clone
 
     // Reassign CSS relationship attribute
-    this.$.attr('rel', this.__name__ )
+    this.$?.attr('rel', this.__name__ )
   }
-  
-  private __getAttributes__( $node: Cash, scope?: any ){
+
+  /**
+   *
+   */
+  private __mesh__( $tagnode: Cash, argv: string[] = [], scope: VariableScope = {}, useAttributes = false ){
+    const self = this
+    let contents: MeshTemplate = {
+      render: {
+        argv,
+        partial: undefined,
+        mesh( argvalues?: VariableScope ){
+          const $contents = $tagnode.contents()
+          if( !$contents.length ) return
+
+          this.partial = self.render( $contents, { ...scope, ...argvalues } )
+
+          /**
+           * Share partial dependenies with main thread
+           * to have a parallel update on the same node
+           * both ways.
+           * 
+           * 1. From main FGU dependency track
+           * 2. From mesh rendering track
+           */
+          this.partial.dependencies.forEach( ( dependents, path ) => {
+            !self.__dependencies?.has( path )
+                          ? self.__dependencies?.set( path, dependents )
+                          : dependents.forEach( dependent => self.__dependencies?.get( path )?.add( dependent ) )
+          } )
+
+          return this.partial._$
+        },
+        update( argvalues?: VariableScope ){
+          if( !this.partial ) return
+          const { dependencies } = this.partial
+
+          dependencies.forEach( ( dependents, path ) => {
+            dependents.forEach( ({ $node, update }) => {
+              if( !$node.closest('body').length ){
+                dependents.delete({ $node, update })
+                return
+              }
+
+              console.log('update --', update )
+              update({ ...scope, ...argvalues })
+            })
+
+            /**
+             * Clean up if no more dependents
+             */
+            !dependents.size && dependencies.delete( path )
+          })
+        }
+      }
+    }
+
+    /**
+     * Allow attributes consumption as input/props
+     */
+    if( useAttributes )
+      contents = {
+        ...contents,
+        ...self.__getAttributes__( $tagnode )
+      }
+
+    return contents
+  }
+  private __getAttributes__( $node: Cash ){
     const 
     extracted = ($node as any).attrs(),
     events: Record<string, any> = {},
     attrs: Record<string, any> = {}
 
-    let args: Record<string, any> = []
+    let argv: string[] = []
 
     // Process attributes including spread operator
     extracted && Object
     .entries( extracted )
     .forEach( ([ key, value ]) => {
-      if( /^\[(\w+,?)+\]$/.test( key ) ){
+      if( ARGUMENT_VAR_PATTERN.test( key ) ){
         const [ _, vars] = key.match( ARGUMENT_VAR_PATTERN ) || []
-        args = vars.split(',')
+        argv = vars.split(',')
       }
-      else if( /^on-/.test( key ) ){
+      else if( /^on-/.test( key ) )
         events[ key.replace(/^on-/, '') ] = value
-      }
+      
       else attrs[ key ] = value
     })
 
-    return { args, events, attrs }
+    return { argv, events, attrs }
   }
   private __generatePath__( type: NodeType ): string {
     const key = `${type}-${this.__pathCounter++}`
@@ -1164,7 +1341,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
     return result
   }
 
-  __evaluate__( script: string, scope?: VariableScope ){
+  private __evaluate__( script: string, scope?: VariableScope ){
     try {
       script = script.trim()
       
@@ -1176,7 +1353,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
         const
         expression = `with( scope ){ return ${script}; }`,
         fn = new Function('self', 'input', 'state', 'static', 'context', 'scope', expression )
-
+        
         return fn( this, this.input, this.state, this.static, this.context, _scope || {} )
       }
       else {
@@ -1189,10 +1366,10 @@ export default class Component<Input = void, State = void, Static = void, Contex
     }
     catch( error ){ return script }
   }
-  __interpolate__( str: string, scope?: VariableScope ){
+  private __interpolate__( str: string, scope?: VariableScope ){
     return str.replace( /{\s*([^{}]+)\s*}/g, ( _, expr ) => this.__evaluate__( expr, scope ) )
   }
-  __attachEvent__( element: Cash | Component, _event: string, instruction: string, scope?: VariableScope ){
+  private __attachEvent__( element: Cash | Component, _event: string, instruction: string, scope?: VariableScope ){
     /**
      * Execute function script directly attach 
      * as the listener.
@@ -1238,11 +1415,11 @@ export default class Component<Input = void, State = void, Static = void, Contex
       })
     }
   }
-  __detachEvent__( element: Cash | Component, _event: string ){
+  private  __detachEvent__( element: Cash | Component, _event: string ){
     element.off( _event )
   }
 
-  __extractTextDeps__( expr: string ): string[] {
+  private __extractTextDeps__( expr: string, scope?: VariableScope ): string[] {
     const deps = new Set<string>()
     
     // Handle interpolation expressions
@@ -1250,36 +1427,49 @@ export default class Component<Input = void, State = void, Static = void, Contex
     matches.forEach( match => {
       const
       innerExpr = match.replace(/[{}]/g, '').trim(),
-      exprDeps = this.__extractExpressionDeps__( innerExpr )
+      exprDeps = this.__extractExpressionDeps__( innerExpr, scope )
 
       exprDeps.forEach( dep => deps.add( dep ) )
     })
 
     return Array.from( deps )
   }
-  __extractExpressionDeps__( expr: string ): string[] {
+  private __extractExpressionDeps__( expr: string, scope?: VariableScope ): string[] {
     const pattern = /\b(state|input|context)(?:\.[a-zA-Z_]\w*)+(?=\.[a-zA-Z_]\w*\(|\s|;|,|\)|$)/g
-    return Array.from( expr.matchAll( pattern ) ).map( m => m[0] )
-  }
-  __isReactive__( expr: string ): boolean {
-    return /(state|input|context)\.[\w.]+/.test( expr )
-  }
-  __trackDep__( expr: string, $node: Cash, update: () => void, component?: Component ){
-    const deps = this.__extractExpressionDeps__( expr )
-    
-    deps.forEach( dep => {
-      if( !this.__dependencies.has( dep ) )
-        this.__dependencies.set( dep, new Set() )
+    let matches = Array.from( expr.matchAll( pattern ) )
 
-      this.__dependencies.get( dep )?.add({ $node, update, component })
-    })
+    if( scope && Object.keys( scope ).length ){
+      const scopeRegex = new RegExp(`\\b(${Object.keys( scope ).join('|')})`, 'g')
+      
+      matches = [
+        ...matches,
+        ...Array.from( expr.matchAll( scopeRegex ) )
+      ]
+    }
+      
+    return matches.map( m => m[0] )
+  }
+  private __isReactive__( expr: string, scope?: VariableScope ): boolean {
+    // Reactive component variables
+    if( /(state|input|context)\.[\w.]+/.test( expr ) ) return true
+    // Reactive internal scope
+    if( scope
+        && Object.keys( scope ).length
+        && new RegExp( Object.keys( scope ).join('|') ).test( expr ) ) return true
+
+    return false
+  }
+  private __trackDep__( dependencies: FGUDependencies, dep: string, $node: Cash, update: () => void ){
+    !dependencies.has( dep ) && dependencies.set( dep, new Set() )
+    dependencies.get( dep )?.add({ $node, update })
   }
 
   private __valuePath__( obj: any, path: string[] ): any {
     return path.reduce( ( curr, part ) => curr?.[ part ], obj )
   }
   private __updateDepNodes__( current: Metavars<Input, State, Context>, previous?: Metavars<Input, State, Context> ){
-    console.log( this.__dependencies )
+    if( !this.__dependencies?.size ) return
+
     /**
      * We only care about paths that have registered 
      * dependencies. No need to scan entire state/input/context
@@ -1298,37 +1488,24 @@ export default class Component<Input = void, State = void, Static = void, Contex
       /**
        * Handle updates for each dependent node/component
        */
-      dependents.forEach( ({ $node, update, component }) => {
+      dependents.forEach( ({ $node, update }) => {
         /**
          * Only clean up non-syntactic dependencies 
          * or node no longer in DOM
          */
         if( !$node.closest('body').length ){
-          dependents.delete({ $node, update, component })
+          dependents.delete({ $node, update })
           return
         }
 
-        console.log('update --', $node, update )
         update()
       })
 
       /**
        * Clean up if no more dependents
        */
-      if( !dependents.size )
-        this.__dependencies.delete( path )
+      !dependents.size && this.__dependencies?.delete( path )
     })
-
-    /**
-     * Batch process component updates
-     */
-    // if( componentUpdates.size ){
-    //   batch( () => {
-    //     componentUpdates.forEach( ( updates, component ) => {
-    //       updates.forEach( update => update() )
-    //     })
-    //   })
-    // }
   }
 
   attachEvents(){

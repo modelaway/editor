@@ -1034,6 +1034,7 @@ function DemoInput(){
   type TemplateInput = {
     initial: number
     limit: number
+    render( ref: any, argv: Record<string, any> ): void
   }
   type TemplateState = {
     count: number
@@ -1054,7 +1055,8 @@ function DemoInput(){
     },
     default: `
       <div>
-        {input.__slot__}:<span text=state.count></span>
+        <div>In component count: {state.count}</div>
+        <{input.render} count=state.count/>
         <br>
         <button on-click( handleClick )>Count</button>
       </div>
@@ -1100,7 +1102,7 @@ function DemoInput(){
       </p>
 
       <easycount [count] initial=state.initial>
-        <span>{state.value}</span>
+        <span>{state.value}: {count}</span>
       </easycount>
 
       <button on-click(() => self.state.initial = 2 )>Change initial</button>
@@ -1137,7 +1139,6 @@ function DemoInput(){
   .render('DemoInput', { default: template, state, handler }, {})
   .appendTo('body')
 }
-
 
 // Demo1()
 // Demo2()

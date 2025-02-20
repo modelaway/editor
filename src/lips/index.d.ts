@@ -65,3 +65,26 @@ export type StyleSettings = {
   }
 }
 export type EventListener = ( ...args: any[] ) => void
+
+/**
+ * (FGU) Fine-Grain Update Dependencies
+ */
+export type FGUDependency = {
+  $node: Cash,
+  update: ( scope?: VariableScope ) => void
+}
+export type FGUDependencies = Map<string, Set<FGUDependency>>
+
+export type RenderedNode = {
+  _$: Cash
+  dependencies: FGUDependencies
+}
+export interface MeshRender {
+  argv: string[]
+  partial?: RenderedNode
+  mesh( argv?: VariableScope ): Cash
+  update( argv: VariableScope ): Cash
+}
+export type MeshTemplate = Record<string, any> & {
+  render: MeshRender
+}

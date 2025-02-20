@@ -1,14 +1,7 @@
 import $, { type Cash } from 'cash-dom'
-import type Component from './component'
-import type { VariableScope } from '.'
-import { SPREAD_VAR_PATTERN } from './utils'
 
 export type NodeType = 'element' | 'component'
 export type NodeMeta = {
-  $raw: Cash
-  $parent: Cash | null
-  index: number
-  scope: VariableScope
   path: string
   type: NodeType
 }

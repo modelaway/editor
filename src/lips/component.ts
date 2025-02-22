@@ -4,7 +4,7 @@ import type {
   ComponentScope,
   ComponentOptions,
   VariableScope,
-  MeshRender,
+  MeshRenderer,
   MeshTemplate,
   RenderedNode,
   FGUDependencies,
@@ -15,8 +15,7 @@ import Events from './events'
 import $, { Cash } from 'cash-dom'
 import Benchmark from './benchmark'
 import Stylesheet from '../modules/stylesheet'
-import { effect, EffectControl, signal } from './signal'
-import NodeManager, { type NodeMeta, type NodeType } from './nodemanager'
+import { batch, effect, EffectControl, signal } from './signal'
 import { 
   isDiff,
   isEqual,
@@ -25,7 +24,8 @@ import {
   preprocessor,
   SPREAD_VAR_PATTERN,
   ARGUMENT_VAR_PATTERN,
-  DYNAMIC_TAG_PLACEHOLDER
+  DYNAMIC_TAG_PLACEHOLDER,
+  FRAGMENT_TAG_PLACEHOLDER
 } from './utils'
 
 type Metavars<I, S, C> = { 
@@ -73,9 +73,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
   public lips?: Lips
   private benchmark: Benchmark
 
-  // Fine-Grained Nodes (FGN)
-  private FGN: NodeManager
-
   private __path = ''
   private __pathCounter = 0
   private __renderDepth = 0
@@ -115,11 +112,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
     this._setState = setState
     this._getState = getState
     
-    /**
-     * Component rendered nodes manager
-     */
-    this.FGN = new NodeManager()
-
     /**
      * Track rendering cycle metrics to evaluate
      * performance.
@@ -352,7 +344,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
   find( selector: string ){
     return this.$?.find( selector )
   }
-
+  
   render( $nodes?: Cash, scope: VariableScope = {}, sharedDeps?: FGUDependencies ): RenderedNode {
     const dependencies: FGUDependencies = sharedDeps || new Map()
 
@@ -457,7 +449,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
       && self.__trackDep__( dependencies, hasReactiveAttr, { 
         path, 
         $fragment: $node,
-        update: internal
+        update: internal,
+        memo: scope
       })
       
       /**
@@ -578,14 +571,13 @@ export default class Component<Input = void, State = void, Static = void, Contex
               && typeof arg.update === 'function'
     }
 
-    function execDynamic( $node: Cash ){
+    function handleDynamic( $node: Cash ){
       if( !$node.attr('dtag') || $node.prop('tagName') !== 'LIPS' )
         throw new Error('Invalid dynamic tag name')
       
-      const dtag = $node.attr('dtag') as string
-      $node.removeAttr('dtag')
-
-      const result = self.__evaluate__( dtag, scope )
+      const
+      dtag = $node.attr('dtag') as string,
+      result = self.__evaluate__( dtag, scope )
 
       /**
        * Process dynamic content rendering tag set by:
@@ -604,682 +596,690 @@ export default class Component<Input = void, State = void, Static = void, Contex
       */
       else execComponent( $node, result )
     }
-    function execDynamicElement( $node: Cash, dtag: string, render: MeshRender | null ){
-      const 
-      elementPath = self.__generatePath__('element'),
-      meta: NodeMeta = {
-        path: elementPath,
-        type: 'element'
-      },
-      renderExec = ( nodeRef: any ) => {
-        let $fragment = $()
 
-        const
-        argvalues: VariableScope = {},
-        { attrs } = self.__getAttributes__( $node )
+    function execDynamicElement( $node: Cash, dtag: string, renderer: MeshRenderer | null ){
+      let $fragment = $(),
+      // Keep track of the latest mesh scope
+      argvalues: VariableScope = {}
 
-        if( render ){
-          attrs && Object
-          .entries( attrs )
-          .forEach( ([ key, value ]) => {
-            /**
-             * Only consume declared arguments' value
-             */
-            if( !render.argv.includes( key ) ) return
+      const
+      { attrs } = self.__getAttributes__( $node ),
+      elementPath = self.__generatePath__('element')
 
-            argvalues[ key ] = {
-              type: 'const',
-              value: value ? self.__evaluate__( value, scope ) : true
-            }
-          })
-
-          const $log = render.mesh( argvalues )
-          $fragment = $fragment.add( $log && $log.length ? $log : DYNAMIC_TAG_PLACEHOLDER )
-
+      if( renderer ){
+        attrs && Object
+        .entries( attrs )
+        .forEach( ([ key, value ]) => {
           /**
-           * IMPORTANT:
-           * 
-           * Set update dependency track only after $fragment 
-           * contain rendered content
+           * Only consume declared arguments' value
            */
-          attrs && Object
-          .entries( attrs )
-          .forEach( ([ key, value ]) => {
-            /**
-             * Only update declared arguments' value
-             */
-            if( !render.argv.includes( key ) ) return
+          if( !renderer.argv.includes( key ) ) return
 
-            const partialUpdate = ( memo?: VariableScope ) => {
-              render.update({
-                [key]: {
-                  type: 'const',
-                  value: value ? self.__evaluate__( value, memo || scope ) : true
-                }
-              })
-            }
+          argvalues[ key ] = {
+            type: 'const',
+            value: value ? self.__evaluate__( value, scope ) : true
+          }
+        })
 
-            if( self.__isReactive__( value as string, scope ) ){
-              const deps = self.__extractExpressionDeps__( value as string, scope )
+        const $log = renderer.mesh( argvalues )
+        $fragment = $fragment.add( $log && $log.length ? $log : DYNAMIC_TAG_PLACEHOLDER )
 
-              deps.forEach( dep => {
-                nodeRef.__deps.add( dep )
+        /**
+         * IMPORTANT:
+         * 
+         * Set update dependency track only after $fragment 
+         * contain rendered content
+         */
+        attrs && Object
+        .entries( attrs )
+        .forEach( ([ key, value ]) => {
+          /**
+           * Only update declared arguments' value
+           */
+          if( !renderer.argv.includes( key ) ) return
 
-                self.__trackDep__( dependencies, dep, {
-                  $fragment,
-                  path: `${elementPath}.${key}`,
-                  update: partialUpdate
-                })
-              })
-            }
-          } )
-        }
-        else $fragment = $fragment.add( DYNAMIC_TAG_PLACEHOLDER )
-        
-        // Track FGU dependency update on the dynamic tag
-        if( self.__isReactive__( dtag as string, scope ) ){
-          const
-          updateDElement = ( memo?: VariableScope ) => {
-            /**
-             * Re-evaluate dynamic tag expression before 
-             * re-rendering the element
-             */
-            const 
-            render = self.__evaluate__( dtag, memo || scope ),
-            $newLog = render !== null ? render.mesh({ ...memo, ...argvalues }) : $(DYNAMIC_TAG_PLACEHOLDER),
-            $first = $fragment.first()
+          const partialUpdate = ( memo: VariableScope ) => {
+            renderer.update({
+              [key]: {
+                type: 'const',
+                value: value ? self.__evaluate__( value, memo ) : true
+              }
+            })
+          }
 
+          if( self.__isReactive__( value as string, scope ) ){
+            const deps = self.__extractExpressionDeps__( value as string, scope )
+
+            deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+              $fragment,
+              path: `${elementPath}.${key}`,
+              update: partialUpdate,
+              memo: scope,
+              batch: true
+            }) )
+          }
+        } )
+      }
+      else $fragment = $fragment.add( DYNAMIC_TAG_PLACEHOLDER )
+      
+      // Track FGU dependency update on the dynamic tag
+      if( self.__isReactive__( dtag as string, scope ) ){
+        const
+        updateDynamicElement = ( memo: VariableScope ) => {
+          /**
+           * Re-evaluate dynamic tag expression before 
+           * re-rendering the element
+           */
+          const newRenderer = self.__evaluate__( dtag, memo )
+
+          // Update the mesh scope with new values
+          argvalues = { ...memo, ...argvalues }
+          
+          // Direct update to existing render
+          if( newRenderer === renderer && renderer?.update ){
+            renderer.update( argvalues )
+            return $fragment
+          }
+          
+          // New MeshRenderer object
+          if( isMesh( newRenderer ) ){
+            const $newContent = newRenderer.mesh( argvalues )
+            if( !$newContent?.length ) return $fragment
+            
+            // Update fragment reference
+            const $first = $fragment.first()
             if( !$first.length ){
               console.warn('missing stagged fragment.')
               return
             }
           
             $fragment.each( ( _, el ) => { _ > 0 && $(el).remove() })
-            $first.after( $newLog ).remove()
-            
-            $fragment = $newLog
+            $first.after( $newContent ).remove()
+
+            $fragment = $newContent
             
             return $fragment
-          },
-          deps = self.__extractExpressionDeps__( dtag as string, scope )
+          }
+                
+          // Case 3: Null render
+          const $placeholder = $(DYNAMIC_TAG_PLACEHOLDER)
+          $fragment.replaceWith( $placeholder )
+          $fragment = $placeholder
+      
+          return $fragment
+        },
+        deps = self.__extractExpressionDeps__( dtag as string, scope )
 
-          deps.forEach( dep => {
-            nodeRef.__deps.add( dep )
-
-            self.__trackDep__( dependencies, dep, {
-              $fragment,
-              path: elementPath,
-              update: updateDElement
-            })
-          })
-        }
-
-        return $fragment
+        deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+          $fragment,
+          path: elementPath,
+          update: updateDynamicElement,
+          batch: deps.length > 1,
+          memo: scope
+        }) )
       }
 
-      return self.FGN.register( elementPath, meta, renderExec )
+      return $fragment
     }
     function execComponent( $node: Cash, dynamicName?: string ){
-      const 
+      const name = dynamicName || $node.prop('tagName')?.toLowerCase() as string
+      
+      if( !name ) throw new Error('Invalid component')
+      if( !self.lips ) throw new Error('Nexted component manager is disable')
+      if( name === self.__name__ ) throw new Error('Render component within itself is forbidden')
+
+      const
+      __key__ = `${self.prekey}.${name}$${self.NCC++}`,
       componentPath = self.__generatePath__('component'),
-      meta: NodeMeta = {
-        path: componentPath,
-        type: 'component'
-      },
-      renderExec = ( nodeRef: any ) => {
-        const name = dynamicName || $node.prop('tagName')?.toLowerCase() as string
-        
-        if( !name ) throw new Error('Invalid component')
-        if( !self.lips ) throw new Error('Nexted component manager is disable')
+      { argv, attrs, events } = self.__getAttributes__( $node )
 
-        const
-        __key__ = `${self.prekey}.${name}$${self.NCC++}`,
-        { argv, attrs, events } = self.__getAttributes__( $node )
+      /**
+       * Parse assigned attributes to be injected into
+       * the component as input.
+       */
+      let
+      input: any = {},
+      $fragment = $()
 
-        /**
-         * Parse assigned attributes to be injected into
-         * the component as input.
-         */
-        let
-        input: any = {},
-        $fragment = $()
+      /**
+       * Cast attributes to compnent inputs
+       */
+      attrs && Object
+      .entries( attrs )
+      .forEach( ([ key, value ]) => {
+        if( key == 'key' ) return
 
-        /**
-         * Cast attributes to compnent inputs
-         */
-        attrs && Object
-        .entries( attrs )
-        .forEach( ([ key, value ]) => {
-          if( key == 'key' ) return
+        if( SPREAD_VAR_PATTERN.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
+          if( typeof spreads !== 'object' )
+            throw new Error(`Invalid spread operator ${key}`)
 
-          if( SPREAD_VAR_PATTERN.test( key ) ){
-            const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
-            if( typeof spreads !== 'object' )
-              throw new Error(`Invalid spread operator ${key}`)
+          for( const _key in spreads )
+            input[ _key ] = spreads[ _key ]
+        }
 
-            for( const _key in spreads )
-              input[ _key ] = spreads[ _key ]
-          }
+        else input[ key ] = value
+                ? self.__evaluate__( value as string, scope )
+                /**
+                  * IMPORTANT: An attribute without a value is
+                  * considered neutral but `true` of a value by
+                  * default.
+                  * 
+                  * Eg. <counter initial=3 throttle/>
+                  * 
+                  * the `throttle` attribute is hereby an input with a
+                  * value `true`.
+                  */
+                : true
+      })
 
-          else input[ key ] = value
-                  ? self.__evaluate__( value as string, scope )
-                  /**
-                    * IMPORTANT: An attribute without a value is
-                    * considered neutral but `true` of a value by
-                    * default.
-                    * 
-                    * Eg. <counter initial=3 throttle/>
-                    * 
-                    * the `throttle` attribute is hereby an input with a
-                    * value `true`.
-                    */
-                  : true
-        })
+      /**
+       * Render the whole component for first time
+       */
+      const template = self.lips.import( name )
+      if( !template )
+        throw new Error(`<${name}> template not found`)
+      
+      const meshwire = ( $tagnode: Cash, path: string | null, argv: string[] = [], scope: VariableScope = {}, useAttributes = false ) => {
+        let wire: MeshTemplate = {
+          renderer: {
+            path,
+            argv,
+            partial: undefined,
+            mesh( argvalues?: VariableScope ){
+              const $contents = $tagnode.contents()
+              if( !$contents.length ) return
 
-        /**
-         * Render the whole component for first time
-         */
-        const template = self.lips.import( name )
-        if( !template )
-          throw new Error(`<${name}> template not found`)
-        
-        const meshwire = ( $tagnode: Cash, path: string | null, argv: string[] = [], scope: VariableScope = {}, useAttributes = false ) => {
-          let wire: MeshTemplate = {
-            render: {
-              path,
-              argv,
-              partial: undefined,
-              mesh( argvalues?: VariableScope ){
-                const $contents = $tagnode.contents()
-                if( !$contents.length ) return
+              this.partial = self.render( $contents, { ...scope, ...argvalues } )
 
-                this.partial = self.render( $contents, { ...scope, ...argvalues } )
+              /**
+               * Share partial FGU dependenies with main component thread
+               * for parallel updates (main & partial) on the meshed node.
+               * 
+               * 1. From main FGU dependency track
+               * 2. From mesh rendering track
+               */
+              this.partial.dependencies.forEach( ( dependents, dep ) => {
+                !self.__dependencies?.has( dep )
+                              ? self.__dependencies?.set( dep, dependents )
+                              : dependents.forEach( ( dependent, path ) => self.__dependencies?.get( dep )?.set( path, dependent ) )
+              } )
+              
+              return this.partial.$log
+            },
+            update( argvalues?: VariableScope ){
+              if( !this.partial ) return
+
+              const 
+              { dependencies } = this.partial,
+              batchUpdates = new Set<string>() // Temporary batched updates
+              
+              // Execute partial mesh update
+              dependencies.forEach( ( dependents, dep ) => {
+                dependents.forEach( ( dependent ) => {
+                  const { path, $fragment, update, batch } = dependent
+
+                  if( !$fragment.closest('body').length ){
+                    dependents.delete( path )
+                    return
+                  }
+
+                  if( batch ) batchUpdates.add( path )
+                  else {
+                    dependent.memo = { ...dependent.memo, ...scope, ...argvalues }
+                    const $newFragment = update( dependent.memo )
+
+                    typeof $newFragment === 'object'
+                    && $newFragment.length
+                    && dependents.set( path, { ...dependent, $fragment: $newFragment } )
+                  }
+                })
 
                 /**
-                 * Share partial FGU dependenies with main component thread
-                 * for parallel updates (main & partial) on the meshed node.
-                 * 
-                 * 1. From main FGU dependency track
-                 * 2. From mesh rendering track
+                 * Clean up if no more dependents
                  */
-                this.partial.dependencies.forEach( ( dependents, dep ) => {
-                  !self.__dependencies?.has( dep )
-                                ? self.__dependencies?.set( dep, dependents )
-                                : dependents.forEach( ( dependent, path ) => self.__dependencies?.get( path )?.set( path, dependent ) )
-                } )
+                !dependents.size && dependencies.delete( dep )
+              })
 
-                return this.partial.$log
-              },
-              update( argvalues?: VariableScope ){
-                if( !this.partial ) return
-                const { dependencies } = this.partial
-                
-                // Execute partial mesh update
-                dependencies.forEach( ( dependents, dep ) => {
-                  dependents.forEach( ({ path, $fragment, update }) => {
-                    if( !$fragment.closest('body').length ){
-                      dependents.delete( path )
-                      return
-                    }
+              /**
+               * Execute all batched updates
+               */
+              batchUpdates.size
+              && requestAnimationFrame( () => {
+                batchUpdates.forEach( path => {
+                  dependencies?.forEach( dependents => {
+                    const dependent = dependents.get( path )
+                    if( !dependent ) return
+                    
+                    dependent.memo = { ...dependent.memo, ...scope, ...argvalues }
 
-                    // console.log('update --', update )
-                    update({ ...scope, ...argvalues })
+                    const $newFragment = dependent.update( dependent.memo )
+                    typeof $newFragment === 'object'
+                    && $newFragment.length
+                    && dependents.set( path, { ...dependent, $fragment: $newFragment } )
                   })
-
-                  /**
-                   * Clean up if no more dependents
-                   */
-                  !dependents.size && dependencies.delete( dep )
                 })
-              }
+
+                batchUpdates.clear()
+              })
             }
           }
-
-          /**
-           * Allow attributes consumption as input/props
-           */
-          if( useAttributes && path ){
-            const { argv, attrs: segmentAttrs, events } = self.__getAttributes__( $tagnode )
-            
-            segmentAttrs && Object
-            .entries( segmentAttrs )
-            .forEach( ([ key, value ]) => {
-              if( SPREAD_VAR_PATTERN.test( key ) ){
-                const
-                spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
-                if( typeof spreads !== 'object' )
-                  throw new Error(`Invalid spread operator ${key}`)
-
-                for( const _key in spreads )
-                  wire[ _key ] = spreads[ _key ]
-                
-                // Record attribute to be tracked as FGU dependency
-                attrs[`${path}.${key}`] = value
-              }
-              else {
-                wire[ key ] = value ? self.__evaluate__( value as string, scope ) : true
-                // Record attribute to be tracked as FGU dependency
-                attrs[`${path}.${key}`] = value
-              }
-            })
-          }
-
-          return wire
         }
 
         /**
-         * Also inject component slotted body into inputs
+         * Allow attributes consumption as input/props
          */
-        const $nodeContents = $node.contents()
-        if( $nodeContents.length ){
-          // Pass in the regular body contents
-          input = {
-            ...input,
-            ...meshwire( $node, null, argv, scope, true )
-          }
-
-          /**
-           * Parse a syntactic declaration body contents
-           */
-          if( template.declaration ){
-            /**
-             * Extract node syntax component declaration tag nodes
-             */
-            if( template.declaration.tags ){
-              Object
-              .entries( template.declaration?.tags )
-              .forEach( ([ tagname, { type, many }]) => {
-                switch( type ){
-                  case 'sibling': {
-                    const $siblings = $node.siblings( tagname )
-                    if( many ){
-                      input[ tagname ] = []
-                      $siblings.each(function( index ){
-                        input[ tagname ].push( meshwire( $(this), `${tagname}[${index}]`, argv, scope, true ) )
-                      })
-                    }
-                    else if( $node.siblings( tagname ).first().length )
-                      input[ tagname ] = meshwire( $node.siblings( tagname ).first(), tagname, argv, scope, true )
-                  } break
-
-                  case 'child': {
-                    const $children = $node.children( tagname )
-                    if( many ){
-                      input[ tagname ] = []
-                      $children.each(function( index ){ 
-                        input[ tagname ].push( meshwire( $(this), `${tagname}[${index}]`, argv, scope, true ) )
-                      })
-                    }
-                    else if( $node.children( tagname ).first().length )
-                      input[ tagname ] = meshwire( $node.children( tagname ).first(), tagname, argv, scope, true )
-                  } break
-                }
-              } )
-            }
-
-            /**
-             * Pass raw content nodes to component
-             */
-            else if( template.declaration.contents )
-              input.__contents__ = $nodeContents
-          }
-        }
-
-        // console.log( input )
-
-        const
-        { state, _static, handler, context, default: _default, stylesheet } = template,
-        component = new Component( name, _default, {
-          state: deepClone( state ),
-          input: deepClone( input ),
-          context,
-          _static: deepClone( _static ),
-          handler,
-          stylesheet
-        }, {
-          debug: self.debug,
-          lips: self.lips,
-          prekey: __key__
-        })
-        
-        $fragment = $fragment.add( component.getNode() )
-        // Replace the original node with the fragment in the DOM
-        self.__components.set( __key__, component )
-
-        // Listen to this nexted component's events
-        Object
-        .entries( events )
-        .forEach( ([ _event, instruction ]) => self.__attachEvent__( component, _event, instruction, scope ) )
-        
-        /**
-         * Setup input dependency track
-         */
-        attrs && Object
-        .entries( attrs )
-        .forEach( ([ key, value ]) => {
-          if( SPREAD_VAR_PATTERN.test( key ) ){
-            const spreadvalues = ( memo?: VariableScope ) => {
+        if( useAttributes && path ){
+          const { argv, attrs: segmentAttrs, events } = self.__getAttributes__( $tagnode )
+          
+          segmentAttrs && Object
+          .entries( segmentAttrs )
+          .forEach( ([ key, value ]) => {
+            if( SPREAD_VAR_PATTERN.test( key ) ){
               const
-              extracted: Record<string, any> = {},
-              spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo || scope )
+              spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
               if( typeof spreads !== 'object' )
                 throw new Error(`Invalid spread operator ${key}`)
 
               for( const _key in spreads )
-                extracted[ _key ] = spreads[ _key ]
-
-              component.subInput( extracted )
-            }
-            
-            if( self.__isReactive__( key as string, scope ) ){
-              const deps = self.__extractExpressionDeps__( value as string, scope )
+                wire[ _key ] = spreads[ _key ]
               
-              deps.forEach( dep => {
-                nodeRef.__deps.add( dep )
-
-                self.__trackDep__( dependencies, dep, {
-                  $fragment,
-                  path: `${componentPath}.${key}`,
-                  update: spreadvalues
-                })
-              })
+              // Record attribute to be tracked as FGU dependency
+              attrs[`${path}.${key}`] = value
             }
-          }
-          else {
-            const evalue = ( memo?: VariableScope ) => {
-              component.subInput({
-                [key]: value ? self.__evaluate__( value as string, memo || scope ) : true
-              })
-            }
-            
-            if( self.__isReactive__( value as string, scope ) ){
-              const deps = self.__extractExpressionDeps__( value as string, scope )
-              
-              deps.forEach( dep => {
-                nodeRef.__deps.add( dep )
-
-                self.__trackDep__( dependencies, dep, {
-                  $fragment,
-                  path: `${componentPath}.${key}`,
-                  update: evalue
-                })
-              })
-            }
-          }
-        })
-
-        /**
-         * BENCHMARK: Tracking total elements rendered
-         */
-        self.benchmark.inc('elementCount')
-        
-        return $fragment
-      }
-
-      return self.FGN.register( componentPath, meta, renderExec )
-    }
-    function execElement( $node: Cash ): Cash {
-      const 
-      elementPath = self.__generatePath__('element'),
-      meta: NodeMeta = {
-        path: elementPath,
-        type: 'element'
-      },
-      renderExec = ( nodeRef: any ) => {
-        if( !$node.length || !$node.prop('tagName') ) return $node
-
-        const
-        $fragment = $(`<${$node.prop('tagName').toLowerCase()}/>`),
-        $contents = $node.contents()
-
-        // Process contents recursively if they exist
-        $contents.length
-        && $fragment.append( self.__withPath__( `${elementPath}/content`, () => self.render( $contents, scope, dependencies ).$log ) )
-
-        // Process attributes
-        const 
-        { attrs, events } = self.__getAttributes__( $node ),
-        processAttrs = ( list: Record<string, any>, track: boolean = false ) => {
-          list && Object
-          .entries( list )
-          .forEach( ([ attr, value ]) => {
-            switch( attr ){
-              // Inject inner html into the element
-              case 'html': {
-                const updateHTML = ( memo?: VariableScope ) => {
-                  $fragment.html( self.__evaluate__( value as string, memo || scope ) )
-                }
-
-                updateHTML()
-
-                if( track && self.__isReactive__( value as string, scope ) ){
-                  const deps = self.__extractExpressionDeps__( value as string, scope )
-
-                  deps.forEach( dep => {
-                    nodeRef.__deps.add( dep )
-
-                    self.__trackDep__( dependencies, dep, {
-                      $fragment,
-                      path: `${elementPath}.${attr}`,
-                      update: updateHTML
-                    })
-                  })
-                }
-              } break
-
-              // Inject text into the element
-              case 'text': {
-                const updateText = ( memo?: VariableScope ) => {
-                  let text = self.__evaluate__( value as string, memo || scope )
-
-                  // Apply translation
-                  if( self.lips && !$node.is('[no-translate]') ){
-                    const { text: _text } = self.lips.i18n.translate( text )
-                    text = _text
-                  }
-
-                  $fragment.text( text )
-                }
-
-                updateText()
-                
-                if( track && self.__isReactive__( value as string, scope ) ){
-                  const deps = self.__extractExpressionDeps__( value as string, scope )
-
-                  deps.forEach( dep => {
-                    nodeRef.__deps.add( dep )
-
-                    self.__trackDep__( dependencies, dep, {
-                      $fragment,
-                      path: `${elementPath}.${attr}`,
-                      update: updateText
-                    })
-                  })
-                }
-              } break
-
-              // Convert object style attribute to string
-              case 'style': {
-                const updateStyle = ( memo?: VariableScope ) => {
-                  const style = self.__evaluate__( value as string, memo || scope )
-                  
-                  // Defined in object format
-                  if( typeof style === 'object' ){
-                    let str = ''
-
-                    Object
-                    .entries( style )
-                    .forEach( ([ k, v ]) => str += `${k}:${v};` )
-                    
-                    str.length && $fragment.attr('style', str )
-                  }
-                  // Defined in string format
-                  else $fragment.attr('style', style )
-                }
-
-                updateStyle()
-                
-                if( track && self.__isReactive__( value as string, scope ) ){
-                  const deps = self.__extractExpressionDeps__( value as string, scope )
-
-                  deps.forEach( dep => {
-                    nodeRef.__deps.add( dep )
-
-                    self.__trackDep__( dependencies, dep, {
-                      $fragment,
-                      path: `${elementPath}.${attr}`,
-                      update: updateStyle
-                    })
-                  })
-                }
-              } break
-
-              // Inject the evaluation result of any other attributes
-              default: {
-                const updateAttrs = ( memo?: VariableScope ) => {
-                  const res = value ?
-                              self.__evaluate__( value as string, memo || scope )
-                              /**
-                               * IMPORTANT: An attribute without a value is
-                               * considered neutral but `true` of a value by
-                               * default.
-                               * 
-                               * Eg. <counter initial=3 throttle/>
-                               * 
-                               * the `throttle` attribute is hereby an input with a
-                               * value `true`.
-                               */
-                              : value !== undefined ? value : true
-
-                  /**
-                   * (?) evaluation return signal to unset the attribute.
-                   * 
-                   * Very useful case where the attribute don't necessarily
-                   * have values by default.
-                   */
-                  res === undefined || res === false
-                                ? $fragment.removeAttr( attr )
-                                : $fragment.attr( attr, res )
-                }
-
-                updateAttrs()
-                
-                if( track && self.__isReactive__( value as string, scope ) ){
-                  const deps = self.__extractExpressionDeps__( value as string, scope )
-
-                  deps.forEach( dep => {
-                    nodeRef.__deps.add( dep )
-
-                    self.__trackDep__( dependencies, dep, {
-                      $fragment,
-                      path: `${elementPath}.${attr}`,
-                      update: updateAttrs
-                    })
-                  })
-                }
-              }
+            else {
+              wire[ key ] = value ? self.__evaluate__( value as string, scope ) : true
+              // Record attribute to be tracked as FGU dependency
+              attrs[`${path}.${key}`] = value
             }
           })
         }
 
-        // Record attachable events to the element
-        events && Object
-        .entries( events )
-        .forEach( ([ _event, value ]) => {
-          self.__attachableEvents.push({
-            _event,
-            $node: $fragment,
-            instruction: value as string,
-            scope
-          })
-        })
+        return wire
+      }
 
-        // Check, process & track spread attributes
-        attrs && Object
-        .keys( attrs )
-        .forEach( key => {
-          if( !SPREAD_VAR_PATTERN.test( key ) ) return
+      /**
+       * Also inject component slotted body into inputs
+       */
+      const $nodeContents = $node.contents()
+      if( $nodeContents.length ){
+        // Pass in the regular body contents
+        input = {
+          ...input,
+          ...meshwire( $node, null, argv, scope, true )
+        }
 
-          const updateSpreadAttrs = ( memo?: VariableScope ) => {
+        /**
+         * Parse a syntactic declaration body contents
+         */
+        if( template.declaration ){
+          /**
+           * Extract node syntax component declaration tag nodes
+           */
+          if( template.declaration.tags ){
+            Object
+            .entries( template.declaration?.tags )
+            .forEach( ([ tagname, { type, many }]) => {
+              switch( type ){
+                case 'sibling': {
+                  const $siblings = $node.siblings( tagname )
+                  if( many ){
+                    input[ tagname ] = []
+                    $siblings.each(function( index ){
+                      input[ tagname ].push( meshwire( $(this), `${tagname}[${index}]`, argv, scope, true ) )
+                    })
+                  }
+                  else if( $node.siblings( tagname ).first().length )
+                    input[ tagname ] = meshwire( $node.siblings( tagname ).first(), tagname, argv, scope, true )
+                } break
+
+                case 'child': {
+                  const $children = $node.children( tagname )
+                  if( many ){
+                    input[ tagname ] = []
+                    $children.each(function( index ){ 
+                      input[ tagname ].push( meshwire( $(this), `${tagname}[${index}]`, argv, scope, true ) )
+                    })
+                  }
+                  else if( $node.children( tagname ).first().length )
+                    input[ tagname ] = meshwire( $node.children( tagname ).first(), tagname, argv, scope, true )
+                } break
+              }
+            } )
+          }
+
+          /**
+           * Pass raw content nodes to component
+           */
+          else if( template.declaration.contents )
+            input.__contents__ = $nodeContents
+        }
+      }
+
+      const { declaration, state, _static, handler, context, default: _default, stylesheet } = template
+      
+      let component: Component
+      if( declaration?.syntax && handler )
+        handler.sync = function( mesh: any ){
+          console.log('---- Sync', mesh, component )
+        }
+
+      component = new Component( name, _default || '', {
+        state: deepClone( state ),
+        input: deepClone( input ),
+        context,
+        _static: deepClone( _static ),
+        handler,
+        stylesheet
+      }, {
+        debug: self.debug,
+        lips: self.lips,
+        prekey: __key__
+      })
+      
+      $fragment = $fragment.add( component.getNode() )
+      // Replace the original node with the fragment in the DOM
+      self.__components.set( __key__, component )
+
+      // Listen to this nexted component's events
+      Object
+      .entries( events )
+      .forEach( ([ _event, instruction ]) => self.__attachEvent__( component, _event, instruction, scope ) )
+      
+      /**
+       * Setup input dependency track
+       */
+      attrs && Object
+      .entries( attrs )
+      .forEach( ([ key, value ]) => {
+        if( SPREAD_VAR_PATTERN.test( key ) ){
+          const spreadvalues = ( memo: VariableScope ) => {
             const
             extracted: Record<string, any> = {},
-            spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo || scope )
+            spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo )
             if( typeof spreads !== 'object' )
               throw new Error(`Invalid spread operator ${key}`)
 
             for( const _key in spreads )
               extracted[ _key ] = spreads[ _key ]
 
-            processAttrs( extracted )
+            component.subInput( extracted )
           }
-
-          delete attrs[ key ]
-          updateSpreadAttrs()
-
-          if( key && self.__isReactive__( key, scope ) ){
-            const deps = self.__extractExpressionDeps__( key, scope )
-
-            deps.forEach( dep => {
-              nodeRef.__deps.add( dep )
-              self.__trackDep__( dependencies, dep, {
-                $fragment,
-                path: `${elementPath}.${key}`,
-                update: updateSpreadAttrs
-              })
+          
+          if( self.__isReactive__( key as string, scope ) ){
+            const deps = self.__extractExpressionDeps__( value as string, scope )
+            
+            deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+              $fragment,
+              path: `${componentPath}.${key}`,
+              update: spreadvalues,
+              memo: scope,
+              batch: true
+            }) )
+          }
+        }
+        else {
+          const evalue = ( memo: VariableScope ) => {
+            component.subInput({
+              [key]: value ? self.__evaluate__( value as string, memo ) : true
             })
           }
-        })
-        
-        processAttrs( attrs, true )
-        
-        /**
-         * BENCHMARK: Tracking total elements rendered
-         */
-        self.benchmark.inc('elementCount')
           
-        return $fragment
+          if( self.__isReactive__( value as string, scope ) ){
+            const deps = self.__extractExpressionDeps__( value as string, scope )
+            
+            deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+              $fragment,
+              path: `${componentPath}.${key}`,
+              update: evalue,
+              memo: scope,
+              batch: true
+            }) )
+          }
+        }
+      })
+
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
+      
+      return $fragment
+    }
+    function execElement( $node: Cash ): Cash {
+      if( !$node.length || !$node.prop('tagName') ) return $node
+
+      const elementPath = self.__generatePath__('element')
+
+      const
+      $fragment = $(`<${$node.prop('tagName').toLowerCase()}/>`),
+      $contents = $node.contents()
+
+      // Process contents recursively if they exist
+      $contents.length
+      && $fragment.append( self.__withPath__( `${elementPath}/content`, () => self.render( $contents, scope, dependencies ).$log ) )
+
+      // Process attributes
+      const 
+      { attrs, events } = self.__getAttributes__( $node ),
+      processAttrs = ( list: Record<string, any>, track: boolean = false ) => {
+        list && Object
+        .entries( list )
+        .forEach( ([ attr, value ]) => {
+          switch( attr ){
+            // Inject inner html into the element
+            case 'html': {
+              const updateHTML = ( memo: VariableScope ) => {
+                $fragment.html( self.__evaluate__( value as string, memo ) )
+              }
+
+              updateHTML( scope )
+
+              if( track && self.__isReactive__( value as string, scope ) ){
+                const deps = self.__extractExpressionDeps__( value as string, scope )
+
+                deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+                  $fragment,
+                  path: `${elementPath}.${attr}`,
+                  update: updateHTML,
+                  memo: scope,
+                  batch: true
+                }) )
+              }
+            } break
+
+            // Inject text into the element
+            case 'text': {
+              const updateText = ( memo: VariableScope ) => {
+                let text = self.__evaluate__( value as string, memo )
+
+                // Apply translation
+                if( self.lips && !$node.is('[no-translate]') ){
+                  const { text: _text } = self.lips.i18n.translate( text )
+                  text = _text
+                }
+
+                $fragment.text( text )
+              }
+
+              updateText( scope )
+              
+              if( track && self.__isReactive__( value as string, scope ) ){
+                const deps = self.__extractExpressionDeps__( value as string, scope )
+
+                deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+                  $fragment,
+                  path: `${elementPath}.${attr}`,
+                  update: updateText,
+                  memo: scope,
+                  batch: true
+                }) )
+              }
+            } break
+
+            // Convert object style attribute to string
+            case 'style': {
+              const updateStyle = ( memo: VariableScope ) => {
+                const style = self.__evaluate__( value as string, memo )
+                
+                // Defined in object format
+                if( typeof style === 'object' ){
+                  let str = ''
+
+                  Object
+                  .entries( style )
+                  .forEach( ([ k, v ]) => str += `${k}:${v};` )
+                  
+                  str.length && $fragment.attr('style', str )
+                }
+                // Defined in string format
+                else $fragment.attr('style', style )
+              }
+
+              updateStyle( scope )
+              
+              if( track && self.__isReactive__( value as string, scope ) ){
+                const deps = self.__extractExpressionDeps__( value as string, scope )
+
+                deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+                  $fragment,
+                  path: `${elementPath}.${attr}`,
+                  update: updateStyle,
+                  memo: scope,
+                  batch: true
+                }) )
+              }
+            } break
+
+            // Inject the evaluation result of any other attributes
+            default: {
+              const updateAttrs = ( memo: VariableScope ) => {
+                const res = value ?
+                            self.__evaluate__( value as string, memo )
+                            /**
+                             * IMPORTANT: An attribute without a value is
+                             * considered neutral but `true` of a value by
+                             * default.
+                             * 
+                             * Eg. <counter initial=3 throttle/>
+                             * 
+                             * the `throttle` attribute is hereby an input with a
+                             * value `true`.
+                             */
+                            : value !== undefined ? value : true
+
+                /**
+                 * (?) evaluation return signal to unset the attribute.
+                 * 
+                 * Very useful case where the attribute don't necessarily
+                 * have values by default.
+                 */
+                res === undefined || res === false
+                              ? $fragment.removeAttr( attr )
+                              : $fragment.attr( attr, res )
+              }
+
+              updateAttrs( scope )
+              
+              if( track && self.__isReactive__( value as string, scope ) ){
+                const deps = self.__extractExpressionDeps__( value as string, scope )
+
+                deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+                  $fragment,
+                  path: `${elementPath}.${attr}`,
+                  update: updateAttrs,
+                  memo: scope,
+                  batch: true
+                }) )
+              }
+            }
+          }
+        })
       }
 
-      return self.FGN.register( elementPath, meta, renderExec )
+      // Record attachable events to the element
+      events && Object
+      .entries( events )
+      .forEach( ([ _event, value ]) => {
+        self.__attachableEvents.push({
+          _event,
+          $node: $fragment,
+          instruction: value as string,
+          scope
+        })
+      })
+
+      // Check, process & track spread attributes
+      attrs && Object
+      .keys( attrs )
+      .forEach( key => {
+        if( !SPREAD_VAR_PATTERN.test( key ) ) return
+
+        const updateSpreadAttrs = ( memo: VariableScope ) => {
+          const
+          extracted: Record<string, any> = {},
+          spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo )
+          if( typeof spreads !== 'object' )
+            throw new Error(`Invalid spread operator ${key}`)
+
+          for( const _key in spreads )
+            extracted[ _key ] = spreads[ _key ]
+
+          processAttrs( extracted )
+        }
+
+        delete attrs[ key ]
+        updateSpreadAttrs( scope )
+
+        if( key && self.__isReactive__( key, scope ) ){
+          const deps = self.__extractExpressionDeps__( key, scope )
+
+          deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+            $fragment,
+            path: `${elementPath}.${key}`,
+            update: updateSpreadAttrs,
+            memo: scope,
+            batch: true
+          }) )
+        }
+      })
+      
+      processAttrs( attrs, true )
+      
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
+        
+      return $fragment
     }
     function execText( $node: Cash ): Cash {
       const
       textPath = self.__generatePath__('element'),
-      meta: NodeMeta = {
-        path: textPath,
-        type: 'element'
-      },
-      renderExec = ( nodeRef: any ) => {
+      content = $node.text(),
+      // Initial rendering
+      $fragment = $(document.createTextNode( self.__interpolate__( content, scope ) ) )
+
+      // Track for update rendering
+      if( content && self.__isReactive__( content, scope ) ){
         const
-        content = $node.text(),
-        // Initial rendering
-        $fragment = $(document.createTextNode( self.__interpolate__( content, scope ) ) )
-
-        // Track for update rendering
-        if( content && self.__isReactive__( content, scope ) ){
-          const
-          deps = self.__extractTextDeps__( content, scope ),
-          updateTextContent = ( memo?: VariableScope ) => {
-            const text = self.__interpolate__( content, memo || scope )
-            if( !$fragment[0] ) return
-            $fragment[0].textContent = text
-          }
-          
-          deps.forEach( dep => {
-            nodeRef.__deps.add( dep )
-
-            self.__trackDep__( dependencies, dep, {
-              path: textPath,
-              $fragment,
-              update: updateTextContent
-            })
-          })
+        deps = self.__extractTextDeps__( content, scope ),
+        updateTextContent = ( memo?: VariableScope ) => {
+          const text = self.__interpolate__( content, memo )
+          if( !$fragment[0] ) return
+          $fragment[0].textContent = text
         }
-
-        return $fragment
+        
+        deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+          path: textPath,
+          $fragment,
+          update: updateTextContent,
+          memo: scope,
+          batch: deps.length > 1
+        }) )
       }
 
-      return self.FGN.register( textPath, meta, renderExec )
+      return $fragment
     }
 
     function parse( $node: Cash ){
@@ -1289,16 +1289,43 @@ export default class Component<Input = void, State = void, Static = void, Contex
       if( $node.get(0)?.nodeType === Node.TEXT_NODE )
         return execText( $node )
 
-      // Render in-build syntax components
+      // Lips in-build scope variables syntax components
       if( $node.is('let') ) return execLet( $node )
       else if( $node.is('const') ) return execConst( $node )
+
+      /**
+       * Lips in-build syntax component
+       */
       else if( $node.is('if, for, switch, async') ) return execComponent( $node )
       /**
        * Ignore <else-if> and <else> tags as node
        * for their should be already process by <if>
        */
       else if( $node.is('else-if, else') ) return
-      else if( $node.is('lips') ) return execDynamic( $node )
+      
+      // Lips's empty fragment
+      else if( $node.is('lips') && $node.is('[fragment]') ){
+        const
+        elementPath = self.__generatePath__('element'),
+        $contents = $node.contents()
+        let $fragment = $()
+
+        // Process contents recursively if they exist
+        if( $contents.length )
+          $fragment = $fragment.add( self.__withPath__( `${elementPath}/content`, () => self.render( $contents, scope, dependencies ).$log ) )
+
+        return $fragment
+      }
+
+      /**
+       * Lips's dynamic tags like:
+       * 
+       * - component
+       * - dynamic-tag
+       */
+      else if( $node.is('lips') && $node.is('[dtag]') )
+        return handleDynamic( $node )
+
       else if( $node.is('log') ) return execLog( $node )
       
       // Identify and render macro components
@@ -1370,6 +1397,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
     extracted && Object
     .entries( extracted )
     .forEach( ([ key, value ]) => {
+      if( key == 'dtag' ) return 
+
       if( ARGUMENT_VAR_PATTERN.test( key ) ){
         const [ _, vars] = key.match( ARGUMENT_VAR_PATTERN ) || []
         argv = vars.split(',')
@@ -1382,7 +1411,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
     return { argv, events, attrs }
   }
-  private __generatePath__( type: NodeType ): string {
+  private __generatePath__( type: string ): string {
     const key = `${type}-${this.__pathCounter++}`
 
     return this.__path ? `${this.__path}/${key}` : key
@@ -1527,56 +1556,97 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private __valueDep__( obj: any, path: string[] ): any {
     return path.reduce( ( curr, part ) => curr?.[ part ], obj )
   }
+  private __shouldUpdate__( dep_scope: string, parts: string[], current: Metavars<Input, State, Context>, previous?: Metavars<Input, State, Context> ): boolean {
+    const
+    ovalue = previous && this.__valueDep__( previous[ dep_scope as keyof Metavars<Input, State, Context>  ], parts ),
+    nvalue = this.__valueDep__( current[ dep_scope as keyof Metavars<Input, State, Context> ], parts )
+
+    /**
+     * Skip if value hasn't changed
+     */
+    return !isEqual( ovalue, nvalue )
+  }
   private __updateDepNodes__( current: Metavars<Input, State, Context>, previous?: Metavars<Input, State, Context> ){
     if( !this.__dependencies?.size ) return
 
+    const batchUpdates = new Set<string>() // Temporary batched updates
     /**
      * We only care about paths that have registered 
      * dependencies. No need to scan entire state/input/context
      */
     this.__dependencies.forEach( ( dependents, dep ) => {
-      const
-      [ scope, ...parts ] = dep.split('.'),
-      ovalue = previous && this.__valueDep__( previous[ scope as keyof Metavars<Input, State, Context>  ], parts ),
-      nvalue = this.__valueDep__( current[ scope as keyof Metavars<Input, State, Context> ], parts )
+      const [ dep_scope, ...parts ] = dep.split('.')
 
-      /**
-       * Skip if value hasn't changed
-       */
-      if( isEqual( ovalue, nvalue ) ) return
-      
       /**
        * Handle updates for each dependent node/component
        */
-      dependents.forEach( ({ path, $fragment, update }) => {
-        /**
-         * Only clean up non-syntactic dependencies 
-         * or node no longer in DOM
-         */
-        // console.log( dep, path, $fragment, $fragment.closest('body').length )
-        if( !$fragment.closest('body').length ){
-          dependents.delete( path )
+      if( !this.__shouldUpdate__( dep_scope, parts, current, previous ) ) return
+
+      dependents.forEach( dependent => {
+        const { path, batch, $fragment, update, memo } = dependent
+
+        try {
+          /**
+           * Only clean up non-syntactic dependencies 
+           * or node no longer in DOM
+           */
+          if( !$fragment.closest('body').length ){
+            dependents.delete( path )
+            return
+          }
+
+          /**
+           * For batch updates, collect all updates first
+           * and execute batch once.
+           */
+          if( batch ) batchUpdates.add( path )
+
+          // Immediate update
+          else {
+            const $newFragment = update( memo )
+            
+            /**
+             * Replace $fragment from the dependency root
+             * 
+             * Required for mesh processing where replaceable
+             * $fragment are not reliable after processing it
+             * withing the dependency update tracking function.
+             */
+            typeof $newFragment === 'object'
+            && $newFragment.length
+            && dependents.set( path, { ...dependent, $fragment: $newFragment } )
+          }
+        }
+        catch( error ){
+          console.error('failed to update dependency nodes --', error )
           return
         }
-
-        const $newfragment = update()
-        
-        /**
-         * Replace $fragment from the dependency root
-         * 
-         * Required for mesh processing where replaceable
-         * $fragment are not reliable after processing it
-         * withing the dependency update tracking function.
-         */
-        typeof $newfragment === 'object'
-        && $newfragment.length
-        && dependents.set( path, { path, $fragment: $newfragment, update } )
       })
 
       /**
        * Clean up if no more dependents
        */
       !dependents.size && this.__dependencies?.delete( dep )
+    })
+
+    /**
+     * Execute all batched updates
+     */
+    batchUpdates.size
+    && requestAnimationFrame( () => {
+      batchUpdates.forEach( path => {
+        this.__dependencies?.forEach( dependents => {
+          const dependent = dependents.get( path )
+          if( !dependent ) return
+          
+          const $newFragment = dependent.update( dependent.memo )
+          typeof $newFragment === 'object'
+          && $newFragment.length
+          && dependents.set( path, { ...dependent, $fragment: $newFragment } )
+        })
+      })
+
+      batchUpdates.clear()
     })
   }
 
@@ -1602,6 +1672,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
     Object
     .values( this.__components )
     .forEach( component => component.detachEvents() )
+
+    this.__attachableEvents = []
   }
   
   destroy(){
@@ -1610,10 +1682,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
      * component.
      */
     this.ICE.dispose()
-    /**
-     * Dispose rendered nodes manager
-     */
-    this.FGN.dispose()
     /**
      * Stop watcher when component's element get 
      * detached from the DOM
@@ -1636,11 +1704,16 @@ export default class Component<Input = void, State = void, Static = void, Contex
     }
 
     /**
-     * Clear component and its styles from 
-     * the DOM
+     * Cleanup
      */
     this.$?.remove()
+    this.__macros.clear()
     this.__stylesheet?.clear()
+    this.__components?.clear()
+    this.__dependencies?.clear()
+    this.__batchUpdates?.clear()
+
+    this.__previous = undefined
 
     /**
      * Turn off this component's IUC

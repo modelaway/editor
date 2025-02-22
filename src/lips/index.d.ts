@@ -11,6 +11,7 @@ export type DeclarationTag = {
 }
 export type Declaration = {
   name: string
+  syntax?: boolean
   contents?: boolean
   tags?: Record<string, DeclarationTag>
 }
@@ -24,7 +25,7 @@ export interface Handler<Input = void, State = void, Static = void, Context = vo
   [index: string]: ( this: Component<Input, State, Static, Context>, ...args: any[] ) => void
 }
 export type Template<Input = void, State = void, Static = void, Context = void> = {
-  default: string
+  default?: string
   state?: any
   _static?: any
   context?: any
@@ -72,7 +73,9 @@ export type EventListener = ( ...args: any[] ) => void
 export type FGUDependency = {
   path: string
   $fragment: Cash
-  update: ( scope?: VariableScope ) => Cash | void
+  batch?: boolean
+  memo: VariableScope
+  update: ( memo: VariableScope ) => Cash | void
 }
 export type FGUDependencies = Map<string, Map<string, FGUDependency>>
 
@@ -80,7 +83,7 @@ export type RenderedNode = {
   $log: Cash
   dependencies: FGUDependencies
 }
-export interface MeshRender {
+export interface MeshRenderer {
   path: string | null
   argv: string[]
   partial?: RenderedNode
@@ -88,5 +91,5 @@ export interface MeshRender {
   update( argv: VariableScope ): Cash
 }
 export type MeshTemplate = Record<string, any> & {
-  render: MeshRender
+  renderer: MeshRenderer
 }

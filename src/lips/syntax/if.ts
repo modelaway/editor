@@ -1,7 +1,19 @@
-import type { Declaration, Handler, MeshRender, MeshTemplate } from '..'
+import type { Declaration, Handler, MeshRenderer, MeshTemplate } from '..'
+import $, { type Cash } from 'cash-dom'
+
+export interface Input {
+  by: boolean
+  renderer?: MeshRenderer
+  'else-if'?: MeshTemplate[]
+  'else'?: MeshTemplate
+}
+export interface Static {
+  $contents?: Cash | null
+}
 
 export const declaration: Declaration = {
   name: 'if',
+  syntax: true,
   contents: true,
   tags: {
     'else-if': { type: 'sibling', many: true },
@@ -9,25 +21,16 @@ export const declaration: Declaration = {
   }
 }
 
-export interface Input {
-  by: boolean
-  render?: MeshRender
-  'else-if'?: MeshTemplate[]
-  'else'?: MeshTemplate
-}
-export interface State {
-  render?: MeshRender | null
+export const _static = {
+  $contents: null
 }
 
-export const state = {
-  render: null
-}
-
-export const handler: Handler<Input, State> = {
+export const handler: Handler<Input, any, Static> = {
   onInput(){
     // Render -- if
+    console.log( this.input )
     if( this.input.by )
-      this.state.render = this.input.render
+      this.static.$contents = this.input.renderer?.mesh({})
     
     else {
       let elseifMatch = false
@@ -37,17 +40,20 @@ export const handler: Handler<Input, State> = {
         this.input['else-if'].forEach( each => {
           if( !each.by ) return
           
-          this.state.render = each.render
+          this.static.$contents = each.renderer.mesh({})
           elseifMatch = true
         } )
       
       // Render -- else or No fallback
       if( !elseifMatch  )
-        this.state.render = this.input.else ? this.input.else.render : null
+        this.static.$contents = this.input.else ? this.input.else.renderer.mesh({}) : $('<!---[EIEP]--->')
     }
 
-    console.log( this.state.render )
+    this.input.renderer?.replaceWith( this.static.$contents )
+  },
+  onAttach(){
+    this.static.$contents?.length && this.input.renderer?.replaceWith( this.static.$contents )
   }
 }
 
-export default `<div><{state.render}/></div>`
+export default `<!---[EIEP]--->`

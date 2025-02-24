@@ -11,6 +11,7 @@ export type DeclarationTag = {
 }
 export type Declaration = {
   name: string
+  droot?: boolean
   syntax?: boolean
   contents?: boolean
   tags?: Record<string, DeclarationTag>
@@ -70,12 +71,17 @@ export type EventListener = ( ...args: any[] ) => void
 /**
  * (FGU) Fine-Grain Update Dependencies
  */
-export type FGUDependency = {
+export interface FGUSync {
+  $fragment?: Cash
+  cleanup?: () => void
+}
+export interface FGUDependency {
   path: string
   $fragment: Cash
   batch?: boolean
+  syntax?: boolean
   memo: VariableScope
-  update: ( memo: VariableScope ) => Cash | void
+  update: ( memo: VariableScope ) => FGUSync | void
 }
 export type FGUDependencies = Map<string, Map<string, FGUDependency>>
 
@@ -89,6 +95,7 @@ export interface MeshRenderer {
   partial?: RenderedNode
   mesh( argv?: VariableScope ): Cash
   update( argv: VariableScope ): Cash
+  replaceWith( $fragment: Cash ): void
 }
 export type MeshTemplate = Record<string, any> & {
   renderer: MeshRenderer

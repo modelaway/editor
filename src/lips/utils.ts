@@ -28,9 +28,12 @@ $.fn.extend({
   }
 })
 
+export const ROOT_PATH = '#0'
+export const SYNCTAX_VAR_FLAG = 'SYNTAX:'
 export const SPREAD_VAR_PATTERN = /^\.\.\./
 export const ARGUMENT_VAR_PATTERN = /^\[(.*?)\]$/
 export const DYNAMIC_TAG_PLACEHOLDER = '<!---[DTLOG]--->'
+export const FRAGMENT_TAG_PLACEHOLDER = '<!---[FGLOG]--->'
 
 /**
  * Deep difference checker with support for Map, Set,
@@ -571,13 +574,14 @@ export function preprocessor( str: string ): string {
                           .replace(/>\s*</g, '><')
                           .replace(/\s{2,}/g, ' ')
                           .replace(/[\r\n\t]/g, '')
-                          .replace( /<\{([^}]+)\}\s*(.*?)\/>/g, '<lips dtag="$1" $2></lips>')
-                          .replace( /<(\w+)(\s+[^>]*)?\/>/g, '<$1$2></$1>')
-                          .replace( /<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
-                          .replace( /<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
-                          .replace( /<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">')
-                          .replace( /<log\(\s*(.*?)\s*\)>/g, '<log args="$1">')
-                          .replace( /\[(.*?)\]/g, match => match.replace(/\s+/g, '') )
+                          .replace(/<\{([^}]+)\}\s*(.*?)\/>/g, '<lips dtag="$1" $2></lips>')
+                          .replace(/(<>)([\s\S]*?)(<\/>)/g, '<lips fragment="true">$2</lips>')
+                          .replace(/<(\w+)(\s+[^>]*)?\/>/g, '<$1$2></$1>')
+                          .replace(/<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
+                          .replace(/<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
+                          .replace(/<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">')
+                          .replace(/<log\(\s*(.*?)\s*\)>/g, '<log args="$1">')
+                          .replace(/\[(.*?)\]/g, match => match.replace(/\s+/g, '') )
 
   return matchEventHandlers( result )
 }

@@ -1,56 +1,73 @@
+import type { Declaration, Handler, MeshRenderer, VariableScope } from '..'
+import $, { type Cash } from 'cash-dom'
 
-function execFor( $node: Cash ){
-  const
-  $contents = $node.contents() as Cash
-  if( !$contents.length ) return $()
+export interface Input {
+  in: Record<string, any> | any[]
+  from?: number
+  to?: number
+  renderer?: MeshRenderer
+}
+export interface Static {
+  $list: Cash | null
+}
+export interface State {
+  isMounted: boolean
+}
 
-  const
-  $in = $node.attr('in') as any,
-  $from = $node.attr('from') as any,
-  $to = $node.attr('to') as any
+export const declaration: Declaration = {
+  name: 'for',
+  syntax: true
+}
 
-  if( !$in && !$from && !$to ) return $()
-  
-  const internal = () => {
-    let
-    _in = self.__evaluate__( $in as string, scope ),
-    _from = self.__evaluate__( $from as string, scope ),
-    _to = self.__evaluate__( $to as string, scope )
+export const _static: Static = {
+  $list: null
+}
+export const state: State = {
+  isMounted: false
+}
 
-    let $fragment = $()
+export const handler: Handler<Input, State, Static> = {
+  onInput(){
+    if( !this.input.renderer )
+      throw new Error('Undefined mesh renderer')
+
+    let { in: _in, from: _from, to: _to } = this.input
+
+    this.static.$list = $()
+
+    if( _in === undefined && _from === undefined )
+      throw new Error('Invalid <for> arguments')
 
     if( _from !== undefined ){
-      _from = parseFloat( _from )
+      _from = parseFloat( String( _from ) )
 
       if( _to == undefined )
         throw new Error('Expected <from> <to> attributes of the for loop to be defined')
 
-      _to = parseFloat( _to )
+      _to = parseFloat( String( _to ) )
 
-      for( let x = _from; x <= _to; x++ )
-        if( $contents.length ){
-          const forScope: VariableScope = {
-            ...scope,
-            index: { value: x, type: 'const' }
-          }
+      for( let i = _from; i <= _to; i++ ){
+        const
+        argvalues: VariableScope = {},
+        [ivar] = this.input.renderer.argv
 
-          $fragment = $fragment.add( self.render( $contents, forScope ) )
-        }
+        if( ivar ) argvalues[ ivar ] = { value: i, type: 'const' }
+        
+        this.static.$list = this.static.$list.add( this.input.renderer?.mesh( argvalues ) )
+      }
     }
 
     else if( Array.isArray( _in ) ){
       let index = 0
       for( const each of _in ){
-        if( $contents.length ){
-          const forScope: VariableScope = {
-            ...scope, 
-            each: { value: each, type: 'const' },
-            index: { value: index, type: 'const' }
-          }
+        const 
+        argvalues: VariableScope = {},
+        [evar, ivar] = this.input.renderer.argv
 
-          $fragment = $fragment.add( self.render( $contents, forScope ) )
-        }
-        
+        if( evar ) argvalues[ evar ] = { value: each, type: 'const' }
+        if( ivar ) argvalues[ ivar ] = { value: index, type: 'const' }
+
+        this.static.$list = this.static.$list.add( this.input.renderer?.mesh( argvalues ) )
         index++
       }
     }
@@ -58,17 +75,15 @@ function execFor( $node: Cash ){
     else if( _in instanceof Map ){
       let index = 0
       for( const [ key, value ] of _in ){
-        if( $contents.length ){
-          const forScope: VariableScope = {
-            ...scope, 
-            key: { value: key, type: 'const' },
-            each: { value: value, type: 'const' },
-            index: { value: index, type: 'const' }
-          }
+        const 
+        argvalues: VariableScope = {},
+        [kvar, vvar, ivar] = this.input.renderer.argv
 
-          $fragment = $fragment.add( self.render( $contents, forScope ) )
-        }
-        
+        if( kvar ) argvalues[ kvar ] = { value: key, type: 'const' } // key
+        if( vvar ) argvalues[ vvar ] = { value: value, type: 'const' } // value
+        if( ivar ) argvalues[ ivar ] = { value: index, type: 'const' } // index
+
+        this.static.$list = this.static.$list.add( this.input.renderer?.mesh( argvalues ) )
         index++
       }
     }
@@ -76,57 +91,27 @@ function execFor( $node: Cash ){
     else if( typeof _in == 'object' ){
       let index = 0
       for( const key in _in ){
-        if( $contents.length ){
-          const forScope: VariableScope = {
-            ...scope, 
-            key: { value: key, type: 'const' },
-            each: { value: _in[ key ], type: 'const' },
-            index: { value: index, type: 'const' }
-          }
+        const 
+        argvalues: VariableScope = {},
+        [kvar, vvar, ivar] = this.input.renderer.argv
 
-          $fragment = $fragment.add( self.render( $contents, forScope ) )
-        }
-        
+        if( kvar ) argvalues[ kvar ] = { value: key, type: 'const' } // key
+        if( vvar ) argvalues[ vvar ] = { value: _in[ key ], type: 'const' } // value
+        if( ivar ) argvalues[ ivar ] = { value: index, type: 'const' } // index
+
+        this.static.$list = this.static.$list.add( this.input.renderer?.mesh( argvalues ) )
         index++
       }
     }
-      
-    /**
-     * BENCHMARK: Tracking total elements rendered
-     */
-    self.benchmark.inc('elementCount')
 
     // Add an (EFLP) Empty For Loop Placeholder
-    if( !$fragment.length )
-      $fragment = $fragment.add('<!--[EFLP]-->')
-
-    return $fragment
-  }
-
-  let $fragment = internal()
-  
-  /**
-   * Track the condition dependency
-   */
-  ;( self.__isReactive__( $in ) 
-    || self.__isReactive__( $from )
-    || self.__isReactive__( $to ) )
-  && self.__trackDep__( $in || $from || $to, $node, () => {
-    console.log('------------------------------ For-loop update')
-    const 
-    $newContent = internal(),
-    $first = $fragment.first()
-    if( !$first.length ){
-      console.warn('stagged For-loop fragment missing.')
-      return
-    }
-  
-    $fragment.each( ( _, el ) => { _ > 0 && $(el).remove() })
-    $first.after( $newContent ).remove()
+    else this.static.$list = this.static.$list.add('<!--[EFLP]-->')
     
-    // Update the fragment reference for future updates
-    $fragment = $newContent
-  })
-
-  return $fragment
+    this.input.renderer?.replaceWith( this.static.$list )
+  },
+  onAttach(){
+    this.static.$list?.length && this.input.renderer?.replaceWith( this.static.$list )
+  }
 }
+
+export default `<!---[EFLP]--->`

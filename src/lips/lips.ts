@@ -4,6 +4,8 @@ import I18N from './i18n'
 import DWS from './dws'
 import Component from './component'
 import * as If from './syntax/if'
+import * as For from './syntax/for'
+import * as Switch from './syntax/switch'
 import * as Router from './syntax/router'
 import { isDiff } from './utils'
 import { effect, signal } from './signal'
@@ -37,6 +39,8 @@ export default class Lips<Context = any> {
      * `<router routers=[] global, ...></router>` -- Internal Routing Component
      */
     this.register('if', If )
+    this.register('for', For )
+    this.register('switch', Switch )
     this.register('router', Router )
   }
 
@@ -68,8 +72,12 @@ export default class Lips<Context = any> {
     // Fetch from registered component
     if( !this.has( pathname ) )
       throw new Error(`<${pathname}> component not found`)
-
-    if( !this.store[ pathname ].default )
+    
+    /**
+     * Only syntactic component are allowed to 
+     * no have template's `default` export.
+     */
+    if( !this.store[ pathname ].declaration?.syntax && !this.store[ pathname ].default )
       throw new Error(`Invalid <${pathname}> component`)
     
     return this.store[ pathname ]
@@ -96,7 +104,7 @@ export default class Lips<Context = any> {
       lips: this
     }
 
-    return new Component<Input, State, Static, Context>( name, _default, { ...scope, input }, options )
+    return new Component<Input, State, Static, Context>( name, _default || '', { ...scope, input }, options )
   }
   root( template: Template, selector: string ){
     this.__root = this.render('__ROOT__', template )

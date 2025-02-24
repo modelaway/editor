@@ -1,4 +1,4 @@
-import type { Component } from './lips'
+import type Component from './component'
 
 type WatchData = {
   timeout: NodeJS.Timeout

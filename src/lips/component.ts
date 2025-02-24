@@ -8,7 +8,8 @@ import type {
   MeshTemplate,
   RenderedNode,
   FGUDependencies,
-  FGUDependency
+  FGUDependency,
+  Declaration
 } from '.'
 
 import Events from './events'
@@ -25,7 +26,8 @@ import {
   SPREAD_VAR_PATTERN,
   ARGUMENT_VAR_PATTERN,
   DYNAMIC_TAG_PLACEHOLDER,
-  FRAGMENT_TAG_PLACEHOLDER
+  FRAGMENT_TAG_PLACEHOLDER,
+  SYNCTAX_VAR_FLAG
 } from './utils'
 
 type Metavars<I, S, C> = { 
@@ -36,6 +38,7 @@ type Metavars<I, S, C> = {
 
 export default class Component<Input = void, State = void, Static = void, Context = void> extends Events {
   private template: string
+  private declaration: Declaration
   private macros: Record<string, string>
   private $?: Cash
 
@@ -83,17 +86,18 @@ export default class Component<Input = void, State = void, Static = void, Contex
    */
   ;[key: string]: any
 
-  constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet, macros }: ComponentScope<Input, State, Static, Context>, options?: ComponentOptions ){
+  constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet, macros, declaration }: ComponentScope<Input, State, Static, Context>, options?: ComponentOptions ){
     super()
-
     this.template = preprocessor( template )
-    this.macros = macros || {}
 
     if( options?.lips ) this.lips = options.lips    
     if( options?.debug ) this.debug = options.debug
     if( options?.prekey ) this.prekey = options.prekey
 
     this.__name__ = name
+
+    this.macros = macros || {}
+    this.declaration = declaration || { name }
 
     this.input = input || {} as Input
     this.state = state || {} as State
@@ -598,9 +602,11 @@ export default class Component<Input = void, State = void, Static = void, Contex
     }
 
     function execDynamicElement( $node: Cash, dtag: string, renderer: MeshRenderer | null ){
-      let $fragment = $(),
+      let 
+      $fragment = $(),
       // Keep track of the latest mesh scope
-      argvalues: VariableScope = {}
+      argvalues: VariableScope = {},
+      activeRenderer = renderer
 
       const
       { attrs } = self.__getAttributes__( $node ),
@@ -639,7 +645,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
           if( !renderer.argv.includes( key ) ) return
 
           const partialUpdate = ( memo: VariableScope ) => {
-            renderer.update({
+            if( !activeRenderer ) return
+            
+            activeRenderer.update({
               [key]: {
                 type: 'const',
                 value: value ? self.__evaluate__( value, memo ) : true
@@ -666,47 +674,53 @@ export default class Component<Input = void, State = void, Static = void, Contex
       if( self.__isReactive__( dtag as string, scope ) ){
         const
         updateDynamicElement = ( memo: VariableScope ) => {
+          // Update the mesh scope with new values
+          argvalues = { ...memo, ...argvalues }
+
           /**
            * Re-evaluate dynamic tag expression before 
            * re-rendering the element
            */
           const newRenderer = self.__evaluate__( dtag, memo )
-
-          // Update the mesh scope with new values
-          argvalues = { ...memo, ...argvalues }
           
           // Direct update to existing render
           if( newRenderer === renderer && renderer?.update ){
             renderer.update( argvalues )
-            return $fragment
+            
+            return { $fragment }
           }
           
           // New MeshRenderer object
           if( isMesh( newRenderer ) ){
             const $newContent = newRenderer.mesh( argvalues )
-            if( !$newContent?.length ) return $fragment
-            
+            if( !$newContent?.length ) return { $fragment }
+
             // Update fragment reference
             const $first = $fragment.first()
             if( !$first.length ){
               console.warn('missing stagged fragment.')
               return
             }
-          
+
             $fragment.each( ( _, el ) => { _ > 0 && $(el).remove() })
             $first.after( $newContent ).remove()
 
             $fragment = $newContent
             
-            return $fragment
+            return {
+              $fragment,
+              cleanup: () => {}
+            }
           }
                 
-          // Case 3: Null render
+          // Null render
           const $placeholder = $(DYNAMIC_TAG_PLACEHOLDER)
           $fragment.replaceWith( $placeholder )
           $fragment = $placeholder
       
-          return $fragment
+          return {
+            $fragment
+          }
         },
         deps = self.__extractExpressionDeps__( dtag as string, scope )
 
@@ -728,10 +742,18 @@ export default class Component<Input = void, State = void, Static = void, Contex
       if( !self.lips ) throw new Error('Nexted component manager is disable')
       if( name === self.__name__ ) throw new Error('Render component within itself is forbidden')
 
+      /**
+       * Render the whole component for first time
+       */
+      const template = self.lips.import( name )
+      if( !template )
+        throw new Error(`<${name}> template not found`)
+      
       const
       __key__ = `${self.prekey}.${name}$${self.NCC++}`,
       componentPath = self.__generatePath__('component'),
-      { argv, attrs, events } = self.__getAttributes__( $node )
+      { argv, attrs, events } = self.__getAttributes__( $node ),
+      TRACKABLE_ATTRS: Record<string, string> = {}
 
       /**
        * Parse assigned attributes to be injected into
@@ -748,7 +770,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
       .entries( attrs )
       .forEach( ([ key, value ]) => {
         if( key == 'key' ) return
-
+        
         if( SPREAD_VAR_PATTERN.test( key ) ){
           const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
           if( typeof spreads !== 'object' )
@@ -771,15 +793,12 @@ export default class Component<Input = void, State = void, Static = void, Contex
                   * value `true`.
                   */
                 : true
+
+        template.declaration?.syntax
+                  ? TRACKABLE_ATTRS[`${SYNCTAX_VAR_FLAG + key}`] = value
+                  : TRACKABLE_ATTRS[ key ] = value
       })
 
-      /**
-       * Render the whole component for first time
-       */
-      const template = self.lips.import( name )
-      if( !template )
-        throw new Error(`<${name}> template not found`)
-      
       const meshwire = ( $tagnode: Cash, path: string | null, argv: string[] = [], scope: VariableScope = {}, useAttributes = false ) => {
         let wire: MeshTemplate = {
           renderer: {
@@ -823,15 +842,21 @@ export default class Component<Input = void, State = void, Static = void, Contex
                     dependents.delete( path )
                     return
                   }
-
+                  
                   if( batch ) batchUpdates.add( path )
                   else {
                     dependent.memo = { ...dependent.memo, ...scope, ...argvalues }
-                    const $newFragment = update( dependent.memo )
 
-                    typeof $newFragment === 'object'
-                    && $newFragment.length
-                    && dependents.set( path, { ...dependent, $fragment: $newFragment } )
+                    const sync = update( dependent.memo )
+                    if( sync ){
+                      // Adopt new $fragment
+                      typeof sync.$fragment === 'object'
+                      && sync.$fragment.length
+                      && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
+
+                      // Cleanup callback
+                      typeof sync.cleanup === 'function' && sync.cleanup()
+                    }
                   }
                 })
 
@@ -853,21 +878,39 @@ export default class Component<Input = void, State = void, Static = void, Contex
                     
                     dependent.memo = { ...dependent.memo, ...scope, ...argvalues }
 
-                    const $newFragment = dependent.update( dependent.memo )
-                    typeof $newFragment === 'object'
-                    && $newFragment.length
-                    && dependents.set( path, { ...dependent, $fragment: $newFragment } )
+                    const sync = dependent.update( dependent.memo )
+                    if( sync ){
+                      // Adopt new $fragment
+                      typeof sync.$fragment === 'object'
+                      && sync.$fragment.length
+                      && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
+
+                      // Cleanup callback
+                      typeof sync.cleanup === 'function' && sync.cleanup()
+                    }
                   })
                 })
 
                 batchUpdates.clear()
               })
+            },
+            replaceWith( $newFragment: Cash ){
+              const $first = $fragment.first()
+              if( !$first.length ){
+                console.warn('missing stagged fragment.')
+                return
+              }
+
+              $fragment.each( ( _, el ) => { _ > 0 && $(el).remove() })
+              $first.after( $newFragment ).remove()
+
+              $fragment = $newFragment
             }
           }
         }
 
         /**
-         * Allow attributes consumption as input/props
+         * Allow attributes consumption as input/props.
          */
         if( useAttributes && path ){
           const { argv, attrs: segmentAttrs, events } = self.__getAttributes__( $tagnode )
@@ -884,13 +927,12 @@ export default class Component<Input = void, State = void, Static = void, Contex
               for( const _key in spreads )
                 wire[ _key ] = spreads[ _key ]
               
-              // Record attribute to be tracked as FGU dependency
-              attrs[`${path}.${key}`] = value
+              TRACKABLE_ATTRS[`${template.declaration?.syntax ? SYNCTAX_VAR_FLAG : ''}${path}.${key}`] = value
             }
             else {
               wire[ key ] = value ? self.__evaluate__( value as string, scope ) : true
               // Record attribute to be tracked as FGU dependency
-              attrs[`${path}.${key}`] = value
+              TRACKABLE_ATTRS[`${template.declaration?.syntax ? SYNCTAX_VAR_FLAG : ''}${path}.${key}`] = value
             }
           })
         }
@@ -956,21 +998,16 @@ export default class Component<Input = void, State = void, Static = void, Contex
         }
       }
 
-      const { declaration, state, _static, handler, context, default: _default, stylesheet } = template
-      
-      let component: Component
-      if( declaration?.syntax && handler )
-        handler.sync = function( mesh: any ){
-          console.log('---- Sync', mesh, component )
-        }
-
+      const 
+      { declaration, state, _static, handler, context, default: _default, stylesheet } = template,
       component = new Component( name, _default || '', {
         state: deepClone( state ),
         input: deepClone( input ),
         context,
         _static: deepClone( _static ),
         handler,
-        stylesheet
+        stylesheet,
+        declaration
       }, {
         debug: self.debug,
         lips: self.lips,
@@ -989,9 +1026,15 @@ export default class Component<Input = void, State = void, Static = void, Contex
       /**
        * Setup input dependency track
        */
-      attrs && Object
-      .entries( attrs )
+      TRACKABLE_ATTRS && Object
+      .entries( TRACKABLE_ATTRS )
       .forEach( ([ key, value ]) => {
+        let isSyntax = false
+        if( new RegExp(`^${SYNCTAX_VAR_FLAG}`).test( key ) ){
+          isSyntax = true
+          key = key.replace( SYNCTAX_VAR_FLAG, '' )
+        }
+
         if( SPREAD_VAR_PATTERN.test( key ) ){
           const spreadvalues = ( memo: VariableScope ) => {
             const
@@ -1013,6 +1056,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
               $fragment,
               path: `${componentPath}.${key}`,
               update: spreadvalues,
+              syntax: isSyntax,
               memo: scope,
               batch: true
             }) )
@@ -1032,6 +1076,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
               $fragment,
               path: `${componentPath}.${key}`,
               update: evalue,
+              syntax: isSyntax,
               memo: scope,
               batch: true
             }) )
@@ -1057,7 +1102,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
       // Process contents recursively if they exist
       $contents.length
-      && $fragment.append( self.__withPath__( `${elementPath}/content`, () => self.render( $contents, scope, dependencies ).$log ) )
+      && $fragment.append( self.__withPath__( elementPath, () => self.render( $contents, scope, dependencies ).$log ) )
 
       // Process attributes
       const 
@@ -1412,9 +1457,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
     return { argv, events, attrs }
   }
   private __generatePath__( type: string ): string {
-    const key = `${type}-${this.__pathCounter++}`
+    const key = (type === 'component' ? 'c' : '')+ this.__pathCounter++
 
-    return this.__path ? `${this.__path}/${key}` : key
+    return this.__path ? `${this.__path}/${key}` : `#${key}`
   }
   private __withPath__<T>( path: string, fn: () => T ): T {
     const prevPath = this.__path
@@ -1583,14 +1628,14 @@ export default class Component<Input = void, State = void, Static = void, Contex
       if( !this.__shouldUpdate__( dep_scope, parts, current, previous ) ) return
 
       dependents.forEach( dependent => {
-        const { path, batch, $fragment, update, memo } = dependent
+        const { path, batch, $fragment, update, memo, syntax } = dependent
 
         try {
           /**
            * Only clean up non-syntactic dependencies 
            * or node no longer in DOM
            */
-          if( !$fragment.closest('body').length ){
+          if( !syntax && !$fragment.closest('body').length ){
             dependents.delete( path )
             return
           }
@@ -1603,18 +1648,28 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
           // Immediate update
           else {
-            const $newFragment = update( memo )
-            
-            /**
-             * Replace $fragment from the dependency root
-             * 
-             * Required for mesh processing where replaceable
-             * $fragment are not reliable after processing it
-             * withing the dependency update tracking function.
-             */
-            typeof $newFragment === 'object'
-            && $newFragment.length
-            && dependents.set( path, { ...dependent, $fragment: $newFragment } )
+            const sync = update( memo )
+            if( sync ){
+              /**
+               * Replace $fragment from the dependency root
+               * 
+               * Required for mesh processing where replaceable
+               * $fragment are not reliable after processing it
+               * withing the dependency update tracking function.
+               */
+              typeof sync.$fragment === 'object'
+              && sync.$fragment.length
+              && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
+
+              /**
+               * Manual cleanup callback function after
+               * dependency track adopted new changes.
+               * 
+               * Useful for DOM cleanup for instance of 
+               * complex wired $fragment.
+               */
+              typeof sync.cleanup === 'function' && sync.cleanup()
+            }
           }
         }
         catch( error ){
@@ -1639,10 +1694,14 @@ export default class Component<Input = void, State = void, Static = void, Contex
           const dependent = dependents.get( path )
           if( !dependent ) return
           
-          const $newFragment = dependent.update( dependent.memo )
-          typeof $newFragment === 'object'
-          && $newFragment.length
-          && dependents.set( path, { ...dependent, $fragment: $newFragment } )
+          const sync = dependent.update( dependent.memo )
+          if( sync ){
+            typeof sync.$fragment === 'object'
+            && sync.$fragment.length
+            && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
+
+            typeof sync.cleanup === 'function' && sync.cleanup()
+          }
         })
       })
 

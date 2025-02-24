@@ -27,21 +27,21 @@ function Demo1(){
       <span text=static.verb>...</span>
 
       <div>
-        <for from="0" to="2">
+        <for [x] from="0" to="2">
           <if( state.time == 'morning' )>
             <switch( state.speech )>
               <case is="hi">
                 <span on-click="handleConnect, !state.online">Hi - </span>
-                <span text=index></span>
+                <span text=x></span>
               </case>
-              <case is="hello"><span>Hello - <span text=index></span></span></case>
-              <case is="bonjour"><span>Bonjour - </span><span text=index></span></case>
+              <case is="hello"><span>Hello - <span text=x></span></span></case>
+              <case is="bonjour"><span>Bonjour - </span><span text=x></span></case>
               <default>Salut</default>
             </switch>
           </if>
           <else-if( state.time == 'afternoon' )>
             <span>Good afternoon - </span>
-            <span text=index></span>
+            <span text=x></span>
           </else-if>
           <else>
             <span text=input.default></span>
@@ -50,16 +50,15 @@ function Demo1(){
         </for>
       </div>
 
-      <br>
       <ul>
-        <for in=static.users>
-          <li key=index>
-            <span text=key>Frederic Dupont</span>:
+        <for [continent, users] in=static.users>
+          <li key=continent>
+            <span text=continent>Frederic Dupont</span>:
             <ul>
-              <for in=each>
-                <li key=index>
-                  <span text=each.name>Frederic Dupont</span> - 
-                  <span text=each.location>Nice, Belogre</span>
+              <for [user, userid] in=users>
+                <li key=userid>
+                  <span text=user.name>Frederic Dupont</span> - 
+                  <span text=user.location>Nice, Belogre</span>
                 </li>
               </for>
             </ul>
@@ -69,7 +68,7 @@ function Demo1(){
     </div>`,
   state: State = {
     time: 'morning',
-    speech: 'hi',
+    speech: 'hello',
     online: true
   },
   input: Input = {
@@ -102,12 +101,14 @@ function Demo1(){
     }
   }
 
-  const component = new Component<Input, State, Static>('Demo1', template, { input, state, _static, handler }, { debug: true })
-
-  component.appendTo('body')
+  const
+  lips = new Lips({ debug: true, watchdom: true }),
+  component = lips
+              .render('DemoInput', { default: template, state, _static, handler }, input )
+              .appendTo('body')
 
   setTimeout( () => {
-    component.setState({ time: 'afternoon' })
+    component.setState({ time: 'afternoon', online: false, speech: 'bonjour' })
     component.setInput({ person: 'Brigit' })
   }, 2000 )
 }
@@ -1055,14 +1056,16 @@ function DemoInput(){
     default: `
       <div>
         <div>In component count: {state.count}</div>
-        <{input.render} count=state.count/>
+        <if( input.renderer )>
+          <{input.renderer} count=state.count/>
+        </if>
         <br>
         <button on-click( handleClick )>Count</button>
       </div>
     `
   }
 
-  const lips = new Lips({ debug: true })
+  const lips = new Lips({ debug: true, watchdom: true })
   lips.register('easycount', easyCount )
 
   type State = {
@@ -1074,6 +1077,7 @@ function DemoInput(){
     }
     numbers: number[]
     speech: string
+    traffic: 'red' | 'orange' | 'green'
   }
 
   const
@@ -1084,8 +1088,9 @@ function DemoInput(){
       hidden: true,
       title: 'Spread'
     },
-    numbers: [],
-    speech: 'hi'
+    numbers: [1,2],
+    speech: 'hi',
+    traffic: 'orange'
   },
   template = `
     <div style="{ border: '1px solid '+(state.value.length > 5 ? 'red' : 'gray') }">
@@ -1115,6 +1120,22 @@ function DemoInput(){
       <else>
         <p>{state.value}</p>
       </else>
+
+      <for [n, idx] in=state.numbers>
+        #<span>[{idx}]-{n}</span>.
+      </for>
+
+      <switch( state.traffic )>
+        <case is="green">
+          <div style="color: green;">Green light</div>
+        </case>
+        <case is="red">
+          <div style="color: red;">Red light</div>
+        </case>
+        <default>
+          <div style="color: orange;">Orange light</div>
+        </case>
+      </switch>
     </div>
   `,
   handler: Handler<any, State> = {
@@ -1125,12 +1146,16 @@ function DemoInput(){
       if( e.target.value.length == 2 ){
         this.state.speech = 'hello'
         this.state.numbers = [0,5,3,6,2,3,6,7,4]
+        this.state.traffic = 'red'
       }
 
-      if( e.target.value.length === 4 ){
+      else if( e.target.value.length === 4 ){
         this.state.numbers = [4,3,2,3,3,32]
         this.state.speech = 'buuuu'
+        this.state.traffic = 'green'
       }
+
+      else this.state.traffic = 'orange'
     }
   }
 
@@ -1139,7 +1164,7 @@ function DemoInput(){
   .appendTo('body')
 }
 
-// Demo1()
+Demo1()
 // Demo2()
 // Demo3()
 // Demo4()
@@ -1147,4 +1172,4 @@ function DemoInput(){
 // Demo6()
 // DemoCart()
 // DemoLayers()
-DemoInput()
+// DemoInput()

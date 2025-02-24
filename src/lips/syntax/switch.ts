@@ -1,70 +1,54 @@
-function execSwitch( $node: Cash ){
-  const by = $node.attr('by')
-  if( !by ) return $()
+import type { Declaration, Handler, MeshRenderer, MeshTemplate } from '..'
+import $, { type Cash } from 'cash-dom'
 
-  const internal = () => {
-    let $fragment = $()
-
-    const switchBy = self.__evaluate__( by, scope )
-    let matched = false
-    
-    $node.children().each( function(){
-      const
-      $child = $(this),
-      $contents = $child.contents(),
-      _is = $child.attr('is')
-
-      if( matched ) return
-
-      if( $child.is('case') && _is !== undefined ){
-        const isValue = self.__evaluate__( _is as string, scope )
-
-        if( (Array.isArray( isValue ) && isValue.includes( switchBy )) || isValue === switchBy ){
-          matched = true
-          
-          if( $contents.length )
-            $fragment = $fragment.add( self.render( $contents, scope ) )
-        }
-      }
-      
-      if( !matched && $child.is('default') && $contents.length )
-        $fragment = $fragment.add( self.render( $contents, scope ) )
-    })
-      
-    /**
-     * BENCHMARK: Tracking total elements rendered
-     */
-    self.benchmark.inc('elementCount')
-
-    // Add an (ESCP) Empty Switch-Case Placeholder
-    if( !$fragment.length )
-      $fragment = $fragment.add('<!--[ESCP]-->')
-
-    return $fragment
+export const declaration: Declaration = {
+  name: 'switch',
+  syntax: true,
+  contents: true,
+  tags: {
+    'case': { type: 'child', many: true },
+    'default': { type: 'child' }
   }
-
-  let $fragment = internal()
-
-  /**
-   * Track the condition dependency
-   */
-  self.__isReactive__( by )
-  && self.__trackDep__( by, $node, () => {
-    console.log('------------------------------ Switch-case update')
-    const 
-    $newContent = internal(),
-    $first = $fragment.first()
-    if( !$first.length ){
-      console.warn('stagged Switch-case fragment missing.')
-      return
-    }
-  
-    $fragment.each( ( _, el ) => { _ > 0 && $(el).remove() })
-    $first.after( $newContent ).remove()
-    
-    // Update the fragment reference for future updates
-    $fragment = $newContent
-  })
-
-  return $fragment
 }
+
+export interface Input {
+  by: string
+  case: (MeshTemplate & { is: string | string[] })[]
+  renderer: MeshRenderer
+  default?: MeshTemplate
+}
+export interface Static {
+  $case: Cash | null
+}
+
+export const _static: Static = {
+  $case: null
+}
+
+export const handler: Handler<Input, void, Static> = {
+  onInput(){
+    let validCases: string[] = []
+
+    for( const _case of this.input.case ){
+      if( _case.is == this.input.by || ( Array.isArray( _case.is ) && _case.is.includes( this.input.by ) ) ){
+        Array.isArray( _case.is ) ? 
+                // Array case value: Merge with valid cases
+                validCases = [ ...(new Set([ ...validCases, ..._case.is ]) )]
+                // String case value
+                : validCases.push( _case.is )
+
+        this.static.$case = _case.renderer.mesh({})
+      }
+    }
+
+    if( !validCases.includes( this.input.by )  )
+      this.static.$case = this.input.default ? this.input.default.renderer.mesh({}) : $('<!--[ESCP]-->')
+
+    this.input.renderer?.replaceWith( this.static.$case )
+  },
+  onAttach(){
+    this.static.$case?.length && this.input.renderer?.replaceWith( this.static.$case )
+  }
+}
+
+export default `<!---[ESCP]--->`

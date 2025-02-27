@@ -7,8 +7,8 @@ export interface Input {
   'else-if'?: MeshTemplate[]
   'else'?: MeshTemplate
 }
-export interface Static {
-  $contents?: Cash | null
+export interface State {
+  renderer: MeshRenderer | null
 }
 
 export const declaration: Declaration = {
@@ -20,40 +20,36 @@ export const declaration: Declaration = {
     'else': { type: 'sibling' }
   }
 }
-
-export const _static = {
-  $contents: null
+export const state: State = {
+  renderer: null
 }
 
-export const handler: Handler<Input, any, Static> = {
+export const handler: Handler<Input, State> = {
   onInput(){
+    if( !this.input.renderer ) return
+
     // Render -- if
-    console.log( this.input )
     if( this.input.by )
-      this.static.$contents = this.input.renderer?.mesh({})
+      this.state.renderer = this.input.renderer
     
     else {
       let elseifMatch = false
       
       // Render -- else-if
-      if( Array.isArray( this.input['else-if'] ) && this.input['else-if'].length )
+      if( Array.isArray( this.input['else-if'] ) && this.input['else-if'].length ){
         this.input['else-if'].forEach( each => {
           if( !each.by ) return
           
-          this.static.$contents = each.renderer.mesh({})
+          this.state.renderer = each.renderer
           elseifMatch = true
         } )
+      }
       
       // Render -- else or No fallback
-      if( !elseifMatch  )
-        this.static.$contents = this.input.else ? this.input.else.renderer.mesh({}) : $('<!---[EIEP]--->')
+      if( !elseifMatch )
+        this.state.renderer = this.input.else ? this.input.else.renderer : null
     }
-
-    this.input.renderer?.replaceWith( this.static.$contents )
-  },
-  onAttach(){
-    this.static.$contents?.length && this.input.renderer?.replaceWith( this.static.$contents )
   }
 }
 
-export default `<!---[EIEP]--->`
+export default `<{state.renderer}/>`

@@ -1,6 +1,17 @@
 import type { Declaration, Handler, MeshRenderer, MeshTemplate } from '..'
 import $, { type Cash } from 'cash-dom'
 
+
+export interface Input {
+  by: string
+  case: (MeshTemplate & { is: string | string[] })[]
+  renderer: MeshRenderer
+  default?: MeshTemplate
+}
+export interface State {
+  renderer: MeshRenderer | null
+}
+
 export const declaration: Declaration = {
   name: 'switch',
   syntax: true,
@@ -10,22 +21,11 @@ export const declaration: Declaration = {
     'default': { type: 'child' }
   }
 }
-
-export interface Input {
-  by: string
-  case: (MeshTemplate & { is: string | string[] })[]
-  renderer: MeshRenderer
-  default?: MeshTemplate
-}
-export interface Static {
-  $case: Cash | null
+export const state: State = {
+  renderer: null
 }
 
-export const _static: Static = {
-  $case: null
-}
-
-export const handler: Handler<Input, void, Static> = {
+export const handler: Handler<Input, State> = {
   onInput(){
     let validCases: string[] = []
 
@@ -37,18 +37,13 @@ export const handler: Handler<Input, void, Static> = {
                 // String case value
                 : validCases.push( _case.is )
 
-        this.static.$case = _case.renderer.mesh({})
+        this.state.renderer = _case.renderer
       }
     }
 
     if( !validCases.includes( this.input.by )  )
-      this.static.$case = this.input.default ? this.input.default.renderer.mesh({}) : $('<!--[ESCP]-->')
-
-    this.input.renderer?.replaceWith( this.static.$case )
-  },
-  onAttach(){
-    this.static.$case?.length && this.input.renderer?.replaceWith( this.static.$case )
+      this.state.renderer = this.input.default ? this.input.default.renderer : null
   }
 }
 
-export default `<!---[ESCP]--->`
+export default `<{state.renderer}/>`

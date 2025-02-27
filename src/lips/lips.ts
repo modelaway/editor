@@ -3,12 +3,12 @@ import type { LipsConfig, Template, ComponentOptions } from '.'
 import I18N from './i18n'
 import DWS from './dws'
 import Component from './component'
+import { effect, signal } from './signal'
+import { isDiff } from './utils'
 import * as If from './syntax/if'
 import * as For from './syntax/for'
 import * as Switch from './syntax/switch'
 import * as Router from './syntax/router'
-import { isDiff } from './utils'
-import { effect, signal } from './signal'
 
 export default class Lips<Context = any> {
   private debug = false
@@ -25,8 +25,7 @@ export default class Lips<Context = any> {
     if( config?.debug ) 
       this.debug = config.debug
 
-    if( config?.watchdom )
-      this.watcher = new DWS()
+    this.watcher = new DWS()
     
     const [ getContext, setContext ] = signal<Context>( config?.context || {} )
 

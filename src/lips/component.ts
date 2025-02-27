@@ -9,7 +9,8 @@ import type {
   RenderedNode,
   FGUDependencies,
   FGUDependency,
-  Declaration
+  Declaration,
+  FragmentBoundaries
 } from '.'
 
 import Events from './events'
@@ -51,9 +52,11 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private __previous?: Metavars<Input, State, Context>
   private __stylesheet?: Stylesheet
   private __macros: Map<string, Cash> = new Map() // Cached macros templates
-  private __components: Map<string, Component> = new Map() // Cached nexted components
   private __dependencies?: FGUDependencies = new Map() // Initial FGU dependencies
   private __attachableEvents: { $node: Cash, _event: string, instruction: string, scope?: Record<string, any> }[] = []
+
+  // Preserved Child Components
+  private PCC: Map<string, Component> = new Map()
 
   /**
    * Nexted Component Count (NCC) in tree
@@ -200,7 +203,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
         const { $log } = this.render( undefined, undefined, this.__dependencies )
         this.$ = $log
-        // this.__dependencies = dependencies
         
         // Assign CSS relationship attribute
         this.$?.attr('rel', this.__name__ )
@@ -320,6 +322,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
       throw new Error('Invalid sub input data argument')
 
     this.setInput( deepAssign<Input>( this.input, data ) )
+    return this
   }
   setHandler( list: Handler<Input, State, Static, Context> ){
     Object
@@ -610,8 +613,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
       const
       { attrs } = self.__getAttributes__( $node ),
-      elementPath = self.__generatePath__('element')
-
+      elementPath = self.__generatePath__('element'),
+      boundaries = self.__createBoundaries__( elementPath )
+      
       if( renderer ){
         attrs && Object
         .entries( attrs )
@@ -629,6 +633,14 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
         const $log = renderer.mesh( argvalues )
         $fragment = $fragment.add( $log && $log.length ? $log : DYNAMIC_TAG_PLACEHOLDER )
+
+        // Add boundaries to the initial fragment when it's added to DOM
+        self.once('component:attached', () => {
+          if( !$fragment.first()[0]?.isConnected ) return
+
+          $fragment.first().before( boundaries.start )
+          $fragment.last().after( boundaries.end )
+        })
 
         /**
          * IMPORTANT:
@@ -683,33 +695,51 @@ export default class Component<Input = void, State = void, Static = void, Contex
            */
           const newRenderer = self.__evaluate__( dtag, memo )
           
-          // Direct update to existing render
-          if( newRenderer === renderer && renderer?.update ){
-            renderer.update( argvalues )
-            
-            return { $fragment }
-          }
-          
-          // New MeshRenderer object
           if( isMesh( newRenderer ) ){
-            const $newContent = newRenderer.mesh( argvalues )
-            if( !$newContent?.length ) return { $fragment }
-
-            // Update fragment reference
-            const $first = $fragment.first()
-            if( !$first.length ){
-              console.warn('missing stagged fragment.')
-              return
+            // Check if boundaries are in DOM
+            if( document.contains( boundaries.start ) && document.contains( boundaries.end ) ){
+              // Render new content
+              const 
+              $newContent = newRenderer ? newRenderer.mesh( argvalues ) : $(DYNAMIC_TAG_PLACEHOLDER),
+              nodesToRemove = [] // Nodes between boundaries
+              let currentNode = boundaries.start.nextSibling
+              
+              while( currentNode && currentNode !== boundaries.end ){
+                nodesToRemove.push( currentNode )
+                currentNode = currentNode.nextSibling
+              }
+              
+              // Remove old content and insert new
+              $(nodesToRemove).remove()
+              $(boundaries.start).after( $newContent )
+              
+              // Update fragment reference
+              $fragment = $newContent
+              
+              return { $fragment }
             }
-
-            $fragment.each( ( _, el ) => { _ > 0 && $(el).remove() })
-            $first.after( $newContent ).remove()
-
-            $fragment = $newContent
             
-            return {
-              $fragment,
-              cleanup: () => {}
+            // New MeshRenderer object
+            else {
+              const $newContent = newRenderer.mesh( argvalues )
+              if( !$newContent?.length ) return { $fragment }
+
+              // Update fragment reference
+              const $first = $fragment.first()
+              if( !$first.length ){
+                console.warn('missing stagged fragment.')
+                return
+              }
+
+              $fragment.each( ( _, el ) => { _ > 0 && $(el).remove() })
+              $first.after( $newContent ).remove()
+
+              $fragment = $newContent
+              
+              return {
+                $fragment,
+                cleanup: () => {}
+              }
             }
           }
                 
@@ -718,9 +748,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
           $fragment.replaceWith( $placeholder )
           $fragment = $placeholder
       
-          return {
-            $fragment
-          }
+          return { $fragment }
         },
         deps = self.__extractExpressionDeps__( dtag as string, scope )
 
@@ -752,6 +780,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
       const
       __key__ = `${self.prekey}.${name}$${self.NCC++}`,
       componentPath = self.__generatePath__('component'),
+      boundaries = self.__createBoundaries__( componentPath ),
       { argv, attrs, events } = self.__getAttributes__( $node ),
       TRACKABLE_ATTRS: Record<string, string> = {}
 
@@ -761,7 +790,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
        */
       let
       input: any = {},
-      $fragment = $()
+      $fragment = $(),
+      component = self.PCC.get( __key__ )
 
       /**
        * Cast attributes to compnent inputs
@@ -895,6 +925,29 @@ export default class Component<Input = void, State = void, Static = void, Contex
               })
             },
             replaceWith( $newFragment: Cash ){
+              if( !$newFragment || !$newFragment.length ) return
+              
+              // If we have boundary markers and they're in the DOM
+              if( document.contains( boundaries.start ) && document.contains( boundaries.end ) ){
+                // Collect all nodes between markers to remove
+                const nodesToRemove = []
+                let currentNode = boundaries.start.nextSibling
+                
+                while( currentNode && currentNode !== boundaries.end ){
+                  nodesToRemove.push( currentNode )
+                  currentNode = currentNode.nextSibling
+                }
+                
+                // Remove existing content
+                $(nodesToRemove).remove()
+                // Insert new content between markers
+                $(boundaries.start).after( $newFragment )
+                
+                // Update fragment reference
+                $fragment = $newFragment
+                return
+              }
+
               const $first = $fragment.first()
               if( !$first.length ){
                 console.warn('missing stagged fragment.')
@@ -998,91 +1051,107 @@ export default class Component<Input = void, State = void, Static = void, Contex
         }
       }
 
-      const 
-      { declaration, state, _static, handler, context, default: _default, stylesheet } = template,
-      component = new Component( name, _default || '', {
-        state: deepClone( state ),
-        input: deepClone( input ),
-        context,
-        _static: deepClone( _static ),
-        handler,
-        stylesheet,
-        declaration
-      }, {
-        debug: self.debug,
-        lips: self.lips,
-        prekey: __key__
-      })
-      
-      $fragment = $fragment.add( component.getNode() )
-      // Replace the original node with the fragment in the DOM
-      self.__components.set( __key__, component )
+      // Use preserved child component is available
+      if( component ){
+        component.setInput( deepClone( input ) )
+        $fragment = $fragment.add( component.getNode() )
+      }
+      // Render child component
+      else {
+        const { declaration, state, _static, handler, context, default: _default, stylesheet } = template
+        
+        component = new Component( name, _default || '', {
+          state: deepClone( state ),
+          input: deepClone( input ),
+          context,
+          _static: deepClone( _static ),
+          handler,
+          stylesheet,
+          declaration
+        }, {
+          debug: self.debug,
+          lips: self.lips,
+          prekey: __key__
+        })
 
-      // Listen to this nexted component's events
-      Object
-      .entries( events )
-      .forEach( ([ _event, instruction ]) => self.__attachEvent__( component, _event, instruction, scope ) )
-      
-      /**
-       * Setup input dependency track
-       */
-      TRACKABLE_ATTRS && Object
-      .entries( TRACKABLE_ATTRS )
-      .forEach( ([ key, value ]) => {
-        let isSyntax = false
-        if( new RegExp(`^${SYNCTAX_VAR_FLAG}`).test( key ) ){
-          isSyntax = true
-          key = key.replace( SYNCTAX_VAR_FLAG, '' )
-        }
+        $fragment = $fragment.add( component.getNode() )
+        // Replace the original node with the fragment in the DOM
+        self.PCC.set( __key__, component )
 
-        if( SPREAD_VAR_PATTERN.test( key ) ){
-          const spreadvalues = ( memo: VariableScope ) => {
-            const
-            extracted: Record<string, any> = {},
-            spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo )
-            if( typeof spreads !== 'object' )
-              throw new Error(`Invalid spread operator ${key}`)
-
-            for( const _key in spreads )
-              extracted[ _key ] = spreads[ _key ]
-
-            component.subInput( extracted )
+        // Listen to this nexted component's events
+        Object
+        .entries( events )
+        .forEach( ([ _event, instruction ]) => !!component && self.__attachEvent__( component, _event, instruction, scope ) )
+        
+        /**
+         * Setup input dependency track
+         */
+        TRACKABLE_ATTRS && Object
+        .entries( TRACKABLE_ATTRS )
+        .forEach( ([ key, value ]) => {
+          let isSyntax = false
+          if( new RegExp(`^${SYNCTAX_VAR_FLAG}`).test( key ) ){
+            isSyntax = true
+            key = key.replace( SYNCTAX_VAR_FLAG, '' )
           }
-          
-          if( self.__isReactive__( key as string, scope ) ){
-            const deps = self.__extractExpressionDeps__( value as string, scope )
+
+          if( SPREAD_VAR_PATTERN.test( key ) ){
+            const spreadvalues = ( memo: VariableScope ) => {
+              const
+              extracted: Record<string, any> = {},
+              spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo )
+              if( typeof spreads !== 'object' )
+                throw new Error(`Invalid spread operator ${key}`)
+
+              for( const _key in spreads )
+                extracted[ _key ] = spreads[ _key ]
+
+              component?.subInput( extracted )
+            }
             
-            deps.forEach( dep => self.__trackDep__( dependencies, dep, {
-              $fragment,
-              path: `${componentPath}.${key}`,
-              update: spreadvalues,
-              syntax: isSyntax,
-              memo: scope,
-              batch: true
-            }) )
+            if( self.__isReactive__( key as string, scope ) ){
+              const deps = self.__extractExpressionDeps__( value as string, scope )
+              
+              deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+                $fragment,
+                path: `${componentPath}.${key}`,
+                update: spreadvalues,
+                syntax: isSyntax,
+                memo: scope,
+                batch: true
+              }) )
+            }
           }
-        }
-        else {
-          const evalue = ( memo: VariableScope ) => {
-            component.subInput({
-              [key]: value ? self.__evaluate__( value as string, memo ) : true
-            })
-          }
-          
-          if( self.__isReactive__( value as string, scope ) ){
-            const deps = self.__extractExpressionDeps__( value as string, scope )
+          else {
+            const evalue = ( memo: VariableScope ) => {
+              component?.subInput({
+                [key]: value ? self.__evaluate__( value as string, memo ) : true
+              })
+            }
             
-            deps.forEach( dep => self.__trackDep__( dependencies, dep, {
-              $fragment,
-              path: `${componentPath}.${key}`,
-              update: evalue,
-              syntax: isSyntax,
-              memo: scope,
-              batch: true
-            }) )
+            if( self.__isReactive__( value as string, scope ) ){
+              const deps = self.__extractExpressionDeps__( value as string, scope )
+              
+              deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+                $fragment,
+                path: `${componentPath}.${key}`,
+                update: evalue,
+                syntax: isSyntax,
+                memo: scope,
+                batch: true
+              }) )
+            }
           }
-        }
-      })
+        })
+
+        // Add boundaries to the initial fragment when it's added to DOM
+        // self.once('component:attached', () => {
+        //   if( !$fragment.first()[0]?.isConnected ) return
+
+        //   $fragment.first().before( boundaries.start )
+        //   $fragment.last().after( boundaries.end )
+        // })
+      }
 
       /**
        * BENCHMARK: Tracking total elements rendered
@@ -1430,6 +1499,12 @@ export default class Component<Input = void, State = void, Static = void, Contex
     this.$?.attr('rel', this.__name__ )
   }
 
+  private __createBoundaries__( path: string ): FragmentBoundaries {
+    return {
+      start: document.createComment(`start:${path}`),
+      end: document.createComment(`end:${path}`)
+    }
+  }
   private __getAttributes__( $node: Cash ){
     const 
     extracted = ($node as any).attrs(),
@@ -1719,7 +1794,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
      * Also propagate to nexted component
      */
     Object
-    .values( this.__components )
+    .values( this.PCC )
     .forEach( component => component.attachEvents() )
   }
   detachEvents(){
@@ -1729,7 +1804,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
      * Also propagate to nexted component
      */
     Object
-    .values( this.__components )
+    .values( this.PCC )
     .forEach( component => component.detachEvents() )
 
     this.__attachableEvents = []
@@ -1755,8 +1830,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
     /**
      * Destroy nexted components as well
      */
-    for( const each in this.__components ){
-      const component = this.__components.get( each )
+    for( const each in this.PCC ){
+      const component = this.PCC.get( each )
 
       component?.destroy()
       component?.delete( each )
@@ -1766,9 +1841,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
      * Cleanup
      */
     this.$?.remove()
+    this.PCC?.clear()
     this.__macros.clear()
     this.__stylesheet?.clear()
-    this.__components?.clear()
     this.__dependencies?.clear()
     this.__batchUpdates?.clear()
 

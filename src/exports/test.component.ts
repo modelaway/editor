@@ -34,14 +34,21 @@ function Demo1(){
                 <span on-click="handleConnect, !state.online">Hi - </span>
                 <span text=x></span>
               </case>
-              <case is="hello"><span>Hello - <span text=x></span></span></case>
-              <case is="bonjour"><span>Bonjour - </span><span text=x></span></case>
+              <case is="hello">
+                <span>Hello - </span>
+                <span>{x}</span>
+              </case>
+              <case is="bonjour">
+                <span>Bonjour - </span>
+                <span>{x}</span>
+              </case>
               <default>Salut</default>
             </switch>
+            <div>Static content</div>
           </if>
           <else-if( state.time == 'afternoon' )>
             <span>Good afternoon - </span>
-            <span text=x></span>
+            <span>{x}</span>
           </else-if>
           <else>
             <span text=input.default></span>
@@ -102,7 +109,7 @@ function Demo1(){
   }
 
   const
-  lips = new Lips({ debug: true, watchdom: true }),
+  lips = new Lips({ debug: true }),
   component = lips
               .render('DemoInput', { default: template, state, _static, handler }, input )
               .appendTo('body')
@@ -1065,7 +1072,7 @@ function DemoInput(){
     `
   }
 
-  const lips = new Lips({ debug: true, watchdom: true })
+  const lips = new Lips({ debug: true })
   lips.register('easycount', easyCount )
 
   type State = {
@@ -1164,10 +1171,10 @@ function DemoInput(){
   .appendTo('body')
 }
 
-Demo1()
+// Demo1()
 // Demo2()
 // Demo3()
-// Demo4()
+Demo4()
 // Demo5()
 // Demo6()
 // DemoCart()

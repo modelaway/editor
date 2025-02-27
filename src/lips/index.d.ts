@@ -55,7 +55,6 @@ export type ComponentOptions = {
 export type LipsConfig = {
   context?: any
   debug?: boolean
-  watchdom?: boolean
 }
 export type StyleSettings = {
   sheet?: string
@@ -88,6 +87,10 @@ export type FGUDependencies = Map<string, Map<string, FGUDependency>>
 export type RenderedNode = {
   $log: Cash
   dependencies: FGUDependencies
+}
+export type FragmentBoundaries = {
+  start: Comment
+  end: Comment
 }
 export interface MeshRenderer {
   path: string | null

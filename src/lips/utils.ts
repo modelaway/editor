@@ -576,11 +576,11 @@ export function preprocessor( str: string ): string {
                           .replace(/[\r\n\t]/g, '')
                           .replace(/<\{([^}]+)\}\s*(.*?)\/>/g, '<lips dtag="$1" $2></lips>')
                           .replace(/(<>)([\s\S]*?)(<\/>)/g, '<lips fragment="true">$2</lips>')
-                          .replace(/<(\w+)(\s+[^>]*)?\/>/g, '<$1$2></$1>')
                           .replace(/<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
                           .replace(/<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
                           .replace(/<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">')
                           .replace(/<log\(\s*(.*?)\s*\)>/g, '<log args="$1">')
+                          .replace(/<(\w+)(\(\s*(.*?)\s*\))?((\s+[^>]*)?)\/>/g, '<$1$2$4></$1>')
                           .replace(/\[(.*?)\]/g, match => match.replace(/\s+/g, '') )
 
   return matchEventHandlers( result )

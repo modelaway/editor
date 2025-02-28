@@ -13,6 +13,7 @@ import type {
   FragmentBoundaries
 } from '.'
 
+import UQS from './uqs'
 import Events from './events'
 import $, { Cash } from 'cash-dom'
 import Benchmark from './benchmark'
@@ -53,6 +54,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private __stylesheet?: Stylesheet
   private __macros: Map<string, Cash> = new Map() // Cached macros templates
   private __dependencies?: FGUDependencies = new Map() // Initial FGU dependencies
+  private __partialDependencies: Map<string, FGUDependencies> = new Map()
   private __attachableEvents: { $node: Cash, _event: string, instruction: string, scope?: Record<string, any> }[] = []
 
   // Preserved Child Components
@@ -70,6 +72,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private _setInput: ( input: Input ) => void
   private _setState: ( state: State ) => void
   private _getState: () => State | undefined
+
+  // Update Queue System for high-frequency DOM updates
+  private UQS: UQS
 
   // Internal Update Clock (IUC)
   private IUC: NodeJS.Timeout
@@ -92,7 +97,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
   constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet, macros, declaration }: ComponentScope<Input, State, Static, Context>, options?: ComponentOptions ){
     super()
     this.template = preprocessor( template )
-
+    
     if( options?.lips ) this.lips = options.lips    
     if( options?.debug ) this.debug = options.debug
     if( options?.prekey ) this.prekey = options.prekey
@@ -135,6 +140,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
       this.onInput.bind(this)( this.input )
       this.emit('component:input', this )
     }
+
+    this.UQS = new UQS
 
     this.IUC = setInterval( () => {
       /**
@@ -368,111 +375,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
      */
     let _$ = $()
 
-    function execLet( $node: Cash ){
-      const
-      elementPath = self.__generatePath__('element'),
-      attributes = ($node as any).attrs()
-      if( !attributes ) return 
-      
-      Object
-      .entries( attributes )
-      .forEach( ([ key, assign ]) => {
-        // Process spread assign
-        if( SPREAD_VAR_PATTERN.test( key ) ){
-          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
-          if( typeof spreads !== 'object' )
-            throw new Error(`Invalid spread operator ${key}`)
-
-          for( const _key in spreads )
-            scope[ _key ] = {
-              value: spreads[ _key ],
-              type: 'let'
-            }
-        }
-        else {
-          if( !assign ) return
-
-          scope[ key ] = {
-            value: self.__evaluate__( assign as string, scope ),
-            type: 'let'
-          }
-        }
-      } )
-      
-      /**
-       * BENCHMARK: Tracking total elements rendered
-       */
-      self.benchmark.inc('elementCount')
-    }
-
-    function execConst( $node: Cash ){
-      const
-      path = self.__generatePath__('element'),
-      attributes = ($node as any).attrs()
-      if( !attributes ) return 
-      
-      let hasReactiveAttr: string | boolean = false
-      const internal = () => {
-        Object
-        .entries( attributes )
-        .forEach( ([ key, assign ]) => {
-          // Process spread assign
-          if( SPREAD_VAR_PATTERN.test( key ) ){
-            const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
-            if( typeof spreads !== 'object' )
-              throw new Error(`Invalid spread operator ${key}`)
-
-            for( const _key in spreads ){
-              if( scope[ _key ]?.type === 'const' )
-                throw new Error(`<const ${_key}=[value]/> by spread operator ${key}. [${_key}] variable already defined`)
-            
-              scope[ _key ] = {
-                value: spreads[ _key ],
-                type: 'const'
-              }
-            }
-
-            hasReactiveAttr = self.__isReactive__( key ) && key
-          }
-          else {
-            if( scope[ key ]?.type === 'const' )
-              throw new Error(`<const ${key}=[value]/> variable already defined`)
-
-            if( !assign ) return
-
-            hasReactiveAttr = self.__isReactive__( assign as string ) && assign as string
-
-            scope[ key ] = {
-              value: self.__evaluate__( assign as string, scope ),
-              type: 'const'
-            }
-          }
-        } )
-      }
-
-      internal()
-
-      hasReactiveAttr
-      && self.__trackDep__( dependencies, hasReactiveAttr, { 
-        path, 
-        $fragment: $node,
-        update: internal,
-        memo: scope
-      })
-      
-      /**
-       * BENCHMARK: Tracking total elements rendered
-       */
-      self.benchmark.inc('elementCount')
-    }
-
-    function execLog( $node: Cash ){
-      const args = $node.attr('args')
-      if( !args ) return
-
-      self.__evaluate__(`console.log(${args})`, scope )
-    }
-
     function execMacro( $node: Cash ){
       const name = $node.prop('tagName')?.toLowerCase() as string
       if( !name )
@@ -604,6 +506,83 @@ export default class Component<Input = void, State = void, Static = void, Contex
       else execComponent( $node, result )
     }
 
+    function execLet( $node: Cash ){
+      const
+      attributes = ($node as any).attrs()
+      if( !attributes ) return 
+      
+      Object
+      .entries( attributes )
+      .forEach( ([ key, assign ]) => {
+        // Process spread assign
+        if( SPREAD_VAR_PATTERN.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
+          if( typeof spreads !== 'object' )
+            throw new Error(`Invalid spread operator ${key}`)
+
+          for( const _key in spreads )
+            scope[ _key ] = {
+              value: spreads[ _key ],
+              type: 'let'
+            }
+        }
+        else {
+          if( !assign ) return
+
+          scope[ key ] = {
+            value: self.__evaluate__( assign as string, scope ),
+            type: 'let'
+          }
+        }
+      } )
+      
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
+    }
+    function execConst( $node: Cash ){
+      const
+      attributes = ($node as any).attrs()
+      if( !attributes ) return 
+      
+      Object
+      .entries( attributes )
+      .forEach( ([ key, assign ]) => {
+        // Process spread assign
+        if( SPREAD_VAR_PATTERN.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
+          if( typeof spreads !== 'object' )
+            throw new Error(`Invalid spread operator ${key}`)
+
+          for( const _key in spreads ){
+            if( scope[ _key ]?.type === 'const' )
+              throw new Error(`<const ${_key}=[value]/> by spread operator ${key}. [${_key}] variable already defined`)
+          
+            scope[ _key ] = {
+              value: spreads[ _key ],
+              type: 'const'
+            }
+          }
+        }
+        else {
+          if( scope[ key ]?.type === 'const' )
+            throw new Error(`<const ${key}=[value]/> variable already defined`)
+
+          if( !assign ) return
+          
+          scope[ key ] = {
+            value: self.__evaluate__( assign as string, scope ),
+            type: 'const'
+          }
+        }
+      } )
+      
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
+    }
     function execDynamicElement( $node: Cash, dtag: string, renderer: MeshRenderer | null ){
       let 
       $fragment = $(),
@@ -656,7 +635,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
            */
           if( !renderer.argv.includes( key ) ) return
 
-          const partialUpdate = ( memo: VariableScope ) => {
+          const partialUpdate = ( memo: VariableScope, by?: string ) => {
             if( !activeRenderer ) return
             
             activeRenderer.update({
@@ -665,6 +644,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
                 value: value ? self.__evaluate__( value, memo ) : true
               }
             })
+
+            return { $fragment }
           }
 
           if( self.__isReactive__( value as string, scope ) ){
@@ -837,9 +818,16 @@ export default class Component<Input = void, State = void, Static = void, Contex
             partial: undefined,
             mesh( argvalues?: VariableScope ){
               const $contents = $tagnode.contents()
-              if( !$contents.length ) return
+              if( !$contents.length ) return null
 
-              this.partial = self.render( $contents, { ...scope, ...argvalues } )
+              const { $log, dependencies } = self.render( $contents, { ...scope, ...argvalues } )
+              this.partial = {
+                $log,
+                path: `${componentPath}.${path || 'root'}`
+              }
+
+              if( !self.__partialDependencies.has( this.partial.path ) )
+                self.__partialDependencies.set( this.partial.path, dependencies )
 
               /**
                * Share partial FGU dependenies with main component thread
@@ -848,41 +836,53 @@ export default class Component<Input = void, State = void, Static = void, Contex
                * 1. From main FGU dependency track
                * 2. From mesh rendering track
                */
-              this.partial.dependencies.forEach( ( dependents, dep ) => {
-                !self.__dependencies?.has( dep )
-                              ? self.__dependencies?.set( dep, dependents )
-                              : dependents.forEach( ( dependent, path ) => self.__dependencies?.get( dep )?.set( path, dependent ) )
-              } )
-              
-              return this.partial.$log
+              else {
+                const partialDeps = self.__partialDependencies.get( this.partial.path )
+                if( !partialDeps ) return
+
+                dependencies.forEach( ( dependents, dep ) => {
+                  !partialDeps?.has( dep )
+                          ? partialDeps.set( dep, dependents )
+                          : dependents.forEach( ( dependent, path ) => partialDeps.get( dep )?.set( path, dependent ) )
+                } )
+              }
+
+              return $log
             },
             update( argvalues?: VariableScope ){
               if( !this.partial ) return
 
-              const 
-              { dependencies } = this.partial,
-              batchUpdates = new Set<string>() // Temporary batched updates
+              const dependencies = self.__partialDependencies.get( this.partial.path )
+              if( !dependencies ) return
+
+              const batchUpdates = new Set<string>()
               
               // Execute partial mesh update
               dependencies.forEach( ( dependents, dep ) => {
                 dependents.forEach( ( dependent ) => {
-                  const { path, $fragment, update, batch } = dependent
+                  // const { path, $fragment, update, batch, memo } = dependent
 
                   if( !$fragment.closest('body').length ){
-                    dependents.delete( path )
+                    console.warn(`${path} -- Not found partial in the DOM`)
+                    dependents.delete( dependent.path )
                     return
                   }
-                  
-                  if( batch ) batchUpdates.add( path )
-                  else {
-                    dependent.memo = { ...dependent.memo, ...scope, ...argvalues }
 
-                    const sync = update( dependent.memo )
+                  if( dependent.memo
+                      && argvalues
+                      && isEqual( dependent.memo[ dep ], argvalues[ dep ]) ) return
+
+                  const newMemo = { ...scope, ...argvalues }
+                  dependent.memo = newMemo
+
+                  if( dependent.batch ) batchUpdates.add( dependent.path )
+                  else {
+                    const sync = dependent.update( newMemo, 'mesh-updator' )
                     if( sync ){
                       // Adopt new $fragment
                       typeof sync.$fragment === 'object'
                       && sync.$fragment.length
-                      && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
+                      && dependents.set( dependent.path, { ...dependent, $fragment: sync.$fragment } )
 
                       // Cleanup callback
                       typeof sync.cleanup === 'function' && sync.cleanup()
@@ -896,33 +896,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
                 !dependents.size && dependencies.delete( dep )
               })
 
-              /**
-               * Execute all batched updates
-               */
-              batchUpdates.size
-              && requestAnimationFrame( () => {
-                batchUpdates.forEach( path => {
-                  dependencies?.forEach( dependents => {
-                    const dependent = dependents.get( path )
-                    if( !dependent ) return
-                    
-                    dependent.memo = { ...dependent.memo, ...scope, ...argvalues }
-
-                    const sync = dependent.update( dependent.memo )
-                    if( sync ){
-                      // Adopt new $fragment
-                      typeof sync.$fragment === 'object'
-                      && sync.$fragment.length
-                      && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
-
-                      // Cleanup callback
-                      typeof sync.cleanup === 'function' && sync.cleanup()
-                    }
-                  })
-                })
-
-                batchUpdates.clear()
-              })
+              // Execute batch updates
+              batchUpdates.size && self.UQS.enqueue( dependencies, batchUpdates )
             },
             replaceWith( $newFragment: Cash ){
               if( !$newFragment || !$newFragment.length ) return
@@ -1395,6 +1370,12 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
       return $fragment
     }
+    function execLog( $node: Cash ){
+      const args = $node.attr('args')
+      if( !args ) return
+
+      self.__evaluate__(`console.log(${args})`, scope )
+    }
 
     function parse( $node: Cash ){
       if( $node.get(0)?.nodeType === Node.COMMENT_NODE )
@@ -1689,98 +1670,97 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private __updateDepNodes__( current: Metavars<Input, State, Context>, previous?: Metavars<Input, State, Context> ){
     if( !this.__dependencies?.size ) return
 
-    const batchUpdates = new Set<string>() // Temporary batched updates
+    const execute = ( dependencies: FGUDependencies ) => {
+      // Temporary batched updates
+      const batchUpdates = new Set<string>()
+
+      dependencies.forEach( ( dependents, dep ) => {
+        const [ dep_scope, ...parts ] = dep.split('.')
+
+        /**
+         * Handle updates for each dependent node/component
+         */
+        if( !this.__shouldUpdate__( dep_scope, parts, current, previous ) ) return
+
+        dependents.forEach( dependent => {
+          const { path, batch, $fragment, update, memo, syntax } = dependent
+
+          try {
+            /**
+             * Only clean up non-syntactic dependencies 
+             * or node no longer in DOM
+             */
+            if( !syntax && !$fragment.closest('body').length ){
+              dependents.delete( path )
+              return
+            }
+
+            /**
+             * For batch updates, collect all updates first
+             * and execute batch once.
+             */
+            if( batch ) batchUpdates.add( path )
+
+            // Immediate update
+            else {
+              const sync = update( memo, 'main-updator' )
+              if( sync ){
+                /**
+                 * Replace $fragment from the dependency root
+                 * 
+                 * Required for mesh processing where replaceable
+                 * $fragment are not reliable after processing it
+                 * withing the dependency update tracking function.
+                 */
+                typeof sync.$fragment === 'object'
+                && sync.$fragment.length
+                && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
+
+                /**
+                 * Manual cleanup callback function after
+                 * dependency track adopted new changes.
+                 * 
+                 * Useful for DOM cleanup for instance of 
+                 * complex wired $fragment.
+                 */
+                typeof sync.cleanup === 'function' && sync.cleanup()
+              }
+            }
+          }
+          catch( error ){
+            console.error('failed to update dependency nodes --', error )
+            return
+          }
+        })
+
+        /**
+         * Clean up if no more dependents
+         */
+        !dependents.size && dependencies?.delete( dep )
+      })
+
+      /**
+       * Execute all batched updates
+       */
+      batchUpdates.size && this.UQS.enqueue( dependencies, batchUpdates )
+    }
+
     /**
      * We only care about paths that have registered 
      * dependencies. No need to scan entire state/input/context
      */
-    this.__dependencies.forEach( ( dependents, dep ) => {
-      const [ dep_scope, ...parts ] = dep.split('.')
-
-      /**
-       * Handle updates for each dependent node/component
-       */
-      if( !this.__shouldUpdate__( dep_scope, parts, current, previous ) ) return
-
-      dependents.forEach( dependent => {
-        const { path, batch, $fragment, update, memo, syntax } = dependent
-
-        try {
-          /**
-           * Only clean up non-syntactic dependencies 
-           * or node no longer in DOM
-           */
-          if( !syntax && !$fragment.closest('body').length ){
-            dependents.delete( path )
-            return
-          }
-
-          /**
-           * For batch updates, collect all updates first
-           * and execute batch once.
-           */
-          if( batch ) batchUpdates.add( path )
-
-          // Immediate update
-          else {
-            const sync = update( memo )
-            if( sync ){
-              /**
-               * Replace $fragment from the dependency root
-               * 
-               * Required for mesh processing where replaceable
-               * $fragment are not reliable after processing it
-               * withing the dependency update tracking function.
-               */
-              typeof sync.$fragment === 'object'
-              && sync.$fragment.length
-              && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
-
-              /**
-               * Manual cleanup callback function after
-               * dependency track adopted new changes.
-               * 
-               * Useful for DOM cleanup for instance of 
-               * complex wired $fragment.
-               */
-              typeof sync.cleanup === 'function' && sync.cleanup()
-            }
-          }
-        }
-        catch( error ){
-          console.error('failed to update dependency nodes --', error )
-          return
-        }
-      })
-
-      /**
-       * Clean up if no more dependents
-       */
-      !dependents.size && this.__dependencies?.delete( dep )
-    })
+    execute( this.__dependencies )
 
     /**
-     * Execute all batched updates
+     * Update partial dependencies
      */
-    batchUpdates.size
-    && requestAnimationFrame( () => {
-      batchUpdates.forEach( path => {
-        this.__dependencies?.forEach( dependents => {
-          const dependent = dependents.get( path )
-          if( !dependent ) return
-          
-          const sync = dependent.update( dependent.memo )
-          if( sync ){
-            typeof sync.$fragment === 'object'
-            && sync.$fragment.length
-            && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
+    this.__partialDependencies.forEach( ( dependencies, ppath ) => {
+      execute( dependencies )
 
-            typeof sync.cleanup === 'function' && sync.cleanup()
-          }
-        })
-      })
-
-      batchUpdates.clear()
+      /**
+       * Clean up if no more dependencies
+       */
+      !dependencies.size && this.__partialDependencies?.delete( ppath )
     })
   }
 

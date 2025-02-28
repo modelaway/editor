@@ -47,11 +47,11 @@ function Demo1(){
             <div>Static content</div>
           </if>
           <else-if( state.time == 'afternoon' )>
-            <span>Good afternoon - </span>
+            <span on-click="handleConnect, !state.online">Good afternoon - </span>
             <span>{x}</span>
           </else-if>
           <else>
-            <span text=input.default></span>
+            <span text=input.default on-click="handleConnect, !state.online"></span>
             <span html="<b>Everyone</b>"></span>
           </else>
         </for>
@@ -75,7 +75,7 @@ function Demo1(){
     </div>`,
   state: State = {
     time: 'morning',
-    speech: 'hello',
+    speech: 'hi',
     online: true
   },
   input: Input = {
@@ -101,7 +101,7 @@ function Demo1(){
       console.log('Connected: ', online, e )
 
       this.state.online = online
-      this.state.time = 'evening'
+      this.state.time = !online ? 'evening' : 'morning'
       
       // this.setState({ online, time: 'evening' })
       // console.log('Updated to: ', this.state.online )
@@ -114,10 +114,10 @@ function Demo1(){
               .render('DemoInput', { default: template, state, _static, handler }, input )
               .appendTo('body')
 
-  setTimeout( () => {
-    component.setState({ time: 'afternoon', online: false, speech: 'bonjour' })
-    component.setInput({ person: 'Brigit' })
-  }, 2000 )
+  // setTimeout( () => {
+  //   component.setState({ time: 'afternoon', online: false, speech: 'bonjour' })
+  //   component.setInput({ person: 'Brigit' })
+  // }, 2000 )
 }
 
 function Demo2(){
@@ -207,6 +207,7 @@ function Demo4(){
         It borderd at west by <span text=country></span>
       </p>
 
+      <log( capital )/>
       <p>
         I'd love to go back to <span text=capital></span> in December {new Date().getFullYear() + 1}
       </p>
@@ -297,7 +298,12 @@ function Demo6(){
       count: 0
     },
     handler: {
-      onInput(){ this.state.count = Number( this.input.initial ) },
+      onInput(){ 
+        this.state.count = Number( this.input.initial )
+      
+        const end = setInterval( () => { this.state.count++; this.emit('update', this.state.count ) }, 1 )
+        setTimeout( () => { console.log('ended'); clearInterval( end )}, 5000 )
+      },
       handleClick( e: Event ){
         if( this.state.count >= this.static.limit )
           return
@@ -314,7 +320,7 @@ function Demo6(){
     `,
     
     default: `<div>
-      <span html=input.__slot__></span>: 
+      <{input.renderer}/>: 
       <span text=state.count></span>
       <br>
       <button on-click(handleClick)>Count</button>
@@ -339,23 +345,28 @@ function Demo6(){
 
   type State = {
     initial: number
+    countUpdate: number
   }
 
   const
   state: State = {
-    initial: 3
+    initial: 3,
+    countUpdate: 0
   },
   handler: Handler<any, State> = {
     onMount(){
       this.getNode().css({ color: 'green' })
       
       console.log('State: ', this.state.initial )
+    },
+    onUpdateCount( value ){
+      this.state.countUpdate = value
     }
   },
   template = `<main>
     <section style="{ border: '2px solid gray', margin: '3rem', padding: '15px' }">
       <counter initial=state.initial
-                on-update="value => console.log('--', value )">
+                on-update="onUpdateCount">
         Count till 12
       </counter>
 
@@ -365,7 +376,7 @@ function Demo6(){
       <p>I'm <span text="context.online ? 'Online' : 'Offline'"></span></p>
       
       <br><br>
-      <button on-click(() => state.initial = 10)>Reinitialize</button>
+      <button on-click(() => state.initial = 10)>Reinitialize ({state.countUpdate})</button>
       <button style="background: black;color: white"
               on-click(() => self.destroy())>Destroy</button>
 
@@ -373,7 +384,9 @@ function Demo6(){
     </section>
   </main>`
 
-  const component = lips.root({ default: template, state, context: ['online'] }, 'body')
+  lips
+  .render('DemoInput', { default: template, state, handler, context: ['online'] }, {})
+  .appendTo('body')
 
   // Change detault translation language
   setTimeout( () => {
@@ -445,7 +458,7 @@ function DemoCart(){
       <h2 class="cart-title">Shopping Cart</h2>
       
       <div class="cart-items">
-        <for in=state.items>
+        <for [each] in=state.items>
           <div key=each.id class="cart-item">
             <div class="item-info">
               <h3>{each.name}</h3>
@@ -455,13 +468,11 @@ function DemoCart(){
             <div class="quantity-controls">
               <mbutton 
                 class="quantity-btn"
-                on-click(onDecrementQuantity, each.id)
-              >-</mbutton>
+                on-click(onDecrementQuantity, each.id)>-</mbutton>
               <span class="quantity-value">{each.quantity}</span>
               <mbutton 
                 class="quantity-btn"
-                on-click(onIncrementQuantity, each.id)
-              >+</mbutton>
+                on-click(onIncrementQuantity, each.id)>+</mbutton>
             </div>
           </div>
         </for>
@@ -580,10 +591,11 @@ function DemoCart(){
   `
 
   const
-  input = {},
-  component = new Component<CartInput, CartState>('shopping-cart', template, { input, state, handler, stylesheet }, { debug: true })
-
-  component.appendTo('body')
+  lips = new Lips({ debug: true }),
+  input = { key: 'shopping-cart' },
+  component = lips
+              .render<CartInput, CartState>('DemoInput', { default: template, state, handler, stylesheet }, input )
+              .appendTo('body')
 }
 
 function DemoLayers(){
@@ -1052,7 +1064,12 @@ function DemoInput(){
       count: 0
     },
     handler: {
-      onInput(){ this.state.count = Number( this.input.initial ) },
+      onInput(){ 
+        this.state.count = Number( this.input.initial )
+      
+        const end = setInterval( () => { this.state.count++; console.log( this.state.count ) }, 5 )
+        setTimeout( () => { console.log('ended'); clearInterval( end )}, 5000 )
+      },
       handleClick( e: Event ){
         if( this.state.count >= this.input.limit )
           return
@@ -1129,7 +1146,8 @@ function DemoInput(){
       </else>
 
       <for [n, idx] in=state.numbers>
-        #<span>[{idx}]-{n}</span>.
+        <let square="idx * 4"/>
+        #<span>[{idx}]-{n}({square})</span>.
       </for>
 
       <switch( state.traffic )>
@@ -1174,9 +1192,9 @@ function DemoInput(){
 // Demo1()
 // Demo2()
 // Demo3()
-Demo4()
+// Demo4()
 // Demo5()
 // Demo6()
 // DemoCart()
 // DemoLayers()
-// DemoInput()
+DemoInput()

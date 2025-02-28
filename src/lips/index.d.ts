@@ -66,7 +66,12 @@ export type StyleSettings = {
   }
 }
 export type EventListener = ( ...args: any[] ) => void
-
+export type VirtualEvent = {
+  $node: Cash
+  _event: string
+  instruction: string
+  scope?: Record<string, any>
+}
 /**
  * (FGU) Fine-Grain Update Dependencies
  */
@@ -80,13 +85,14 @@ export interface FGUDependency {
   batch?: boolean
   syntax?: boolean
   memo: VariableScope
-  update: ( memo: VariableScope ) => FGUSync | void
+  update: ( memo: VariableScope, by?: string ) => FGUSync | void
 }
 export type FGUDependencies = Map<string, Map<string, FGUDependency>>
 
 export type RenderedNode = {
   $log: Cash
   dependencies: FGUDependencies
+  // attachableEvents?: VirtualEvent[]
 }
 export type FragmentBoundaries = {
   start: Comment
@@ -95,7 +101,10 @@ export type FragmentBoundaries = {
 export interface MeshRenderer {
   path: string | null
   argv: string[]
-  partial?: RenderedNode
+  partial?: {
+    $log: Cash
+    path: string
+  }
   mesh( argv?: VariableScope ): Cash
   update( argv: VariableScope ): Cash
   replaceWith( $fragment: Cash ): void

@@ -31,7 +31,7 @@ function Demo1(){
           <if( state.time == 'morning' )>
             <switch( state.speech )>
               <case is="hi">
-                <span on-click="handleConnect, !state.online">Hi - </span>
+                <span on-click(handleConnect, !state.online)>Hi - </span>
                 <span text=x></span>
               </case>
               <case is="hello">
@@ -47,11 +47,11 @@ function Demo1(){
             <div>Static content</div>
           </if>
           <else-if( state.time == 'afternoon' )>
-            <span on-click="handleConnect, !state.online">Good afternoon - </span>
+            <span on-click(handleConnect, !state.online)>Good afternoon - </span>
             <span>{x}</span>
           </else-if>
           <else>
-            <span text=input.default on-click="handleConnect, !state.online"></span>
+            <span text=input.default on-click(handleConnect, !state.online)></span>
             <span html="<b>Everyone</b>"></span>
           </else>
         </for>
@@ -114,10 +114,10 @@ function Demo1(){
               .render('DemoInput', { default: template, state, _static, handler }, input )
               .appendTo('body')
 
-  // setTimeout( () => {
-  //   component.setState({ time: 'afternoon', online: false, speech: 'bonjour' })
-  //   component.setInput({ person: 'Brigit' })
-  // }, 2000 )
+  setTimeout( () => {
+    component.setState({ time: 'afternoon', online: false, speech: 'bonjour' })
+    component.setInput({ person: 'Brigit' })
+  }, 2000 )
 }
 
 function Demo2(){
@@ -1068,7 +1068,7 @@ function DemoInput(){
         this.state.count = Number( this.input.initial )
       
         const end = setInterval( () => { this.state.count++; console.log( this.state.count ) }, 5 )
-        setTimeout( () => { console.log('ended'); clearInterval( end )}, 5000 )
+        setTimeout( () => clearInterval( end ), 5000 )
       },
       handleClick( e: Event ){
         if( this.state.count >= this.input.limit )
@@ -1195,6 +1195,6 @@ function DemoInput(){
 // Demo4()
 // Demo5()
 // Demo6()
-// DemoCart()
+DemoCart()
 // DemoLayers()
-DemoInput()
+// DemoInput()

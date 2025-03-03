@@ -10,7 +10,9 @@ import type {
   FGUDependencies,
   FGUDependency,
   Declaration,
-  FragmentBoundaries
+  FragmentBoundaries,
+  VirtualEvent,
+  VirtualEventRecord
 } from '.'
 
 import UQS from './uqs'
@@ -53,9 +55,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private __previous?: Metavars<Input, State, Context>
   private __stylesheet?: Stylesheet
   private __macros: Map<string, Cash> = new Map() // Cached macros templates
-  private __dependencies?: FGUDependencies = new Map() // Initial FGU dependencies
-  private __partialDependencies: Map<string, FGUDependencies> = new Map()
-  private __attachableEvents: { $node: Cash, _event: string, instruction: string, scope?: Record<string, any> }[] = []
+  private __dependencies: FGUDependencies = new Map() // Initial FGU dependencies
+  private __attachedEvents: VirtualEventRecord<Component<Input, State, Static, Context>>[] = []
 
   // Preserved Child Components
   private PCC: Map<string, Component> = new Map()
@@ -115,15 +116,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
     handler && this.setHandler( handler )
     stylesheet && this.setStylesheet( stylesheet )
 
-    const
-    [ getInput, setInput ] = signal<Input>( this.input ),
-    [ getState, setState ] = signal<State>( this.state ),
-    [ getContext, setContext ] = signal<Context>( this.context )
-
-    this._setInput = setInput
-    this._setState = setState
-    this._getState = getState
-    
     /**
      * Track rendering cycle metrics to evaluate
      * performance.
@@ -132,6 +124,16 @@ export default class Component<Input = void, State = void, Static = void, Contex
     this.benchmark = new Benchmark( this.debug )
     
     /**
+     * Triggered during component creation
+     * 
+     * NOTE: Any state value set during this process
+     * is considered initial state.
+     */
+    typeof this.onCreate == 'function'
+    && this.onCreate.bind(this)()
+    this.emit('component:create', this )
+
+    /**
      * Triggered an initial input is provided
      */
     if( this.input
@@ -139,6 +141,19 @@ export default class Component<Input = void, State = void, Static = void, Contex
         && typeof this.onInput == 'function' ){
       this.onInput.bind(this)( this.input )
       this.emit('component:input', this )
+    }
+
+    /**
+     * Initialize previous metavars to initial metavars
+     * 
+     * IMPORTANT: this prevent any update effect during
+     * component creating for initial input, state and
+     * context
+     */
+    this.__previous = {
+      input: deepClone( this.input ),
+      state: deepClone( this.state ),
+      context: deepClone( this.context )
     }
 
     this.UQS = new UQS
@@ -154,7 +169,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
       && isDiff( this.__previous?.state as Record<string, any>, this.state as Record<string, any> )
       && this.setState( this.state )
     }, this.IUC_BEAT )
-
+    
     /**
      * Set context update effect listener
      * to merge with initial/active context
@@ -175,6 +190,15 @@ export default class Component<Input = void, State = void, Static = void, Contex
       this.emit('component:context', this )
     })
 
+    const
+    [ getInput, setInput ] = signal<Input>( this.input ),
+    [ getState, setState ] = signal<State>( this.state ),
+    [ getContext, setContext ] = signal<Context>( this.context )
+
+    this._setInput = setInput
+    this._setState = setState
+    this._getState = getState
+    
     this.ICE = effect( () => {
       const
       input = getInput(),
@@ -184,30 +208,13 @@ export default class Component<Input = void, State = void, Static = void, Contex
       // Reset the benchmark
       this.benchmark.reset()
 
-      /**
-       * Reinitialize NCC (Nexted Component Count) 
-       * before any rendering
-       */
-      this.NCC = 0
-
-      /**
-       * Reset attachble events list before every rendering
-       */
-      this.__attachableEvents = []
+      console.log('Effect ------ ', this.__name__ )
 
       /**
        * Initial render - parse template and establish 
        * dependencies
        */
       if( !this.isRendered ){
-        /**
-         * Triggered before component get rendered
-         * for the first time.
-         */
-        typeof this.onCreate == 'function' 
-        && this.onCreate.bind(this)()
-        this.emit('component:create', this )
-
         const { $log } = this.render( undefined, undefined, this.__dependencies )
         this.$ = $log
         
@@ -216,21 +223,18 @@ export default class Component<Input = void, State = void, Static = void, Contex
         this.isRendered = true
         
         /**
-         * Attach/Reattach extracted events
-         * listeners anytime component get rendered.
-         * 
-         * This to avoid loosing binding to attached
-         * DOM element's events
-         */
-        this.attachEvents()
-        
-        /**
          * Triggered after component get mounted for
          * the first time.
          */
         typeof this.onMount == 'function'
         && this.onMount.bind(this)()
         this.emit('component:mount', this )
+
+        /**
+         * Watch when component's element get 
+         * attached to the DOM
+         */
+        this.lips?.watcher?.watch( this as any )
       }
       else {
         /**
@@ -243,29 +247,23 @@ export default class Component<Input = void, State = void, Static = void, Contex
          */
         typeof this.onUpdate == 'function' && this.onUpdate.bind(this)()
         this.emit('component:update', this )
-      }
-      
-      /**
-       * Save as previous meta variables for next cycle.
-       * 
-       * IMPORTANT: Required to check changes on the state
-       *            during IUC processes.
-       */
-      this.__previous = {
-        input: deepClone( input ),
-        state: deepClone( state ),
-        context: deepClone( context )
-      }
+        
+        /**
+         * Save as previous meta variables for next cycle.
+         * 
+         * IMPORTANT: Required to check changes on the state
+         *            during IUC processes.
+         */
+        this.__previous = {
+          input: deepClone( input ),
+          state: deepClone( state ),
+          context: deepClone( context )
+        }
 
-      this.state = state
-      this.input = input
-      this.context = context
-
-      /**
-       * Watch when component's element get 
-       * attached to the DOM
-       */
-      this.lips?.watcher?.watch( this as any )
+        this.state = state
+        this.input = input
+        this.context = context
+      }
 
       /**
        * Log benchmark table
@@ -360,7 +358,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
   }
   
   render( $nodes?: Cash, scope: VariableScope = {}, sharedDeps?: FGUDependencies ): RenderedNode {
-    const dependencies: FGUDependencies = sharedDeps || new Map()
+    const
+    dependencies: FGUDependencies = sharedDeps || new Map(),
+    attachableEvents: VirtualEvent[] = []
 
     if( $nodes && !$nodes.length ){
       console.warn('Undefined node element to render')
@@ -412,7 +412,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
         // Macro events
         if( /^on-/.test( key ) ){
-          self.__attachableEvents.push({
+          attachableEvents.push({
             $node,
             _event: key.replace(/^on-/, ''),
             instruction: value as string,
@@ -610,6 +610,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
           }
         })
 
+        console.log('first mesh render --', renderer )
+
         const $log = renderer.mesh( argvalues )
         $fragment = $fragment.add( $log && $log.length ? $log : DYNAMIC_TAG_PLACEHOLDER )
 
@@ -666,9 +668,11 @@ export default class Component<Input = void, State = void, Static = void, Contex
       // Track FGU dependency update on the dynamic tag
       if( self.__isReactive__( dtag as string, scope ) ){
         const
-        updateDynamicElement = ( memo: VariableScope ) => {
+        updateDynamicElement = ( memo: VariableScope, by?: string ) => {
           // Update the mesh scope with new values
           argvalues = { ...memo, ...argvalues }
+
+          console.log('node deps update by ----', by )
 
           /**
            * Re-evaluate dynamic tag expression before 
@@ -811,23 +815,30 @@ export default class Component<Input = void, State = void, Static = void, Contex
       })
 
       const meshwire = ( $tagnode: Cash, path: string | null, argv: string[] = [], scope: VariableScope = {}, useAttributes = false ) => {
-        let wire: MeshTemplate = {
+        let
+        partial: { $log: Cash, path: string } | undefined,
+        attachedEvents: VirtualEvent[] | undefined,
+        wire: MeshTemplate = {
           renderer: {
             path,
             argv,
-            partial: undefined,
+            // partial: undefined,
             mesh( argvalues?: VariableScope ){
               const $contents = $tagnode.contents()
               if( !$contents.length ) return null
 
-              const { $log, dependencies } = self.render( $contents, { ...scope, ...argvalues } )
-              this.partial = {
+              // Cleanup previous partial's attached events
+              if( attachedEvents?.length )
+                attachedEvents.forEach( ({ $node, _event }) => self.__detachEvent__( $node, _event ) )
+              
+              // Render the partial
+              const { $log, dependencies, events } = self.render( $contents, { ...scope, ...argvalues } )
+
+              partial = {
                 $log,
                 path: `${componentPath}.${path || 'root'}`
               }
-
-              if( !self.__partialDependencies.has( this.partial.path ) )
-                self.__partialDependencies.set( this.partial.path, dependencies )
+              attachedEvents = events
 
               /**
                * Share partial FGU dependenies with main component thread
@@ -836,32 +847,29 @@ export default class Component<Input = void, State = void, Static = void, Contex
                * 1. From main FGU dependency track
                * 2. From mesh rendering track
                */
-              else {
-                const partialDeps = self.__partialDependencies.get( this.partial.path )
-                if( !partialDeps ) return
+              if( !self.__dependencies ) return
 
-                dependencies.forEach( ( dependents, dep ) => {
-                  !partialDeps?.has( dep )
-                          ? partialDeps.set( dep, dependents )
-                          : dependents.forEach( ( dependent, path ) => partialDeps.get( dep )?.set( path, dependent ) )
-                } )
-              }
+              dependencies.forEach( ( dependents, dep ) => {
+                if( !self.__dependencies?.has( dep ) )
+                  self.__dependencies.set( dep, new Map() )
+                
+                // Add partial dependency
+                dependents.forEach( ( dependent, path ) => self.__dependencies.get( dep )?.set( path, { ...dependent, partial: partial?.path }) )
+              } )
 
               return $log
             },
             update( argvalues?: VariableScope ){
-              if( !this.partial ) return
-
-              const dependencies = self.__partialDependencies.get( this.partial.path )
-              if( !dependencies ) return
-
+              if( !partial ) return
+              
               const batchUpdates = new Set<string>()
               
               // Execute partial mesh update
-              dependencies.forEach( ( dependents, dep ) => {
+              self.__dependencies.forEach( ( dependents, dep ) => {
                 dependents.forEach( ( dependent ) => {
-                  // const { path, $fragment, update, batch, memo } = dependent
-
+                  // Process only dependents of this partial
+                  if( dependent.partial !== partial?.path ) return
+                  
                   if( !$fragment.closest('body').length ){
                     console.warn(`${path} -- Not found partial in the DOM`)
                     dependents.delete( dependent.path )
@@ -897,7 +905,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
               })
 
               // Execute batch updates
-              batchUpdates.size && self.UQS.enqueue( dependencies, batchUpdates )
+              batchUpdates.size && self.UQS.enqueue( self.__dependencies, batchUpdates )
             },
             replaceWith( $newFragment: Cash ){
               if( !$newFragment || !$newFragment.length ) return
@@ -1118,14 +1126,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
             }
           }
         })
-
-        // Add boundaries to the initial fragment when it's added to DOM
-        // self.once('component:attached', () => {
-        //   if( !$fragment.first()[0]?.isConnected ) return
-
-        //   $fragment.first().before( boundaries.start )
-        //   $fragment.last().after( boundaries.end )
-        // })
       }
 
       /**
@@ -1286,11 +1286,13 @@ export default class Component<Input = void, State = void, Static = void, Contex
         })
       }
 
+      Object.keys( events ).length && console.log( 'attach Events --', $node, events )
+
       // Record attachable events to the element
       events && Object
       .entries( events )
       .forEach( ([ _event, value ]) => {
-        self.__attachableEvents.push({
+        attachableEvents.push({
           _event,
           $node: $fragment,
           instruction: value as string,
@@ -1446,6 +1448,18 @@ export default class Component<Input = void, State = void, Static = void, Contex
       } )
 
       /**
+       * Attach extracted events listeners after
+       * component get rendered.
+       * 
+       * This to avoid loosing binding to attached
+       * DOM element's events
+       */
+      attachableEvents.forEach( ({ $node, _event, instruction, scope }) => {
+        $node.off( _event )
+        && this.__attachEvent__( $node, _event, instruction, scope )
+      })
+
+      /**
        * BENCHMARK: Tracking total occurence of recursive rendering
        */
       self.benchmark.inc('renderCount')
@@ -1461,7 +1475,11 @@ export default class Component<Input = void, State = void, Static = void, Contex
       }
     }
     
-    return { $log: _$, dependencies }
+    return { 
+      $log: _$,
+      dependencies,
+      events: attachableEvents
+    }
   }
   /**
    * Rerender component using the original content 
@@ -1471,6 +1489,13 @@ export default class Component<Input = void, State = void, Static = void, Contex
     if( !this.template )
       throw new Error('Component template is empty')
 
+    /**
+     * Reinitialize NCC (Nexted Component Count) 
+     * before any rendering
+     */
+    this.NCC = 0
+    this.__attachedEvents = []
+    
     const { $log: $clone } = this.render()
     
     this.$?.replaceWith( $clone )
@@ -1600,9 +1625,11 @@ export default class Component<Input = void, State = void, Static = void, Contex
         _fn( ..._args )
       })
     }
+
+    this.__attachedEvents.push({ element, _event })
   }
-  private  __detachEvent__( element: Cash | Component, _event: string ){
-    element.off( _event )
+  private  __detachEvent__( $element: Cash | Component, _event: string ){
+    $element.off( _event )
   }
 
   private __extractTextDeps__( expr: string, scope?: VariableScope ): string[] {
@@ -1618,11 +1645,21 @@ export default class Component<Input = void, State = void, Static = void, Contex
       exprDeps.forEach( dep => deps.add( dep ) )
     })
 
+    console.log( deps )
+
     return Array.from( deps )
   }
   private __extractExpressionDeps__( expr: string, scope?: VariableScope ): string[] {
-    const pattern = /\b(state|input|context)(?:\.[a-zA-Z_]\w*)+(?=\.[a-zA-Z_]\w*\(|\s|;|,|\)|$)/g
-    let matches = Array.from( expr.matchAll( pattern ) )
+    const
+    // Metavars pattern
+    MVP = /\b(state|input|context)(?:\.[a-zA-Z_]\w*)+(?=\[|\.|$|\s|;|,|\))/g,
+    // Metacall pattern
+    MCP = /\b(self)(?:\.[a-zA-Z_]\w*)+(?=\()/g
+
+    let matches = [
+      ...Array.from( expr.matchAll( MVP ) ),
+      ...Array.from( expr.matchAll( MCP ) )
+    ]
 
     /**
      * Extract scope interpolation expressions
@@ -1635,13 +1672,14 @@ export default class Component<Input = void, State = void, Static = void, Contex
         ...Array.from( expr.matchAll( scopeRegex ) )
       ]
     }
-      
+    
+    console.log( matches )
     // Filter out duplicate deps
     return [ ...new Set( matches.map( m => m[0] ) ) ]
   }
   private __isReactive__( expr: string, scope?: VariableScope ): boolean {
     // Reactive component variables
-    if( /(state|input|context)\.[\w.]+/.test( expr ) ) return true
+    if( /(state|input|context|self)\.[\w.]+/.test( expr ) ) return true
     // Reactive internal scope
     if( scope
         && Object.keys( scope ).length
@@ -1658,6 +1696,10 @@ export default class Component<Input = void, State = void, Static = void, Contex
     return path.reduce( ( curr, part ) => curr?.[ part ], obj )
   }
   private __shouldUpdate__( dep_scope: string, parts: string[], current: Metavars<Input, State, Context>, previous?: Metavars<Input, State, Context> ): boolean {
+    // Allow component's method `self.fn` call evaluation
+    if( dep_scope === 'self' ) return true
+
+    // Check metavars changes
     const
     ovalue = previous && this.__valueDep__( previous[ dep_scope as keyof Metavars<Input, State, Context>  ], parts ),
     nvalue = this.__valueDep__( current[ dep_scope as keyof Metavars<Input, State, Context> ], parts )
@@ -1670,124 +1712,77 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private __updateDepNodes__( current: Metavars<Input, State, Context>, previous?: Metavars<Input, State, Context> ){
     if( !this.__dependencies?.size ) return
 
-    const execute = ( dependencies: FGUDependencies ) => {
-      // Temporary batched updates
-      const batchUpdates = new Set<string>()
+    // Temporary batched updates
+    const batchUpdates = new Set<string>()
 
-      dependencies.forEach( ( dependents, dep ) => {
-        const [ dep_scope, ...parts ] = dep.split('.')
+    this.__dependencies.forEach( ( dependents, dep ) => {
+      const [ dep_scope, ...parts ] = dep.split('.')
 
-        /**
-         * Handle updates for each dependent node/component
-         */
-        if( !this.__shouldUpdate__( dep_scope, parts, current, previous ) ) return
-
-        dependents.forEach( dependent => {
-          const { path, batch, $fragment, update, memo, syntax } = dependent
-
-          try {
-            /**
-             * Only clean up non-syntactic dependencies 
-             * or node no longer in DOM
-             */
-            if( !syntax && !$fragment.closest('body').length ){
-              dependents.delete( path )
-              return
-            }
-
-            /**
-             * For batch updates, collect all updates first
-             * and execute batch once.
-             */
-            if( batch ) batchUpdates.add( path )
-
-            // Immediate update
-            else {
-              const sync = update( memo, 'main-updator' )
-              if( sync ){
-                /**
-                 * Replace $fragment from the dependency root
-                 * 
-                 * Required for mesh processing where replaceable
-                 * $fragment are not reliable after processing it
-                 * withing the dependency update tracking function.
-                 */
-                typeof sync.$fragment === 'object'
-                && sync.$fragment.length
-                && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
-
-                /**
-                 * Manual cleanup callback function after
-                 * dependency track adopted new changes.
-                 * 
-                 * Useful for DOM cleanup for instance of 
-                 * complex wired $fragment.
-                 */
-                typeof sync.cleanup === 'function' && sync.cleanup()
-              }
-            }
-          }
-          catch( error ){
-            console.error('failed to update dependency nodes --', error )
+      /**
+       * Handle updates for each dependent node/component
+       */
+      if( !this.__shouldUpdate__( dep_scope, parts, current, previous ) ) return
+      
+      dependents.forEach( dependent => {
+        const { path, batch, $fragment, update, memo, syntax } = dependent
+        try {
+          /**
+           * Only clean up non-syntactic dependencies 
+           * or node no longer in DOM
+           */
+          if( !syntax && !$fragment.closest('body').length ){
+            dependents.delete( path )
             return
           }
-        })
 
-        /**
-         * Clean up if no more dependents
-         */
-        !dependents.size && dependencies?.delete( dep )
+          /**
+           * For batch updates, collect all updates first
+           * and execute batch once.
+           */
+          if( batch ) batchUpdates.add( path )
+
+          // Immediate update
+          else {
+            const sync = update( memo, 'main-updator' )
+            if( sync ){
+              /**
+               * Replace $fragment from the dependency root
+               * 
+               * Required for mesh processing where replaceable
+               * $fragment are not reliable after processing it
+               * withing the dependency update tracking function.
+               */
+              typeof sync.$fragment === 'object'
+              && sync.$fragment.length
+              && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
+
+              /**
+               * Manual cleanup callback function after
+               * dependency track adopted new changes.
+               * 
+               * Useful for DOM cleanup for instance of 
+               * complex wired $fragment.
+               */
+              typeof sync.cleanup === 'function' && sync.cleanup()
+            }
+          }
+        }
+        catch( error ){
+          console.error('failed to update dependency nodes --', error )
+          return
+        }
       })
 
       /**
-       * Execute all batched updates
+       * Clean up if no more dependents
        */
-      batchUpdates.size && this.UQS.enqueue( dependencies, batchUpdates )
-    }
-
-    /**
-     * We only care about paths that have registered 
-     * dependencies. No need to scan entire state/input/context
-     */
-    execute( this.__dependencies )
-
-    /**
-     * Update partial dependencies
-     */
-    this.__partialDependencies.forEach( ( dependencies, ppath ) => {
-      execute( dependencies )
-
-      /**
-       * Clean up if no more dependencies
-       */
-      !dependencies.size && this.__partialDependencies?.delete( ppath )
-    })
-  }
-
-  attachEvents(){
-    this.__attachableEvents.forEach( ({ $node, _event, instruction, scope }) => {
-      $node.off( _event )
-      && this.__attachEvent__( $node, _event, instruction, scope )
+      !dependents.size && this.__dependencies?.delete( dep )
     })
 
     /**
-     * Also propagate to nexted component
+     * Execute all batched updates
      */
-    Object
-    .values( this.PCC )
-    .forEach( component => component.attachEvents() )
-  }
-  detachEvents(){
-    this.__attachableEvents.forEach( ({ $node, _event }) => this.__detachEvent__( $node, _event ) )
-
-    /**
-     * Also propagate to nexted component
-     */
-    Object
-    .values( this.PCC )
-    .forEach( component => component.detachEvents() )
-
-    this.__attachableEvents = []
+    batchUpdates.size && this.UQS.enqueue( this.__dependencies, batchUpdates )
   }
   
   destroy(){
@@ -1805,7 +1800,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
     /**
      * Detached all events
      */
-    this.detachEvents()
+    this.__attachedEvents.forEach( ({ element, _event }) => this.__detachEvent__( element, _event ) )
+    this.__attachedEvents = []
 
     /**
      * Destroy nexted components as well

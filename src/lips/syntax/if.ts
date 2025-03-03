@@ -1,5 +1,4 @@
 import type { Declaration, Handler, MeshRenderer, MeshTemplate } from '..'
-import $, { type Cash } from 'cash-dom'
 
 export interface Input {
   by: boolean

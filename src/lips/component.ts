@@ -208,8 +208,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
       // Reset the benchmark
       this.benchmark.reset()
 
-      console.log('Effect ------ ', this.__name__ )
-
       /**
        * Initial render - parse template and establish 
        * dependencies
@@ -583,6 +581,18 @@ export default class Component<Input = void, State = void, Static = void, Contex
        */
       self.benchmark.inc('elementCount')
     }
+    function execEmptyFragment( $node: Cash ){
+      const
+      elementPath = self.__generatePath__('element'),
+      $contents = $node.contents()
+      let $fragment = $()
+
+      // Process contents recursively if they exist
+      if( $contents.length )
+        $fragment = $fragment.add( self.__withPath__( `${elementPath}/content`, () => self.render( $contents, scope, dependencies ).$log ) )
+
+      return $fragment
+    }
     function execDynamicElement( $node: Cash, dtag: string, renderer: MeshRenderer | null ){
       let 
       $fragment = $(),
@@ -609,8 +619,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
             value: value ? self.__evaluate__( value, scope ) : true
           }
         })
-
-        console.log('first mesh render --', renderer )
 
         const $log = renderer.mesh( argvalues )
         $fragment = $fragment.add( $log && $log.length ? $log : DYNAMIC_TAG_PLACEHOLDER )
@@ -671,8 +679,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
         updateDynamicElement = ( memo: VariableScope, by?: string ) => {
           // Update the mesh scope with new values
           argvalues = { ...memo, ...argvalues }
-
-          console.log('node deps update by ----', by )
 
           /**
            * Re-evaluate dynamic tag expression before 
@@ -871,7 +877,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
                   if( dependent.partial !== partial?.path ) return
                   
                   if( !$fragment.closest('body').length ){
-                    console.warn(`${path} -- Not found partial in the DOM`)
+                    console.warn(`${path} -- partial not found in the DOM`)
                     dependents.delete( dependent.path )
                     return
                   }
@@ -1285,9 +1291,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
           }
         })
       }
-
-      Object.keys( events ).length && console.log( 'attach Events --', $node, events )
-
+      
       // Record attachable events to the element
       events && Object
       .entries( events )
@@ -1390,29 +1394,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
       if( $node.is('let') ) return execLet( $node )
       else if( $node.is('const') ) return execConst( $node )
 
-      /**
-       * Lips in-build syntax component
-       */
-      else if( $node.is('if, for, switch, async') ) return execComponent( $node )
-      /**
-       * Ignore <else-if> and <else> tags as node
-       * for their should be already process by <if>
-       */
-      else if( $node.is('else-if, else') ) return
-      
       // Lips's empty fragment
-      else if( $node.is('lips') && $node.is('[fragment]') ){
-        const
-        elementPath = self.__generatePath__('element'),
-        $contents = $node.contents()
-        let $fragment = $()
-
-        // Process contents recursively if they exist
-        if( $contents.length )
-          $fragment = $fragment.add( self.__withPath__( `${elementPath}/content`, () => self.render( $contents, scope, dependencies ).$log ) )
-
-        return $fragment
-      }
+      else if( $node.is('lips') && $node.is('[fragment]') ) 
+        return execEmptyFragment( $node )
 
       /**
        * Lips's dynamic tags like:
@@ -1429,10 +1413,19 @@ export default class Component<Input = void, State = void, Static = void, Contex
       else if( $node.prop('tagName')?.toLowerCase() in self.macros )
         return execMacro( $node )
       
-      // Identify and render custom components
-      else if( self.lips && self.lips.has( $node.prop('tagName')?.toLowerCase() ) )
+      /**
+       * Lips in-build syntax component
+       * or identify and render custom components
+       */
+      else if( $node.is('if, for, switch, async') || self.lips && self.lips.has( $node.prop('tagName')?.toLowerCase() ) )
         return execComponent( $node )
-
+      
+      /**
+       * Ignore <else-if> and <else> tags as node
+       * for their should be already process by <if>
+       */
+      else if( $node.is('else-if, else') ) return
+      
       // Any other note type
       return execElement( $node )
     }
@@ -1645,15 +1638,24 @@ export default class Component<Input = void, State = void, Static = void, Contex
       exprDeps.forEach( dep => deps.add( dep ) )
     })
 
-    console.log( deps )
-
     return Array.from( deps )
   }
   private __extractExpressionDeps__( expr: string, scope?: VariableScope ): string[] {
     const
-    // Metavars pattern
+    /**
+     * Metavars pattern
+     * 
+     * - state.items
+     * - input.name
+     * - context.action
+     */
     MVP = /\b(state|input|context)(?:\.[a-zA-Z_]\w*)+(?=\[|\.|$|\s|;|,|\))/g,
-    // Metacall pattern
+    /**
+     * Metacall pattern
+     * 
+     * - self.getStyle()
+     * - self.rule
+     */
     MCP = /\b(self)(?:\.[a-zA-Z_]\w*)+(?=\()/g
 
     let matches = [
@@ -1673,7 +1675,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
       ]
     }
     
-    console.log( matches )
     // Filter out duplicate deps
     return [ ...new Set( matches.map( m => m[0] ) ) ]
   }

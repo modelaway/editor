@@ -385,7 +385,7 @@ function Demo6(){
   </main>`
 
   lips
-  .render('DemoInput', { default: template, state, handler, context: ['online'] }, {})
+  .render('Demo6', { default: template, state, handler, context: ['online'] }, {})
   .appendTo('body')
 
   // Change detault translation language
@@ -1194,7 +1194,7 @@ function DemoInput(){
 // Demo3()
 // Demo4()
 // Demo5()
-// Demo6()
-DemoCart()
+Demo6()
+// DemoCart()
 // DemoLayers()
 // DemoInput()

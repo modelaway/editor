@@ -1,5 +1,5 @@
 import type { Declaration, Handler, MeshRenderer, VariableScope } from '..'
-import $, { type Cash } from 'cash-dom'
+import $ from 'cash-dom'
 
 export interface Input {
   in: Record<string, any> | any[]

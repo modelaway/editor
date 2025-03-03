@@ -15,7 +15,6 @@ export interface State {
 export const declaration: Declaration = {
   name: 'switch',
   syntax: true,
-  contents: true,
   tags: {
     'case': { type: 'child', many: true },
     'default': { type: 'child' }

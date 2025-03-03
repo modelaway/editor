@@ -117,6 +117,11 @@ export default class Component<Input = void, State = void, Static = void, Contex
     stylesheet && this.setStylesheet( stylesheet )
 
     /**
+     * 
+     */
+    this.UQS = new UQS
+
+    /**
      * Track rendering cycle metrics to evaluate
      * performance.
      * 
@@ -156,7 +161,14 @@ export default class Component<Input = void, State = void, Static = void, Contex
       context: deepClone( this.context )
     }
 
-    this.UQS = new UQS
+    const
+    [ getInput, setInput ] = signal<Input>( this.input ),
+    [ getState, setState ] = signal<State>( this.state ),
+    [ getContext, setContext ] = signal<Context>( this.context )
+
+    this._setInput = setInput
+    this._setState = setState
+    this._getState = getState
 
     this.IUC = setInterval( () => {
       /**
@@ -189,15 +201,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
       && this.onContext.bind(this)()
       this.emit('component:context', this )
     })
-
-    const
-    [ getInput, setInput ] = signal<Input>( this.input ),
-    [ getState, setState ] = signal<State>( this.state ),
-    [ getContext, setContext ] = signal<Context>( this.context )
-
-    this._setInput = setInput
-    this._setState = setState
-    this._getState = getState
     
     this.ICE = effect( () => {
       const
@@ -1406,7 +1409,11 @@ export default class Component<Input = void, State = void, Static = void, Contex
        */
       else if( $node.is('lips') && $node.is('[dtag]') )
         return handleDynamic( $node )
-
+      
+      /**
+       * Convenient `console.log` wired into 
+       * template rendering
+       */
       else if( $node.is('log') ) return execLog( $node )
       
       // Identify and render macro components

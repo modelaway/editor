@@ -385,7 +385,7 @@ function Demo6(){
   </main>`
 
   lips
-  .render('Demo6', { default: template, state, handler, context: ['online'] }, {})
+  .render('Demo6', { default: template, state, handler, context: ['online'] }, {} )
   .appendTo('body')
 
   // Change detault translation language
@@ -453,28 +453,34 @@ function DemoCart(){
     }
   }
 
+  const macros = `
+    <macro [id, name, price, quantity] name="Item">
+      <div key=id class="cart-item">
+        <div class="item-info">
+          <h3>{name}</h3>
+          <p class="item-price">{price.toFixed(2)} each</p>
+        </div>
+        
+        <div class="quantity-controls">
+          <mbutton 
+            class="quantity-btn"
+            on-click(onDecrementQuantity, id)>-</mbutton>
+          <span class="quantity-value">{quantity}</span>
+          <mbutton 
+            class="quantity-btn"
+            on-click(onIncrementQuantity, id)>+</mbutton>
+        </div>
+      </div>
+    </macro>
+  `
+
   const template = `
     <div class="cart-container">
       <h2 class="cart-title">Shopping Cart</h2>
       
       <div class="cart-items">
         <for [each] in=state.items>
-          <div key=each.id class="cart-item">
-            <div class="item-info">
-              <h3>{each.name}</h3>
-              <p class="item-price">{each.price.toFixed(2)} each</p>
-            </div>
-            
-            <div class="quantity-controls">
-              <mbutton 
-                class="quantity-btn"
-                on-click(onDecrementQuantity, each.id)>-</mbutton>
-              <span class="quantity-value">{each.quantity}</span>
-              <mbutton 
-                class="quantity-btn"
-                on-click(onIncrementQuantity, each.id)>+</mbutton>
-            </div>
-          </div>
+          <Item ...each/>
         </for>
       </div>
       
@@ -1189,12 +1195,21 @@ function DemoInput(){
   .appendTo('body')
 }
 
+function DemoMacros(){
+
+  const macros = `
+    <macro [price, quantity] name="Item">
+
+    </macro>
+  `
+}
+
 // Demo1()
 // Demo2()
 // Demo3()
 // Demo4()
 // Demo5()
-Demo6()
+// Demo6()
 // DemoCart()
 // DemoLayers()
 // DemoInput()

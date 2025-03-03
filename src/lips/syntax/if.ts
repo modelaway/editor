@@ -13,7 +13,6 @@ export interface State {
 export const declaration: Declaration = {
   name: 'if',
   syntax: true,
-  contents: true,
   tags: {
     'else-if': { type: 'sibling', many: true },
     'else': { type: 'sibling' }

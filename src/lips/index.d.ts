@@ -30,9 +30,9 @@ export type Template<Input = void, State = void, Static = void, Context = void> 
   state?: any
   _static?: any
   context?: any
+  macros?: string
   handler?: Handler<Input, State, Static, Context>
   stylesheet?: string
-  macros?: Record<string, string>
   declaration?: Declaration
 }
 export type ComponentScope<Input = void, State = void, Static = void, Context = void> = {
@@ -40,9 +40,9 @@ export type ComponentScope<Input = void, State = void, Static = void, Context = 
   state?: any
   context?: string[]
   _static?: Static
+  macros?: string
   handler?: Handler<Input, State, Static, Context>
   stylesheet?: string
-  macros?: Record<string, string>
   declaration?: Declaration
 }
 export type ComponentOptions = {
@@ -66,6 +66,18 @@ export type StyleSettings = {
   }
 }
 export type EventListener = ( ...args: any[] ) => void
+
+export type Metavars<I, S, C> = { 
+  state: S,
+  input: I,
+  context: C
+}
+
+export type Macro = {
+  argv: string[]
+  $node: Cash
+}
+
 export type VirtualEvent = {
   $node: Cash
   _event: string

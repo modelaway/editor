@@ -12,7 +12,9 @@ import type {
   Declaration,
   FragmentBoundaries,
   VirtualEvent,
-  VirtualEventRecord
+  VirtualEventRecord,
+  Metavars,
+  Macro
 } from '.'
 
 import UQS from './uqs'
@@ -34,16 +36,9 @@ import {
   SYNCTAX_VAR_FLAG
 } from './utils'
 
-type Metavars<I, S, C> = { 
-  state: S,
-  input: I,
-  context: C
-}
-
 export default class Component<Input = void, State = void, Static = void, Context = void> extends Events {
   private template: string
   private declaration: Declaration
-  private macros: Record<string, string>
   private $?: Cash
 
   public input: Input
@@ -54,7 +49,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
   public __name__: string
   private __previous?: Metavars<Input, State, Context>
   private __stylesheet?: Stylesheet
-  private __macros: Map<string, Cash> = new Map() // Cached macros templates
+  private __macros: Map<string, Macro> = new Map() // Cached macros templates
   private __dependencies: FGUDependencies = new Map() // Initial FGU dependencies
   private __attachedEvents: VirtualEventRecord<Component<Input, State, Static, Context>>[] = []
 
@@ -105,7 +100,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
     this.__name__ = name
 
-    this.macros = macros || {}
     this.declaration = declaration || { name }
 
     this.input = input || {} as Input
@@ -113,6 +107,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
     this.static = _static || {} as Static
     this.context = {} as Context
     
+    macros && this.setMacros( macros )
     handler && this.setHandler( handler )
     stylesheet && this.setStylesheet( stylesheet )
 
@@ -330,6 +325,31 @@ export default class Component<Input = void, State = void, Static = void, Contex
     this.setInput( deepAssign<Input>( this.input, data ) )
     return this
   }
+  setMacros( template: string ){
+    const $nodes = $(preprocessor( template ))
+    if( !$nodes.length ) return
+
+    const self = this
+    $nodes.each( function(){
+      const
+      $node = $(this),
+      { argv, attrs } = self.__getAttributes__( $node )
+
+      if( !Object.keys( attrs ) )
+        throw new Error('Invalid macro component definition')
+
+      if( !attrs.name )
+        throw new Error('Undefined macro `name` attribute.')
+
+      if( self.__macros.get( attrs.name ) )
+        console.warn(`Duplicate macro <${attrs.name}> will be override`)
+
+      if( !$node.contents()?.length )
+        throw new Error('Invalid macro component definition. Template content expected.')
+
+      self.__macros.set( attrs.name, { argv, $node } )
+    } )
+  }
   setHandler( list: Handler<Input, State, Static, Context> ){
     Object
     .entries( list )
@@ -376,111 +396,12 @@ export default class Component<Input = void, State = void, Static = void, Contex
      */
     let _$ = $()
 
-    function execMacro( $node: Cash ){
-      const name = $node.prop('tagName')?.toLowerCase() as string
-      if( !name )
-        throw new Error('Undefined macro')
-
-      if( !self.macros[ name ] )
-        throw new Error('Macro component not found')
-      
-      // Initial macro input
-      const macroInput: Record<string, any> = {}
-
-      /**
-       * Also inject macro slotted body into macro input
-       * as `__slot__`
-       */
-      // const nodeContents = $node.contents()
-      // if( nodeContents && nodeContents.length ){
-      //   const $el = self.render( nodeContents, scope, dependencies )
-      //   macroInput.__slot__ = $el.html() || $el.text()
-      // }
-
-      /**
-       * Parse assigned attributes to be injected into
-       * the macro as input.
-       * 
-       * Note: Macro components can also access same
-       *      state data level as the host component
-       */
-      const attrs = ($node as any).attrs()
-
-      Object
-      .entries( attrs )
-      .forEach( ([ key, value ]) => {
-        if( key == 'key' ) return
-
-        // Macro events
-        if( /^on-/.test( key ) ){
-          attachableEvents.push({
-            $node,
-            _event: key.replace(/^on-/, ''),
-            instruction: value as string,
-            scope
-          })
-          
-          return
-        }
-
-        // Process spread operator attributes
-        else if( SPREAD_VAR_PATTERN.test( key ) ){
-          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
-          if( typeof spreads !== 'object' )
-            throw new Error(`Invalid spread operator ${key}`)
-
-          for( const _key in spreads )
-            macroInput[ _key ] = spreads[ _key ]
-        }
-
-        // Regular macro input attributes
-        else macroInput[ key ] = value ? self.__evaluate__( value as string, scope ) : true
-      })
-
-      /**
-       * Inject macro input into scope
-       * thread using `macro` namespace
-       */
-      scope.macro = {
-        value: macroInput,
-        type: 'const'
-      }
-
-      let $fragment = $()
-
-      // First check template from cache
-      const $macroCached = self.__macros.get( name )
-      if( $macroCached?.length ){
-        const { $log } = self.render( $macroCached, scope, dependencies )
-        $fragment = $fragment.add( $log )
-      }
-      
-      else {
-        const
-        $macro = $( preprocessor( self.macros[ name ] ) ),
-        { $log } = self.render( $macro, scope, dependencies )
-
-        $fragment = $fragment.add( $log )
-
-        // Cache macro template to be reused
-        self.__macros.set( name, $macro )
-      }
-
-      /**
-       * BENCHMARK: Tracking total elements rendered
-       */
-      self.benchmark.inc('elementCount')
-      
-      return $fragment
-    }
-
     function isMesh( arg: any ){
       return arg !== null
               && typeof arg === 'object'
               && typeof arg.mesh === 'function'
               && typeof arg.update === 'function'
     }
-
     function handleDynamic( $node: Cash ){
       if( !$node.attr('dtag') || $node.prop('tagName') !== 'LIPS' )
         throw new Error('Invalid dynamic tag name')
@@ -1067,7 +988,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
         })
 
         $fragment = $fragment.add( component.getNode() )
-        // Replace the original node with the fragment in the DOM
+        // Cache component for reuse.
         self.PCC.set( __key__, component )
 
         // Listen to this nexted component's events
@@ -1136,6 +1057,302 @@ export default class Component<Input = void, State = void, Static = void, Contex
           }
         })
       }
+
+      /**
+       * BENCHMARK: Tracking total elements rendered
+       */
+      self.benchmark.inc('elementCount')
+      
+      return $fragment
+    }
+    function execMacro( $node: Cash ){
+      const name = $node.prop('tagName')?.toLowerCase() as string
+      if( !name )
+        throw new Error('Invalid macro rendering call')
+
+      const macro = self.__macros.get( name )
+      if( !macro )
+        throw new Error('Macro component not found')
+      
+      const
+      macroPath = self.__generatePath__('macro'),
+      boundaries = self.__createBoundaries__( macroPath ),
+      { attrs } = self.__getAttributes__( $node ),
+      TRACKABLE_ATTRS: Record<string, string> = {}
+      
+      /**
+       * Parse assigned attributes to be injected into
+       * the component as input.
+       */
+      let
+      argvalues: VariableScope = {},
+      $fragment = $()
+
+      /**
+       * Cast attributes to compnent inputs
+       */
+      attrs && Object
+      .entries( attrs )
+      .forEach( ([ key, value ]) => {
+        if( SPREAD_VAR_PATTERN.test( key ) ){
+          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
+          if( typeof spreads !== 'object' )
+            throw new Error(`Invalid spread operator ${key}`)
+
+          for( const _key in spreads )
+            argvalues[ _key ] = {
+              value: spreads[ _key ],
+              type: 'let'
+            }
+        }
+
+        else argvalues[ key ] = {
+          value: value ? self.__evaluate__( value as string, scope ) : true,
+          type: 'let'
+        }
+
+        TRACKABLE_ATTRS[ key ] = value
+      })
+
+      /**
+       * - $fragment
+       * - macroPath
+       * - template.declaration?
+       */
+      const meshwire = ( $tagnode: Cash, path: string | null, argv: string[] = [], scope: VariableScope = {}, useAttributes = false ) => {
+        let
+        partial: { $log: Cash, path: string } | undefined,
+        attachedEvents: VirtualEvent[] | undefined,
+        wire: MeshTemplate = {
+          renderer: {
+            path,
+            argv,
+            // partial: undefined,
+            mesh( argvalues?: VariableScope ){
+              const $contents = $tagnode.contents()
+              if( !$contents.length ) return null
+
+              // Cleanup previous partial's attached events
+              if( attachedEvents?.length )
+                attachedEvents.forEach( ({ $node, _event }) => self.__detachEvent__( $node, _event ) )
+              
+              // Render the partial
+              const { $log, dependencies, events } = self.render( $contents, { ...scope, ...argvalues } )
+
+              partial = {
+                $log,
+                path: `${macroPath}.${path || 'root'}`
+              }
+              attachedEvents = events
+
+              /**
+               * Share partial FGU dependenies with main component thread
+               * for parallel updates (main & partial) on the meshed node.
+               * 
+               * 1. From main FGU dependency track
+               * 2. From mesh rendering track
+               */
+              if( !self.__dependencies ) return
+
+              dependencies.forEach( ( dependents, dep ) => {
+                if( !self.__dependencies?.has( dep ) )
+                  self.__dependencies.set( dep, new Map() )
+                
+                // Add partial dependency
+                dependents.forEach( ( dependent, path ) => self.__dependencies.get( dep )?.set( path, { ...dependent, partial: partial?.path }) )
+              } )
+
+              return $log
+            },
+            update( argvalues?: VariableScope ){
+              if( !partial ) return
+              
+              const batchUpdates = new Set<string>()
+              
+              // Execute partial mesh update
+              self.__dependencies.forEach( ( dependents, dep ) => {
+                dependents.forEach( ( dependent ) => {
+                  // Process only dependents of this partial
+                  if( dependent.partial !== partial?.path ) return
+                  
+                  if( !$fragment.closest('body').length ){
+                    console.warn(`${path} -- partial not found in the DOM`)
+                    dependents.delete( dependent.path )
+                    return
+                  }
+
+                  if( dependent.memo
+                      && argvalues
+                      && isEqual( dependent.memo[ dep ], argvalues[ dep ]) ) return
+
+                  const newMemo = { ...scope, ...argvalues }
+                  dependent.memo = newMemo
+
+                  if( dependent.batch ) batchUpdates.add( dependent.path )
+                  else {
+                    const sync = dependent.update( newMemo, 'mesh-updator' )
+                    if( sync ){
+                      // Adopt new $fragment
+                      typeof sync.$fragment === 'object'
+                      && sync.$fragment.length
+                      && dependents.set( dependent.path, { ...dependent, $fragment: sync.$fragment } )
+
+                      // Cleanup callback
+                      typeof sync.cleanup === 'function' && sync.cleanup()
+                    }
+                  }
+                })
+
+                /**
+                 * Clean up if no more dependents
+                 */
+                !dependents.size && dependencies.delete( dep )
+              })
+
+              // Execute batch updates
+              batchUpdates.size && self.UQS.enqueue( self.__dependencies, batchUpdates )
+            },
+            replaceWith( $newFragment: Cash ){
+              if( !$newFragment || !$newFragment.length ) return
+              
+              // If we have boundary markers and they're in the DOM
+              if( document.contains( boundaries.start ) && document.contains( boundaries.end ) ){
+                // Collect all nodes between markers to remove
+                const nodesToRemove = []
+                let currentNode = boundaries.start.nextSibling
+                
+                while( currentNode && currentNode !== boundaries.end ){
+                  nodesToRemove.push( currentNode )
+                  currentNode = currentNode.nextSibling
+                }
+                
+                // Remove existing content
+                $(nodesToRemove).remove()
+                // Insert new content between markers
+                $(boundaries.start).after( $newFragment )
+                
+                // Update fragment reference
+                $fragment = $newFragment
+                return
+              }
+
+              const $first = $fragment.first()
+              if( !$first.length ){
+                console.warn('missing stagged fragment.')
+                return
+              }
+
+              $fragment.each( ( _, el ) => { _ > 0 && $(el).remove() })
+              $first.after( $newFragment ).remove()
+
+              $fragment = $newFragment
+            }
+          }
+        }
+
+        /**
+         * Allow attributes consumption as input/props.
+         */
+        if( useAttributes && path ){
+          const { argv, attrs: segmentAttrs, events } = self.__getAttributes__( $tagnode )
+          
+          segmentAttrs && Object
+          .entries( segmentAttrs )
+          .forEach( ([ key, value ]) => {
+            if( SPREAD_VAR_PATTERN.test( key ) ){
+              const
+              spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
+              if( typeof spreads !== 'object' )
+                throw new Error(`Invalid spread operator ${key}`)
+
+              for( const _key in spreads )
+                wire[ _key ] = spreads[ _key ]
+              
+              TRACKABLE_ATTRS[`${path}.${key}`] = value
+            }
+            else {
+              wire[ key ] = value ? self.__evaluate__( value as string, scope ) : true
+              // Record attribute to be tracked as FGU dependency
+              TRACKABLE_ATTRS[`${path}.${key}`] = value
+            }
+          })
+        }
+
+        return wire
+      }
+
+      const
+      macrowire = meshwire( macro.$node, null, macro.argv, scope, true ),
+      $log = macrowire.renderer.mesh( argvalues )
+
+      $fragment = $fragment.add( $log )
+      
+      /**
+       * Setup input dependency track
+       */
+      TRACKABLE_ATTRS && Object
+      .entries( TRACKABLE_ATTRS )
+      .forEach( ([ key, value ]) => {
+        let isSyntax = false
+        if( new RegExp(`^${SYNCTAX_VAR_FLAG}`).test( key ) ){
+          isSyntax = true
+          key = key.replace( SYNCTAX_VAR_FLAG, '' )
+        }
+
+        if( SPREAD_VAR_PATTERN.test( key ) ){
+          const spreadvalues = ( memo: VariableScope ) => {
+            const
+            extracted: VariableScope = {},
+            spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo )
+            if( typeof spreads !== 'object' )
+              throw new Error(`Invalid spread operator ${key}`)
+
+            for( const _key in spreads )
+              extracted[ _key ] = {
+                value: spreads[ _key ],
+                type: 'let'
+              }
+
+            macrowire.renderer.update( extracted )
+          }
+          
+          if( self.__isReactive__( key as string, scope ) ){
+            const deps = self.__extractExpressionDeps__( value as string, scope )
+            
+            deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+              $fragment,
+              path: `${macroPath}.${key}`,
+              update: spreadvalues,
+              syntax: isSyntax,
+              memo: scope,
+              batch: true
+            }) )
+          }
+        }
+        else {
+          const evalue = ( memo: VariableScope ) => {
+            macrowire.renderer.update({
+              [key]: {
+                value: value ? self.__evaluate__( value as string, memo ) : true,
+                type: 'let'
+              }
+            })
+          }
+          
+          if( self.__isReactive__( value as string, scope ) ){
+            const deps = self.__extractExpressionDeps__( value as string, scope )
+            
+            deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+              $fragment,
+              path: `${macroPath}.${key}`,
+              update: evalue,
+              syntax: isSyntax,
+              memo: scope,
+              batch: true
+            }) )
+          }
+        }
+      })
 
       /**
        * BENCHMARK: Tracking total elements rendered
@@ -1416,8 +1633,14 @@ export default class Component<Input = void, State = void, Static = void, Contex
        */
       else if( $node.is('log') ) return execLog( $node )
       
-      // Identify and render macro components
-      else if( $node.prop('tagName')?.toLowerCase() in self.macros )
+      /**
+       * Identify and render macro components
+       * 
+       * Note: Always check `tagname` in registered 
+       * macros list before in the registered components
+       * list.
+       */
+      else if( self.__macros.has( $node.prop('tagName')?.toLowerCase() ) )
         return execMacro( $node )
       
       /**

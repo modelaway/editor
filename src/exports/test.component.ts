@@ -454,7 +454,7 @@ function DemoCart(){
   }
 
   const macros = `
-    <macro [id, name, price, quantity] name="Item">
+    <macro [id, name, price, quantity] name="item">
       <div key=id class="cart-item">
         <div class="item-info">
           <h3>{name}</h3>
@@ -472,6 +472,11 @@ function DemoCart(){
         </div>
       </div>
     </macro>
+
+    <macro name="tax">
+      <span>Tax (10%):</span>
+      <span>{self.getTax().toFixed(2)}</span>
+    </macro>
   `
 
   const template = `
@@ -480,7 +485,7 @@ function DemoCart(){
       
       <div class="cart-items">
         <for [each] in=state.items>
-          <Item ...each/>
+          <item ...each/>
         </for>
       </div>
       
@@ -494,9 +499,9 @@ function DemoCart(){
           <span>{self.getSubtotal().toFixed(2)}</span>
         </div>
         <div class="summary-row">
-          <span>Tax (10%):</span>
-          <span>{self.getTax().toFixed(2)}</span>
+          <tax/>
         </div>
+        
         <div class="summary-row summary-total">
           <span>Total:</span>
           <span>{self.getTotal().toFixed(2)}</span>
@@ -600,7 +605,7 @@ function DemoCart(){
   lips = new Lips({ debug: true }),
   input = { key: 'shopping-cart' },
   component = lips
-              .render<CartInput, CartState>('DemoInput', { default: template, state, handler, stylesheet }, input )
+              .render<CartInput, CartState>('DemoInput', { default: template, state, handler, stylesheet, macros }, input )
               .appendTo('body')
 }
 
@@ -1195,21 +1200,12 @@ function DemoInput(){
   .appendTo('body')
 }
 
-function DemoMacros(){
-
-  const macros = `
-    <macro [price, quantity] name="Item">
-
-    </macro>
-  `
-}
-
 // Demo1()
 // Demo2()
 // Demo3()
 // Demo4()
 // Demo5()
 // Demo6()
-// DemoCart()
+DemoCart()
 // DemoLayers()
 // DemoInput()

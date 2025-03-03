@@ -1,4 +1,5 @@
 import { FGUDependencies } from '.'
+import Benchmark from './benchmark'
 
 /**
  * Update Queue System for high-frequency DOM updates
@@ -12,12 +13,17 @@ export default class UpdateQueue {
   private framesBetweenMetrics = 60
   private frameCount = 0
   private dependencies?: FGUDependencies
+  private benchmark: Benchmark
   
   private metrics = {
     avgProcessingTime: 0,
     maxProcessingTime: 0,
     framesDropped: 0,
     queueHighWatermark: 0
+  }
+
+  constructor( benchmark: Benchmark ){
+    this.benchmark = benchmark
   }
   
   /**
@@ -27,7 +33,10 @@ export default class UpdateQueue {
     this.dependencies = dependencies
 
     // Add each path to the queue, overwriting any existing entry
-    paths.forEach( path => this.queue.set( path, true ) )
+    paths.forEach( path => {
+      this.queue.set( path, true )
+      this.benchmark.inc('dependencyUpdateCount')
+    } )
 
     // Start processing if not already in progress
     !this.isProcessing && this.startProcessing()
@@ -77,8 +86,8 @@ export default class UpdateQueue {
       
       // Update frame count and log metrics periodically
       this.frameCount++
-      if( this.frameCount % this.framesBetweenMetrics === 0 )
-        this.updateMetrics()
+      // if( this.frameCount % this.framesBetweenMetrics === 0 )
+      //   this.updateMetrics()
       
       // Continue processing if there are more updates in the queue,
       // otherwise end the processing cycle

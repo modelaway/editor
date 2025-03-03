@@ -575,6 +575,7 @@ export function preprocessor( str: string ): string {
                           .replace(/\s{2,}/g, ' ')
                           .replace(/[\r\n\t]/g, '')
                           .replace(/<(\w+)(\(\s*(.*?)\s*\))?((\s+[^>]*)?)\/>/g, '<$1$2$4></$1>')
+                          .replace(/<(\w+)(\([^)]*\))?((\s+[^>]*)?)\/>/g, '<$1$2$3></$1>')
                           .replace(/<\{([^}]+)\}\s*(.*?)\/>/g, '<lips dtag="$1" $2></lips>')
                           .replace(/(<>)([\s\S]*?)(<\/>)/g, '<lips fragment="true">$2</lips>')
                           .replace(/<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')

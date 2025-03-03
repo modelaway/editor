@@ -14,7 +14,8 @@ import type {
   VirtualEvent,
   VirtualEventRecord,
   Metavars,
-  Macro
+  Macro,
+  MeshWireSetup
 } from '.'
 
 import UQS from './uqs'
@@ -112,17 +113,19 @@ export default class Component<Input = void, State = void, Static = void, Contex
     stylesheet && this.setStylesheet( stylesheet )
 
     /**
-     * 
-     */
-    this.UQS = new UQS
-
-    /**
      * Track rendering cycle metrics to evaluate
      * performance.
      * 
      */
     this.benchmark = new Benchmark( this.debug )
+    // Track component creation
+    this.benchmark.inc('componentCount')
     
+    /**
+     * 
+     */
+    this.UQS = new UQS( this.benchmark )
+
     /**
      * Triggered during component creation
      * 
@@ -203,9 +206,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
       state = getState(),
       context = getContext()
 
-      // Reset the benchmark
-      this.benchmark.reset()
-
       /**
        * Initial render - parse template and establish 
        * dependencies
@@ -261,11 +261,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
         this.context = context
       }
 
-      /**
-       * Log benchmark table
-       * 
-       * NOTE: Only show in debugging mode
-       */
       this.benchmark.log()
 
       /**
@@ -388,6 +383,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
       return { $log: $nodes, dependencies }
     }
 
+    // Start benchmark measuring
+    this.benchmark.startRender()
+
     const self = this
     
     /**
@@ -401,6 +399,12 @@ export default class Component<Input = void, State = void, Static = void, Contex
               && typeof arg === 'object'
               && typeof arg.mesh === 'function'
               && typeof arg.update === 'function'
+    }
+    function isTemplate( arg: any ){
+      return arg !== null
+              && typeof arg === 'object'
+              && typeof arg.default
+              && typeof arg.default === 'string'
     }
     function handleDynamic( $node: Cash ){
       if( !$node.attr('dtag') || $node.prop('tagName') !== 'LIPS' )
@@ -416,8 +420,13 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * Syntax `<{input.render}/>`
        * processed to `<lips dtag=input.render></lips>`
        */
-      if( isMesh( result ) || result === null )
+      if( result === null )
+        return execDynamicElement( $node, dtag, null )
+
+      if( isMesh( result ) )
         return execDynamicElement( $node, dtag, result )
+
+      // else if( isTemplate( result ) )
 
       /**
       * Process dynamic tag set by:
@@ -455,6 +464,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
             value: self.__evaluate__( assign as string, scope ),
             type: 'let'
           }
+
+          console.log('let eval -----', scope[ key ] )
         }
       } )
       
@@ -744,168 +755,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
                   : TRACKABLE_ATTRS[ key ] = value
       })
 
-      const meshwire = ( $tagnode: Cash, path: string | null, argv: string[] = [], scope: VariableScope = {}, useAttributes = false ) => {
-        let
-        partial: { $log: Cash, path: string } | undefined,
-        attachedEvents: VirtualEvent[] | undefined,
-        wire: MeshTemplate = {
-          renderer: {
-            path,
-            argv,
-            // partial: undefined,
-            mesh( argvalues?: VariableScope ){
-              const $contents = $tagnode.contents()
-              if( !$contents.length ) return null
-
-              // Cleanup previous partial's attached events
-              if( attachedEvents?.length )
-                attachedEvents.forEach( ({ $node, _event }) => self.__detachEvent__( $node, _event ) )
-              
-              // Render the partial
-              const { $log, dependencies, events } = self.render( $contents, { ...scope, ...argvalues } )
-
-              partial = {
-                $log,
-                path: `${componentPath}.${path || 'root'}`
-              }
-              attachedEvents = events
-
-              /**
-               * Share partial FGU dependenies with main component thread
-               * for parallel updates (main & partial) on the meshed node.
-               * 
-               * 1. From main FGU dependency track
-               * 2. From mesh rendering track
-               */
-              if( !self.__dependencies ) return
-
-              dependencies.forEach( ( dependents, dep ) => {
-                if( !self.__dependencies?.has( dep ) )
-                  self.__dependencies.set( dep, new Map() )
-                
-                // Add partial dependency
-                dependents.forEach( ( dependent, path ) => self.__dependencies.get( dep )?.set( path, { ...dependent, partial: partial?.path }) )
-              } )
-
-              return $log
-            },
-            update( argvalues?: VariableScope ){
-              if( !partial ) return
-              
-              const batchUpdates = new Set<string>()
-              
-              // Execute partial mesh update
-              self.__dependencies.forEach( ( dependents, dep ) => {
-                dependents.forEach( ( dependent ) => {
-                  // Process only dependents of this partial
-                  if( dependent.partial !== partial?.path ) return
-                  
-                  if( !$fragment.closest('body').length ){
-                    console.warn(`${path} -- partial not found in the DOM`)
-                    dependents.delete( dependent.path )
-                    return
-                  }
-
-                  if( dependent.memo
-                      && argvalues
-                      && isEqual( dependent.memo[ dep ], argvalues[ dep ]) ) return
-
-                  const newMemo = { ...scope, ...argvalues }
-                  dependent.memo = newMemo
-
-                  if( dependent.batch ) batchUpdates.add( dependent.path )
-                  else {
-                    const sync = dependent.update( newMemo, 'mesh-updator' )
-                    if( sync ){
-                      // Adopt new $fragment
-                      typeof sync.$fragment === 'object'
-                      && sync.$fragment.length
-                      && dependents.set( dependent.path, { ...dependent, $fragment: sync.$fragment } )
-
-                      // Cleanup callback
-                      typeof sync.cleanup === 'function' && sync.cleanup()
-                    }
-                  }
-                })
-
-                /**
-                 * Clean up if no more dependents
-                 */
-                !dependents.size && dependencies.delete( dep )
-              })
-
-              // Execute batch updates
-              batchUpdates.size && self.UQS.enqueue( self.__dependencies, batchUpdates )
-            },
-            replaceWith( $newFragment: Cash ){
-              if( !$newFragment || !$newFragment.length ) return
-              
-              // If we have boundary markers and they're in the DOM
-              if( document.contains( boundaries.start ) && document.contains( boundaries.end ) ){
-                // Collect all nodes between markers to remove
-                const nodesToRemove = []
-                let currentNode = boundaries.start.nextSibling
-                
-                while( currentNode && currentNode !== boundaries.end ){
-                  nodesToRemove.push( currentNode )
-                  currentNode = currentNode.nextSibling
-                }
-                
-                // Remove existing content
-                $(nodesToRemove).remove()
-                // Insert new content between markers
-                $(boundaries.start).after( $newFragment )
-                
-                // Update fragment reference
-                $fragment = $newFragment
-                return
-              }
-
-              const $first = $fragment.first()
-              if( !$first.length ){
-                console.warn('missing stagged fragment.')
-                return
-              }
-
-              $fragment.each( ( _, el ) => { _ > 0 && $(el).remove() })
-              $first.after( $newFragment ).remove()
-
-              $fragment = $newFragment
-            }
-          }
-        }
-
-        /**
-         * Allow attributes consumption as input/props.
-         */
-        if( useAttributes && path ){
-          const { argv, attrs: segmentAttrs, events } = self.__getAttributes__( $tagnode )
-          
-          segmentAttrs && Object
-          .entries( segmentAttrs )
-          .forEach( ([ key, value ]) => {
-            if( SPREAD_VAR_PATTERN.test( key ) ){
-              const
-              spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
-              if( typeof spreads !== 'object' )
-                throw new Error(`Invalid spread operator ${key}`)
-
-              for( const _key in spreads )
-                wire[ _key ] = spreads[ _key ]
-              
-              TRACKABLE_ATTRS[`${template.declaration?.syntax ? SYNCTAX_VAR_FLAG : ''}${path}.${key}`] = value
-            }
-            else {
-              wire[ key ] = value ? self.__evaluate__( value as string, scope ) : true
-              // Record attribute to be tracked as FGU dependency
-              TRACKABLE_ATTRS[`${template.declaration?.syntax ? SYNCTAX_VAR_FLAG : ''}${path}.${key}`] = value
-            }
-          })
-        }
-
-        return wire
-      }
-
       /**
        * Also inject component slotted body into inputs
        */
@@ -914,7 +763,18 @@ export default class Component<Input = void, State = void, Static = void, Contex
         // Pass in the regular body contents
         input = {
           ...input,
-          ...meshwire( $node, null, argv, scope, true )
+          ...self.__meshwire__({
+            $node,
+            fragmentPath: componentPath,
+            fragmentBoundaries: boundaries,
+            getFragment(){ return $fragment },
+            setFragment( $newFragment ){ $fragment = $newFragment },
+            meshPath: null,
+            argv,
+            scope,
+            useAttributes: true,
+            declaration: template.declaration,
+          }, TRACKABLE_ATTRS )
         }
 
         /**
@@ -934,11 +794,33 @@ export default class Component<Input = void, State = void, Static = void, Contex
                   if( many ){
                     input[ tagname ] = []
                     $siblings.each(function( index ){
-                      input[ tagname ].push( meshwire( $(this), `${tagname}[${index}]`, argv, scope, true ) )
+                      input[ tagname ].push( self.__meshwire__({ 
+                        $node: $(this),
+                        meshPath: `${tagname}[${index}]`,
+                        fragmentPath: componentPath,
+                        fragmentBoundaries: boundaries,
+                        getFragment(){ return $fragment },
+                        setFragment( $newFragment ){ $fragment = $newFragment },
+                        argv,
+                        scope,
+                        useAttributes: true,
+                        declaration: template.declaration
+                      }, TRACKABLE_ATTRS ) )
                     })
                   }
                   else if( $node.siblings( tagname ).first().length )
-                    input[ tagname ] = meshwire( $node.siblings( tagname ).first(), tagname, argv, scope, true )
+                    input[ tagname ] = self.__meshwire__({ 
+                      $node: $node.siblings( tagname ).first(),
+                      meshPath: tagname,
+                      fragmentPath: componentPath,
+                      fragmentBoundaries: boundaries,
+                      getFragment(){ return $fragment },
+                      setFragment( $newFragment ){ $fragment = $newFragment },
+                      argv,
+                      scope,
+                      useAttributes: true,
+                      declaration: template.declaration
+                    }, TRACKABLE_ATTRS )
                 } break
 
                 case 'child': {
@@ -946,11 +828,33 @@ export default class Component<Input = void, State = void, Static = void, Contex
                   if( many ){
                     input[ tagname ] = []
                     $children.each(function( index ){ 
-                      input[ tagname ].push( meshwire( $(this), `${tagname}[${index}]`, argv, scope, true ) )
+                      input[ tagname ].push( self.__meshwire__({ 
+                        $node: $(this),
+                        meshPath: `${tagname}[${index}]`,
+                        fragmentPath: componentPath,
+                        fragmentBoundaries: boundaries,
+                        getFragment(){ return $fragment },
+                        setFragment( $newFragment ){ $fragment = $newFragment },
+                        argv,
+                        scope,
+                        useAttributes: true,
+                        declaration: template.declaration
+                      }, TRACKABLE_ATTRS ) )
                     })
                   }
                   else if( $node.children( tagname ).first().length )
-                    input[ tagname ] = meshwire( $node.children( tagname ).first(), tagname, argv, scope, true )
+                    input[ tagname ] = self.__meshwire__({
+                      $node: $node.children( tagname ).first(),
+                      meshPath: tagname,
+                      fragmentPath: componentPath,
+                      fragmentBoundaries: boundaries,
+                      getFragment(){ return $fragment },
+                      setFragment( $newFragment ){ $fragment = $newFragment },
+                      argv,
+                      scope,
+                      useAttributes: true,
+                      declaration: template.declaration
+                    }, TRACKABLE_ATTRS )
                 } break
               }
             } )
@@ -1058,11 +962,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
         })
       }
 
-      /**
-       * BENCHMARK: Tracking total elements rendered
-       */
-      self.benchmark.inc('elementCount')
-      
+      // Track component creation
+      self.benchmark.inc('componentCount')
+
       return $fragment
     }
     function execMacro( $node: Cash ){
@@ -1100,18 +1002,21 @@ export default class Component<Input = void, State = void, Static = void, Contex
             throw new Error(`Invalid spread operator ${key}`)
 
           for( const _key in spreads )
-            argvalues[ _key ] = {
-              value: spreads[ _key ],
-              type: 'let'
-            }
+            if( macro.argv.includes( _key ) )
+              argvalues[ _key ] = {
+                value: spreads[ _key ],
+                type: 'let'
+              }
         }
 
-        else argvalues[ key ] = {
-          value: value ? self.__evaluate__( value as string, scope ) : true,
-          type: 'let'
-        }
+        else if( macro.argv.includes( key ) )
+          argvalues[ key ] = {
+            value: value ? self.__evaluate__( value as string, scope ) : true,
+            type: 'let'
+          }
 
-        TRACKABLE_ATTRS[ key ] = value
+        if( macro.argv.includes( key ) )
+          TRACKABLE_ATTRS[ key ] = value
       })
 
       /**
@@ -1119,170 +1024,19 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * - macroPath
        * - template.declaration?
        */
-      const meshwire = ( $tagnode: Cash, path: string | null, argv: string[] = [], scope: VariableScope = {}, useAttributes = false ) => {
-        let
-        partial: { $log: Cash, path: string } | undefined,
-        attachedEvents: VirtualEvent[] | undefined,
-        wire: MeshTemplate = {
-          renderer: {
-            path,
-            argv,
-            // partial: undefined,
-            mesh( argvalues?: VariableScope ){
-              const $contents = $tagnode.contents()
-              if( !$contents.length ) return null
-
-              // Cleanup previous partial's attached events
-              if( attachedEvents?.length )
-                attachedEvents.forEach( ({ $node, _event }) => self.__detachEvent__( $node, _event ) )
-              
-              // Render the partial
-              const { $log, dependencies, events } = self.render( $contents, { ...scope, ...argvalues } )
-
-              partial = {
-                $log,
-                path: `${macroPath}.${path || 'root'}`
-              }
-              attachedEvents = events
-
-              /**
-               * Share partial FGU dependenies with main component thread
-               * for parallel updates (main & partial) on the meshed node.
-               * 
-               * 1. From main FGU dependency track
-               * 2. From mesh rendering track
-               */
-              if( !self.__dependencies ) return
-
-              dependencies.forEach( ( dependents, dep ) => {
-                if( !self.__dependencies?.has( dep ) )
-                  self.__dependencies.set( dep, new Map() )
-                
-                // Add partial dependency
-                dependents.forEach( ( dependent, path ) => self.__dependencies.get( dep )?.set( path, { ...dependent, partial: partial?.path }) )
-              } )
-
-              return $log
-            },
-            update( argvalues?: VariableScope ){
-              if( !partial ) return
-              
-              const batchUpdates = new Set<string>()
-              
-              // Execute partial mesh update
-              self.__dependencies.forEach( ( dependents, dep ) => {
-                dependents.forEach( ( dependent ) => {
-                  // Process only dependents of this partial
-                  if( dependent.partial !== partial?.path ) return
-                  
-                  if( !$fragment.closest('body').length ){
-                    console.warn(`${path} -- partial not found in the DOM`)
-                    dependents.delete( dependent.path )
-                    return
-                  }
-
-                  if( dependent.memo
-                      && argvalues
-                      && isEqual( dependent.memo[ dep ], argvalues[ dep ]) ) return
-
-                  const newMemo = { ...scope, ...argvalues }
-                  dependent.memo = newMemo
-
-                  if( dependent.batch ) batchUpdates.add( dependent.path )
-                  else {
-                    const sync = dependent.update( newMemo, 'mesh-updator' )
-                    if( sync ){
-                      // Adopt new $fragment
-                      typeof sync.$fragment === 'object'
-                      && sync.$fragment.length
-                      && dependents.set( dependent.path, { ...dependent, $fragment: sync.$fragment } )
-
-                      // Cleanup callback
-                      typeof sync.cleanup === 'function' && sync.cleanup()
-                    }
-                  }
-                })
-
-                /**
-                 * Clean up if no more dependents
-                 */
-                !dependents.size && dependencies.delete( dep )
-              })
-
-              // Execute batch updates
-              batchUpdates.size && self.UQS.enqueue( self.__dependencies, batchUpdates )
-            },
-            replaceWith( $newFragment: Cash ){
-              if( !$newFragment || !$newFragment.length ) return
-              
-              // If we have boundary markers and they're in the DOM
-              if( document.contains( boundaries.start ) && document.contains( boundaries.end ) ){
-                // Collect all nodes between markers to remove
-                const nodesToRemove = []
-                let currentNode = boundaries.start.nextSibling
-                
-                while( currentNode && currentNode !== boundaries.end ){
-                  nodesToRemove.push( currentNode )
-                  currentNode = currentNode.nextSibling
-                }
-                
-                // Remove existing content
-                $(nodesToRemove).remove()
-                // Insert new content between markers
-                $(boundaries.start).after( $newFragment )
-                
-                // Update fragment reference
-                $fragment = $newFragment
-                return
-              }
-
-              const $first = $fragment.first()
-              if( !$first.length ){
-                console.warn('missing stagged fragment.')
-                return
-              }
-
-              $fragment.each( ( _, el ) => { _ > 0 && $(el).remove() })
-              $first.after( $newFragment ).remove()
-
-              $fragment = $newFragment
-            }
-          }
-        }
-
-        /**
-         * Allow attributes consumption as input/props.
-         */
-        if( useAttributes && path ){
-          const { argv, attrs: segmentAttrs, events } = self.__getAttributes__( $tagnode )
-          
-          segmentAttrs && Object
-          .entries( segmentAttrs )
-          .forEach( ([ key, value ]) => {
-            if( SPREAD_VAR_PATTERN.test( key ) ){
-              const
-              spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
-              if( typeof spreads !== 'object' )
-                throw new Error(`Invalid spread operator ${key}`)
-
-              for( const _key in spreads )
-                wire[ _key ] = spreads[ _key ]
-              
-              TRACKABLE_ATTRS[`${path}.${key}`] = value
-            }
-            else {
-              wire[ key ] = value ? self.__evaluate__( value as string, scope ) : true
-              // Record attribute to be tracked as FGU dependency
-              TRACKABLE_ATTRS[`${path}.${key}`] = value
-            }
-          })
-        }
-
-        return wire
-      }
-
       const
-      macrowire = meshwire( macro.$node, null, macro.argv, scope, true ),
+      setup: MeshWireSetup = {
+        $node: macro.$node,
+        meshPath: null,
+        fragmentPath: macroPath,
+        fragmentBoundaries: boundaries,
+        getFragment(){ return $fragment },
+        setFragment( $newFragment ){ $fragment = $newFragment },
+        argv: macro.argv,
+        scope,
+        useAttributes: true
+      },
+      macrowire = self.__meshwire__( setup, TRACKABLE_ATTRS ),
       $log = macrowire.renderer.mesh( argvalues )
 
       $fragment = $fragment.add( $log )
@@ -1561,11 +1315,10 @@ export default class Component<Input = void, State = void, Static = void, Contex
       
       processAttrs( attrs, true )
       
-      /**
-       * BENCHMARK: Tracking total elements rendered
-       */
+      // Track DOM insertion
       self.benchmark.inc('elementCount')
-        
+      self.benchmark.inc('domInsertsCount')
+
       return $fragment
     }
     function execText( $node: Cash ): Cash {
@@ -1593,6 +1346,10 @@ export default class Component<Input = void, State = void, Static = void, Contex
           batch: deps.length > 1
         }) )
       }
+
+      // Track DOM insertion
+      self.benchmark.inc('elementCount')
+      self.benchmark.inc('domInsertsCount')
 
       return $fragment
     }
@@ -1687,9 +1444,16 @@ export default class Component<Input = void, State = void, Static = void, Contex
        */
       self.benchmark.inc('renderCount')
     }
-    catch( error ){ console.error('Rendering Failed --', error ) }
+    catch( error ){
+      console.error('Rendering Failed --', error ) 
+      self.benchmark.trackError( error as Error )
+    }
     finally {
       this.__renderDepth--
+      
+      // End benchmark measuring
+      this.benchmark.endRender()
+      this.benchmark.trackMemory()
       
       // Clear path when main render completes
       if( this.__renderDepth === 0 ){
@@ -1728,7 +1492,206 @@ export default class Component<Input = void, State = void, Static = void, Contex
     this.$?.attr('rel', this.__name__ )
   }
 
+  private __meshwire__( setup: MeshWireSetup, TRACKABLE_ATTRS: Record<string, string> ){
+    const
+    self = this,
+    {
+      $node,
+      meshPath,
+      fragmentPath,
+      fragmentBoundaries,
+      argv,
+      scope,
+      declaration,
+      useAttributes,
+      getFragment,
+      setFragment
+    } = setup
+
+    let
+    partial: { $log: Cash, path: string } | undefined,
+    attachedEvents: VirtualEvent[] | undefined,
+    wire: MeshTemplate = {
+      renderer: {
+        path: meshPath,
+        argv,
+        mesh( argvalues?: VariableScope ){
+          const $contents = $node.contents()
+          if( !$contents.length ) return null
+
+          // Cleanup previous partial's attached events
+          if( attachedEvents?.length )
+            attachedEvents.forEach( ({ $node, _event }) => self.__detachEvent__( $node, _event ) )
+          
+          // Render the partial
+          const { $log, dependencies, events } = self.render( $contents, { ...scope, ...argvalues } )
+
+          partial = {
+            $log,
+            path: `${fragmentPath}.${meshPath || 'root'}`
+          }
+          attachedEvents = events
+
+          /**
+           * Share partial FGU dependenies with main component thread
+           * for parallel updates (main & partial) on the meshed node.
+           * 
+           * 1. From main FGU dependency track
+           * 2. From mesh rendering track
+           */
+          if( !self.__dependencies ) return
+
+          dependencies.forEach( ( dependents, dep ) => {
+            if( !self.__dependencies?.has( dep ) )
+              self.__dependencies.set( dep, new Map() )
+            
+            // Add partial dependency
+            dependents.forEach( ( dependent, path ) => self.__dependencies.get( dep )?.set( path, { ...dependent, partial: partial?.path }) )
+          } )
+
+          self.benchmark.inc('partialCount')
+
+          return $log
+        },
+        update( argvalues?: VariableScope ){
+          if( !partial ) return
+
+          // Start measuring
+          self.benchmark.startRender()
+          
+          const 
+          batchUpdates = new Set<string>(),
+          $fragment = getFragment()
+          
+          // Execute partial mesh update
+          self.__dependencies.forEach( ( dependents, dep ) => {
+            dependents.forEach( ( dependent ) => {
+              // Process only dependents of this partial
+              if( dependent.partial !== partial?.path ) return
+              
+              if( !$fragment.closest('body').length ){
+                console.warn(`${meshPath} -- partial not found in the DOM`)
+                dependents.delete( dependent.path )
+                return
+              }
+
+              if( dependent.memo
+                  && argvalues
+                  && isEqual( dependent.memo[ dep ], argvalues[ dep ]) ) return
+
+              const newMemo = { ...scope, ...argvalues }
+              dependent.memo = newMemo
+
+              if( dependent.batch ) batchUpdates.add( dependent.path )
+              else {
+                const sync = dependent.update( newMemo, 'mesh-updator' )
+                if( sync ){
+                  // Adopt new $fragment
+                  typeof sync.$fragment === 'object'
+                  && sync.$fragment.length
+                  && dependents.set( dependent.path, { ...dependent, $fragment: sync.$fragment } )
+
+                  // Cleanup callback
+                  typeof sync.cleanup === 'function' && sync.cleanup()
+                }
+              }
+
+              self.benchmark.inc('dependencyUpdateCount')
+            })
+
+            /**
+             * Clean up if no more dependents
+             */
+            !dependents.size && self.__dependencies.delete( dep )
+          })
+
+          // Execute batch updates
+          if( batchUpdates.size ){
+            self.benchmark.trackBatch( batchUpdates.size )
+            self.UQS.enqueue( self.__dependencies, batchUpdates )
+          }
+
+          // Track update
+          self.benchmark.inc('partialUpdateCount')
+
+          // Finish measuring
+          self.benchmark.endRender()
+        },
+        replaceWith( $newFragment: Cash ){
+          if( !$newFragment || !$newFragment.length ) return
+          
+          const $fragment = getFragment()
+          
+          // If we have boundary markers and they're in the DOM
+          if( document.contains( fragmentBoundaries.start ) && document.contains( fragmentBoundaries.end ) ){
+            // Collect all nodes between markers to remove
+            const nodesToRemove = []
+            let currentNode = fragmentBoundaries.start.nextSibling
+            
+            while( currentNode && currentNode !== fragmentBoundaries.end ){
+              nodesToRemove.push( currentNode )
+              currentNode = currentNode.nextSibling
+            }
+            
+            // Remove existing content
+            $(nodesToRemove).remove()
+            // Insert new content between markers
+            $(fragmentBoundaries.start).after( $newFragment )
+            
+            // Update fragment reference
+            setFragment( $newFragment )
+            return
+          }
+
+          const $first = $fragment.first()
+          if( !$first.length ){
+            console.warn('missing stagged fragment.')
+            return
+          }
+
+          $fragment.each( ( _: number, el: Element ) => { _ > 0 && $(el).remove() })
+          $first.after( $newFragment ).remove()
+
+          setFragment( $newFragment )
+        }
+      }
+    }
+
+    /**
+     * Allow attributes consumption as input/props.
+     */
+    if( useAttributes && meshPath ){
+      const { argv, attrs: segmentAttrs, events } = self.__getAttributes__( $node )
+      
+      segmentAttrs && Object
+      .entries( segmentAttrs )
+      .forEach( ([ key, value ]) => {
+        if( SPREAD_VAR_PATTERN.test( key ) ){
+          const
+          spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
+          if( typeof spreads !== 'object' )
+            throw new Error(`Invalid spread operator ${key}`)
+
+          for( const _key in spreads )
+            wire[ _key ] = spreads[ _key ]
+          
+          TRACKABLE_ATTRS[`${declaration?.syntax ? SYNCTAX_VAR_FLAG : ''}${meshPath}.${key}`] = value
+        }
+        else {
+          wire[ key ] = value ? self.__evaluate__( value as string, scope ) : true
+          // Record attribute to be tracked as FGU dependency
+          TRACKABLE_ATTRS[`${declaration?.syntax ? SYNCTAX_VAR_FLAG : ''}${meshPath}.${key}`] = value
+        }
+      })
+    }
+
+    return wire
+  }
   private __createBoundaries__( path: string ): FragmentBoundaries {
+    // Track DOM operations for boundary creation
+    this.benchmark.inc('domOperations')
+    this.benchmark.inc('domInsertsCount')
+
     return {
       start: document.createComment(`start:${path}`),
       end: document.createComment(`end:${path}`)
@@ -1850,9 +1813,16 @@ export default class Component<Input = void, State = void, Static = void, Contex
     }
 
     this.__attachedEvents.push({ element, _event })
+    
+    // Track DOM operation
+    this.benchmark.inc('domUpdatesCount')
+    this.benchmark.inc('domRemovalsCount')
   }
   private  __detachEvent__( $element: Cash | Component, _event: string ){
     $element.off( _event )
+    // Track DOM operation
+    this.benchmark.inc('domOperations')
+    this.benchmark.inc('domRemovalsCount')
   }
 
   private __extractTextDeps__( expr: string, scope?: VariableScope ): string[] {
@@ -1921,6 +1891,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private __trackDep__( dependencies: FGUDependencies, dep: string, record: FGUDependency ){
     !dependencies.has( dep ) && dependencies.set( dep, new Map() )
     dependencies.get( dep )?.set( record.path, record )
+    
+    // Track dependency
+    this.benchmark.inc('dependencyTrackCount')
   }
 
   private __valueDep__( obj: any, path: string[] ): any {
@@ -1943,6 +1916,11 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private __updateDepNodes__( current: Metavars<Input, State, Context>, previous?: Metavars<Input, State, Context> ){
     if( !this.__dependencies?.size ) return
 
+    // Track update
+    this.benchmark.inc('componentUpdateCount')
+    // Start measuring
+    this.benchmark.startRender()
+    
     // Temporary batched updates
     const batchUpdates = new Set<string>()
 
@@ -1997,6 +1975,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
               typeof sync.cleanup === 'function' && sync.cleanup()
             }
           }
+
+          this.benchmark.inc('dependencyUpdateCount')
         }
         catch( error ){
           console.error('failed to update dependency nodes --', error )
@@ -2013,7 +1993,13 @@ export default class Component<Input = void, State = void, Static = void, Contex
     /**
      * Execute all batched updates
      */
-    batchUpdates.size && this.UQS.enqueue( this.__dependencies, batchUpdates )
+    if( batchUpdates.size ){
+      this.benchmark.trackBatch( batchUpdates.size )
+      this.UQS.enqueue( this.__dependencies, batchUpdates )
+    }
+
+    // Finish measuring
+    this.benchmark.endRender()
   }
   
   destroy(){
@@ -2022,6 +2008,10 @@ export default class Component<Input = void, State = void, Static = void, Contex
      * component.
      */
     this.ICE.dispose()
+    /**
+     * Clean up benchmark resources
+     */
+    this.benchmark.dispose()
     /**
      * Stop watcher when component's element get 
      * detached from the DOM
@@ -2066,17 +2056,26 @@ export default class Component<Input = void, State = void, Static = void, Contex
     const $to = typeof arg == 'string' ? $(arg) : arg
     this.$?.length && $to.append( this.$ )
 
+    // Track DOM operation
+    this.benchmark.inc('domOperations')
+
     return this
   }
   prependTo( arg: Cash | string ){
     const $to = typeof arg == 'string' ? $(arg) : arg
     this.$?.length && $to.prepend( this.$ )
+    
+    // Track DOM operation
+    this.benchmark.inc('domOperations')
 
     return this
   }
   replaceWith( arg: Cash | string ){
     const $with = typeof arg == 'string' ? $(arg) : arg
     this.$?.length && $with.replaceWith( this.$ )
+    
+    // Track DOM operation
+    this.benchmark.inc('domOperations')
 
     return this
   }

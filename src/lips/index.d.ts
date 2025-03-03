@@ -125,3 +125,17 @@ export interface MeshRenderer {
 export type MeshTemplate = Record<string, any> & {
   renderer: MeshRenderer
 }
+export interface MeshWireSetup {
+  argv: string[] = []
+  scope: VariableScope = {}
+  declaration?: Declaration
+  useAttributes: boolean
+  
+  $node: Cash
+  meshPath: string | null
+
+  getFragment(): Cash
+  setFragment( $frag ): void
+  fragmentPath: string
+  fragmentBoundaries: FragmentBoundaries
+}

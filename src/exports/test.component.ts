@@ -301,8 +301,11 @@ function Demo6(){
       onInput(){ 
         this.state.count = Number( this.input.initial )
       
-        const end = setInterval( () => { this.state.count++; this.emit('update', this.state.count ) }, 1 )
-        setTimeout( () => { console.log('ended'); clearInterval( end )}, 5000 )
+        const end = setInterval( () => {
+          this.state.count++
+          this.emit('update', this.state.count )
+        }, 1 )
+        setTimeout( () => clearInterval( end ), 5000 )
       },
       handleClick( e: Event ){
         if( this.state.count >= this.static.limit )
@@ -1078,8 +1081,8 @@ function DemoInput(){
       onInput(){ 
         this.state.count = Number( this.input.initial )
       
-        const end = setInterval( () => { this.state.count++; console.log( this.state.count ) }, 5 )
-        setTimeout( () => clearInterval( end ), 5000 )
+        const end = setInterval( () => this.state.count++, 5 )
+        setTimeout( () => clearInterval( end ), 15000 )
       },
       handleClick( e: Event ){
         if( this.state.count >= this.input.limit )
@@ -1152,9 +1155,6 @@ function DemoInput(){
       <else-if( state.value.includes('i') )>
         <p><i>{state.value}</i></p>
       </else-if>
-      <else>
-        <p>{state.value}</p>
-      </else>
 
       <for [n, idx] in=state.numbers>
         <let square="idx * 4"/>
@@ -1172,6 +1172,8 @@ function DemoInput(){
           <div style="color: orange;">Orange light</div>
         </case>
       </switch>
+
+      <pd/>
     </div>
   `,
   handler: Handler<any, State> = {
@@ -1206,6 +1208,6 @@ function DemoInput(){
 // Demo4()
 // Demo5()
 // Demo6()
-DemoCart()
+// DemoCart()
 // DemoLayers()
-// DemoInput()
+DemoInput()

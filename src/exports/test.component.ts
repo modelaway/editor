@@ -1081,8 +1081,8 @@ function DemoInput(){
       onInput(){ 
         this.state.count = Number( this.input.initial )
       
-        const end = setInterval( () => this.state.count++, 5 )
-        setTimeout( () => clearInterval( end ), 15000 )
+        // const end = setInterval( () => this.state.count++, 5 )
+        // setTimeout( () => clearInterval( end ), 15000 )
       },
       handleClick( e: Event ){
         if( this.state.count >= this.input.limit )
@@ -1120,7 +1120,7 @@ function DemoInput(){
 
   const
   state: State = {
-    value: 'dupont',
+    value: 'logger',
     initial: 5,
     attrs: {
       hidden: true,
@@ -1129,6 +1129,33 @@ function DemoInput(){
     numbers: [1,2],
     speech: 'hi',
     traffic: 'orange'
+  },
+  handler: Handler<any, State> = {
+    handleInput( e ){
+      this.state.value = e.target.value
+      this.state.attrs.hidden = e.target.value.length == 2
+
+      if( e.target.value.length == 2 ){
+        this.state.speech = 'hello'
+        this.state.numbers = [0,5,3,6,2,3,6,7,4]
+        this.state.traffic = 'red'
+      }
+
+      else if( e.target.value.length === 4 ){
+        this.state.numbers = [4,3,2,3,3,32]
+        this.state.speech = 'booz'
+        this.state.traffic = 'green'
+      }
+
+      else this.state.traffic = 'orange'
+    },
+    getSum(){
+      return {
+        nbr: 20,
+        read(){ return this.nbr },
+        write( nbr: number ){ return this.nbr = nbr },
+      } as any
+    }
   },
   template = `
     <div style="{ border: '1px solid '+(state.value.length > 5 ? 'red' : 'gray') }">
@@ -1146,16 +1173,33 @@ function DemoInput(){
       <easycount [count] initial=state.initial>
         <span>{state.value}: {count}</span>
       </easycount>
-
+      
       <button on-click(() => self.state.initial = 2 )>Change initial</button>
 
+      <br><br>
+      <if( self.getSum() )>
+        <let sum=self.getSum()/>
+        <log('sum --', sum )/>
+
+        <fieldset>
+          <div>First read - {sum.read()}</div>
+          <div>Write - {sum.write( 15 )}</div>
+          <div>Then read again - {sum.read()}</div>
+        </fieldset>
+      </if>
+
+      <br>
       <if( state.value.includes('b') )>
         <p><b>{state.value}</b></p>
       </if>
       <else-if( state.value.includes('i') )>
         <p><i>{state.value}</i></p>
       </else-if>
+      <else-if( state.value.includes('u') )>
+        <p><u>{state.value}</u></p>
+      </else-if>
 
+      <br>
       <for [n, idx] in=state.numbers>
         <let square="idx * 4"/>
         #<span>[{idx}]-{n}({square})</span>.
@@ -1172,30 +1216,8 @@ function DemoInput(){
           <div style="color: orange;">Orange light</div>
         </case>
       </switch>
-
-      <pd/>
     </div>
-  `,
-  handler: Handler<any, State> = {
-    handleInput( e ){
-      this.state.value = e.target.value
-      this.state.attrs.hidden = e.target.value.length == 2
-
-      if( e.target.value.length == 2 ){
-        this.state.speech = 'hello'
-        this.state.numbers = [0,5,3,6,2,3,6,7,4]
-        this.state.traffic = 'red'
-      }
-
-      else if( e.target.value.length === 4 ){
-        this.state.numbers = [4,3,2,3,3,32]
-        this.state.speech = 'buuuu'
-        this.state.traffic = 'green'
-      }
-
-      else this.state.traffic = 'orange'
-    }
-  }
+  `
 
   lips
   .render('DemoInput', { default: template, state, handler }, {})

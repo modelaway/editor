@@ -211,6 +211,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * dependencies
        */
       if( !this.isRendered ){
+        // Reset benchmark before render
+        this.benchmark.reset()
+
         const { $log } = this.render( undefined, undefined, this.__dependencies )
         this.$ = $log
         
@@ -464,8 +467,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
             value: self.__evaluate__( assign as string, scope ),
             type: 'let'
           }
-
-          console.log('let eval -----', scope[ key ] )
         }
       } )
       
@@ -622,6 +623,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
           const newRenderer = self.__evaluate__( dtag, memo )
           
           if( isMesh( newRenderer ) ){
+            activeRenderer = newRenderer
+            
             // Check if boundaries are in DOM
             if( document.contains( boundaries.start ) && document.contains( boundaries.end ) ){
               // Render new content
@@ -789,13 +792,21 @@ export default class Component<Input = void, State = void, Static = void, Contex
             .entries( template.declaration?.tags )
             .forEach( ([ tagname, { type, many }]) => {
               switch( type ){
-                case 'sibling': {
-                  const $siblings = $node.siblings( tagname )
+                case 'nexted': {
+                  let $next = $node.next( tagname )
+                  if( !$next.length ) return
+
                   if( many ){
                     input[ tagname ] = []
-                    $siblings.each(function( index ){
+
+                    let
+                    index = 0,
+                    reachedEndOfChain = false
+                    
+                    // Continue until we reach the end of the chain
+                    while( !reachedEndOfChain ){
                       input[ tagname ].push( self.__meshwire__({ 
-                        $node: $(this),
+                        $node: $next,
                         meshPath: `${tagname}[${index}]`,
                         fragmentPath: componentPath,
                         fragmentBoundaries: boundaries,
@@ -806,21 +817,30 @@ export default class Component<Input = void, State = void, Static = void, Contex
                         useAttributes: true,
                         declaration: template.declaration
                       }, TRACKABLE_ATTRS ) )
-                    })
+
+                      // Check if there's a next sibling
+                      if( !$next.next( tagname ).length ){
+                        reachedEndOfChain = true
+                        break
+                      }
+                      
+                      // Move to the next siblings
+                      $next = $next.next( tagname )
+                      index++
+                    }
                   }
-                  else if( $node.siblings( tagname ).first().length )
-                    input[ tagname ] = self.__meshwire__({ 
-                      $node: $node.siblings( tagname ).first(),
-                      meshPath: tagname,
-                      fragmentPath: componentPath,
-                      fragmentBoundaries: boundaries,
-                      getFragment(){ return $fragment },
-                      setFragment( $newFragment ){ $fragment = $newFragment },
-                      argv,
-                      scope,
-                      useAttributes: true,
-                      declaration: template.declaration
-                    }, TRACKABLE_ATTRS )
+                  else input[ tagname ] = self.__meshwire__({
+                        $node: $next,
+                        meshPath: tagname,
+                        fragmentPath: componentPath,
+                        fragmentBoundaries: boundaries,
+                        getFragment(){ return $fragment },
+                        setFragment( $newFragment ){ $fragment = $newFragment },
+                        argv,
+                        scope,
+                        useAttributes: true,
+                        declaration: template.declaration
+                      }, TRACKABLE_ATTRS )
                 } break
 
                 case 'child': {
@@ -959,6 +979,14 @@ export default class Component<Input = void, State = void, Static = void, Contex
               }) )
             }
           }
+        })
+
+        // Add boundaries to the initial fragment when it's added to DOM
+        self.once('component:attached', () => {
+          if( !$fragment.first()[0]?.isConnected ) return
+
+          $fragment.first().before( boundaries.start )
+          $fragment.last().after( boundaries.end )
         })
       }
 
@@ -1661,10 +1689,10 @@ export default class Component<Input = void, State = void, Static = void, Contex
      * Allow attributes consumption as input/props.
      */
     if( useAttributes && meshPath ){
-      const { argv, attrs: segmentAttrs, events } = self.__getAttributes__( $node )
+      const { attrs } = self.__getAttributes__( $node )
       
-      segmentAttrs && Object
-      .entries( segmentAttrs )
+      attrs && Object
+      .entries( attrs )
       .forEach( ([ key, value ]) => {
         if( SPREAD_VAR_PATTERN.test( key ) ){
           const

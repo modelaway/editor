@@ -4,7 +4,7 @@ import type Component from './component'
 export type LanguageDictionary = Record<string, Record<string, string> | string>
 export type VariableScope = Record<string, { value: any, type: 'let' | 'const' }>
 
-export type DeclarationTagType = 'sibling' | 'child'
+export type DeclarationTagType = 'nexted' | 'child'
 export type DeclarationTag = {
   type: DeclarationTagType
   many?: boolean

@@ -23,7 +23,7 @@ export interface Static {
 export const state = {
   metricsHistory: [],
   activeTab: 'rendering',
-  isVisible: true
+  isVisible: false
 }
   
 export const _static = {
@@ -109,7 +109,7 @@ export default `
     <!-- Rendering Tab -->
     <div style="{ display: state.activeTab === 'rendering' ? 'block' : 'none' }">
       <div class="perf-dashboard-chart">
-        <for [point, i] in={state.metricsHistory.slice(-30)}>
+        <for [point, i] in=state.metricsHistory.slice(-30)>
           <div class="perf-dashboard-chart-bar render-avg" 
                 style="{ height: (point.metrics.avgRenderTime * 2)+'px', left: (i * (100/30))+'%' }"></div>
           <div class="perf-dashboard-chart-bar render-max" 
@@ -150,7 +150,7 @@ export default `
     <!-- Components Tab -->
     <div style="{ display: state.activeTab === 'components' ? 'block' : 'none' }">
       <div class="perf-dashboard-chart">
-        <for [point, i] in={state.metricsHistory.slice(-30)}>
+        <for [point, i] in=state.metricsHistory.slice(-30)>
           <div class="perf-dashboard-chart-bar component-updates" 
                 style="{ height: (point.metrics.componentUpdateCount)+'px', left: (i * (100/30))+'%' }"></div>
         </for>
@@ -164,7 +164,7 @@ export default `
         </tr>
 
         <if( state.metricsHistory.length > 0 )>
-          <let latest="self.getLatestMetrics()"/>
+          <let latest=self.getLatestMetrics()/>
           <tr>
             <td>Component Count</td>
             <td>{latest?.componentCount}</td>
@@ -188,7 +188,7 @@ export default `
     <!-- DOM Tab -->
     <div style="{ display: state.activeTab === 'dom' ? 'block' : 'none' }">
       <div class="perf-dashboard-chart">
-        <for [point, i] in={state.metricsHistory.slice(-30)}>
+        <for [point, i] in=state.metricsHistory.slice(-30)>
           <div class="perf-dashboard-chart-bar dom-ops" 
                 style="{ height: (point.metrics.domOperations / 5)+'px', left: (i * (100/30))+'%' }"></div>
         </for>
@@ -226,7 +226,7 @@ export default `
     <!-- Memory Tab -->
     <div style="{ display: state.activeTab === 'memory' ? 'block' : 'none' }">
       <div class="perf-dashboard-chart">
-        <for [point, i] in={state.metricsHistory.slice(-30)}>
+        <for [point, i] in=state.metricsHistory.slice(-30)>
           <div class="perf-dashboard-chart-bar memory" 
                 style="{ height: (point.metrics.memoryUsage ? point.metrics.memoryUsage * 2 : 0)+'px', left: (i * (100/30))+'%' }"></div>
         </for>

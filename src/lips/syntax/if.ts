@@ -14,8 +14,8 @@ export const declaration: Declaration = {
   name: 'if',
   syntax: true,
   tags: {
-    'else-if': { type: 'sibling', many: true },
-    'else': { type: 'sibling' }
+    'else-if': { type: 'nexted', many: true },
+    'else': { type: 'nexted' }
   }
 }
 export const state: State = {
@@ -36,14 +36,14 @@ export const handler: Handler<Input, State> = {
       // Render -- else-if
       if( Array.isArray( this.input['else-if'] ) && this.input['else-if'].length ){
         this.input['else-if'].forEach( each => {
-          if( !each.by ) return
+          if( elseifMatch || !each.by ) return
           
           this.state.renderer = each.renderer
           elseifMatch = true
         } )
       }
       
-      // Render -- else or No fallback
+      // Render -- else or Null fallback
       if( !elseifMatch )
         this.state.renderer = this.input.else ? this.input.else.renderer : null
     }

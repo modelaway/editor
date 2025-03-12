@@ -1,6 +1,7 @@
 import type { LipsConfig, Template, ComponentOptions } from '.'
 
 import I18N from './i18n'
+import IUC from './iuc'
 import DWS from './dws'
 import Component from './component'
 import { effect, signal } from './signal'
@@ -18,6 +19,7 @@ export default class Lips<Context = any> {
   private __root?: Component
   public i18n = new I18N()
   public watcher?: DWS
+  public IUC: IUC
 
   private _setContext: ( ctx: Context ) => void
   private _getContext: () => Context
@@ -26,7 +28,8 @@ export default class Lips<Context = any> {
     if( config?.debug ) 
       this.debug = config.debug
 
-    this.watcher = new DWS()
+    this.watcher = new DWS
+    this.IUC = new IUC
     
     const [ getContext, setContext ] = signal<Context>( config?.context || {} )
 

@@ -2,7 +2,11 @@ import type Lips from './lips'
 import type Component from './component'
 
 export type LanguageDictionary = Record<string, Record<string, string> | string>
-export type VariableScope = Record<string, { value: any, type: 'let' | 'const' }>
+export type VariableScopeSet = {
+  value: any
+  type: 'let' | 'const'
+}
+export type VariableScope = Record<string, VariableScopeSet>
 
 export type DeclarationTagType = 'nexted' | 'child'
 export type DeclarationTag = {
@@ -11,8 +15,8 @@ export type DeclarationTag = {
 }
 export type Declaration = {
   name: string
-  droot?: boolean
   syntax?: boolean
+  iterator?: boolean
   contents?: boolean
   tags?: Record<string, DeclarationTag>
 }
@@ -79,7 +83,7 @@ export type Macro = {
 }
 
 export type VirtualEvent = {
-  $node: Cash
+  $fragment: Cash
   _event: string
   instruction: string
   scope?: Record<string, any>
@@ -97,10 +101,10 @@ export interface FGUSync {
 }
 export interface FGUDependency {
   path: string
-  $fragment: Cash
+  $fragment: Cash | null
   batch?: boolean
   syntax?: boolean
-  partial?: string
+  partial?: string[]
   memo: VariableScope
   update: ( memo: VariableScope, by?: string ) => FGUSync | void
 }
@@ -120,7 +124,7 @@ export interface MeshRenderer {
   argv: string[]
   mesh( argv?: VariableScope ): Cash
   update( argv: VariableScope ): Cash
-  replaceWith( $fragment: Cash ): void
+  // replaceWith( $fragment: Cash ): void
 }
 export type MeshTemplate = Record<string, any> & {
   renderer: MeshRenderer

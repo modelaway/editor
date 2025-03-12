@@ -228,6 +228,8 @@ export default class Benchmark {
   }
   
   trackMemory(){
+    if( !this.debug ) return
+
     // @ts-ignore - Some browsers expose memory info
     if( !this.debug || !window.performance?.memory ) return
     // @ts-ignore - Some browsers expose memory info
@@ -248,6 +250,8 @@ export default class Benchmark {
   
   // Configure logging interval
   setLoggingInterval( interval: number ){
+    if( !this.debug ) return
+    
     this.loggingInterval = interval
   }
   // Get a snapshot of current metrics
@@ -257,6 +261,7 @@ export default class Benchmark {
   
   // Cleanup resources when done
   dispose(){
+    if( !this.debug ) return
     this.autoSaveInterval && clearInterval( this.autoSaveInterval )
   }
 }

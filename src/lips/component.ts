@@ -53,6 +53,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private __macros: Map<string, Macro> = new Map() // Cached macros templates
   private __dependencies: FGUDependencies = new Map() // Initial FGU dependencies
   private __attachedEvents: VirtualEventRecord<Component<Input, State, Static, Context>>[] = []
+  private __renderCache: Map<string, RenderedNode> = new Map()
 
   // Preserved Child Components
   private PCC: Map<string, Component> = new Map()
@@ -72,11 +73,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
   // Update Queue System for high-frequency DOM updates
   private UQS: UQS
-
-  // Internal Update Clock (IUC)
-  private IUC: NodeJS.Timeout
-  private IUC_BEAT = 5 // ms
-  private ICE: EffectControl // Internal Component Effect
+  // Internal Component Effect
+  private ICE: EffectControl
 
   public lips?: Lips
   private benchmark: Benchmark
@@ -94,7 +92,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
   constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet, macros, declaration }: ComponentScope<Input, State, Static, Context>, options?: ComponentOptions ){
     super()
     this.template = preprocessor( template )
-    
+
     if( options?.lips ) this.lips = options.lips    
     if( options?.debug ) this.debug = options.debug
     if( options?.prekey ) this.prekey = options.prekey
@@ -168,7 +166,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
     this._setState = setState
     this._getState = getState
 
-    this.IUC = setInterval( () => {
+    this.lips?.IUC.register(`${this.prekey}.${this.__name__}`, () => {
       /**
        * Apply update only when a new change 
        * occured on the state.
@@ -178,7 +176,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
       this.state
       && isDiff( this.__previous?.state as Record<string, any>, this.state as Record<string, any> )
       && this.setState( this.state )
-    }, this.IUC_BEAT )
+    })
     
     /**
      * Set context update effect listener
@@ -213,12 +211,16 @@ export default class Component<Input = void, State = void, Static = void, Contex
       if( !this.isRendered ){
         // Reset benchmark before render
         this.benchmark.reset()
-
+        
         const { $log } = this.render( undefined, undefined, this.__dependencies )
         this.$ = $log
         
-        // Assign CSS relationship attribute
-        this.$?.attr('rel', this.__name__ )
+        /**
+         * Assign CSS relationship attribute
+         * for only non-syntax components.
+         */
+        !declaration?.syntax && this.$?.attr('rel', this.__name__ )
+
         this.isRendered = true
         
         /**
@@ -264,7 +266,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
         this.context = context
       }
 
-      this.benchmark.log()
+      // this.benchmark.log()
 
       /**
        * Triggered anytime component gets rendered
@@ -416,17 +418,14 @@ export default class Component<Input = void, State = void, Static = void, Contex
       const
       dtag = $node.attr('dtag') as string,
       result = self.__evaluate__( dtag, scope )
-
+      
       /**
        * Process dynamic content rendering tag set by:
        * 
        * Syntax `<{input.render}/>`
        * processed to `<lips dtag=input.render></lips>`
        */
-      if( result === null )
-        return execDynamicElement( $node, dtag, null )
-
-      if( isMesh( result ) )
+      if( isMesh( result ) || result === null )
         return execDynamicElement( $node, dtag, result )
 
       // else if( isTemplate( result ) )
@@ -437,11 +436,18 @@ export default class Component<Input = void, State = void, Static = void, Contex
       * Syntax `<{dynamic-name}/>`
       * processed to `<lips dtag="[dynamic-name]"></lips>`
       */
-      else execComponent( $node, result )
+      else return execComponent( $node, result )
     }
 
+    function execLog( $node: Cash ){
+      const args = $node.attr('args')
+      if( !args ) return
+
+      self.__evaluate__(`console.log(${args})`, scope )
+    }
     function execLet( $node: Cash ){
       const
+      varPath = self.__generatePath__('var'),
       attributes = ($node as any).attrs()
       if( !attributes ) return 
       
@@ -450,25 +456,62 @@ export default class Component<Input = void, State = void, Static = void, Contex
       .forEach( ([ key, assign ]) => {
         // Process spread assign
         if( SPREAD_VAR_PATTERN.test( key ) ){
-          const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
-          if( typeof spreads !== 'object' )
-            throw new Error(`Invalid spread operator ${key}`)
+          const spreadExtract = ( update?: boolean, memo?: VariableScope ) => {
+            const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo || scope )
+            if( typeof spreads !== 'object' )
+              throw new Error(`Invalid spread operator ${key}`)
 
-          for( const _key in spreads )
-            scope[ _key ] = {
-              value: spreads[ _key ],
-              type: 'let'
+            for( const _key in spreads )
+              scope[ _key ] = {
+                value: spreads[ _key ],
+                type: 'let'
+              }
+
+            if( update ){
+              // TODO: Do more than just update scope
+              
             }
+          }
+
+          const deps = self.__extractExpressionDeps__( key as string, scope )
+          deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+            $fragment: null,
+            path: `${varPath}.${key}`,
+            update: memo => spreadExtract( true, memo ),
+            memo: scope,
+            batch: true
+          }) )
+
+          spreadExtract()
         }
-        else {
-          if( !assign ) return
+        else if( assign ){
+          if( self.__isReactive__( assign as string, scope ) ){
+            const 
+            deps = self.__extractExpressionDeps__( assign as string, scope ),
+            updateVar = ( memo: VariableScope, by?: string ) => {
+              scope[ key ] = {
+                value: self.__evaluate__( assign as string, memo ),
+                type: 'let'
+              }
+
+              // TODO: Do more than just update scope
+            }
+
+            deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+              $fragment: null,
+              path: `${varPath}.${key}`,
+              update: updateVar,
+              memo: scope,
+              batch: true
+            }) )
+          }
 
           scope[ key ] = {
             value: self.__evaluate__( assign as string, scope ),
             type: 'let'
           }
         }
-      } )
+      })
       
       /**
        * BENCHMARK: Tracking total elements rendered
@@ -517,7 +560,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
        */
       self.benchmark.inc('elementCount')
     }
-    function execEmptyFragment( $node: Cash ){
+    function execEmptyFragment( $node: Cash ): Cash {
       const
       elementPath = self.__generatePath__('element'),
       $contents = $node.contents()
@@ -525,12 +568,12 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
       // Process contents recursively if they exist
       if( $contents.length )
-        $fragment = $fragment.add( self.__withPath__( `${elementPath}/content`, () => self.render( $contents, scope, dependencies ).$log ) )
+        $fragment = $fragment.add( self.__withPath__( elementPath, () => self.render( $contents, scope, dependencies ).$log ) )
 
       return $fragment
     }
-    function execDynamicElement( $node: Cash, dtag: string, renderer: MeshRenderer | null ){
-      let 
+    function execDynamicElement( $node: Cash, dtag: string, renderer: MeshRenderer | null ): Cash {
+      let
       $fragment = $(),
       // Keep track of the latest mesh scope
       argvalues: VariableScope = {},
@@ -540,19 +583,36 @@ export default class Component<Input = void, State = void, Static = void, Contex
       { attrs } = self.__getAttributes__( $node ),
       elementPath = self.__generatePath__('element'),
       boundaries = self.__createBoundaries__( elementPath )
+      let hasBoundaries = false
       
       if( renderer ){
         attrs && Object
         .entries( attrs )
         .forEach( ([ key, value ]) => {
-          /**
-           * Only consume declared arguments' value
-           */
-          if( !renderer.argv.includes( key ) ) return
+          if( SPREAD_VAR_PATTERN.test( key ) ){
+            const
+            spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
+            if( typeof spreads !== 'object' )
+              throw new Error(`Invalid spread operator ${key}`)
 
-          argvalues[ key ] = {
-            type: 'const',
-            value: value ? self.__evaluate__( value, scope ) : true
+            for( const _key in spreads ){
+              // Only consume declared arguments' value
+              if( _key !== '$$' && !renderer.argv.includes( _key ) ) continue
+
+              argvalues[ _key ] = {
+                type: 'const',
+                value: spreads[ _key ]
+              }
+            }
+          }
+          else {
+            // Only consume declared arguments' value
+            if( key !== '$$' && !renderer.argv.includes( key ) ) return
+
+            argvalues[ key ] = {
+              type: 'const',
+              value: value ? self.__evaluate__( value, scope ) : true
+            }
           }
         })
 
@@ -560,13 +620,17 @@ export default class Component<Input = void, State = void, Static = void, Contex
         $fragment = $fragment.add( $log && $log.length ? $log : DYNAMIC_TAG_PLACEHOLDER )
 
         // Add boundaries to the initial fragment when it's added to DOM
-        self.once('component:attached', () => {
-          if( !$fragment.first()[0]?.isConnected ) return
+        if( !hasBoundaries ){
+          self.once('component:attached', () => {
+            if( !$fragment.first()[0]?.isConnected ) return
 
-          $fragment.first().before( boundaries.start )
-          $fragment.last().after( boundaries.end )
-        })
+            $fragment.first().before( boundaries.start )
+            $fragment.last().after( boundaries.end )
+          })
 
+          hasBoundaries = true
+        }
+        
         /**
          * IMPORTANT:
          * 
@@ -576,27 +640,59 @@ export default class Component<Input = void, State = void, Static = void, Contex
         attrs && Object
         .entries( attrs )
         .forEach( ([ key, value ]) => {
-          /**
-           * Only update declared arguments' value
-           */
-          if( !renderer.argv.includes( key ) ) return
+          if( SPREAD_VAR_PATTERN.test( key ) && self.__isReactive__( key as string, scope ) ){
+            const
+            deps = self.__extractExpressionDeps__( key as string, scope ),
+            spreadPartialUpdate = ( memo: VariableScope, by?: string ) => {
+              if( !activeRenderer ) return
 
-          const partialUpdate = ( memo: VariableScope, by?: string ) => {
-            if( !activeRenderer ) return
-            
-            activeRenderer.update({
-              [key]: {
-                type: 'const',
-                value: value ? self.__evaluate__( value, memo ) : true
+              const
+              extracted: VariableScope = {},
+              spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo )
+              if( typeof spreads !== 'object' )
+                throw new Error(`Invalid spread operator ${key}`)
+
+              for( const _key in spreads ){
+                // Only update declared arguments' value
+                if( _key !== '$$' && !activeRenderer.argv.includes( _key ) ) continue
+
+                extracted[ _key ] = {
+                  type: 'const',
+                  value: spreads[ _key ]
+                }
               }
-            })
 
-            return { $fragment }
+              $fragment = activeRenderer.update( extracted )
+              if( !$fragment || !$fragment.length ) return
+
+              return { $fragment }
+            }
+
+            deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+              $fragment,
+              path: `${elementPath}.${key}`,
+              update: spreadPartialUpdate,
+              memo: scope,
+              batch: true
+            }) )
           }
+          else if( ( key === '$$' || renderer.argv.includes( key ) ) && self.__isReactive__( value as string, scope ) ) {
+            const 
+            deps = self.__extractExpressionDeps__( value as string, scope ),
+            partialUpdate = ( memo: VariableScope, by?: string ) => {
+              if( !activeRenderer ) return
 
-          if( self.__isReactive__( value as string, scope ) ){
-            const deps = self.__extractExpressionDeps__( value as string, scope )
+              $fragment = activeRenderer.update({
+                [key]: {
+                  type: 'const',
+                  value: value ? self.__evaluate__( value, memo ) : true
+                }
+              })
+              if( !$fragment || !$fragment.length ) return
 
+              return { $fragment }
+            }
+            
             deps.forEach( dep => self.__trackDep__( dependencies, dep, {
               $fragment,
               path: `${elementPath}.${key}`,
@@ -671,7 +767,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
               }
             }
           }
-                
+          
           // Null render
           const $placeholder = $(DYNAMIC_TAG_PLACEHOLDER)
           $fragment.replaceWith( $placeholder )
@@ -686,13 +782,13 @@ export default class Component<Input = void, State = void, Static = void, Contex
           path: elementPath,
           update: updateDynamicElement,
           batch: deps.length > 1,
-          memo: scope
+          memo: { ...scope, ...argvalues }
         }) )
       }
 
       return $fragment
     }
-    function execComponent( $node: Cash, dynamicName?: string ){
+    function execComponent( $node: Cash, dynamicName?: string ): Cash {
       const name = dynamicName || $node.prop('tagName')?.toLowerCase() as string
       
       if( !name ) throw new Error('Invalid component')
@@ -995,7 +1091,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
       return $fragment
     }
-    function execMacro( $node: Cash ){
+    function execMacro( $node: Cash ): Cash {
       const name = $node.prop('tagName')?.toLowerCase() as string
       if( !name )
         throw new Error('Invalid macro rendering call')
@@ -1016,6 +1112,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
        */
       let
       argvalues: VariableScope = {},
+      allvalues: Record<string, any> = {},
       $fragment = $()
 
       /**
@@ -1029,23 +1126,73 @@ export default class Component<Input = void, State = void, Static = void, Contex
           if( typeof spreads !== 'object' )
             throw new Error(`Invalid spread operator ${key}`)
 
-          for( const _key in spreads )
+          for( const _key in spreads ){
+            allvalues[ _key ] = spreads[ _key ]
+
             if( macro.argv.includes( _key ) )
               argvalues[ _key ] = {
                 value: spreads[ _key ],
                 type: 'let'
               }
-        }
-
-        else if( macro.argv.includes( key ) )
-          argvalues[ key ] = {
-            value: value ? self.__evaluate__( value as string, scope ) : true,
-            type: 'let'
           }
 
-        if( macro.argv.includes( key ) )
+          /**
+           * Always track spread operators for their 
+           * content might be reactive
+           */
           TRACKABLE_ATTRS[ key ] = value
+        }
+
+        else {
+          const val = value ? self.__evaluate__( value as string, scope ) : true
+
+          allvalues[ key ] = val
+
+          if( macro.argv.includes( key ) )
+            argvalues[ key ] = {
+              value: val,
+              type: 'let'
+            }
+
+          if( macro.argv.includes( key ) )
+            TRACKABLE_ATTRS[ key ] = value
+        }
+          
+        /**
+         * VERY IMPORTANT: Cancel out invalid argv variables 
+         * by `false`. It help assigning `undefined` values
+         * to element's attribute that are considered `true`
+         * as set.
+         * 
+         * Eg. <div active=undefined></div> is same as <div active></div>
+         * which is considered as <div active=true></div>
+         * 
+         * REVIEW well before during maintenance
+         */
+        macro.argv.forEach( each => {
+          if( argvalues[ each ] !== undefined ) return
+
+          argvalues[ each ] = {
+            value: false, // REVIEW the `false` value assignment later.
+            type: 'let'
+          }
+        })
       })
+
+      /**
+       * Return all possible arguments into single object 
+       * var that can be accessible in macro template 
+       * beside the spreading vars effect.
+       * 
+       * Useful for cases where many `argv` are passed
+       * to the macro but there a need to handle all in
+       * a single variable.
+       */
+      if( macro.argv.includes('__') )
+        argvalues['__'] = {
+          value: allvalues,
+          type: 'const'
+        }
 
       /**
        * - $fragment
@@ -1099,8 +1246,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
           }
           
           if( self.__isReactive__( key as string, scope ) ){
-            const deps = self.__extractExpressionDeps__( value as string, scope )
-            
+            const deps = self.__extractExpressionDeps__( key as string, scope )
+
             deps.forEach( dep => self.__trackDep__( dependencies, dep, {
               $fragment,
               path: `${macroPath}.${key}`,
@@ -1300,7 +1447,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
       .forEach( ([ _event, value ]) => {
         attachableEvents.push({
           _event,
-          $node: $fragment,
+          $fragment,
           instruction: value as string,
           scope
         })
@@ -1381,12 +1528,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
       return $fragment
     }
-    function execLog( $node: Cash ){
-      const args = $node.attr('args')
-      if( !args ) return
-
-      self.__evaluate__(`console.log(${args})`, scope )
-    }
 
     function parse( $node: Cash ){
       if( $node.get(0)?.nodeType === Node.COMMENT_NODE )
@@ -1462,9 +1603,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * This to avoid loosing binding to attached
        * DOM element's events
        */
-      attachableEvents.forEach( ({ $node, _event, instruction, scope }) => {
-        $node.off( _event )
-        && this.__attachEvent__( $node, _event, instruction, scope )
+      attachableEvents.forEach( ({ $fragment, _event, instruction, scope }) => {
+        this.__attachEvent__( $fragment, _event, instruction, scope )
       })
 
       /**
@@ -1490,7 +1630,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
       }
     }
     
-    return { 
+    return {
       $log: _$,
       dependencies,
       events: attachableEvents
@@ -1500,25 +1640,25 @@ export default class Component<Input = void, State = void, Static = void, Contex
    * Rerender component using the original content 
    * of the component to during rerendering
    */
-  rerender(){
-    if( !this.template )
-      throw new Error('Component template is empty')
+  // rerender(){
+  //   if( !this.template )
+  //     throw new Error('Component template is empty')
 
-    /**
-     * Reinitialize NCC (Nexted Component Count) 
-     * before any rendering
-     */
-    this.NCC = 0
-    this.__attachedEvents = []
+  //   /**
+  //    * Reinitialize NCC (Nexted Component Count) 
+  //    * before any rendering
+  //    */
+  //   this.NCC = 0
+  //   this.__attachedEvents = []
     
-    const { $log: $clone } = this.render()
+  //   const { $log: $clone } = this.render()
     
-    this.$?.replaceWith( $clone )
-    this.$ = $clone
+  //   this.$?.replaceWith( $clone )
+  //   this.$ = $clone
 
-    // Reassign CSS relationship attribute
-    this.$?.attr('rel', this.__name__ )
-  }
+  //   // Reassign CSS relationship attribute
+  //   this.$?.attr('rel', this.__name__ )
+  // }
 
   private __meshwire__( setup: MeshWireSetup, TRACKABLE_ATTRS: Record<string, string> ){
     const
@@ -1537,150 +1677,237 @@ export default class Component<Input = void, State = void, Static = void, Contex
     } = setup
 
     let
-    partial: { $log: Cash, path: string } | undefined,
-    attachedEvents: VirtualEvent[] | undefined,
+    PARTIAL_CONTENT: Cash | undefined,
+    ITERATOR_SCOPE: VariableScope[] | undefined
+
+    const
+    PARTIAL_PATHS: string[] = [],
+    partialRender = ( $contents: Cash, argvalues?: VariableScope, index?: number ) => {
+      // Render the partial
+      const
+      partialPath = `${fragmentPath}.${meshPath || 'root'}${index !== undefined ? `[${index}]` : ''}`,
+      { $log, dependencies, events } = self.render( $contents, { ...scope, ...argvalues } )
+
+      PARTIAL_PATHS.push( partialPath )
+
+      /**
+       * Share partial FGU dependenies with main component thread
+       * for parallel updates (main & partial) on the meshed node.
+       * 
+       * 1. From main FGU dependency track
+       * 2. From mesh rendering track
+       */
+      dependencies?.forEach( ( dependents, dep ) => {
+        if( !self.__dependencies?.has( dep ) )
+          self.__dependencies.set( dep, new Map() )
+        
+        // Add partial dependency
+        dependents.forEach( ( dependent, path ) => {
+          dependent.partial?.length
+                  ? dependent.partial.push( partialPath )
+                  : dependent.partial = [ partialPath ]
+                  
+          self.__dependencies.get( dep )?.set( path, dependent )
+        } )
+      } )
+      
+      self.benchmark.inc('partialCount')
+
+      return $log
+    },
     wire: MeshTemplate = {
       renderer: {
         path: meshPath,
         argv,
-        mesh( argvalues?: VariableScope ){
-          const $contents = $node.contents()
-          if( !$contents.length ) return null
-
-          // Cleanup previous partial's attached events
-          if( attachedEvents?.length )
-            attachedEvents.forEach( ({ $node, _event }) => self.__detachEvent__( $node, _event ) )
-          
-          // Render the partial
-          const { $log, dependencies, events } = self.render( $contents, { ...scope, ...argvalues } )
-
-          partial = {
-            $log,
-            path: `${fragmentPath}.${meshPath || 'root'}`
-          }
-          attachedEvents = events
+        mesh( argvalues?: VariableScope, clone: boolean = false ){
+          PARTIAL_CONTENT = $node.contents()
+          if( !PARTIAL_CONTENT?.length ) return null
 
           /**
-           * Share partial FGU dependenies with main component thread
-           * for parallel updates (main & partial) on the meshed node.
            * 
-           * 1. From main FGU dependency track
-           * 2. From mesh rendering track
            */
-          if( !self.__dependencies ) return
-
-          dependencies.forEach( ( dependents, dep ) => {
-            if( !self.__dependencies?.has( dep ) )
-              self.__dependencies.set( dep, new Map() )
+          if( declaration?.iterator ){
+            ITERATOR_SCOPE = argvalues?.['$$'].value
+            if( !Array.isArray( ITERATOR_SCOPE ) )
+              throw new Error('Invalid iterator argvalues')
             
-            // Add partial dependency
-            dependents.forEach( ( dependent, path ) => self.__dependencies.get( dep )?.set( path, { ...dependent, partial: partial?.path }) )
-          } )
+            if( !ITERATOR_SCOPE.length ) return null
+            
+            /**
+             * Render many time subsequent content in of an iterator
+             * context using the same partial path to iterate 
+             * on a one time rendered $log of the same content.
+             */
+            let $partialLog = $()
+            ITERATOR_SCOPE.forEach( ( values, index ) => {
+              if( !PARTIAL_CONTENT?.length ) return null
+              $partialLog = $partialLog.add( partialRender( PARTIAL_CONTENT, values, index ) )
+            } )
 
-          self.benchmark.inc('partialCount')
-
-          return $log
+            return $partialLog
+          }
+          else return partialRender( PARTIAL_CONTENT, argvalues )
         },
         update( argvalues?: VariableScope ){
-          if( !partial ) return
-
-          // Start measuring
-          self.benchmark.startRender()
+          if( !PARTIAL_PATHS.length ) return
           
-          const 
-          batchUpdates = new Set<string>(),
-          $fragment = getFragment()
-          
-          // Execute partial mesh update
-          self.__dependencies.forEach( ( dependents, dep ) => {
-            dependents.forEach( ( dependent ) => {
-              // Process only dependents of this partial
-              if( dependent.partial !== partial?.path ) return
-              
-              if( !$fragment.closest('body').length ){
-                console.warn(`${meshPath} -- partial not found in the DOM`)
-                dependents.delete( dependent.path )
-                return
-              }
+          /**
+           * Re-render iterator nodes
+           */
+          if( declaration?.iterator
+              && Array.isArray( ITERATOR_SCOPE )
+              && Array.isArray( argvalues?.['$$'].value )
+              && ITERATOR_SCOPE.length !== argvalues?.['$$'].value.length ){
+            if( !PARTIAL_CONTENT?.length ) return
 
-              if( dependent.memo
-                  && argvalues
-                  && isEqual( dependent.memo[ dep ], argvalues[ dep ]) ) return
+            ITERATOR_SCOPE = argvalues?.['$$'].value
+            if( !Array.isArray( ITERATOR_SCOPE ) )
+              throw new Error('Invalid iterator argvalues')
+            
+            let $partialLog = $()
+            if( !ITERATOR_SCOPE.length ){
+              setFragment( $partialLog )
+              return $partialLog
+            }
 
-              const newMemo = { ...scope, ...argvalues }
-              dependent.memo = newMemo
+            // Clear existing partial mesh deps
+            self.__dependencies.forEach( ( dependents, dep ) => {
+              dependents.forEach( ( dependent ) => {
+                // Process only dependents of this partial
+                dependent.partial 
+                && PARTIAL_PATHS.find( p => dependent.partial?.find( pp => p == pp ) )
+                && dependents.delete( dependent.path )
+              })
 
-              if( dependent.batch ) batchUpdates.add( dependent.path )
-              else {
-                const sync = dependent.update( newMemo, 'mesh-updator' )
-                if( sync ){
-                  // Adopt new $fragment
-                  typeof sync.$fragment === 'object'
-                  && sync.$fragment.length
-                  && dependents.set( dependent.path, { ...dependent, $fragment: sync.$fragment } )
-
-                  // Cleanup callback
-                  typeof sync.cleanup === 'function' && sync.cleanup()
-                }
-              }
-
-              self.benchmark.inc('dependencyUpdateCount')
+              !dependents.size && self.__dependencies.delete( dep )
             })
 
-            /**
-             * Clean up if no more dependents
-             */
-            !dependents.size && self.__dependencies.delete( dep )
-          })
+            // if( ITERATOR_SCOPE.length < argvalues?.['$$'].value.length ){
+            //   // TODO: Iterate more nodes
+            //   console.log('----- add more nodes')
 
-          // Execute batch updates
-          if( batchUpdates.size ){
-            self.benchmark.trackBatch( batchUpdates.size )
-            self.UQS.enqueue( self.__dependencies, batchUpdates )
-          }
+            // }
+            // else {
+            //   // TODO: Cleanup nodes && dependencies
+            //   console.log('----- remove nodes')
+            // }
 
-          // Track update
-          self.benchmark.inc('partialUpdateCount')
+            ITERATOR_SCOPE.forEach( ( values, index ) => {
+              if( !PARTIAL_CONTENT?.length ) return null
+              $partialLog = $partialLog.add( partialRender( PARTIAL_CONTENT, values, index ) )
+            } )
 
-          // Finish measuring
-          self.benchmark.endRender()
-        },
-        replaceWith( $newFragment: Cash ){
-          if( !$newFragment || !$newFragment.length ) return
-          
-          const $fragment = getFragment()
-          
-          // If we have boundary markers and they're in the DOM
-          if( document.contains( fragmentBoundaries.start ) && document.contains( fragmentBoundaries.end ) ){
-            // Collect all nodes between markers to remove
-            const nodesToRemove = []
-            let currentNode = fragmentBoundaries.start.nextSibling
-            
-            while( currentNode && currentNode !== fragmentBoundaries.end ){
-              nodesToRemove.push( currentNode )
-              currentNode = currentNode.nextSibling
+            // If we have boundary markers and they're in the DOM
+            if( document.contains( fragmentBoundaries.start ) && document.contains( fragmentBoundaries.end ) ){
+              // Collect all nodes between markers to remove
+              const nodesToRemove = []
+              let currentNode = fragmentBoundaries.start.nextSibling
+              
+              while( currentNode && currentNode !== fragmentBoundaries.end ){
+                nodesToRemove.push( currentNode )
+                currentNode = currentNode.nextSibling
+              }
+              
+              // Remove existing content
+              $(nodesToRemove).remove()
+              // Insert new content between markers
+              $(fragmentBoundaries.start).after( $partialLog )
+              
+              // Update fragment reference
+              setFragment( $partialLog )
+              return $partialLog
             }
+
+            let $fragment = getFragment()
+
+            const $first = $fragment.first()
+            if( !$first.length ){
+              console.warn('missing stagged fragment.')
+              return
+            }
+
+            $fragment.each( ( _: number, el: Element ) => { _ > 0 && $(el).remove() })
+            $first.after( $partialLog ).remove()
             
-            // Remove existing content
-            $(nodesToRemove).remove()
-            // Insert new content between markers
-            $(fragmentBoundaries.start).after( $newFragment )
-            
-            // Update fragment reference
-            setFragment( $newFragment )
-            return
+            setFragment( $partialLog )
+            return $partialLog
           }
 
-          const $first = $fragment.first()
-          if( !$first.length ){
-            console.warn('missing stagged fragment.')
-            return
+          // Update dependencies
+          else {
+            // Start measuring
+            self.benchmark.startRender()
+            
+            const 
+            batchUpdates = new Set<string>(),
+            $fragment = getFragment()
+            
+            // Execute partial mesh update
+            self.__dependencies.forEach( ( dependents, dep ) => {
+              dependents.forEach( ( dependent ) => {
+                // Process only dependents of this partial
+                const partialPath = PARTIAL_PATHS.find( p => dependent.partial?.find( pp => p == pp ) )
+                if( !dependent.partial || !partialPath ) return
+                
+                if( $fragment !== null && !$fragment.closest('body').length ){
+                  console.warn(`${meshPath} -- partial not found in the DOM`)
+                  dependents.delete( dependent.path )
+                  return
+                }
+                
+                if( declaration?.iterator ){
+                  const
+                  [ _, index ] = partialPath.match(/\[(\d+)\]$/) || [],
+                  argvaluesByIndex = argvalues?.['$$'].value[ Number( index ) ]
+                  
+                  if( argvaluesByIndex?.[ dep ]
+                      && dependent.memo?.[ dep ]
+                      && isEqual( dependent.memo[ dep ], argvaluesByIndex[ dep ] ) ) return
+
+                  dependent.memo = { ...scope, ...dependent.memo, ...argvaluesByIndex }
+                }
+                else {
+                  if( dependent.memo?.[ dep ]
+                      && argvalues?.[ dep ]
+                      && isEqual( dependent.memo[ dep ], argvalues[ dep ] ) ) return
+
+                  dependent.memo = { ...scope, ...dependent.memo, ...argvalues }
+                }
+                
+                if( dependent.batch ) batchUpdates.add( dependent.path )
+                else {
+                  const sync = dependent.update( dependent.memo, 'mesh-updator' )
+                  if( sync ){
+                    // Adopt new $fragment
+                    typeof sync.$fragment === 'object'
+                    && sync.$fragment.length
+                    && dependents.set( dependent.path, { ...dependent, $fragment: sync.$fragment } )
+
+                    // Cleanup callback
+                    typeof sync.cleanup === 'function' && sync.cleanup()
+                  }
+                }
+
+                self.benchmark.inc('dependencyUpdateCount')
+              })
+
+              /**
+               * Clean up if no more dependents
+               */
+              !dependents.size && self.__dependencies.delete( dep )
+            })
+
+            // Execute batch updates
+            if( batchUpdates.size ){
+              self.benchmark.trackBatch( batchUpdates.size )
+              self.UQS.enqueue( self.__dependencies, batchUpdates )
+            }
+
+            // Track update
+            self.benchmark.inc('partialUpdateCount')
+            // Finish measuring
+            self.benchmark.endRender()
           }
-
-          $fragment.each( ( _: number, el: Element ) => { _ > 0 && $(el).remove() })
-          $first.after( $newFragment ).remove()
-
-          setFragment( $newFragment )
         }
       }
     }
@@ -1721,8 +1948,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
     this.benchmark.inc('domInsertsCount')
 
     return {
-      start: document.createComment(`start:${path}`),
-      end: document.createComment(`end:${path}`)
+      start: document.createComment(`start:${this.prekey}.${path}`),
+      end: document.createComment(`end:${this.prekey}.${path}`)
     }
   }
   private __getAttributes__( $node: Cash ){
@@ -1778,7 +2005,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
         const
         expression = `with( scope ){ return ${script}; }`,
         fn = new Function('self', 'input', 'state', 'static', 'context', 'scope', expression )
-        
+
         return fn( this, this.input, this.state, this.static, this.context, _scope || {} )
       }
       else {
@@ -1967,7 +2194,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
            * Only clean up non-syntactic dependencies 
            * or node no longer in DOM
            */
-          if( !syntax && !$fragment.closest('body').length ){
+          if( !syntax && $fragment !== null && !$fragment.closest('body').length ){
             dependents.delete( path )
             return
           }
@@ -2077,7 +2304,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
     /**
      * Turn off this component's IUC
      */
-    clearInterval( this.IUC )
+    // clearInterval( this.IUC )
+    this.lips?.IUC.unregister(`${this.prekey}.${this.__name__}`)
   }
 
   appendTo( arg: Cash | string ){

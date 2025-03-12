@@ -32,8 +32,6 @@ export const ROOT_PATH = '#0'
 export const SYNCTAX_VAR_FLAG = 'SYNTAX:'
 export const SPREAD_VAR_PATTERN = /^\.\.\./
 export const ARGUMENT_VAR_PATTERN = /^\[(.*?)\]$/
-export const DYNAMIC_TAG_PLACEHOLDER = '<!---[DTLOG]--->'
-export const FRAGMENT_TAG_PLACEHOLDER = '<!---[FGLOG]--->'
 
 /**
  * Deep difference checker with support for Map, Set,

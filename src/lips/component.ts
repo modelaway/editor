@@ -32,8 +32,6 @@ import {
   preprocessor,
   SPREAD_VAR_PATTERN,
   ARGUMENT_VAR_PATTERN,
-  DYNAMIC_TAG_PLACEHOLDER,
-  FRAGMENT_TAG_PLACEHOLDER,
   SYNCTAX_VAR_FLAG
 } from './utils'
 
@@ -266,7 +264,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
         this.context = context
       }
 
-      // this.benchmark.log()
+      this.benchmark.log()
 
       /**
        * Triggered anytime component gets rendered
@@ -573,18 +571,17 @@ export default class Component<Input = void, State = void, Static = void, Contex
       return $fragment
     }
     function execDynamicElement( $node: Cash, dtag: string, renderer: MeshRenderer | null ): Cash {
-      let
-      $fragment = $(),
-      // Keep track of the latest mesh scope
-      argvalues: VariableScope = {},
-      activeRenderer = renderer
-
       const
       { attrs } = self.__getAttributes__( $node ),
       elementPath = self.__generatePath__('element'),
       boundaries = self.__createBoundaries__( elementPath )
-      let hasBoundaries = false
       
+      let
+      $fragment = $(boundaries.start),
+      // Keep track of the latest mesh scope
+      argvalues: VariableScope = {},
+      activeRenderer = renderer
+
       if( renderer ){
         attrs && Object
         .entries( attrs )
@@ -617,19 +614,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
         })
 
         const $log = renderer.mesh( argvalues )
-        $fragment = $fragment.add( $log && $log.length ? $log : DYNAMIC_TAG_PLACEHOLDER )
-
-        // Add boundaries to the initial fragment when it's added to DOM
-        if( !hasBoundaries ){
-          self.once('component:attached', () => {
-            if( !$fragment.first()[0]?.isConnected ) return
-
-            $fragment.first().before( boundaries.start )
-            $fragment.last().after( boundaries.end )
-          })
-
-          hasBoundaries = true
-        }
+        if( $log && $log.length )
+          $fragment = $fragment.add( $log )
         
         /**
          * IMPORTANT:
@@ -662,14 +648,12 @@ export default class Component<Input = void, State = void, Static = void, Contex
                 }
               }
 
-              $fragment = activeRenderer.update( extracted )
-              if( !$fragment || !$fragment.length ) return
-
-              return { $fragment }
+              activeRenderer.update( extracted, boundaries )
             }
 
             deps.forEach( dep => self.__trackDep__( dependencies, dep, {
-              $fragment,
+              $fragment: null,
+              boundaries,
               path: `${elementPath}.${key}`,
               update: spreadPartialUpdate,
               memo: scope,
@@ -682,19 +666,17 @@ export default class Component<Input = void, State = void, Static = void, Contex
             partialUpdate = ( memo: VariableScope, by?: string ) => {
               if( !activeRenderer ) return
 
-              $fragment = activeRenderer.update({
+              activeRenderer.update({
                 [key]: {
                   type: 'const',
                   value: value ? self.__evaluate__( value, memo ) : true
                 }
-              })
-              if( !$fragment || !$fragment.length ) return
-
-              return { $fragment }
+              }, boundaries )
             }
             
             deps.forEach( dep => self.__trackDep__( dependencies, dep, {
-              $fragment,
+              $fragment: null,
+              boundaries,
               path: `${elementPath}.${key}`,
               update: partialUpdate,
               memo: scope,
@@ -703,7 +685,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
           }
         } )
       }
-      else $fragment = $fragment.add( DYNAMIC_TAG_PLACEHOLDER )
       
       // Track FGU dependency update on the dynamic tag
       if( self.__isReactive__( dtag as string, scope ) ){
@@ -717,74 +698,44 @@ export default class Component<Input = void, State = void, Static = void, Contex
            * re-rendering the element
            */
           const newRenderer = self.__evaluate__( dtag, memo )
-          
+          let $newContent
           if( isMesh( newRenderer ) ){
             activeRenderer = newRenderer
-            
-            // Check if boundaries are in DOM
-            if( document.contains( boundaries.start ) && document.contains( boundaries.end ) ){
-              // Render new content
-              const 
-              $newContent = newRenderer ? newRenderer.mesh( argvalues ) : $(DYNAMIC_TAG_PLACEHOLDER),
-              nodesToRemove = [] // Nodes between boundaries
-              let currentNode = boundaries.start.nextSibling
-              
-              while( currentNode && currentNode !== boundaries.end ){
-                nodesToRemove.push( currentNode )
-                currentNode = currentNode.nextSibling
-              }
-              
-              // Remove old content and insert new
-              $(nodesToRemove).remove()
-              $(boundaries.start).after( $newContent )
-              
-              // Update fragment reference
-              $fragment = $newContent
-              
-              return { $fragment }
-            }
-            
-            // New MeshRenderer object
-            else {
-              const $newContent = newRenderer.mesh( argvalues )
-              if( !$newContent?.length ) return { $fragment }
+            $newContent = newRenderer ? newRenderer.mesh( argvalues ) : null
+          }
 
-              // Update fragment reference
-              const $first = $fragment.first()
-              if( !$first.length ){
-                console.warn('missing stagged fragment.')
-                return
-              }
+          // Check if boundaries are in DOM
+          if( !document.contains( boundaries.start ) || !document.contains( boundaries.end ) )
+            throw new Error('Dynamic element boundaries not found')
 
-              $fragment.each( ( _, el ) => { _ > 0 && $(el).remove() })
-              $first.after( $newContent ).remove()
-
-              $fragment = $newContent
-              
-              return {
-                $fragment,
-                cleanup: () => {}
-              }
-            }
+          // Render new content
+          const
+          nodesToRemove = [] // Nodes between boundaries
+          let currentNode = boundaries.start.nextSibling
+          
+          while( currentNode && currentNode !== boundaries.end ){
+            nodesToRemove.push( currentNode )
+            currentNode = currentNode.nextSibling
           }
           
-          // Null render
-          const $placeholder = $(DYNAMIC_TAG_PLACEHOLDER)
-          $fragment.replaceWith( $placeholder )
-          $fragment = $placeholder
-      
-          return { $fragment }
+          // Remove old content and insert new
+          $(nodesToRemove).remove()
+
+          $newContent && $(boundaries.start).after( $newContent )
         },
         deps = self.__extractExpressionDeps__( dtag as string, scope )
 
         deps.forEach( dep => self.__trackDep__( dependencies, dep, {
-          $fragment,
+          $fragment: null,
+          boundaries,
           path: elementPath,
           update: updateDynamicElement,
           batch: deps.length > 1,
           memo: { ...scope, ...argvalues }
         }) )
       }
+
+      $fragment = $fragment.add( boundaries.end )
 
       return $fragment
     }
@@ -815,7 +766,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
        */
       let
       input: any = {},
-      $fragment = $(),
+      $fragment = $(boundaries.start),
       component = self.PCC.get( __key__ )
 
       /**
@@ -1046,7 +997,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
               const deps = self.__extractExpressionDeps__( value as string, scope )
               
               deps.forEach( dep => self.__trackDep__( dependencies, dep, {
-                $fragment,
+                $fragment: null,
+                boundaries,
                 path: `${componentPath}.${key}`,
                 update: spreadvalues,
                 syntax: isSyntax,
@@ -1066,7 +1018,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
               const deps = self.__extractExpressionDeps__( value as string, scope )
               
               deps.forEach( dep => self.__trackDep__( dependencies, dep, {
-                $fragment,
+                $fragment: null,
+                boundaries,
                 path: `${componentPath}.${key}`,
                 update: evalue,
                 syntax: isSyntax,
@@ -1077,13 +1030,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
           }
         })
 
-        // Add boundaries to the initial fragment when it's added to DOM
-        self.once('component:attached', () => {
-          if( !$fragment.first()[0]?.isConnected ) return
-
-          $fragment.first().before( boundaries.start )
-          $fragment.last().after( boundaries.end )
-        })
+        // Close boundaries to the initial fragment when it's added to DOM
+        $fragment = $fragment.add( boundaries.end )
       }
 
       // Track component creation
@@ -1113,7 +1061,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
       let
       argvalues: VariableScope = {},
       allvalues: Record<string, any> = {},
-      $fragment = $()
+      $fragment = $(boundaries.start)
 
       /**
        * Cast attributes to compnent inputs
@@ -1249,7 +1197,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
             const deps = self.__extractExpressionDeps__( key as string, scope )
 
             deps.forEach( dep => self.__trackDep__( dependencies, dep, {
-              $fragment,
+              $fragment: null,
+              boundaries,
               path: `${macroPath}.${key}`,
               update: spreadvalues,
               syntax: isSyntax,
@@ -1272,7 +1221,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
             const deps = self.__extractExpressionDeps__( value as string, scope )
             
             deps.forEach( dep => self.__trackDep__( dependencies, dep, {
-              $fragment,
+              $fragment: null,
+              boundaries,
               path: `${macroPath}.${key}`,
               update: evalue,
               syntax: isSyntax,
@@ -1282,6 +1232,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
           }
         }
       })
+
+      $fragment = $fragment.add( boundaries.end )
 
       /**
        * BENCHMARK: Tracking total elements rendered
@@ -1748,9 +1700,11 @@ export default class Component<Input = void, State = void, Static = void, Contex
           }
           else return partialRender( PARTIAL_CONTENT, argvalues )
         },
-        update( argvalues?: VariableScope ){
+        update( argvalues: VariableScope, boundaries?: FragmentBoundaries ){
           if( !PARTIAL_PATHS.length ) return
           
+          boundaries = boundaries || fragmentBoundaries
+
           /**
            * Re-render iterator nodes
            */
@@ -1765,72 +1719,52 @@ export default class Component<Input = void, State = void, Static = void, Contex
               throw new Error('Invalid iterator argvalues')
             
             let $partialLog = $()
-            if( !ITERATOR_SCOPE.length ){
-              setFragment( $partialLog )
-              return $partialLog
-            }
+            if( ITERATOR_SCOPE.length ){
+              // Clear existing partial mesh deps
+              self.__dependencies.forEach( ( dependents, dep ) => {
+                dependents.forEach( ( dependent ) => {
+                  // Process only dependents of this partial
+                  dependent.partial 
+                  && PARTIAL_PATHS.find( p => dependent.partial?.find( pp => p == pp ) )
+                  && dependents.delete( dependent.path )
+                })
 
-            // Clear existing partial mesh deps
-            self.__dependencies.forEach( ( dependents, dep ) => {
-              dependents.forEach( ( dependent ) => {
-                // Process only dependents of this partial
-                dependent.partial 
-                && PARTIAL_PATHS.find( p => dependent.partial?.find( pp => p == pp ) )
-                && dependents.delete( dependent.path )
+                !dependents.size && self.__dependencies.delete( dep )
               })
 
-              !dependents.size && self.__dependencies.delete( dep )
-            })
+              // if( ITERATOR_SCOPE.length < argvalues?.['$$'].value.length ){
+              //   // TODO: Iterate more nodes
+              //   console.log('----- add more nodes')
 
-            // if( ITERATOR_SCOPE.length < argvalues?.['$$'].value.length ){
-            //   // TODO: Iterate more nodes
-            //   console.log('----- add more nodes')
+              // }
+              // else {
+              //   // TODO: Cleanup nodes && dependencies
+              //   console.log('----- remove nodes')
+              // }
 
-            // }
-            // else {
-            //   // TODO: Cleanup nodes && dependencies
-            //   console.log('----- remove nodes')
-            // }
-
-            ITERATOR_SCOPE.forEach( ( values, index ) => {
-              if( !PARTIAL_CONTENT?.length ) return null
-              $partialLog = $partialLog.add( partialRender( PARTIAL_CONTENT, values, index ) )
-            } )
+              ITERATOR_SCOPE.forEach( ( values, index ) => {
+                if( !PARTIAL_CONTENT?.length ) return null
+                $partialLog = $partialLog.add( partialRender( PARTIAL_CONTENT, values, index ) )
+              } )
+            }
 
             // If we have boundary markers and they're in the DOM
-            if( document.contains( fragmentBoundaries.start ) && document.contains( fragmentBoundaries.end ) ){
-              // Collect all nodes between markers to remove
-              const nodesToRemove = []
-              let currentNode = fragmentBoundaries.start.nextSibling
-              
-              while( currentNode && currentNode !== fragmentBoundaries.end ){
-                nodesToRemove.push( currentNode )
-                currentNode = currentNode.nextSibling
-              }
-              
-              // Remove existing content
-              $(nodesToRemove).remove()
-              // Insert new content between markers
-              $(fragmentBoundaries.start).after( $partialLog )
-              
-              // Update fragment reference
-              setFragment( $partialLog )
-              return $partialLog
-            }
-
-            let $fragment = getFragment()
-
-            const $first = $fragment.first()
-            if( !$first.length ){
-              console.warn('missing stagged fragment.')
-              return
-            }
-
-            $fragment.each( ( _: number, el: Element ) => { _ > 0 && $(el).remove() })
-            $first.after( $partialLog ).remove()
+            if( !document.contains( boundaries.start ) || !document.contains( boundaries.end ) )
+              throw new Error('Partial mesh boundaries missing')
+          
+            // Collect all nodes between markers to remove
+            const nodesToRemove = []
+            let currentNode = boundaries.start.nextSibling
             
-            setFragment( $partialLog )
-            return $partialLog
+            while( currentNode && currentNode !== boundaries.end ){
+              nodesToRemove.push( currentNode )
+              currentNode = currentNode.nextSibling
+            }
+            
+            // Remove existing content
+            $(nodesToRemove).remove()
+            // Insert new content between markers
+            $partialLog && $(boundaries.start).after( $partialLog )
           }
 
           // Update dependencies
@@ -1838,9 +1772,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
             // Start measuring
             self.benchmark.startRender()
             
-            const 
-            batchUpdates = new Set<string>(),
-            $fragment = getFragment()
+            const batchUpdates = new Set<string>()
             
             // Execute partial mesh update
             self.__dependencies.forEach( ( dependents, dep ) => {
@@ -1849,8 +1781,8 @@ export default class Component<Input = void, State = void, Static = void, Contex
                 const partialPath = PARTIAL_PATHS.find( p => dependent.partial?.find( pp => p == pp ) )
                 if( !dependent.partial || !partialPath ) return
                 
-                if( $fragment !== null && !$fragment.closest('body').length ){
-                  console.warn(`${meshPath} -- partial not found in the DOM`)
+                if( (fragmentBoundaries?.start && !document.contains( fragmentBoundaries.start )) ){
+                  console.warn(`${meshPath} -- partial boundaries missing in the DOM`)
                   dependents.delete( dependent.path )
                   return
                 }
@@ -2188,17 +2120,19 @@ export default class Component<Input = void, State = void, Static = void, Contex
       if( !this.__shouldUpdate__( dep_scope, parts, current, previous ) ) return
       
       dependents.forEach( dependent => {
-        const { path, batch, $fragment, update, memo, syntax } = dependent
+        const { path, batch, $fragment, boundaries, update, memo, syntax } = dependent
         try {
           /**
            * Only clean up non-syntactic dependencies 
            * or node no longer in DOM
            */
-          if( !syntax && $fragment !== null && !$fragment.closest('body').length ){
+          if( !syntax
+              && (boundaries?.start && !document.contains( boundaries.start ))
+              || ($fragment !== null && !$fragment.closest('body').length) ){
             dependents.delete( path )
             return
           }
-
+          
           /**
            * For batch updates, collect all updates first
            * and execute batch once.

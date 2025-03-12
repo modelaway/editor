@@ -102,6 +102,7 @@ export interface FGUSync {
 export interface FGUDependency {
   path: string
   $fragment: Cash | null
+  boundaries?: FragmentBoundaries
   batch?: boolean
   syntax?: boolean
   partial?: string[]
@@ -123,8 +124,7 @@ export interface MeshRenderer {
   path: string | null
   argv: string[]
   mesh( argv?: VariableScope ): Cash
-  update( argv: VariableScope ): Cash
-  // replaceWith( $fragment: Cash ): void
+  update( argv: VariableScope, boundaries?: FragmentBoundaries ): Cash
 }
 export type MeshTemplate = Record<string, any> & {
   renderer: MeshRenderer
@@ -137,7 +137,7 @@ export interface MeshWireSetup {
   
   $node: Cash
   meshPath: string | null
-
+  
   getFragment(): Cash
   setFragment( $frag ): void
   fragmentPath: string

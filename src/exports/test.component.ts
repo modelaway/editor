@@ -464,13 +464,13 @@ function DemoCart(){
           <p class="item-price">{price.toFixed(2)} each</p>
         </div>
         
-        <div class="quantity-controls">
+        <div class="qty-controls">
           <mbutton 
-            class="quantity-btn"
+            class="qty-btn"
             on-click(onDecrementQuantity, id)>-</mbutton>
-          <span class="quantity-value">{quantity}</span>
+          <span class="qty-value">{quantity}</span>
           <mbutton 
-            class="quantity-btn"
+            class="qty-btn"
             on-click(onIncrementQuantity, id)>+</mbutton>
         </div>
       </div>
@@ -552,13 +552,13 @@ function DemoCart(){
       color: #4b5563;
     }
 
-    .quantity-controls {
+    .qty-controls {
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
 
-    .quantity-btn {
+    .qty-btn {
       padding: 0.25rem 0.5rem;
       background-color: #e5e7eb;
       border: none;
@@ -567,11 +567,11 @@ function DemoCart(){
       transition: background-color 0.2s;
     }
 
-    .quantity-btn:hover {
+    .qty-btn:hover {
       background-color: #d1d5db;
     }
 
-    .quantity-value {
+    .qty-value {
       width: 2rem;
       text-align: center;
     }
@@ -605,7 +605,7 @@ function DemoCart(){
   `
 
   const
-  lips = new Lips({ debug: true }),
+  lips = new Lips({ debug: false }),
   input = { key: 'shopping-cart' },
   component = lips
               .render<CartInput, CartState>('DemoInput', { default: template, state, handler, stylesheet, macros }, input )
@@ -1173,6 +1173,9 @@ function DemoInput(){
       <easycount [count] initial=state.initial>
         <span>{state.value}: {count}</span>
       </easycount>
+
+      <p><small>Dynamic here</small></p>
+      <{state.value === 'logger' ? 'easycount' : 'div'}/>
       
       <button on-click(() => self.state.initial = 2 )>Change initial</button>
 
@@ -1224,12 +1227,38 @@ function DemoInput(){
   .appendTo('body')
 }
 
+function DemoForloop(){
+  const lips = new Lips({ debug: true })
+  
+  type State = {
+    numbers: number[]
+  }
+
+  const
+  state: State = {
+    numbers: [1,2,4,6,8,10,12]
+  },
+  template = `
+    <div>
+      <for [n, idx] in=state.numbers>
+        <let square="idx * 4"/>
+        #<span>[{idx}]-{n}({square})</span>.
+      </for>
+    </div>
+  `
+
+  lips
+  .render('DemoInput', { default: template, state }, {})
+  .appendTo('body')
+}
+
 // Demo1()
 // Demo2()
-// Demo3()
+// Demo3() --
 // Demo4()
 // Demo5()
 // Demo6()
 // DemoCart()
 // DemoLayers()
 DemoInput()
+// DemoForloop()

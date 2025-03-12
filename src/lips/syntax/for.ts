@@ -1,5 +1,4 @@
-import type { Declaration, Handler, MeshRenderer, VariableScope } from '..'
-import $ from 'cash-dom'
+import type { Declaration, Handler, MeshRenderer } from '..'
 
 export interface Input {
   in: Record<string, any> | any[]
@@ -7,32 +6,26 @@ export interface Input {
   to?: number
   renderer?: MeshRenderer
 }
-export interface Static {
-  isAttached: boolean
-}
 export interface State {
-  isMounted: boolean
+  argvlist: Record<string, any>[] | null
 }
 
 export const declaration: Declaration = {
   name: 'for',
-  syntax: true
-}
-export const _static: Static = {
-  isAttached: false
+  syntax: true,
+  iterator: true
 }
 export const state: State = {
-  isMounted: false
+  argvlist: null
 }
 
-export const handler: Handler<Input, State, Static> = {
+export const handler: Handler<Input, State> = {
   onInput(){
+    // console.log('for loop input --', this.input )
     if( !this.input.renderer )
       throw new Error('Undefined mesh renderer')
 
-    let
-    $list = $(),
-    { in: _in, from: _from, to: _to } = this.input
+    let { in: _in, from: _from, to: _to } = this.input
 
     if( _in === undefined && _from === undefined )
       throw new Error('Invalid <for> arguments')
@@ -45,76 +38,97 @@ export const handler: Handler<Input, State, Static> = {
 
       _to = parseFloat( String( _to ) )
 
-      for( let i = _from; i <= _to; i++ ){
+      if( _from === _to )
+        throw new Error('<from> and <to> attribute cannot have the same value')
+      
+      const argvlist = []
+      for( let i = _from; i <= _to; _from < _to ? i++ : i-- ){
         const
-        argvalues: VariableScope = {},
+        argvalues: Record<string, any> = {},
         [ivar] = this.input.renderer.argv
 
-        if( ivar ) argvalues[ ivar ] = { value: i, type: 'const' }
-        
-        $list = $list.add( this.input.renderer?.mesh( argvalues ) )
+        if( ivar ) argvalues[ ivar ] = { value: i, type: 'let' }
+
+        argvlist.push( argvalues )
       }
+
+      this.state.argvlist = argvlist
     }
 
     else if( Array.isArray( _in ) ){
+      if( !_in.length ){
+        console.warn('empty for loop <in> attribute Array value')
+        return
+      }
+
+      const argvlist = []
       let index = 0
+
       for( const each of _in ){
         const 
-        argvalues: VariableScope = {},
+        argvalues: Record<string, any> = {},
         [evar, ivar] = this.input.renderer.argv
 
-        if( evar ) argvalues[ evar ] = { value: each, type: 'const' }
-        if( ivar ) argvalues[ ivar ] = { value: index, type: 'const' }
+        if( evar ) argvalues[ evar ] = { value: each, type: 'let' }
+        if( ivar ) argvalues[ ivar ] = { value: index, type: 'let' }
 
-        $list = $list.add( this.input.renderer?.mesh( argvalues ) )
+        argvlist.push( argvalues )
         index++
       }
+
+      this.state.argvlist = argvlist
     }
 
     else if( _in instanceof Map ){
+      if( !_in.size ){
+        console.warn('empty for loop <in> attribute Map value')
+        return
+      }
+
+      const argvlist = []
       let index = 0
+
       for( const [ key, value ] of _in ){
         const 
-        argvalues: VariableScope = {},
+        argvalues: Record<string, any> = {},
         [kvar, vvar, ivar] = this.input.renderer.argv
 
-        if( kvar ) argvalues[ kvar ] = { value: key, type: 'const' } // key
-        if( vvar ) argvalues[ vvar ] = { value: value, type: 'const' } // value
-        if( ivar ) argvalues[ ivar ] = { value: index, type: 'const' } // index
-
-        $list = $list.add( this.input.renderer?.mesh( argvalues ) )
+        if( kvar ) argvalues[ kvar ] = { value: key, type: 'let' } // key
+        if( vvar ) argvalues[ vvar ] = { value: value, type: 'let' } // value
+        if( ivar ) argvalues[ ivar ] = { value: index, type: 'let' } // index
+        
+        argvlist.push( argvalues )
         index++
       }
+
+      this.state.argvlist = argvlist
     }
 
     else if( typeof _in == 'object' ){
+      if( !Object.keys( _in ).length ){
+        console.warn('empty for loop <in> attribute Object value')
+        return
+      }
+
+      const argvlist = []
       let index = 0
+
       for( const key in _in ){
         const 
-        argvalues: VariableScope = {},
+        argvalues: Record<string, any> = {},
         [kvar, vvar, ivar] = this.input.renderer.argv
 
-        if( kvar ) argvalues[ kvar ] = { value: key, type: 'const' } // key
-        if( vvar ) argvalues[ vvar ] = { value: _in[ key ], type: 'const' } // value
-        if( ivar ) argvalues[ ivar ] = { value: index, type: 'const' } // index
-
-        $list = $list.add( this.input.renderer?.mesh( argvalues ) )
+        if( kvar ) argvalues[ kvar ] = { value: key, type: 'let' } // key
+        if( vvar ) argvalues[ vvar ] = { value: _in[ key ], type: 'let' } // value
+        if( ivar ) argvalues[ ivar ] = { value: index, type: 'let' } // index
+        
+        argvlist.push( argvalues )
         index++
       }
+
+      this.state.argvlist = argvlist
     }
-
-    $list.length && this.handleRender( $list )
-  },
-  handleRender( $list ){
-    if( !$list?.length ) return
-
-    this.static.isAttached
-            ? this.input.renderer?.replaceWith( $list )
-            : this.once('component:attached', () => {
-              this.input.renderer?.replaceWith( $list )
-              this.static.isAttached = true
-            } )
   }
 }
 
-export default `<!---[EFLP]--->`
+export default `<{input.renderer} $$=state.argvlist/>`

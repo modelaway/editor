@@ -1,10 +1,11 @@
 import type { Template, Handler } from '../lips'
 
 import Lips from '../lips/lips'
-import Component from '../lips/component'
 import english from '../languages/en.json'
 import french from '../languages/fr.json'
 import Layers from '../factory/layers'
+
+const lips = new Lips({ debug: true })
 
 function Demo1(){
   type Input = {
@@ -109,7 +110,6 @@ function Demo1(){
   }
 
   const
-  lips = new Lips({ debug: true }),
   component = lips
               .render('DemoInput', { default: template, state, _static, handler }, input )
               .appendTo('body')
@@ -152,10 +152,10 @@ function Demo2(){
   stylesheet = `
     span, button { font: 14px arial; color: rgba(50, 50, 70); }
   `
-
-  const component = new Component<any, State>('Demo2', template, { state, handler, stylesheet }, { debug: true })
-
-  component.appendTo('body')
+  
+  lips
+  .render<any, State>('Demo2', { default: template, state, handler, stylesheet })
+  .appendTo('body')
 }
 
 function Demo3(){
@@ -185,9 +185,9 @@ function Demo3(){
     }
   }
 
-  const component = new Component('Demo3', template, { _static, handler }, { debug: true })
-
-  component.appendTo('body')
+  lips
+  .render<any, any, Static>('Demo3', { default: template, _static, handler })
+  .appendTo('body')
 }
 
 function Demo4(){
@@ -213,9 +213,9 @@ function Demo4(){
       </p>
     </div>`
 
-  const component = new Component('Demo4', template, {}, { debug: true })
-
-  component.appendTo('body')
+  lips
+  .render('Demo4', { default: template })
+  .appendTo('body')
 }
 
 function Demo5(){
@@ -249,7 +249,6 @@ function Demo5(){
     `
   }
 
-  const lips = new Lips({ debug: true })
   lips.register('easycount', easyCount )
 
   const
@@ -604,12 +603,11 @@ function DemoCart(){
     }
   `
 
-  const
-  lips = new Lips({ debug: false }),
-  input = { key: 'shopping-cart' },
-  component = lips
-              .render<CartInput, CartState>('DemoInput', { default: template, state, handler, stylesheet, macros }, input )
-              .appendTo('body')
+  const input = { key: 'shopping-cart' }
+  
+  lips
+  .render<CartInput, CartState>('DemoInput', { default: template, state, handler, stylesheet, macros }, input )
+  .appendTo('body')
 }
 
 function DemoLayers(){
@@ -1081,8 +1079,8 @@ function DemoInput(){
       onInput(){ 
         this.state.count = Number( this.input.initial )
       
-        // const end = setInterval( () => this.state.count++, 5 )
-        // setTimeout( () => clearInterval( end ), 15000 )
+        const end = setInterval( () => this.state.count++, 5 )
+        setTimeout( () => clearInterval( end ), 15000 )
       },
       handleClick( e: Event ){
         if( this.state.count >= this.input.limit )
@@ -1103,7 +1101,6 @@ function DemoInput(){
     `
   }
 
-  const lips = new Lips({ debug: true })
   lips.register('easycount', easyCount )
 
   type State = {
@@ -1228,8 +1225,6 @@ function DemoInput(){
 }
 
 function DemoForloop(){
-  const lips = new Lips({ debug: true })
-  
   type State = {
     numbers: number[]
   }

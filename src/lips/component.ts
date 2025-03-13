@@ -45,8 +45,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
   public static: Static
   public context: Context
 
+  public __key__: string
   public __name__: string
-  private __previous?: Metavars<Input, State, Context>
+  private __previous: Metavars<Input, State, Context>
   private __stylesheet?: Stylesheet
   private __macros: Map<string, Macro> = new Map() // Cached macros templates
   private __dependencies: FGUDependencies = new Map() // Initial FGU dependencies
@@ -74,7 +75,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
   // Internal Component Effect
   private ICE: EffectControl
 
-  public lips?: Lips
+  public lips: Lips
   private benchmark: Benchmark
 
   private __path = ''
@@ -87,22 +88,26 @@ export default class Component<Input = void, State = void, Static = void, Contex
    */
   ;[key: string]: any
 
-  constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet, macros, declaration }: ComponentScope<Input, State, Static, Context>, options?: ComponentOptions ){
+  constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet, macros, declaration }: ComponentScope<Input, State, Static, Context>, options: ComponentOptions ){
     super()
+    this.lips = options.lips
     this.template = preprocessor( template )
-
-    if( options?.lips ) this.lips = options.lips    
+  
     if( options?.debug ) this.debug = options.debug
     if( options?.prekey ) this.prekey = options.prekey
 
     this.__name__ = name
+    this.__key__ = `${this.prekey}.${this.__name__}`
 
     this.declaration = declaration || { name }
 
     this.input = input || {} as Input
-    this.state = state || {} as State
     this.static = _static || {} as Static
     this.context = {} as Context
+    /**
+     * Detect all state mutations, including deep mutations
+     */
+    this.state = new Proxy( state || {} as State, this.lips.IUC.proxyState( this.__key__ ) || {} )
     
     macros && this.setMacros( macros )
     handler && this.setHandler( handler )
@@ -164,7 +169,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
     this._setState = setState
     this._getState = getState
 
-    this.lips?.IUC.register(`${this.prekey}.${this.__name__}`, () => {
+    this.lips.IUC.register( this.__key__, () => {
       /**
        * Apply update only when a new change 
        * occured on the state.
@@ -173,7 +178,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
        */
       this.state
       && isDiff( this.__previous?.state as Record<string, any>, this.state as Record<string, any> )
-      && this.setState( this.state )
+      && this._setState({ ...this._getState(), ...this.state })
     })
     
     /**
@@ -183,7 +188,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
      */
     Array.isArray( context )
     && context.length
-    && this.lips?.useContext<Context>( context, ctx => {
+    && this.lips.useContext<Context>( context, ctx => {
       if( !isDiff( this.context as Record<string, any>, ctx ) ) return
 
       setContext( ctx )
@@ -233,7 +238,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
          * Watch when component's element get 
          * attached to the DOM
          */
-        this.lips?.watcher?.watch( this as any )
+        this.lips.watcher.watch( this as any )
       }
       else {
         /**
@@ -259,7 +264,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
           context: deepClone( context )
         }
 
-        this.state = state
+        // this.state = state
         this.input = input
         this.context = context
       }
@@ -274,18 +279,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
     })
   }
 
-  getState( key: keyof State ){
-    const state = this._getState()
-    
-    return state && typeof state == 'object' && state[ key ]
-  }
-  setState( data: Partial<Record<keyof State, any>> ){
-    const state = this._getState()
-    this._setState({ ...state, ...data } as State )
-
-    // TODO: Add batch update
-    
-  }
   setContext( arg: Partial<Record<string, any>> | string, value?: any  ){
     /**
      * Set global context value from any component
@@ -293,7 +286,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
      * Note: `arg` if object isn't restricted to 
      *        this component's required context fields scope.
      */
-    this.lips?.setContext( arg, value )
+    this.lips.setContext( arg, value )
   }
   setInput( input: Input ){
     /**
@@ -438,10 +431,24 @@ export default class Component<Input = void, State = void, Static = void, Contex
     }
 
     function execLog( $node: Cash ){
-      const args = $node.attr('args')
+      const
+      args = $node.attr('args'),
+      logPath = self.__generatePath__('log')
       if( !args ) return
 
       self.__evaluate__(`console.log(${args})`, scope )
+
+      if( self.__isReactive__( args as string, scope ) ){
+        const deps = self.__extractExpressionDeps__( args as string, scope )
+        
+        deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+          $fragment: null,
+          path: logPath,
+          update: memo => self.__evaluate__(`console.log(${args})`, memo ),
+          memo: scope,
+          batch: true
+        }) )
+      }
     }
     function execLet( $node: Cash ){
       const
@@ -743,7 +750,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
       const name = dynamicName || $node.prop('tagName')?.toLowerCase() as string
       
       if( !name ) throw new Error('Invalid component')
-      if( !self.lips ) throw new Error('Nexted component manager is disable')
       if( name === self.__name__ ) throw new Error('Render component within itself is forbidden')
 
       /**
@@ -1290,7 +1296,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
                 let text = self.__evaluate__( value as string, memo )
 
                 // Apply translation
-                if( self.lips && !$node.is('[no-translate]') ){
+                if( !$node.is('[no-translate]') ){
                   const { text: _text } = self.lips.i18n.translate( text )
                   text = _text
                 }
@@ -1525,7 +1531,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
        * Lips in-build syntax component
        * or identify and render custom components
        */
-      else if( $node.is('if, for, switch, async') || self.lips && self.lips.has( $node.prop('tagName')?.toLowerCase() ) )
+      else if( $node.is('if, for, switch, async') || self.lips.has( $node.prop('tagName')?.toLowerCase() ) )
         return execComponent( $node )
       
       /**
@@ -1588,30 +1594,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
       events: attachableEvents
     }
   }
-  /**
-   * Rerender component using the original content 
-   * of the component to during rerendering
-   */
-  // rerender(){
-  //   if( !this.template )
-  //     throw new Error('Component template is empty')
-
-  //   /**
-  //    * Reinitialize NCC (Nexted Component Count) 
-  //    * before any rendering
-  //    */
-  //   this.NCC = 0
-  //   this.__attachedEvents = []
-    
-  //   const { $log: $clone } = this.render()
-    
-  //   this.$?.replaceWith( $clone )
-  //   this.$ = $clone
-
-  //   // Reassign CSS relationship attribute
-  //   this.$?.attr('rel', this.__name__ )
-  // }
-
+  
   private __meshwire__( setup: MeshWireSetup, TRACKABLE_ATTRS: Record<string, string> ){
     const
     self = this,
@@ -2086,13 +2069,13 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private __valueDep__( obj: any, path: string[] ): any {
     return path.reduce( ( curr, part ) => curr?.[ part ], obj )
   }
-  private __shouldUpdate__( dep_scope: string, parts: string[], current: Metavars<Input, State, Context>, previous?: Metavars<Input, State, Context> ): boolean {
+  private __shouldUpdate__( dep_scope: string, parts: string[], current: Metavars<Input, State, Context>, previous: Metavars<Input, State, Context> ): boolean {
     // Allow component's method `self.fn` call evaluation
     if( dep_scope === 'self' ) return true
 
     // Check metavars changes
     const
-    ovalue = previous && this.__valueDep__( previous[ dep_scope as keyof Metavars<Input, State, Context>  ], parts ),
+    ovalue = this.__valueDep__( previous[ dep_scope as keyof Metavars<Input, State, Context> ], parts ),
     nvalue = this.__valueDep__( current[ dep_scope as keyof Metavars<Input, State, Context> ], parts )
 
     /**
@@ -2100,7 +2083,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
      */
     return !isEqual( ovalue, nvalue )
   }
-  private __updateDepNodes__( current: Metavars<Input, State, Context>, previous?: Metavars<Input, State, Context> ){
+  private __updateDepNodes__( current: Metavars<Input, State, Context>, previous: Metavars<Input, State, Context> ){
     if( !this.__dependencies?.size ) return
 
     // Track update
@@ -2110,7 +2093,6 @@ export default class Component<Input = void, State = void, Static = void, Contex
     
     // Temporary batched updates
     const batchUpdates = new Set<string>()
-
     this.__dependencies.forEach( ( dependents, dep ) => {
       const [ dep_scope, ...parts ] = dep.split('.')
 
@@ -2132,7 +2114,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
             dependents.delete( path )
             return
           }
-          
+
           /**
            * For batch updates, collect all updates first
            * and execute batch once.
@@ -2202,10 +2184,14 @@ export default class Component<Input = void, State = void, Static = void, Contex
      */
     this.benchmark.dispose()
     /**
+     * Unregister this component from IUC
+     */
+    this.lips.IUC.unregister( this.__key__ )
+    /**
      * Stop watcher when component's element get 
      * detached from the DOM
      */
-    this.lips?.watcher?.unwatch( this as any )
+    this.lips.watcher.unwatch( this as any )
 
     /**
      * Detached all events
@@ -2233,13 +2219,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
     this.__dependencies?.clear()
     this.__batchUpdates?.clear()
 
-    this.__previous = undefined
-
-    /**
-     * Turn off this component's IUC
-     */
-    // clearInterval( this.IUC )
-    this.lips?.IUC.unregister(`${this.prekey}.${this.__name__}`)
+    // this.__previous = {}
   }
 
   appendTo( arg: Cash | string ){

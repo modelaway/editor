@@ -50,9 +50,9 @@ export type ComponentScope<Input = void, State = void, Static = void, Context = 
   declaration?: Declaration
 }
 export type ComponentOptions = {
+  lips: Lips
   debug?: boolean
   prekey?: string
-  lips?: Lips
   enableTemplateCache?: boolean
   enableSmartDiff?: boolean
 }

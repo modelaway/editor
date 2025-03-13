@@ -18,7 +18,7 @@ export default class Lips<Context = any> {
 
   private __root?: Component
   public i18n = new I18N()
-  public watcher?: DWS
+  public watcher: DWS
   public IUC: IUC
 
   private _setContext: ( ctx: Context ) => void

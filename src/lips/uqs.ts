@@ -5,142 +5,123 @@ import Benchmark from './benchmark'
  * Update Queue System for high-frequency DOM updates
  */
 export default class UpdateQueue {
-  private queue = new Map<string, boolean>()
-  private isProcessing = false
-  private frameDrops = 0
-  private lastFrameTime = 0
-  private processingTime = 0
-  private framesBetweenMetrics = 60
-  private frameCount = 0
+  private queue = new Set<string>()
+  private isPending = false
   private dependencies?: FGUDependencies
   private benchmark: Benchmark
   
+  // Metrics for tracking performance
   private metrics = {
-    avgProcessingTime: 0,
-    maxProcessingTime: 0,
-    framesDropped: 0,
-    queueHighWatermark: 0
+    batchCount: 0,
+    updatesProcessed: 0,
+    lastBatchSize: 0,
+    avgBatchSize: '0.00'
   }
-
+  
   constructor( benchmark: Benchmark ){
     this.benchmark = benchmark
   }
   
   /**
-   * Add updates to the queue
+   * Enqueue updates to be processed in the next tick
    */
   enqueue( dependencies: FGUDependencies, paths: Set<string> ){
     this.dependencies = dependencies
-
-    // Add each path to the queue, overwriting any existing entry
+    
+    // Add paths to the queue
     paths.forEach( path => {
-      this.queue.set( path, true )
-      this.benchmark.inc('dependencyUpdateCount')
-    } )
-
-    // Start processing if not already in progress
-    !this.isProcessing && this.startProcessing()
+      this.queue.add( path )
+      this.benchmark.inc( 'dependencyUpdateCount' )
+    })
+    
+    // Schedule processing if not already pending
+    if( !this.isPending ){
+      this.isPending = true
+      this.scheduleProcessing()
+    }
   }
-
+  
   /**
-   * Begin processing the queue
+   * Schedule processing using microtasks for better performance
    */
-  private startProcessing(){
-    this.isProcessing = true
-    this.processNextBatch()
-  }
-
-  /**
-   * Process updates in batches using requestAnimationFrame
-   */
-  private processNextBatch(){
-    requestAnimationFrame( ( timestamp ) => {
-      const processingStart = performance.now()
-      
-      // Calculate frame timing
-      if( this.lastFrameTime > 0 ){
-        const frameTime = timestamp - this.lastFrameTime
-
-        // If frame time > 20ms (assuming 50fps as acceptable), count as dropped frame
-        if( frameTime > 20 )
-          this.frameDrops++
-      }
-
-      this.lastFrameTime = timestamp
-      
-      // Get all paths currently in the queue
-      const pathsToProcess = Array.from( this.queue.keys() )
-      this.metrics.queueHighWatermark = Math.max( this.metrics.queueHighWatermark, pathsToProcess.length )
-      
-      // Clear the queue for the current batch
-      this.queue.clear()
-      
-      // Process each update path
-      pathsToProcess.length > 0 && this.applyUpdates( pathsToProcess )
-
-      // Track processing time
-      const currentProcessingTime = performance.now() - processingStart
-
-      this.processingTime += currentProcessingTime
-      this.metrics.maxProcessingTime = Math.max( this.metrics.maxProcessingTime, currentProcessingTime )
-      
-      // Update frame count and log metrics periodically
-      this.frameCount++
-      // if( this.frameCount % this.framesBetweenMetrics === 0 )
-      //   this.updateMetrics()
-      
-      // Continue processing if there are more updates in the queue,
-      // otherwise end the processing cycle
-      this.queue.size > 0
-                ? this.processNextBatch()
-                : this.isProcessing = false
+  private scheduleProcessing(){
+    Promise.resolve().then( () => {
+      this.processQueue()
     })
   }
-
+  
   /**
-   * Apply the updates to the DOM
+   * Process all queued updates in a batch
+   */
+  private processQueue(){
+    // Get all paths to process
+    const pathsToProcess = Array.from( this.queue )
+    
+    // Update metrics
+    this.metrics.batchCount++
+    this.metrics.lastBatchSize = pathsToProcess.length
+    this.metrics.updatesProcessed += pathsToProcess.length
+    this.metrics.avgBatchSize = (this.metrics.updatesProcessed / this.metrics.batchCount).toFixed(2)
+    
+    // Clear the queue
+    this.queue.clear()
+    
+    // Apply all updates
+    this.applyUpdates( pathsToProcess )
+    
+    // Track batch stats
+    this.benchmark.trackBatch( pathsToProcess.length )
+    
+    // Reset pending flag
+    this.isPending = false
+    
+    // Check if more updates were queued during processing
+    if( this.queue.size > 0 ){
+      this.isPending = true
+      this.scheduleProcessing()
+    }
+  }
+  
+  /**
+   * Apply updates to the DOM
    */
   private applyUpdates( paths: string[] ){
     paths.forEach( path => {
-      // Find all dependencies for this path and update them
       this.dependencies?.forEach( dependents => {
         const dependent = dependents.get( path )
         if( !dependent ) return
         
-        // Apply the update
-        const sync = dependent.update( dependent.memo, 'mesh-batch-updator' )
-        if( sync ){
-          typeof sync.$fragment === 'object'
-          && sync.$fragment.length
-          && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
-          
-          typeof sync.cleanup === 'function' && sync.cleanup()
+        try {
+          // Apply the update
+          const sync = dependent.update( dependent.memo, 'enhanced-batch-updator' )
+          if( sync ){
+            // Update fragment reference if provided
+            if( typeof sync.$fragment === 'object' && sync.$fragment.length ){
+              dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
+            }
+            
+            // Run cleanup if provided
+            if( typeof sync.cleanup === 'function' ){
+              sync.cleanup()
+            }
+          }
+        }
+        catch( error ){
+          console.error( 'Failed to update dependency --', error )
         }
       })
     })
   }
-
+  
   /**
-   * Update and log metrics
+   * Get current metrics
    */
-  private updateMetrics(){
-    this.metrics.avgProcessingTime = this.processingTime / this.frameCount
-    this.metrics.framesDropped = this.frameDrops
-    
-    // Log metrics for debugging
-    console.log('UQS Metrics:')
-    console.table({
-      avgProcessingTime: `${this.metrics.avgProcessingTime.toFixed( 2 )}ms`,
-      maxProcessingTime: `${this.metrics.maxProcessingTime.toFixed( 2 )}ms`,
-      framesDropped: this.metrics.framesDropped,
-      queueHighWatermark: this.metrics.queueHighWatermark
-    })
-    
-    // Reset metrics for next batch
-    this.frameDrops = 0
-    this.processingTime = 0
-    this.frameCount = 0
-    this.metrics.maxProcessingTime = 0
-    this.metrics.queueHighWatermark = 0
+  getMetrics(){
+    return {
+      batchCount: this.metrics.batchCount,
+      lastBatchSize: this.metrics.lastBatchSize,
+      avgBatchSize: this.metrics.avgBatchSize,
+      totalUpdates: this.metrics.updatesProcessed
+    }
   }
 }

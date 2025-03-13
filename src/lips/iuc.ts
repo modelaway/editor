@@ -1,8 +1,7 @@
 import Tick from './tick'
 
 /**
- * Internal Update Clock: Single global timer 
- * that updates all components.
+ * Internal Update Cycle
  */
 export default class IUC {
   private subscriptions = new Map<string, () => void>()
@@ -34,10 +33,9 @@ export default class IUC {
   /**
    * Create a state proxy handler to detect mutations
    */
-  proxyState( componentRef: string ){
+  proxyState<State extends Object>( componentRef: string, state: State ){
     const self = this
-    
-    return {
+    return new Proxy( state, {
       get( target: any, prop: string | symbol ){
         const value = target[ prop ]
         
@@ -102,6 +100,6 @@ export default class IUC {
         
         return true
       }
-    }
+    })
   }
 }

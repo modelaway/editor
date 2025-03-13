@@ -1,4 +1,4 @@
-import type { Declaration, Handler, MeshRenderer } from '..'
+import type { Declaration, Handler, Metavars, MeshRenderer } from '..'
 
 export interface Input {
   in: Record<string, any> | any[]
@@ -19,7 +19,7 @@ export const state: State = {
   argvlist: null
 }
 
-export const handler: Handler<Input, State> = {
+export const handler: Handler<Metavars<Input, State>> = {
   onInput(){
     // console.log('for loop input --', this.input )
     if( !this.input.renderer )

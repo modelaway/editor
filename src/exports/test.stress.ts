@@ -1,5 +1,5 @@
 import Lips from '../lips/lips';
-import type { Handler, Template } from '../lips';
+import type { Handler, Metavars } from '../lips';
 
 // Types for our stress test
 interface StressTestState {
@@ -56,7 +56,7 @@ export function createLipsStressTest(targetElement: string = 'body') {
     updateTimes: [] as number[]
   }
 
-  const handler: Handler<any, StressTestState, StressTestStatic> = {
+  const handler: Handler<Metavars<any, StressTestState, StressTestStatic>> = {
     
     onCreate() {
       console.log('Stress test component created');
@@ -429,7 +429,7 @@ export function runHighFrequencyTest(targetElement: string = 'body', duration: n
     startTime: 0,
     updateTimes: [] as number[],
   }
-  const handler: Handler<any, typeof state, typeof _static> = {
+  const handler: Handler<Metavars<any, typeof state, typeof _static>> = {
     startTest() {
       if (this.state.isRunning) return;
       
@@ -631,7 +631,7 @@ export function runDOMStressTest(targetElement: string = 'body') {
     nodes: [] as { id: number, value: string }[]
   };
   
-  const handler: Handler<any, typeof state> = {
+  const handler: Handler<Metavars<any, typeof state>> = {
     createNodes(count: number) {
       this.state.isRendering = true;
       

@@ -1,3 +1,4 @@
+import { Metavars } from '.'
 import type Component from './component'
 
 type WatchData = {
@@ -8,9 +9,9 @@ type WatchData = {
 /**
  * DOM Watch Service
  */
-export default class DWS {
+export default class DWS<MT extends Metavars> {
   private domObserver: MutationObserver
-  private observedComponents = new Map<Component, WatchData>()
+  private observedComponents = new Map<Component<MT>, WatchData>()
   private readonly TIMEOUT = 10000 // 10 seconds
 
   constructor(){
@@ -51,7 +52,7 @@ export default class DWS {
     })
   }
 
-  watch( component: Component, type: 'attach' | 'detach' = 'attach' ){
+  watch( component: Component<MT>, type: 'attach' | 'detach' = 'attach' ){
     const $node = component.getNode()
     if( !$node ) return
 
@@ -93,7 +94,7 @@ export default class DWS {
     && component.once('component:attached', () => this.watch( component, 'detach' ))
   }
 
-  unwatch( component: Component ){
+  unwatch( component: Component<MT> ){
     const watchData = this.observedComponents.get( component )
     if( watchData ){
       clearTimeout( watchData.timeout )

@@ -1,4 +1,4 @@
-import type { Handler } from '..'
+import type { Handler, Metavars } from '..'
 
 /**
  * Performance Dashboard
@@ -31,7 +31,7 @@ export const _static = {
   keyboardShortcut: 'P'
 }
   
-export const handler: Handler<Input, State, Static> = {
+export const handler: Handler<Metavars<Input, State, Static>> = {
   onCreate() {
     this.loadMetrics();
     

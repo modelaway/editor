@@ -1,6 +1,17 @@
 import type Lips from './lips'
 import type Component from './component'
 
+export interface Metavars<Input extends Object = {}, State extends Object = {}, Static extends Object = {}, Context extends Object = {}> {
+  Input: Input
+  State: State
+  Static: Static
+  Context: Context
+}
+export interface InteractiveMetavars<MT extends Metavars = Metavars> {
+  input: MT['Input']
+  state: MT['State']
+  context: MT['Context']
+}
 export type LanguageDictionary = Record<string, Record<string, string> | string>
 export type VariableScopeSet = {
   value: any
@@ -20,32 +31,33 @@ export type Declaration = {
   contents?: boolean
   tags?: Record<string, DeclarationTag>
 }
-export interface Handler<Input = void, State = void, Static = void, Context = void> {
-  onCreate?: ( this: Component<Input, State, Static, Context> ) => void
-  onInput?: ( this: Component<Input, State, Static, Context>, input: Input ) => void
-  onMount?: ( this: Component<Input, State, Static, Context> ) => void
-  onRender?: ( this: Component<Input, State, Static, Context> ) => void
-  onUpdate?: ( this: Component<Input, State, Static, Context> ) => void
 
-  [index: string]: ( this: Component<Input, State, Static, Context>, ...args: any[] ) => void
+export interface Handler<MT extends Metavars> {
+  onCreate?: ( this: Component<MT> ) => void
+  onInput?: ( this: Component<MT>, input: Input ) => void
+  onMount?: ( this: Component<MT> ) => void
+  onRender?: ( this: Component<MT> ) => void
+  onUpdate?: ( this: Component<MT> ) => void
+
+  [index: string]: ( this: Component<MT>, ...args: any[] ) => void
 }
-export type Template<Input = void, State = void, Static = void, Context = void> = {
+export type Template<MT extends Metavars> = {
   default?: string
-  state?: any
-  _static?: any
-  context?: any
+  state?: MT['State']
+  _static?: MT['Static']
+  context?: string[]
   macros?: string
-  handler?: Handler<Input, State, Static, Context>
+  handler?: Handler<MT>
   stylesheet?: string
   declaration?: Declaration
 }
-export type ComponentScope<Input = void, State = void, Static = void, Context = void> = {
-  input?: any
-  state?: any
-  context?: string[]
-  _static?: Static
+export type ComponentScope<MT extends Metavars> = {
+  input?: MT['Input']
+  state?: MT['State']
+  context?: MT['Context']
+  _static?: MT['Static']
   macros?: string
-  handler?: Handler<Input, State, Static, Context>
+  handler?: Handler<MT>
   stylesheet?: string
   declaration?: Declaration
 }
@@ -70,12 +82,6 @@ export type StyleSettings = {
   }
 }
 export type EventListener = ( ...args: any[] ) => void
-
-export type Metavars<I, S, C> = { 
-  state: S,
-  input: I,
-  context: C
-}
 
 export type Macro = {
   argv: string[]

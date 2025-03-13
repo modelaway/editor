@@ -1,16 +1,16 @@
-import type { Handler, Template } from '..'
+import type { Handler, Metavars, Template } from '..'
 
-type RouteDef = {
+type RouteDef<MT extends Metavars> = {
   path: string
-  template: Template
+  template: Template<MT>
   default?: boolean
 }
-export type Input = {
+export type Input<RouteInput extends Object> = {
   global?: boolean
-  routes: RouteDef[]
+  routes: RouteDef<Metavars<RouteInput>>[]
 }
 
-type Route = RouteDef & {
+type Route = RouteDef<any> & {
   pathVars: string[]
   pathRegex: RegExp
 }
@@ -53,7 +53,7 @@ declare global {
   }
 }
 
-export const handler: Handler<Input, undefined, Static> = {
+export const handler: Handler<Metavars<Input<any>, any, Static>> = {
   onInput(){
     if( !this.input.routes )
       return

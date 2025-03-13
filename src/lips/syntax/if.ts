@@ -1,4 +1,4 @@
-import type { Declaration, Handler, MeshRenderer, MeshTemplate } from '..'
+import type { Declaration, Handler, Metavars, MeshRenderer, MeshTemplate } from '..'
 
 export interface Input {
   by: boolean
@@ -22,7 +22,7 @@ export const state: State = {
   renderer: null
 }
 
-export const handler: Handler<Input, State> = {
+export const handler: Handler<Metavars<Input, State>> = {
   onInput(){
     if( !this.input.renderer ) return
 

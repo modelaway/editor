@@ -1,4 +1,4 @@
-import type { LipsConfig, Template, ComponentOptions } from '.'
+import type { LipsConfig, Template, ComponentOptions, Metavars } from '.'
 
 import I18N from './i18n'
 import IUC from './iuc'
@@ -14,11 +14,11 @@ import * as Router from './syntax/router'
 
 export default class Lips<Context = any> {
   private debug = false
-  private store: Record<string, Template> = {}
+  private store: Record<string, Template<any>> = {}
 
-  private __root?: Component
+  private __root?: Component<any>
   public i18n = new I18N()
-  public watcher: DWS
+  public watcher: DWS<any>
   public IUC: IUC
 
   private _setContext: ( ctx: Context ) => void
@@ -48,7 +48,7 @@ export default class Lips<Context = any> {
     this.register('router', Router )
   }
 
-  register( name: string, template: Template<any, any, any, any> ){
+  register<MT extends Metavars>( name: string, template: Template<MT> ){
     /**
      * TODO: Register component by providing file path.
      */
@@ -72,7 +72,7 @@ export default class Lips<Context = any> {
   has( name: string ){
     return name in this.store
   }
-  import( pathname: string ): Template {
+  import<MT extends Metavars>( pathname: string ): Template<MT> {
     // Fetch from registered component
     if( !this.has( pathname ) )
       throw new Error(`<${pathname}> component not found`)
@@ -99,7 +99,7 @@ export default class Lips<Context = any> {
     // }
     // catch( error ){ throw new Error(`No <${pathname}> component found`) }
   }
-  render<Input = void, State = void, Static = void, Context = void>( name: string, template: Template<Input, State, Static, Context>, input?: Input ){
+  render<MT extends Metavars>( name: string, template: Template<MT>, input?: MT['Input'] ){
     const
     { default: _default, ...scope } = template,
     options: ComponentOptions = {
@@ -108,9 +108,9 @@ export default class Lips<Context = any> {
       lips: this
     }
 
-    return new Component<Input, State, Static, Context>( name, _default || '', { ...scope, input }, options )
+    return new Component<MT>( name, _default || '', { ...scope, input }, options )
   }
-  root( template: Template, selector: string ){
+  root<MT extends Metavars>( template: Template<MT>, selector: string ){
     this.__root = this.render('__ROOT__', template )
     this.__root.appendTo( selector )
 

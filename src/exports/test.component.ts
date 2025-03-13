@@ -1,4 +1,4 @@
-import type { Template, Handler } from '../lips'
+import type { Template, Handler, Metavars } from '../lips'
 
 import Lips from '../lips/lips'
 import english from '../languages/en.json'
@@ -97,7 +97,7 @@ function Demo1(){
       ]
     }
   },
-  handler: Handler<Input, State, Static> = {
+  handler: Handler<Metavars<Input, State, Static>> = {
     handleConnect( online: boolean, e: Event ){
       console.log('Connected: ', online, e )
 
@@ -135,7 +135,7 @@ function Demo2(){
   state: State = {
     count: 0
   },
-  handler: Handler<any, State> = {
+  handler: Handler<Metavars<any, State>> = {
     onMount(){
       console.log('Component mounted')
     },
@@ -154,7 +154,7 @@ function Demo2(){
   `
   
   lips
-  .render<any, State>('Demo2', { default: template, state, handler, stylesheet })
+  .render<Metavars<any, State>>('Demo2', { default: template, state, handler, stylesheet })
   .appendTo('body')
 }
 
@@ -176,7 +176,7 @@ function Demo3(){
   _static = {
     name: 'Peter Gibson'
   },
-  handler: Handler<any, any, Static> = {
+  handler: Handler<Metavars<any, any, Static>> = {
     getUser( name ){
       return new Promise( ( resolve, reject ) => {
         setTimeout( () => resolve({ name, email: 'g.peter@mail.com' }), 3000 )
@@ -186,7 +186,7 @@ function Demo3(){
   }
 
   lips
-  .render<any, any, Static>('Demo3', { default: template, _static, handler })
+  .render<Metavars<any, any, Static>>('Demo3', { default: template, _static, handler })
   .appendTo('body')
 }
 
@@ -227,7 +227,7 @@ function Demo5(){
     count: number
   }
 
-  const easyCount: Template<TemplateInput, TemplateState> = {
+  const easyCount: Template<Metavars<TemplateInput, TemplateState>> = {
     state: {
       count: 0
     },
@@ -255,7 +255,7 @@ function Demo5(){
   _static = {
     vars: { type: 'UI Framework', name: 'Lips', version: '1.0.0' }
   },
-  handler: Handler = {
+  handler: Handler<Metavars<any>> = {
     initcount(){
       // Do something ...
 
@@ -292,7 +292,7 @@ function Demo6(){
     limit: number
   }
 
-  const cp: Template<TemplateInput, TemplateState, TemplateStatic> = {
+  const cp: Template<Metavars<TemplateInput, TemplateState, TemplateStatic>> = {
     state: {
       count: 0
     },
@@ -355,7 +355,7 @@ function Demo6(){
     initial: 3,
     countUpdate: 0
   },
-  handler: Handler<any, State> = {
+  handler: Handler<Metavars<any, State>> = {
     onMount(){
       this.getNode().css({ color: 'green' })
       
@@ -421,7 +421,7 @@ function DemoCart(){
     ]
   }
 
-  const handler: Handler<CartInput, CartState> = {
+  const handler: Handler<Metavars<CartInput, CartState>> = {
     onIncrementQuantity(itemId: number) {
       this.state.items = this.state.items.map(item =>
         item.id === itemId
@@ -606,7 +606,7 @@ function DemoCart(){
   const input = { key: 'shopping-cart' }
   
   lips
-  .render<CartInput, CartState>('DemoInput', { default: template, state, handler, stylesheet, macros }, input )
+  .render<Metavars<CartInput, CartState>>('DemoInput', { default: template, state, handler, stylesheet, macros }, input )
   .appendTo('body')
 }
 
@@ -1071,7 +1071,7 @@ function DemoInput(){
     count: number
   }
 
-  const easyCount: Template<TemplateInput, TemplateState> = {
+  const easyCount: Template<Metavars<TemplateInput, TemplateState>> = {
     state: {
       count: 0
     },
@@ -1127,7 +1127,7 @@ function DemoInput(){
     speech: 'hi',
     traffic: 'orange'
   },
-  handler: Handler<any, State> = {
+  handler: Handler<Metavars<any, State>> = {
     handleInput( e ){
       this.state.value = e.target.value
       this.state.attrs.hidden = e.target.value.length == 2

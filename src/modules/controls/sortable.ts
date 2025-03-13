@@ -1,4 +1,5 @@
 import type Editor from '../editor'
+import type { Metavars } from '../../lips'
 import type Component from '../../lips/component'
 
 import $, { type Cash } from 'cash-dom'
@@ -51,9 +52,9 @@ export type SortableOptions = {
   scrollSpeed?: number
 }
 
-export default class Sortable<Input = void, State = void, Static = void, Context = void> extends EventEmitter {
+export default class Sortable<MT extends Metavars> extends EventEmitter {
   private editor: Editor
-  private component: Component<Input, State, Static, Context> | null
+  private component: Component<MT> | null
 
   private options: SortableOptions
   private dragging: boolean = false
@@ -70,7 +71,7 @@ export default class Sortable<Input = void, State = void, Static = void, Context
   private selectedItems: Map<string, Cash> = new Map()
   private boundHandleKeyboard: ( e: KeyboardEvent ) => void
 
-  constructor( editor: Editor, component: Component<Input, State, Static, Context>, options: SortableOptions ){
+  constructor( editor: Editor, component: Component<MT>, options: SortableOptions ){
     super()
     
     this.editor = editor

@@ -1,10 +1,10 @@
-import type { Handler } from '../../lips'
+import type { Handler, Metavars } from '../../lips'
 
 export type XPInput = {}
 
 const Explorer = () => {
 
-  const handler: Handler<XPInput> = {
+  const handler: Handler<Metavars<XPInput>> = {
     onInput(){
       console.log('--- input:', this.input )
     }

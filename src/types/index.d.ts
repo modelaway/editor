@@ -4,6 +4,10 @@ type ClipBoard = {
   value?: any
 }
 
+type Point = {
+  x: number
+  y: number
+}
 type Origin = {
   x: number
   y: number
@@ -15,6 +19,7 @@ type Position = {
   bottom?: string
   center?: string
 }
+type CSSProperties = Partial<CSSStyleDeclaration>
 
 type FrameBasedCanvasAdaptability = {
   autopan?: boolean

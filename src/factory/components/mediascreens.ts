@@ -1,7 +1,7 @@
 import type { MediaScreen } from '../../types/frame'
+import type { Handler, Metavars } from '../../lips'
 
 import { MEDIA_SCREENS } from '../../modules/constants'
-import { Handler } from '../../lips'
 
 export type MSInput = {}
 
@@ -53,7 +53,7 @@ const MediaScreens = () => {
     transparent: true
   }
 
-  const handler: Handler<MSInput, State> = {
+  const handler: Handler<Metavars<MSInput, State>> = {
     onScreenSelect( key: string, screen: MediaScreen ){
       this.state.selected = { ...screen, key }
     },

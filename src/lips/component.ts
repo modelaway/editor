@@ -1,8 +1,10 @@
 import type Lips from './lips'
 import type { 
   Handler,
+  Metavars,
   ComponentScope,
   ComponentOptions,
+  InteractiveMetavars,
   VariableScope,
   MeshRenderer,
   MeshTemplate,
@@ -13,7 +15,6 @@ import type {
   FragmentBoundaries,
   VirtualEvent,
   VirtualEventRecord,
-  Metavars,
   Macro,
   MeshWireSetup
 } from '.'
@@ -35,27 +36,27 @@ import {
   SYNCTAX_VAR_FLAG
 } from './utils'
 
-export default class Component<Input = void, State = void, Static = void, Context = void> extends Events {
+export default class Component<MT extends Metavars> extends Events {
   private template: string
   private declaration: Declaration
   private $?: Cash
 
-  public input: Input
-  public state: State
-  public static: Static
-  public context: Context
+  public input: MT['Input']
+  public state: MT['State']
+  public static: MT['Static']
+  public context: MT['Context']
 
   public __key__: string
   public __name__: string
-  private __previous: Metavars<Input, State, Context>
+  private __previous: InteractiveMetavars<MT>
   private __stylesheet?: Stylesheet
   private __macros: Map<string, Macro> = new Map() // Cached macros templates
   private __dependencies: FGUDependencies = new Map() // Initial FGU dependencies
-  private __attachedEvents: VirtualEventRecord<Component<Input, State, Static, Context>>[] = []
+  private __attachedEvents: VirtualEventRecord<Component<MT>>[] = []
   private __renderCache: Map<string, RenderedNode> = new Map()
 
   // Preserved Child Components
-  private PCC: Map<string, Component> = new Map()
+  private PCC: Map<string, Component<MT>> = new Map()
 
   /**
    * Nexted Component Count (NCC) in tree
@@ -66,9 +67,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private debug = false
   private isRendered = false
 
-  private _setInput: ( input: Input ) => void
-  private _setState: ( state: State ) => void
-  private _getState: () => State | undefined
+  private _setInput: ( input: MT['Input'] ) => void
+  private _setState: ( state: MT['State'] ) => void
+  private _getState: () => MT['State'] | undefined
 
   // Update Queue System for high-frequency DOM updates
   private UQS: UQS
@@ -88,7 +89,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
    */
   ;[key: string]: any
 
-  constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet, macros, declaration }: ComponentScope<Input, State, Static, Context>, options: ComponentOptions ){
+  constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet, macros, declaration }: ComponentScope<MT>, options: ComponentOptions ){
     super()
     this.lips = options.lips
     this.template = preprocessor( template )
@@ -101,13 +102,13 @@ export default class Component<Input = void, State = void, Static = void, Contex
 
     this.declaration = declaration || { name }
 
-    this.input = input || {} as Input
-    this.static = _static || {} as Static
-    this.context = {} as Context
+    this.input = input || {}
+    this.static = _static || {}
+    this.context = {}
     /**
      * Detect all state mutations, including deep mutations
      */
-    this.state = new Proxy( state || {} as State, this.lips.IUC.proxyState( this.__key__ ) || {} )
+    this.state = this.lips.IUC.proxyState<MT['State']>( this.__key__, state || {} as MT['State'] )
     
     macros && this.setMacros( macros )
     handler && this.setHandler( handler )
@@ -148,7 +149,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
     }
 
     /**
-     * Initialize previous metavars to initial metavars
+     * Initialize previous interative metavars to initial metavars
      * 
      * IMPORTANT: this prevent any update effect during
      * component creating for initial input, state and
@@ -161,9 +162,9 @@ export default class Component<Input = void, State = void, Static = void, Contex
     }
 
     const
-    [ getInput, setInput ] = signal<Input>( this.input ),
-    [ getState, setState ] = signal<State>( this.state ),
-    [ getContext, setContext ] = signal<Context>( this.context )
+    [ getInput, setInput ] = signal<MT['Input']>( this.input ),
+    [ getState, setState ] = signal<MT['State']>( this.state ),
+    [ getContext, setContext ] = signal<MT['Context']>( this.context )
 
     this._setInput = setInput
     this._setState = setState
@@ -188,7 +189,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
      */
     Array.isArray( context )
     && context.length
-    && this.lips.useContext<Context>( context, ctx => {
+    && this.lips.useContext<MT['Context']>( context, ctx => {
       if( !isDiff( this.context as Record<string, any>, ctx ) ) return
 
       setContext( ctx )
@@ -288,7 +289,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
      */
     this.lips.setContext( arg, value )
   }
-  setInput( input: Input ){
+  setInput( input: MT['Input'] ){
     /**
      * Apply update only when new input is different 
      * from the incoming input
@@ -313,7 +314,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
     if( typeof data !== 'object' )
       throw new Error('Invalid sub input data argument')
 
-    this.setInput( deepAssign<Input>( this.input, data ) )
+    this.setInput( deepAssign<MT['Input']>( this.input, data ) )
     return this
   }
   setMacros( template: string ){
@@ -341,7 +342,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
       self.__macros.set( attrs.name, { argv, $node } )
     } )
   }
-  setHandler( list: Handler<Input, State, Static, Context> ){
+  setHandler( list: Handler<MT> ){
     Object
     .entries( list )
     .map( ([ method, fn ]) => this[ method ] = fn.bind(this) )
@@ -755,7 +756,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
       /**
        * Render the whole component for first time
        */
-      const template = self.lips.import( name )
+      const template = self.lips.import<any>( name )
       if( !template )
         throw new Error(`<${name}> template not found`)
       
@@ -1936,7 +1937,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private __interpolate__( str: string, scope?: VariableScope ){
     return str.replace( /{\s*([^{}]+)\s*}/g, ( _, expr ) => this.__evaluate__( expr, scope ) )
   }
-  private __attachEvent__( element: Cash | Component, _event: string, instruction: string, scope?: VariableScope ){
+  private __attachEvent__( element: Cash | Component<MT>, _event: string, instruction: string, scope?: VariableScope ){
     /**
      * Execute function script directly attach 
      * as the listener.
@@ -1988,7 +1989,7 @@ export default class Component<Input = void, State = void, Static = void, Contex
     this.benchmark.inc('domUpdatesCount')
     this.benchmark.inc('domRemovalsCount')
   }
-  private  __detachEvent__( $element: Cash | Component, _event: string ){
+  private  __detachEvent__( $element: Cash | Component<MT>, _event: string ){
     $element.off( _event )
     // Track DOM operation
     this.benchmark.inc('domOperations')
@@ -2069,21 +2070,21 @@ export default class Component<Input = void, State = void, Static = void, Contex
   private __valueDep__( obj: any, path: string[] ): any {
     return path.reduce( ( curr, part ) => curr?.[ part ], obj )
   }
-  private __shouldUpdate__( dep_scope: string, parts: string[], current: Metavars<Input, State, Context>, previous: Metavars<Input, State, Context> ): boolean {
+  private __shouldUpdate__( dep_scope: string, parts: string[], current: InteractiveMetavars<MT>, previous: InteractiveMetavars<MT> ): boolean {
     // Allow component's method `self.fn` call evaluation
     if( dep_scope === 'self' ) return true
 
     // Check metavars changes
     const
-    ovalue = this.__valueDep__( previous[ dep_scope as keyof Metavars<Input, State, Context> ], parts ),
-    nvalue = this.__valueDep__( current[ dep_scope as keyof Metavars<Input, State, Context> ], parts )
+    ovalue = this.__valueDep__( previous[ dep_scope as keyof InteractiveMetavars<MT> ], parts ),
+    nvalue = this.__valueDep__( current[ dep_scope as keyof InteractiveMetavars<MT> ], parts )
 
     /**
      * Skip if value hasn't changed
      */
     return !isEqual( ovalue, nvalue )
   }
-  private __updateDepNodes__( current: Metavars<Input, State, Context>, previous: Metavars<Input, State, Context> ){
+  private __updateDepNodes__( current: InteractiveMetavars<MT>, previous: InteractiveMetavars<MT> ){
     if( !this.__dependencies?.size ) return
 
     // Track update

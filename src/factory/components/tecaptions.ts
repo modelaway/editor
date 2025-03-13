@@ -1,5 +1,5 @@
 
-import type { Handler } from '../../lips'
+import type { Handler, Metavars } from '../../lips'
 
 type State = {
   selected: string | null
@@ -17,7 +17,7 @@ const TECaptions = () => {
     instructions: undefined
   }
   
-  const handler: Handler<ToolbarOption, State> = {
+  const handler: Handler<Metavars<ToolbarOption, State>> = {
     onInput(){
       const option = this.input as any
       if( option.variants ){

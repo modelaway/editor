@@ -1,6 +1,7 @@
 import type Editor from '../editor'
 import type { Cash } from 'cash-dom'
-import type { Component } from '../../lips/lips'
+import type { Metavars } from '../../lips'
+import type Component from '../../lips/component'
 import type { FrameOption } from '../../types/frame'
 
 import { EDITOR_EDGE_PADDING } from '../constants'
@@ -16,9 +17,9 @@ import {
 
 export default class Controls {
   private editor: Editor
-  private layers?: Component<LayersInput, any, any, any>
-  private toolbar?: Component<ToolbarInput, any>
-  private quickset?: Component<QuicksetInput, any>
+  private layers?: Component<Metavars<LayersInput, any, any, any>>
+  private toolbar?: Component<Metavars<ToolbarInput, any>>
+  private quickset?: Component<Metavars<QuicksetInput, any>>
 
   constructor( editor: Editor ){
     this.editor = editor
@@ -241,14 +242,14 @@ export default class Controls {
   /**
    * 
    */
-  movable<Input = void, State = void, Static = void, Context = void>( component: Component<Input, State, Static, Context>, options?: MovableOptions ){
-    return new Movable<Input, State, Static, Context>( this.editor, component, options )
+  movable<MT extends Metavars>( component: Component<MT>, options?: MovableOptions ){
+    return new Movable<MT>( this.editor, component, options )
   }
 
   /**
    * 
    */
-  sortable<Input = void, State = void, Static = void, Context = void>( component: Component<Input, State, Static, Context>, options: SortableOptions ){
-    return new Sortable<Input, State, Static, Context>( this.editor, component, options )
+  sortable<MT extends Metavars>( component: Component<MT>, options: SortableOptions ){
+    return new Sortable<MT>( this.editor, component, options )
   }
 }

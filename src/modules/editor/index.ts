@@ -63,7 +63,7 @@ export default class Editor {
      * Workspace view preferences
      */
     viewQuickSet: true,
-    viewLayers: true,
+    viewLayers: false,
     viewToolbar: true
   }
   public settings: ModelaSettings = {}

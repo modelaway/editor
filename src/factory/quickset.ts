@@ -1,5 +1,5 @@
 import type Lips from '../lips/lips'
-import type { Handler } from '../lips'
+import type { Handler, Metavars } from '../lips'
 import type { HandlerHook } from '../types/controls'
 
 import {
@@ -41,7 +41,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
     suggestions: null
   }
 
-  const handler: Handler<QuicksetInput, QuicksetState> = {
+  const handler: Handler<Metavars<QuicksetInput, QuicksetState>> = {
     onInput({ options }: QuicksetInput ){
       if( !options ) return
 
@@ -286,7 +286,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
     </mblock>
   `
 
-  return lips.render<QuicksetInput, QuicksetState>('quickset', { default: template, state, handler, macros, stylesheet }, input )
+  return lips.render<Metavars<QuicksetInput, QuicksetState>>('quickset', { default: template, state, handler, macros, stylesheet }, input )
 }
 
 const stylesheet = `

@@ -1,5 +1,5 @@
 import type Lips from '../lips/lips'
-import type { Handler } from '../lips'
+import type { Handler, Metavars } from '../lips'
 import type { ViewCaption } from '../types/view'
 import type { HandlerHook } from '../types/controls'
 
@@ -29,7 +29,7 @@ export default ( lips: Lips, input: MenuInput, hook: HandlerHook ) => {
     activeTab: null
   }
 
-  const handler: Handler<MenuInput, MenuState> = {
+  const handler: Handler<Metavars<MenuInput, MenuState>> = {
     onInput({ options }){
       if( !options ) return
 
@@ -151,7 +151,7 @@ export default ( lips: Lips, input: MenuInput, hook: HandlerHook ) => {
     </mblock>
   `
 
-  return lips.render<MenuInput, MenuState>('menu', { default: template, state, handler, macros, stylesheet }, input )
+  return lips.render<Metavars<MenuInput, MenuState>>('menu', { default: template, state, handler, macros, stylesheet }, input )
 }
 
 const stylesheet = `

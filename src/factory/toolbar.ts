@@ -1,5 +1,5 @@
 import type Lips from '../lips/lips'
-import type { Handler } from '../lips'
+import type { Handler, Metavars } from '../lips'
 import type { HandlerHook } from '../types/controls'
 
 import $ from 'cash-dom'
@@ -43,7 +43,7 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
     showPalette: false
   }
 
-  const handler: Handler<ToolbarInput, ToolbarState> = {
+  const handler: Handler<Metavars<ToolbarInput, ToolbarState>> = {
     onInput({ tools, views, globals }){
       this.state.tools = tools || {}
       this.state.views = views || {}
@@ -321,7 +321,7 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
     </mblock>
   `
 
-  return lips.render<ToolbarInput, ToolbarState>('toolbar', { default: template, state, handler, macros, stylesheet }, input )
+  return lips.render<Metavars<ToolbarInput, ToolbarState>>('toolbar', { default: template, state, handler, macros, stylesheet }, input )
 }
 
 const stylesheet = `

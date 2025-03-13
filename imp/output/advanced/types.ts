@@ -1,5 +1,4 @@
 // ===================== Type Definitions =====================
-type CSSProperties = Partial<CSSStyleDeclaration>
 type GridTemplate = string[]
 type ElementId = string
 type Confidence = number
@@ -26,11 +25,6 @@ enum ShapeType {
 }
 
 // ===================== Base Interfaces =====================
-interface Point {
-  x: number
-  y: number
-}
-
 interface Rect {
   left: number
   top: number

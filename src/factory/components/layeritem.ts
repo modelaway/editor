@@ -1,5 +1,5 @@
 import type { Cash } from 'cash-dom'
-import type { Handler } from '../../lips'
+import type { Handler, Metavars } from '../../lips'
 
 type LayerItemInput = LayerElement & {
   path: string
@@ -40,7 +40,7 @@ const LayerItem = () => {
     }
   }
   
-  const handler: Handler<LayerItemInput, LayerItemState, LayerItemStatic> = {
+  const handler: Handler<Metavars<LayerItemInput, LayerItemState, LayerItemStatic>> = {
     onCollapse( key: string ){
       this.state.collapsed = !this.state.collapsed
       

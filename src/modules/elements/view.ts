@@ -1,4 +1,6 @@
 import type Frame from '../frame'
+import type { Metavars } from '../../lips'
+import type Component from '../../lips/component'
 import type { HandlerHook } from '../../types/controls'
 import type { ViewBlockProperties, ViewDefinition, ViewInstance } from '../../types/view'
 
@@ -21,9 +23,7 @@ import {
   ELEMENT_CONTROL_OPTIONS,
   CONTROL_HOLDER_SELECTOR
 } from '../constants'
-import { Component } from '../../lips/lips'
 import Menu, { MenuInput, MenuState } from '../../factory/menu'
-import Finder, { FinderInput, FinderState } from '../../factory/finder'
 import Quickset, { QuicksetInput, QuicksetState } from '../../factory/quickset'
 import { debug, hashKey } from '../utils'
 
@@ -57,15 +57,11 @@ export default class View extends EventEmitter {
   /**
    * Quickset block component
    */
-  private Quickset?: Component<QuicksetInput, QuicksetState>
+  private Quickset?: Component<Metavars<QuicksetInput, QuicksetState>>
   /**
    * Quickset block component
    */
-  private Menu?: Component<MenuInput, MenuState>
-  /**
-   * Finder panel block component
-   */
-  private Finder?: Component<FinderInput, FinderState>
+  private Menu?: Component<Metavars<MenuInput, MenuState>>
 
   constructor( frame: Frame ){
     super()
@@ -500,53 +496,6 @@ export default class View extends EventEmitter {
     // Fire show menu listeners
     this.instance.events.emit('menu.show')
   }
-  finder( $trigger: Cash ){
-    if( !this.frame.editor.$viewport || !this.key || !this.instance.$ )
-      throw new Error('Invalid method called')
-
-    /**
-     * Put finder panel in position
-     */
-    let { x, y } = this.frame.getTopography( $trigger )
-
-    const
-    input = { key: this.key as string, list: this.frame.editor.store.views.search() },
-    hook = {
-      events: this.instance.events,
-      metacall: this.metacall.bind(this)
-    }
-    this.Finder = Finder( this.frame.editor.lips, input, hook )
-    let $finder = this.Finder.appendTo( this.frame.editor.$viewport ).getNode()
-
-    const
-    pWidth = $finder.find(':scope > [container]').width() || 0,
-    pHeight = $finder.find(':scope > [container]').height() || 0,
-    // Window dimensions
-    wWidth = $(window).width() || 0,
-    wHeight = $(window).height() || 0
-    
-    /**
-     * Not enough space at the left, position at the right
-     */
-    if( x < CONTROL_EDGE_MARGIN )
-      x = CONTROL_EDGE_MARGIN
-
-    /**
-     * Not enough space at the right either, position 
-     * over view.
-     */
-    if( ( x + pWidth + CONTROL_EDGE_MARGIN ) > wWidth )
-      x -= pWidth + CONTROL_EDGE_MARGIN
-
-    /**
-     * Display panel in window view when element 
-     * is position to close to the bottom.
-     */
-    if( ( y + pHeight + CONTROL_EDGE_MARGIN ) > wHeight )
-      y -= pHeight
-
-    $finder.css({ left: `${x}px`, top: `${y}px` })
-  }
   
   activate(){
     if( !this.key || !this.instance.$ ) return
@@ -574,10 +523,6 @@ export default class View extends EventEmitter {
     // Remove editing control menu if active
     this.Menu?.destroy()
     this.Menu = undefined
-
-    // Remove editing finder menu if active
-    this.Finder?.destroy()
-    this.Finder = undefined
 
     /**
      * View activation awareness.
@@ -622,14 +567,6 @@ export default class View extends EventEmitter {
     switch( key ){
       case 'menu': this.menu(); break
       case 'menu.dismiss': this.Menu?.destroy(); break
-
-      case 'finder.search':
-        /**
-         * Trigger search with minimum 2 character input value
-         */
-        data.length > 2
-        && this.Finder?.subInput({ list: this.frame.editor.store.views.search( data ) })
-        break
 
       case 'view.sub.delete': this.frame.elements.remove( this.key ); break
       case 'view.sub.duplicate': this.frame.elements.duplicate( this.key ); break

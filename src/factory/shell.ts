@@ -1,4 +1,5 @@
 import type Lips from '../lips/lips'
+import type { Metavars  } from '../lips'
 
 export type ShellInput = {
 
@@ -12,5 +13,5 @@ export default ( lips: Lips, input: ShellInput ) => {
     </mshell>
   `
 
-  return lips.render<ShellInput>( 'shell', { default: template }, input )
+  return lips.render<Metavars<ShellInput>>( 'shell', { default: template }, input )
 }

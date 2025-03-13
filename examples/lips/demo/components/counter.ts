@@ -1,4 +1,4 @@
-import type { Handler } from '../../../../src/lib/lips'
+import type { Handler, Metavars } from '../../../../src/lips'
 
 export type Input = {
   initial: number
@@ -20,7 +20,7 @@ export const state: State = {
   count: 0
 }
 
-export const handler: Handler<Input, State, Static> = {
+export const handler: Handler<Metavars<Input, State, Static>> = {
   // onCreate(){ this.state.count = Number( this.input.initial ) },
   onInput(){ this.state.count = Number( this.input.initial ) },
   handleClick( e ){

@@ -1,4 +1,5 @@
 import type Editor from '../editor'
+import type { Metavars } from '../../lips'
 import type Component from '../../lips/component'
 
 import $, { type Cash } from 'cash-dom'
@@ -30,9 +31,9 @@ interface MovableEventMap {
   'stopped': ( position: Position ) => void
 }
 
-export default class Movable<Input = void, State = void, Static = void, Context = void> extends EventEmitter {
+export default class Movable<MT extends Metavars> extends EventEmitter {
   private editor: Editor
-  private component: Component<Input, State, Static, Context> | null
+  private component: Component<MT> | null
   private options: MovableOptions
 
   private $block?: Cash
@@ -43,7 +44,7 @@ export default class Movable<Input = void, State = void, Static = void, Context 
   private cursorY: number = 0
   private startPosition?: CalcPosition = { top: 0, left: 0, right: 0, bottom: 0 }
 
-  constructor( editor: Editor, component: Component<Input, State, Static, Context>, options?: MovableOptions ){
+  constructor( editor: Editor, component: Component<MT>, options?: MovableOptions ){
     super()
 
     this.editor = editor

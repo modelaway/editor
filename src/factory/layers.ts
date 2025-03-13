@@ -1,5 +1,5 @@
 import type Lips from '../lips/lips'
-import type { Handler } from '../lips'
+import type { Handler, Metavars } from '../lips'
 import type { FrameSpecs } from '../types/frame'
 import type { HandlerHook } from '../types/controls'
 import type { MovableOptions } from '../modules/controls/movable'
@@ -216,7 +216,7 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
     rename: false
   }
 
-  const handler: Handler<LayersInput, State, Static, Context> = {
+  const handler: Handler<Metavars<LayersInput, State, Static, Context>> = {
     onInput({ host, settings }){
       if( host.content ){
         const tvs = new Traverser
@@ -234,7 +234,7 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
         handle: '[header] > mblock > minline',
         apex: ['right', 'bottom']
       }
-      this.movable = hook?.editor?.controls.movable<LayersInput, State, Static, Context>( this, movableOptions )
+      this.movable = hook?.editor?.controls.movable<Metavars<LayersInput, State, Static, Context>>( this, movableOptions )
 
       this.movable.on('started', ( position: Position ) => {})
       this.movable.on('moving', ( position: Position ) => {})
@@ -260,7 +260,7 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
         // nested: true,
         // multiDrag: true
       }
-      this.sortable = hook?.editor?.controls.sortable<LayersInput, State, Static, Context>( this, sortableOptions )
+      this.sortable = hook?.editor?.controls.sortable<Metavars<LayersInput, State, Static, Context>>( this, sortableOptions )
       
       this.sortable
       .on('sortable.select', ( selected: string[] ) => {
@@ -440,7 +440,7 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
 
   const context = ['frame', 'selection', 'viewLayers']
 
-  return lips.render<LayersInput, State, Static, Context>('layers', { default: template, state, handler, stylesheet, context }, input )
+  return lips.render<Metavars<LayersInput, State, Static, Context>>('layers', { default: template, state, handler, stylesheet, context }, input )
 }
 
 const stylesheet = `

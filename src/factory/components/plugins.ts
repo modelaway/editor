@@ -3,7 +3,7 @@
  */
 const GlobalPlugins = () => {
   const template = `
-    <log( input )></log>
+    <log( input )/>
     <mblock>Global Plugins</mblock>
   `
 

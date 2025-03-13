@@ -5,7 +5,7 @@ import {
 
 const Inputs = () => {
   const template = `
-    <const id="'input-'+ input.type +'-'+ (input.label || input.name).toLowerCase().replace(/\s+/g, '-')"></const>
+    <const id="'input-'+ input.type +'-'+ (input.label || input.name).toLowerCase().replace(/\s+/g, '-')"/>
 
     <switch( input.type )>
       <case is="['text', 'search']">

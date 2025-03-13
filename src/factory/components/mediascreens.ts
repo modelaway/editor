@@ -72,7 +72,7 @@ const MediaScreens = () => {
   const template = `
     <mblock>
       <mul>
-        <for in="static.screens">
+        <for [key, each] in=static.screens>
           <mli>
             <mblock class="state.selected && state.selected.key == key && 'selected'"
                     on-click( onScreenSelect, key, each )>
@@ -91,8 +91,8 @@ const MediaScreens = () => {
       </mul>
 
       <mblock settings>
-        <for in=static.settings>
-          <forminput ...each on-change( onSettingsChange, each.name )/>
+        <for [setting] in=static.settings>
+          <forminput ...setting on-change( onSettingsChange, setting.name )/>
         </for>
       </mblock>
 

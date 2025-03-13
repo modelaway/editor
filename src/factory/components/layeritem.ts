@@ -83,7 +83,7 @@ const LayerItem = () => {
           level=input.depth
           attribute=input.attribute
           class="context.selection.includes( input.key ) && 'selected'">
-      <mblock class="nested-indicator"></mblock>
+      <mblock class="nested-indicator"/>
 
       <mblock class="layer-bar">
         <micon class="'toggle-icon visibility bx '+( input.hidden ? 'bx-hide' : 'bx-show')"
@@ -138,7 +138,7 @@ const LayerItem = () => {
                     layer=input.key
                     path="input.path +'.'+ input.key"
                     depth="input.depth + 1"
-                    collapsed=state.collapsed></layerlist>
+                    collapsed=state.collapsed/>
       </if>
     </mli>
   `

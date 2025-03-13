@@ -165,41 +165,41 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
     }
   }
 
-  const macros = {
-    option: `
-      <switch( macro.type )>
+  const macros = `
+    <macro [key, type, title, label, active, icon, disabled, value, __] name="option">
+      <switch( type )>
         <case is="['input', 'search']">
-          <mli active=macro.active
-                class="'form-input'+( macro.icon && ' addon' )"
+          <mli active=active
+                class="'form-input'+( icon && ' addon' )"
                 ${CONTROL_LANG_SELECTOR}>
-            <if( macro.icon )><micon class=macro.icon></micon></if>
+            <if( icon )><micon class=icon></micon></if>
 
             <input type="text"
-                    disabled=macro.disabled
-                    placeholder="macro.label || macro.title"
-                    value=macro.value
-                    on-change( onSmartHandle, key, macro )
-                    on-input( macro.type === 'search' ? 'onSmartHandle' : null, key, macro )>
+                    disabled=disabled
+                    placeholder="label || title"
+                    value=value
+                    on-change( onSmartHandle, key, __ )
+                    on-input( type === 'search' ? 'onSmartHandle' : null, key, __ )>
           </mli>
         </case>
 
         <default>
-          <mli active=macro.active
-                class="macro.label ? 'label' : false"
-                title=macro.title
-                disabled=macro.disabled
+          <mli active=active
+                class="label ? 'label' : false"
+                title=title
+                disabled=disabled
                 ${CONTROL_LANG_SELECTOR}
-                on-click( onSmartHandle, key, macro )>
-            <micon class=macro.icon></micon>
+                on-click( onSmartHandle, key, __ )>
+            <micon class=icon></micon>
 
-            <if( macro.label )>
-              <mlabel ${CONTROL_LANG_SELECTOR} text=macro.label></mlabel>
+            <if( label )>
+              <mlabel ${CONTROL_LANG_SELECTOR} text=label></mlabel>
             </if>
           </mli>
         </default>
       </switch>
-    `
-  }
+    </macro>
+  `
 
   const template = `
     <mblock ${CONTROL_QUICKSET_SELECTOR}=input.key
@@ -209,14 +209,14 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
         <mul>
           <if( !state.subOption )>
             <mblock options="main">
-              <for in=state.default>
-                <option ...each></option>
+              <for [key, each] in=state.default>
+                <option key=key ...each/>
               </for>
 
               <if( state.super )>
                 <mblock options="super">
-                  <for in=state.super>
-                    <option ...each></option>
+                  <for [key, each] in=state.super>
+                    <option key=key ...each/>
                   </for>
                 </mblock>
               </if>
@@ -228,8 +228,8 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
 
             <if( state.showExtra )>
               <mblock options="extra">
-                <for in=state.extra>
-                  <option ...each></option>
+                <for [key, each] in=state.extra>
+                  <option key=key ...each/>
                 </for>
 
                 <mli title="Back" ${CONTROL_LANG_SELECTOR} on-click( onShowExtraOptions, false )><micon class="bx bx-chevron-left"></micon></mli>
@@ -248,7 +248,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
                 <mlabel ${CONTROL_LANG_SELECTOR} text="state.subOption.label || state.subOption.title"></mlabel>
               </mli>
               
-              <for in=state.subOption.sub>
+              <for [key, each] in=state.subOption.sub>
                 <mli active=each.active
                       disable=each.disabled
                       title=each.title
@@ -264,8 +264,8 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
         <if( state.detached )>
           <mul>
             <mblock options="detached">
-              <for in=state.detached>
-                <option ...each></option>
+              <for [key, each] in=state.detached>
+                <option key=key ...each/>
               </for>
             </mblock>
           </mul>
@@ -273,7 +273,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
       </mblock>
 
       <if( state.suggestions )>
-        <const ...state.suggestions></const>
+        <const ...state.suggestions/>
 
         <mblock suggestions style="position == 'top' ? 'bottom: 4.2rem' : 'margin-top: .5rem'">
           <mblock>

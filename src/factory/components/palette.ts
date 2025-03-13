@@ -16,8 +16,8 @@ const Palette = () => {
   const template = `
     <mblock>
       <mul>
-        <for in=static.colors>
-          <mli style="'background-color:'+ each.code" title=each.name></mli>
+        <for [color] in=static.colors>
+          <mli style="'background-color:'+ color.code" title=color.name></mli>
         </for>
       </mul>
     </mblock>

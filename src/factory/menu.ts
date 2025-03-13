@@ -49,17 +49,17 @@ export default ( lips: Lips, input: MenuInput, hook: HandlerHook ) => {
     }
   }
 
-  const macros = {
-    mfset: `
+  const macros = `
+    <macro [fieldsets] name="mfset">
       <mblock>
-        <for in=macro.fieldsets>
+        <for [each] in=fieldsets>
           <fieldset>
             <if( each.label )>
               <mlabel ${CONTROL_LANG_SELECTOR}>{each.label}</mlabel>
             </if>
 
-            <for in=each.fields>
-              <forminput ...each/>
+            <for [field] in=each.fields>
+              <forminput ...field/>
             </for>
           </fieldset>
         
@@ -68,26 +68,27 @@ export default ( lips: Lips, input: MenuInput, hook: HandlerHook ) => {
           </if>
         </for>
       </mblock>
-    `,
-    mlset: `
-       <mblock>
-        <for in=macro.listsets>
+    </macro>
+      
+    <macro [listsets] name="mlset">
+      <mblock>
+        <for [each] in=listsets>
           <mblock class="listset">
             <if( each.label )>
               <mlabel ${CONTROL_LANG_SELECTOR}>{each.label}</mlabel>
             </if>
 
             <mul>
-              <for in=each.items>
-                <mli class="each.disabled ? 'disabled' : false">
-                  <micon class=each.icon></micon>
-                  <minline ${CONTROL_LANG_SELECTOR}>{each.title}</minline>
+              <for [item] in=each.items>
+                <mli class="item.disabled ? 'disabled' : false">
+                  <micon class=item.icon></micon>
+                  <minline ${CONTROL_LANG_SELECTOR}>{item.title}</minline>
 
-                  <if( each.value )>
-                    <minline class="value" ${CONTROL_LANG_SELECTOR}>{each.value}</minline>
+                  <if( item.value )>
+                    <minline class="value" ${CONTROL_LANG_SELECTOR}>{item.value}</minline>
                   </if>
 
-                  <if( each.sub )>
+                  <if( item.sub )>
                     <minline class="sub-arrow"><micon class="bx bx-chevron-right"></micon></minline>
                   </if>
                 </mli>
@@ -100,47 +101,48 @@ export default ( lips: Lips, input: MenuInput, hook: HandlerHook ) => {
           </mblock>
         </for>
       </mblock>
-    `
-  }
+    </macro>
+  `
   
   const template = `
-    <mblock ${CONTROL_MENU_SELECTOR}="input.key"
+    <mblock ${CONTROL_MENU_SELECTOR}=input.key
             style="typeof input.position == 'object' ? { left: input.position.left, top: input.position.top } : '?'">
-      <mblock dismiss="menu" backdrop on-click="onDismiss"></mblock>
+      <mblock dismiss="menu" backdrop on-click="onDismiss"/>
+
       <mblock container>
         <mblock class="header">
           <mblock>
-            <micon class=input.caption.icon></micon>
+            <micon class=input.caption.icon/>
             <mlabel ${CONTROL_LANG_SELECTOR}>{input.caption.title}</mlabel>
 
             <!-- Dismiss control menu -->
             <span dismiss="menu"  title="Dismiss" ${CONTROL_LANG_SELECTOR} on-click="onDismiss">
-              <micon class="bx bx-x"></micon>
+              <micon class="bx bx-x"/>
             </span>
           </mblock>
 
           <mul options="tabs">
-            <for in=input.options>
+            <for [option] in=input.options>
               <mli tab=key
                     class="state.activeTab === key && 'active'" 
-                    title=each.title
+                    title=option.title
                     ${CONTROL_LANG_SELECTOR}
                     on-click="onSwitchTab, key">
-                <micon class=each.icon></micon>
+                <micon class=option.icon/>
               </mli>
             </for>
           </mul>
         </mblock>
 
         <mblock class="body">
-          <for in=input.options>
+          <for [option] in=input.options>
             <mblock section="attributes" class="state.activeTab === key && 'active'">
-              <if( each.fieldsets )>
-                <mfset fieldsets=each.fieldsets></mfset>
+              <if( option.fieldsets )>
+                <mfset fieldsets=option.fieldsets/>
               </if>
 
-              <if( each.listsets )>
-                <mlset listsets=each.listsets></mlset>
+              <if( option.listsets )>
+                <mlset listsets=option.listsets/>
               </if>
             </mblock>
           </for>

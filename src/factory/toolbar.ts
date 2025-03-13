@@ -118,16 +118,20 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
     },
 
     selectTool( key: string, variant?: string ){
+      console.log('selectTool --', key )
       for( const k in this.state.tools ){
         this.state.tools[ k ].active = ( k === key )
       }
+
+      console.log( this.state.tools )
 
       /**
        * Put in context selected tool
        * 
        * TOI - Tool of interest
        */
-      hook?.editor?.lips.setContext('toi', variant ? `${key}.${variant}` : key )
+      // console.log('context --', hook?.editor?.lips.getContext() )
+      // hook?.editor?.lips.setContext('toi', variant ? `${key}.${variant}` : key )
     },
     selectView( key: string, variant?: string ){
       for( const k in this.state.views ){
@@ -163,6 +167,7 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
     },
 
     onHandleOption( type: ContentType, key: string, option: ToolbarOption ){
+      console.log('handle --', type, key, option)
       if( option.disabled ) return
 
       // console.log(`Option [${key}] -- `, option )
@@ -215,23 +220,23 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
     }
   }
 
-  const macros = {
-    option: `
-      <mli active=macro.active
-            class="macro.label ? 'label' : false"
-            title=macro.title
-            disabled=macro.disabled
+  const macros = `
+    <macro [key, type, active, label, title, icon, disabled, __] name="option">
+      <mli active=active
+            class="label ? 'label' : false"
+            title=title
+            disabled=disabled
             ${CONTROL_LANG_SELECTOR}
-            on-click( onHandleOption, macro.type, key, macro )
-            on-contextmenu( onShowOptionCaptions, macro.type, key, macro )>
-        <micon class=macro.icon></micon>
+            on-click( onHandleOption, type, key, __ )
+            on-contextmenu( onShowOptionCaptions, type, key, __ )>
+        <micon class=icon></micon>
 
-        <if( macro.label )>
-          <mlabel ${CONTROL_LANG_SELECTOR} text=macro.label></mlabel>
+        <if( label )>
+          <mlabel ${CONTROL_LANG_SELECTOR}>{label}</mlabel>
         </if>
       </mli>
-    `
-  }
+    </macro>
+  `
 
   const template = `
     <mblock style=self.getStyle() backdrop>
@@ -239,14 +244,14 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
         <mblock toolbar>
           <if( state.tools )>
             <mul options="tools">
-              <for in=state.tools>
+              <for [key, each] in=state.tools>
                 <if( !each.hidden )>
                   <if( each.variants && !each.custom )>
-                    <const selected="each.variants[ each.selected || '*' ]"></const>
-                    <option type="tool" ...selected active=each.active></option>
+                    <const selected="each.variants[ each.selected || '*' ]"/>
+                    <option type="tool" key=key ...selected active=each.active/>
                   </if>
                   <else>
-                    <option type="tool" ...each></option>
+                    <option type="tool" key=key ...each/>
                   </else>
                 </if>
               </for>
@@ -256,14 +261,14 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
           <if( state.views )>
             <div divider></div>
             <mul options="views">
-              <for in=state.views>
+              <for [key, each] in=state.views>
                 <if( !each.hidden )>
                   <if( each.variants && !each.custom )>
-                    <const selected="each.variants[ each.selected || '*' ]"></const>
-                    <option type="view" ...selected active=each.active></option>
+                    <const selected="each.variants[ each.selected || '*' ]"/>
+                    <option type="view" key=key ...selected active=each.active/>
                   </if>
                   <else>
-                    <option type="view" ...each></option>
+                    <option type="view" key=key ...each/>
                   </else>
                 </if>
               </for>
@@ -272,9 +277,9 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
 
           <if( state.globals )>
             <mul options="globals">
-              <for in=state.globals>
+              <for [key, each] in=state.globals>
                 <if( !each.hidden )>
-                  <option type="global" ...each></option>
+                  <option type="global" key=key ...each/>
                 </if>
               </for>
             </mul>
@@ -286,21 +291,22 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
             <switch( state.content.type )>
               <case is="['tool', 'view']">
                 <tecaptions ...state.content.body
-                            on-select( onHandleSelect, state.content.type, state.content.key )></tecaptions>
+                            on-select( onHandleSelect, state.content.type, state.content.key )/>
               </case>
+
               <case is="global">
                 <switch( state.content.key )>
                   <case is="styles">
-                    <styles ...state.content.body></styles>
+                    <styles ...state.content.body/>
                   </case>
                   <case is="assets">
-                    <assets ...state.content.body></assets>
+                    <assets ...state.content.body/>
                   </case>
                   <case is="plugins">
-                    <plugins ...state.content.body></plugins>
+                    <plugins ...state.content.body/>
                   </case>
                   <case is="settings">
-                    <settings ...state.content.body></settings>
+                    <settings ...state.content.body/>
                   </case>
                 </switch>
               </case>
@@ -309,7 +315,7 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
         </mblock>
 
         <mblock palette class="state.showPalette && 'expanded'">
-          <palette></palette>
+          <palette/>
         </mblock>
       </mblock>
     </mblock>

@@ -5,7 +5,7 @@ import type { HandlerHook } from '../types/controls'
 import type { MovableOptions } from '../modules/controls/movable'
 import type { SortableOptions, ReorderedItems, Reordered } from '../modules/controls/sortable'
 
-import $, { type Cash } from 'cash-dom'
+import $ from 'cash-dom'
 import { ELEMENT_KEY_SELECTOR } from '../modules/constants'
 import { deepAssign, deepDelete, deepValue } from '../modules/utils'
 
@@ -391,13 +391,13 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
       <mblock header>
         <mblock>
           <minline>
-            <micon class="bx bx-list-minus ill-icon"></micon>
+            <micon class="bx bx-list-minus ill-icon"/>
             <mlabel>Layers</mlabel>
           </minline>
 
           <micon class="'toggle-icon bx '+( !state.reduced ? 'bx-chevron-down' : 'bx-chevron-right')"
                   style="padding: 0 0 0 10px;"
-                  on-click( onReduce )></micon>
+                  on-click( onReduce )/>
         </mblock>
 
         <mblock class="host-title"
@@ -416,24 +416,24 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
         <if( state.layers )>
           <layerlist list=state.layers
                       depth=0
-                      collapsed></layerlist>
+                      collapsed/>
         </if>
       </mblock>
 
       <mblock footer style=display>
         <micon class="ill-icon bx bx-refresh"
                 title="Refresh"
-                on-click( onRefresh )></micon>
+                on-click( onRefresh )/>
 
         <micon class="ill-icon bx bx-hash"
                 activated=!!context.selection.length
                 title="Group"
-                on-click( onGroup )></micon>
+                on-click( onGroup )/>
 
         <micon class="ill-icon bx bx-trash"
                 activated=!!context.selection.length
                 title="Delete"
-                on-click( onDelete )></micon>
+                on-click( onDelete )/>
       </mblock>
     </mblock>
   `

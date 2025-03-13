@@ -32,21 +32,22 @@ const TECaptions = () => {
       this.state.instructions = this.state.selected ? this.state.items[ this.state.selected ].instructions : undefined
     },
     onHandleSelect( key: string ){
+      console.log('click---', key )
       this.state.selected = key
       this.state.instructions = this.state.items[ key ].instructions
 
-      this.emit('select', this.state.selected )
+      // this.emit('select', this.state.selected )
     }
   }
 
   const template = `
     <mblock>
       <mul>
-        <for in=state.items>
-          <mli class="state.selected == key && 'selected'"
+        <for [key, item] in=state.items>
+          <mli id="track" class="state.selected == key && 'selected'"
                 on-click( onHandleSelect, key )>
-            <micon class=each.icon></micon>
-            <mlabel>{each.title}</mlabel>
+            <micon class=item.icon></micon>
+            <mlabel>{item.title}</mlabel>
           </mli>
         </for>
       </mul>
@@ -55,7 +56,6 @@ const TECaptions = () => {
         <mblock instructions>
           <mblock>
             <minline>Instructions</minline>
-
             <p>{state.instructions}</p>
           </mblock>
         </mblock>

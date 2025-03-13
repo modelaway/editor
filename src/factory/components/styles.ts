@@ -3,7 +3,7 @@
  */
 const GlobalStyles = () => {
   const template = `
-    <log( input )></log>
+    <log( input )/>
     <mblock>Global Styles</mblock>
   `
 

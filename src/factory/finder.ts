@@ -48,7 +48,7 @@ export default ( lips: Lips, input: FinderInput, hook: HandlerHook ) => {
     searchResult: `
       <mblock class="results">
         <if( state.results.length )>
-          <for in=state.results>
+          <for [each] in=state.results>
             <mblock class="listset">
               <if( each.label )>
                 <mlabel ${CONTROL_LANG_SELECTOR}>{each.label}</mlabel>
@@ -103,7 +103,7 @@ export default ( lips: Lips, input: FinderInput, hook: HandlerHook ) => {
                   on-change( onInputChange )></inputs>
         </mblock>
 
-        <searchResult></searchResult>
+        <searchResult/>
       </mblock>
     </mblock>
   `

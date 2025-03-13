@@ -3,7 +3,7 @@
  */
 const GlobalAssets = () => {
   const template = `
-    <log( input )></log>
+    <log( input )/>
     <mblock>Global Assets</mblock>
   `
 

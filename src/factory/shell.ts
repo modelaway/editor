@@ -7,7 +7,7 @@ export default ( lips: Lips, input: ShellInput ) => {
   const template = `
     <mshell>
       <viewport>
-        <mcanvas></mcanvas>
+        <mcanvas/>
       </viewport>
     </mshell>
   `

@@ -7,16 +7,16 @@ type LayerListInput = LayerElement & {
 const LayerList = () => {
   const template = `
     <const layer="input.depth === 0 ? '#' : input.layer"
-            path="input.depth === 0 ? '#' : input.path +'.layers'"></const>
+            path="input.depth === 0 ? '#' : input.path +'.layers'"/>
 
     <mul sortable
           layer=layer
           path=path
           style="{ display: input.collapsed ? 'block' : 'none' }">
-      <for in=input.list>
+      <for [key, each] in=input.list>
         <layeritem ...each
                     path=path
-                    depth=input.depth></layeritem>
+                    depth=input.depth/>
       </for>
     </mul>
   `

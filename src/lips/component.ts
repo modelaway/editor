@@ -16,13 +16,15 @@ import type {
   VirtualEvent,
   VirtualEventRecord,
   Macro,
-  MeshWireSetup
+  MeshWireSetup,
+  SyntaxAttributes
 } from '.'
 
 import UQS from './uqs'
 import Events from './events'
 import $, { Cash } from 'cash-dom'
 import Benchmark from './benchmark'
+import { preprocessor } from './preprocess'
 import Stylesheet from '../modules/stylesheet'
 import { batch, effect, EffectControl, signal } from './signal'
 import { 
@@ -30,7 +32,6 @@ import {
   isEqual,
   deepClone,
   deepAssign,
-  preprocessor,
   SPREAD_VAR_PATTERN,
   ARGUMENT_VAR_PATTERN,
   SYNCTAX_VAR_FLAG
@@ -93,6 +94,8 @@ export default class Component<MT extends Metavars> extends Events {
     super()
     this.lips = options.lips
     this.template = preprocessor( template )
+
+    console.log( this.template )
   
     if( options?.debug ) this.debug = options.debug
     if( options?.prekey ) this.prekey = options.prekey
@@ -330,16 +333,16 @@ export default class Component<MT extends Metavars> extends Events {
       if( !Object.keys( attrs ) )
         throw new Error('Invalid macro component definition')
 
-      if( !attrs.name )
+      if( !attrs.literals.name )
         throw new Error('Undefined macro `name` attribute.')
 
-      if( self.__macros.get( attrs.name ) )
-        console.warn(`Duplicate macro <${attrs.name}> will be override`)
+      if( self.__macros.get( attrs.literals.name ) )
+        console.warn(`Duplicate macro <${attrs.literals.name}> will be override`)
 
       if( !$node.contents()?.length )
         throw new Error('Invalid macro component definition. Template content expected.')
 
-      self.__macros.set( attrs.name, { argv, $node } )
+      self.__macros.set( attrs.literals.name, { argv, $node } )
     } )
   }
   setHandler( list: Handler<MT> ){
@@ -404,18 +407,18 @@ export default class Component<MT extends Metavars> extends Events {
               && typeof arg.default === 'string'
     }
     function handleDynamic( $node: Cash ){
-      if( !$node.attr('dtag') || $node.prop('tagName') !== 'LIPS' )
+      if( !$node.attr(':dtag') || $node.prop('tagName') !== 'LIPS' )
         throw new Error('Invalid dynamic tag name')
       
       const
-      dtag = $node.attr('dtag') as string,
+      dtag = $node.attr(':dtag') as string,
       result = self.__evaluate__( dtag, scope )
       
       /**
        * Process dynamic content rendering tag set by:
        * 
        * Syntax `<{input.render}/>`
-       * processed to `<lips dtag=input.render></lips>`
+       * processed to `<lips :dtag=input.render></lips>`
        */
       if( isMesh( result ) || result === null )
         return execDynamicElement( $node, dtag, result )
@@ -426,16 +429,18 @@ export default class Component<MT extends Metavars> extends Events {
       * Process dynamic tag set by:
       * 
       * Syntax `<{dynamic-name}/>`
-      * processed to `<lips dtag="[dynamic-name]"></lips>`
+      * processed to `<lips :dtag="[dynamic-name]"></lips>`
       */
       else return execComponent( $node, result )
     }
 
     function execLog( $node: Cash ){
       const
-      args = $node.attr('args'),
+      args = $node.attr(':args'),
       logPath = self.__generatePath__('log')
       if( !args ) return
+
+      console.log( args )
 
       self.__evaluate__(`console.log(${args})`, scope )
 
@@ -454,11 +459,15 @@ export default class Component<MT extends Metavars> extends Events {
     function execLet( $node: Cash ){
       const
       varPath = self.__generatePath__('var'),
-      attributes = ($node as any).attrs()
-      if( !attributes ) return 
+      { attrs } = self.__getAttributes__( $node )
+      if( !attrs ) return 
       
       Object
-      .entries( attributes )
+      .entries( attrs.literals )
+      .forEach( ([ key, assign ]) => scope[ key ] = { value: assign, type: 'let' } )
+
+      Object
+      .entries( attrs.expressions )
       .forEach( ([ key, assign ]) => {
         // Process spread assign
         if( SPREAD_VAR_PATTERN.test( key ) ){
@@ -591,8 +600,12 @@ export default class Component<MT extends Metavars> extends Events {
       activeRenderer = renderer
 
       if( renderer ){
-        attrs && Object
-        .entries( attrs )
+        attrs.literals && Object
+        .entries( attrs.literals )
+        .forEach( ([ key, value ]) => argvalues[ key ] = { type: 'const', value } )
+
+        attrs.expressions && Object
+        .entries( attrs.expressions )
         .forEach( ([ key, value ]) => {
           if( SPREAD_VAR_PATTERN.test( key ) ){
             const
@@ -602,7 +615,7 @@ export default class Component<MT extends Metavars> extends Events {
 
             for( const _key in spreads ){
               // Only consume declared arguments' value
-              if( _key !== '$$' && !renderer.argv.includes( _key ) ) continue
+              if( _key !== '#' && !renderer.argv.includes( _key ) ) continue
 
               argvalues[ _key ] = {
                 type: 'const',
@@ -612,7 +625,7 @@ export default class Component<MT extends Metavars> extends Events {
           }
           else {
             // Only consume declared arguments' value
-            if( key !== '$$' && !renderer.argv.includes( key ) ) return
+            if( key !== '#' && !renderer.argv.includes( key ) ) return
 
             argvalues[ key ] = {
               type: 'const',
@@ -631,9 +644,10 @@ export default class Component<MT extends Metavars> extends Events {
          * Set update dependency track only after $fragment 
          * contain rendered content
          */
-        attrs && Object
-        .entries( attrs )
+        attrs.expressions && Object
+        .entries( attrs.expressions )
         .forEach( ([ key, value ]) => {
+          console.log( key, value )
           if( SPREAD_VAR_PATTERN.test( key ) && self.__isReactive__( key as string, scope ) ){
             const
             deps = self.__extractExpressionDeps__( key as string, scope ),
@@ -648,7 +662,7 @@ export default class Component<MT extends Metavars> extends Events {
 
               for( const _key in spreads ){
                 // Only update declared arguments' value
-                if( _key !== '$$' && !activeRenderer.argv.includes( _key ) ) continue
+                if( _key !== '#' && !activeRenderer.argv.includes( _key ) ) continue
 
                 extracted[ _key ] = {
                   type: 'const',
@@ -668,7 +682,7 @@ export default class Component<MT extends Metavars> extends Events {
               batch: true
             }) )
           }
-          else if( ( key === '$$' || renderer.argv.includes( key ) ) && self.__isReactive__( value as string, scope ) ) {
+          else if( ( key === '#' || renderer.argv.includes( key ) ) && self.__isReactive__( value as string, scope ) ) {
             const 
             deps = self.__extractExpressionDeps__( value as string, scope ),
             partialUpdate = ( memo: VariableScope, by?: string ) => {
@@ -779,8 +793,17 @@ export default class Component<MT extends Metavars> extends Events {
       /**
        * Cast attributes to compnent inputs
        */
-      attrs && Object
-      .entries( attrs )
+      attrs.literals && Object
+      .entries( attrs.literals )
+      .forEach( ([ key, value ]) => {
+        if( key == 'key' ) return
+        input[ key ] = value
+      })
+
+      console.log( name, attrs )
+
+      attrs.expressions && Object
+      .entries( attrs.expressions )
       .forEach( ([ key, value ]) => {
         if( key == 'key' ) return
         
@@ -1073,8 +1096,12 @@ export default class Component<MT extends Metavars> extends Events {
       /**
        * Cast attributes to compnent inputs
        */
-      attrs && Object
-      .entries( attrs )
+      attrs.literals && Object
+      .entries( attrs.literals )
+      .forEach( ([ key, value ]) => argvalues[ key ] = { value, type: 'const' } )
+
+      attrs.expressions && Object
+      .entries( attrs.expressions )
       .forEach( ([ key, value ]) => {
         if( SPREAD_VAR_PATTERN.test( key ) ){
           const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, scope )
@@ -1262,10 +1289,15 @@ export default class Component<MT extends Metavars> extends Events {
       $contents.length
       && $fragment.append( self.__withPath__( elementPath, () => self.render( $contents, scope, dependencies ).$log ) )
 
-      // Process attributes
-      const 
-      { attrs, events } = self.__getAttributes__( $node ),
-      processAttrs = ( list: Record<string, any>, track: boolean = false ) => {
+      const { attrs, events } = self.__getAttributes__( $node )
+      /**
+       * Literal value attributes
+       */
+      attrs.literals && Object
+      .entries( attrs.literals )
+      .forEach( ([ attr, value ]) => $fragment.attr( attr, value ) )
+
+      const assignAttrs = ( list: SyntaxAttributes['expressions'], track: boolean = false ) => {
         list && Object
         .entries( list )
         .forEach( ([ attr, value ]) => {
@@ -1400,21 +1432,9 @@ export default class Component<MT extends Metavars> extends Events {
         })
       }
       
-      // Record attachable events to the element
-      events && Object
-      .entries( events )
-      .forEach( ([ _event, value ]) => {
-        attachableEvents.push({
-          _event,
-          $fragment,
-          instruction: value as string,
-          scope
-        })
-      })
-
-      // Check, process & track spread attributes
-      attrs && Object
-      .keys( attrs )
+      // Check, process & track expression attributes
+      attrs.expressions && Object
+      .keys( attrs.expressions )
       .forEach( key => {
         if( !SPREAD_VAR_PATTERN.test( key ) ) return
 
@@ -1428,10 +1448,10 @@ export default class Component<MT extends Metavars> extends Events {
           for( const _key in spreads )
             extracted[ _key ] = spreads[ _key ]
 
-          processAttrs( extracted )
+          assignAttrs( extracted )
         }
 
-        delete attrs[ key ]
+        delete attrs.expressions[ key ]
         updateSpreadAttrs( scope )
 
         if( key && self.__isReactive__( key, scope ) ){
@@ -1447,8 +1467,20 @@ export default class Component<MT extends Metavars> extends Events {
         }
       })
       
-      processAttrs( attrs, true )
+      assignAttrs( attrs.expressions, true )
       
+      // Record attachable events to the element
+      events && Object
+      .entries( events )
+      .forEach( ([ _event, value ]) => {
+        attachableEvents.push({
+          _event,
+          $fragment,
+          instruction: value as string,
+          scope
+        })
+      })
+
       // Track DOM insertion
       self.benchmark.inc('elementCount')
       self.benchmark.inc('domInsertsCount')
@@ -1509,7 +1541,7 @@ export default class Component<MT extends Metavars> extends Events {
        * - component
        * - dynamic-tag
        */
-      else if( $node.is('lips') && $node.is('[dtag]') )
+      else if( $node.is('lips') && $node.attr(':dtag') )
         return handleDynamic( $node )
       
       /**
@@ -1663,7 +1695,7 @@ export default class Component<MT extends Metavars> extends Events {
            * 
            */
           if( declaration?.iterator ){
-            ITERATOR_SCOPE = argvalues?.['$$'].value
+            ITERATOR_SCOPE = argvalues?.['#'].value
             if( !Array.isArray( ITERATOR_SCOPE ) )
               throw new Error('Invalid iterator argvalues')
             
@@ -1694,11 +1726,11 @@ export default class Component<MT extends Metavars> extends Events {
            */
           if( declaration?.iterator
               && Array.isArray( ITERATOR_SCOPE )
-              && Array.isArray( argvalues?.['$$'].value )
-              && ITERATOR_SCOPE.length !== argvalues?.['$$'].value.length ){
+              && Array.isArray( argvalues?.['#'].value )
+              && ITERATOR_SCOPE.length !== argvalues?.['#'].value.length ){
             if( !PARTIAL_CONTENT?.length ) return
 
-            ITERATOR_SCOPE = argvalues?.['$$'].value
+            ITERATOR_SCOPE = argvalues?.['#'].value
             if( !Array.isArray( ITERATOR_SCOPE ) )
               throw new Error('Invalid iterator argvalues')
             
@@ -1716,7 +1748,7 @@ export default class Component<MT extends Metavars> extends Events {
                 !dependents.size && self.__dependencies.delete( dep )
               })
 
-              // if( ITERATOR_SCOPE.length < argvalues?.['$$'].value.length ){
+              // if( ITERATOR_SCOPE.length < argvalues?.['#'].value.length ){
               //   // TODO: Iterate more nodes
               //   console.log('----- add more nodes')
 
@@ -1774,7 +1806,7 @@ export default class Component<MT extends Metavars> extends Events {
                 if( declaration?.iterator ){
                   const
                   [ _, index ] = partialPath.match(/\[(\d+)\]$/) || [],
-                  argvaluesByIndex = argvalues?.['$$'].value[ Number( index ) ]
+                  argvaluesByIndex = argvalues?.['#'].value[ Number( index ) ]
                   
                   if( argvaluesByIndex?.[ dep ]
                       && dependent.memo?.[ dep ]
@@ -1834,8 +1866,13 @@ export default class Component<MT extends Metavars> extends Events {
     if( useAttributes && meshPath ){
       const { attrs } = self.__getAttributes__( $node )
       
-      attrs && Object
-      .entries( attrs )
+      attrs.literals && Object
+      .entries( attrs.literals )
+      .forEach( ([ key, value ]) => wire[ key ] = value )
+      
+      console.log( attrs.expressions )
+      attrs.expressions && Object
+      .entries( attrs.expressions )
       .forEach( ([ key, value ]) => {
         if( SPREAD_VAR_PATTERN.test( key ) ){
           const
@@ -1872,26 +1909,44 @@ export default class Component<MT extends Metavars> extends Events {
     const 
     extracted = ($node as any).attrs(),
     events: Record<string, any> = {},
-    attrs: Record<string, any> = {}
+    attrs: SyntaxAttributes = {
+      literals: {},
+      expressions: {}
+    }
 
     let argv: string[] = []
-
+    
     // Process attributes including spread operator
     extracted && Object
     .entries( extracted )
     .forEach( ([ key, value ]) => {
-      if( key == 'dtag' ) return 
+      if( key == ':dtag' ) return
 
-      if( ARGUMENT_VAR_PATTERN.test( key ) ){
-        const [ _, vars] = key.match( ARGUMENT_VAR_PATTERN ) || []
-        argv = vars.split(',')
+      if( key.startsWith(':')
+          || /^on-/.test( key )
+          || SPREAD_VAR_PATTERN.test( key )
+          || ARGUMENT_VAR_PATTERN.test( key ) ){
+        
+        if( ARGUMENT_VAR_PATTERN.test( key ) ){
+          const [ _, vars ] = key.match( ARGUMENT_VAR_PATTERN ) || []
+          argv = vars.split(',')
+        }
+        else if( /^on-/.test( key ) )
+          events[ key.replace(/^on-/, '') ] = value
+        
+        else {
+          if( key.startsWith(':') )
+            key = key.slice( 1, key.length )
+
+          console.log( key )
+
+          attrs.expressions[ key ] = value || ''
+        }
       }
-      else if( /^on-/.test( key ) )
-        events[ key.replace(/^on-/, '') ] = value
-      
-      else attrs[ key ] = value
+      // Literal value attribute
+      else attrs.literals[ key ] = value
     })
-
+    
     return { argv, events, attrs }
   }
   private __generatePath__( type: string ): string {

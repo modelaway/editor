@@ -88,6 +88,10 @@ export type Macro = {
   $node: Cash
 }
 
+export type SyntaxAttributes = {
+  literals: Record<string, any>,
+  expressions: Record<string, any>
+}
 export type VirtualEvent = {
   $fragment: Cash
   _event: string

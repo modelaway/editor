@@ -115,7 +115,10 @@ function Demo1(){
               .appendTo('body')
 
   setTimeout( () => {
-    component.setState({ time: 'afternoon', online: false, speech: 'bonjour' })
+    component.state.time = 'afternoon'
+    component.state.online = false
+    component.state.speech = 'bonjour'
+
     component.setInput({ person: 'Brigit' })
   }, 2000 )
 }
@@ -463,13 +466,13 @@ function DemoCart(){
           <p class="item-price">{price.toFixed(2)} each</p>
         </div>
         
-        <div class="qty-controls">
+        <div class="quantity-controls">
           <mbutton 
-            class="qty-btn"
+            class="quantity-btn"
             on-click(onDecrementQuantity, id)>-</mbutton>
-          <span class="qty-value">{quantity}</span>
+          <span class="quantity-value">{quantity}</span>
           <mbutton 
-            class="qty-btn"
+            class="quantity-btn"
             on-click(onIncrementQuantity, id)>+</mbutton>
         </div>
       </div>
@@ -551,13 +554,13 @@ function DemoCart(){
       color: #4b5563;
     }
 
-    .qty-controls {
+    .quantity-controls {
       display: flex;
       align-items: center;
       gap: 0.5rem;
     }
 
-    .qty-btn {
+    .quantity-btn {
       padding: 0.25rem 0.5rem;
       background-color: #e5e7eb;
       border: none;
@@ -566,11 +569,11 @@ function DemoCart(){
       transition: background-color 0.2s;
     }
 
-    .qty-btn:hover {
+    .quantity-btn:hover {
       background-color: #d1d5db;
     }
 
-    .qty-value {
+    .quantity-value {
       width: 2rem;
       text-align: center;
     }
@@ -1079,8 +1082,8 @@ function DemoInput(){
       onInput(){ 
         this.state.count = Number( this.input.initial )
       
-        const end = setInterval( () => this.state.count++, 5 )
-        setTimeout( () => clearInterval( end ), 15000 )
+        // const end = setInterval( () => this.state.count++, 5 )
+        // setTimeout( () => clearInterval( end ), 15000 )
       },
       handleClick( e: Event ){
         if( this.state.count >= this.input.limit )
@@ -1201,7 +1204,7 @@ function DemoInput(){
 
       <br>
       <for [n, idx] in=state.numbers>
-        <let square="idx * 4"/>
+        <let square=(idx * 4)/>
         #<span>[{idx}]-{n}({square})</span>.
       </for>
 

@@ -532,59 +532,6 @@ export function deepAssign<T>( original: T, toSet: Record<string, any> ): T {
   return modified
 }
 
-export function preprocessor( str: string ): string {
-  const matchEventHandlers = ( input: string ) => {
-    const pattern = /on-([a-zA-Z-]+)\s*\(/g
-    let
-    result = input,
-    match
-    
-    while( ( match = pattern.exec( input ) ) !== null ){
-      const event = match[1]
-      const startIndex = match.index + match[0].length
-      let 
-        parenthesesCount = 1,
-        position = startIndex
-      
-      while( position < input.length && parenthesesCount > 0 ){
-        if( input[position] === '(' ) parenthesesCount++
-        if( input[position] === ')' ) parenthesesCount--
-        position++
-      }
-      
-      if( parenthesesCount === 0 ){
-        const 
-        expression = input.slice( startIndex, position - 1 ).trim(),
-        prefix = input.slice( 0, match.index ),
-        replacement = `on-${event}="${expression}"`,
-        suffix = input.slice( position )
-        
-        result = prefix + replacement + suffix
-        input = result  // Update input for next iteration
-        pattern.lastIndex = prefix.length + replacement.length
-      }
-    }
-    
-    return result
-  }
-  
-  let result = (str || '').trim()
-                          .replace(/>\s*</g, '><')
-                          .replace(/\s{2,}/g, ' ')
-                          .replace(/[\r\n\t]/g, '')
-                          .replace(/<(\w+)([^>]*?)\s*\/>/g, '<$1$2></$1>')
-                          // .replace(/<(\w+)(\([^)]*\))?((\s+[^>]*)?)\/>/g, '<$1$2$3></$1>')
-                          .replace(/<\{([^}]+)\}\s*(.*?)\/>/g, '<lips dtag="$1" $2></lips>')
-                          .replace(/(<>)([\s\S]*?)(<\/>)/g, '<lips fragment="true">$2</lips>')
-                          .replace(/<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
-                          .replace(/<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
-                          .replace(/<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">')
-                          .replace(/<log\(\s*(.*?)\s*\)>/g, '<log args="$1">')
-                          .replace(/\[(.*?)\]/g, match => match.replace(/\s+/g, '') )
-
-  return matchEventHandlers( result )
-}
-
 // Example usage:
 /*
 const obj = {

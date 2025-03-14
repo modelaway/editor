@@ -122,7 +122,7 @@ function processAttribute( attr: string ): string {
   // Handle boolean attributes (no equal sign)
   if( equalPos === -1 ){
     // Spread operator or Mesh arguments
-    if( attr.startsWith('...') || attr.startsWith('[') ) 
+    if( attr.startsWith('[') || attr.startsWith('...') ) 
       return attr
     
     /**
@@ -190,10 +190,10 @@ export function preprocessor( str: string ): string {
                 .replace(/<(\w+)([^>]*?)\s*\/>/g, '<$1$2></$1>')
                 .replace(/<\{([^}]+)\}\s*(.*?)\/>/g, '<lips dtag="$1" $2></lips>')
                 .replace(/(<>)([\s\S]*?)(<\/>)/g, '<lips fragment="true">$2</lips>')
-                .replace(/<if\(\s*(.*?)\s*\)>/g, '<if by="$1">')
-                .replace(/<else-if\(\s*(.*?)\s*\)>/g, '<else-if by="$1">')
-                .replace(/<switch\(\s*(.*?)\s*\)>/g, '<switch by="$1">')
-                .replace(/<log\(\s*(.*?)\s*\)>/g, '<log args="$1">')
+                .replace(/<if\(\s*(.*?)\s*\)>/g, '<if @by="$1">')
+                .replace(/<else-if\(\s*(.*?)\s*\)>/g, '<else-if @by="$1">')
+                .replace(/<switch\(\s*(.*?)\s*\)>/g, '<switch @by="$1">')
+                .replace(/<log\(\s*(.*?)\s*\)>/g, '<log @args="$1">')
                 .replace(/\[(.*?)\]/g, match => match.replace(/\s+/g, '') )
 
   /**

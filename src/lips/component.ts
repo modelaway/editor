@@ -95,7 +95,7 @@ export default class Component<MT extends Metavars> extends Events {
     this.lips = options.lips
     this.template = preprocessor( template )
 
-    console.log( this.template )
+    // console.log( this.template )
   
     if( options?.debug ) this.debug = options.debug
     if( options?.prekey ) this.prekey = options.prekey
@@ -321,7 +321,10 @@ export default class Component<MT extends Metavars> extends Events {
     return this
   }
   setMacros( template: string ){
-    const $nodes = $(preprocessor( template ))
+    const prepo = preprocessor( template )
+    // console.log('prepo macro --', prepo )
+    
+    const $nodes = $(prepo)
     if( !$nodes.length ) return
 
     const self = this
@@ -439,9 +442,7 @@ export default class Component<MT extends Metavars> extends Events {
       args = $node.attr(':args'),
       logPath = self.__generatePath__('log')
       if( !args ) return
-
-      console.log( args )
-
+      
       self.__evaluate__(`console.log(${args})`, scope )
 
       if( self.__isReactive__( args as string, scope ) ){
@@ -535,11 +536,15 @@ export default class Component<MT extends Metavars> extends Events {
     }
     function execConst( $node: Cash ){
       const
-      attributes = ($node as any).attrs()
-      if( !attributes ) return 
+      { attrs } = self.__getAttributes__( $node )
+      if( !attrs ) return
       
       Object
-      .entries( attributes )
+      .entries( attrs.literals )
+      .forEach( ([ key, assign ]) => scope[ key ] = { value: assign, type: 'const' } )
+
+      Object
+      .entries( attrs.expressions )
       .forEach( ([ key, assign ]) => {
         // Process spread assign
         if( SPREAD_VAR_PATTERN.test( key ) ){
@@ -647,7 +652,6 @@ export default class Component<MT extends Metavars> extends Events {
         attrs.expressions && Object
         .entries( attrs.expressions )
         .forEach( ([ key, value ]) => {
-          console.log( key, value )
           if( SPREAD_VAR_PATTERN.test( key ) && self.__isReactive__( key as string, scope ) ){
             const
             deps = self.__extractExpressionDeps__( key as string, scope ),
@@ -799,9 +803,7 @@ export default class Component<MT extends Metavars> extends Events {
         if( key == 'key' ) return
         input[ key ] = value
       })
-
-      console.log( name, attrs )
-
+      
       attrs.expressions && Object
       .entries( attrs.expressions )
       .forEach( ([ key, value ]) => {
@@ -1870,7 +1872,6 @@ export default class Component<MT extends Metavars> extends Events {
       .entries( attrs.literals )
       .forEach( ([ key, value ]) => wire[ key ] = value )
       
-      console.log( attrs.expressions )
       attrs.expressions && Object
       .entries( attrs.expressions )
       .forEach( ([ key, value ]) => {
@@ -1937,8 +1938,6 @@ export default class Component<MT extends Metavars> extends Events {
         else {
           if( key.startsWith(':') )
             key = key.slice( 1, key.length )
-
-          console.log( key )
 
           attrs.expressions[ key ] = value || ''
         }

@@ -131,4 +131,4 @@ export const handler: Handler<Metavars<Input, State>> = {
   }
 }
 
-export default `<{input.renderer} $$=state.argvlist/>`
+export default `<{input.renderer} #=state.argvlist/>`

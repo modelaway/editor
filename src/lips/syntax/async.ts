@@ -29,7 +29,7 @@
 //     resolveContent = $resolve?.contents(),
 //     responseScope: VariableScope = {
 //       ...scope,
-//       response: { value: response, type: 'const' }
+//       response: { value: response, type: 'arg' }
 //     }
     
 //     resolveContent.length
@@ -40,7 +40,7 @@
 //     catchContent = $catch?.contents(),
 //     errorScope: VariableScope = {
 //       ...scope,
-//       error: { value: error, type: 'const' }
+//       error: { value: error, type: 'arg' }
 //     }
 
 //     catchContent.length

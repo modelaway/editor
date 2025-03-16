@@ -12,12 +12,13 @@ export interface InteractiveMetavars<MT extends Metavars = Metavars> {
   state: MT['State']
   context: MT['Context']
 }
-export type LanguageDictionary = Record<string, Record<string, string> | string>
-export type VariableScopeSet = {
+export type Variable = {
   value: any
-  type: 'let' | 'const'
+  type: 'let' | 'const' | 'arg'
 }
-export type VariableScope = Record<string, VariableScopeSet>
+export type VariableSet = Record<string, Variable>
+
+export type LanguageDictionary = Record<string, Record<string, string> | string>
 
 export type DeclarationTagType = 'nexted' | 'child'
 export type DeclarationTag = {
@@ -64,7 +65,7 @@ export type ComponentScope<MT extends Metavars> = {
 export type ComponentOptions = {
   lips: Lips
   debug?: boolean
-  prekey?: string
+  prepath?: string
   enableTemplateCache?: boolean
   enableSmartDiff?: boolean
 }
@@ -116,8 +117,8 @@ export interface FGUDependency {
   batch?: boolean
   syntax?: boolean
   partial?: string[]
-  memo: VariableScope
-  update: ( memo: VariableScope, by?: string ) => FGUSync | void
+  memo: VariableSet
+  update: ( memo: VariableSet, by?: string ) => FGUSync | void
 }
 export type FGUDependencies = Map<string, Map<string, FGUDependency>>
 
@@ -133,23 +134,21 @@ export type FragmentBoundaries = {
 export interface MeshRenderer {
   path: string | null
   argv: string[]
-  mesh( argv?: VariableScope ): Cash
-  update( argv: VariableScope, boundaries?: FragmentBoundaries ): Cash
+  mesh( argv?: VariableSet ): Cash
+  update( argv: VariableSet, boundaries?: FragmentBoundaries ): Cash
 }
 export type MeshTemplate = Record<string, any> & {
   renderer: MeshRenderer
 }
 export interface MeshWireSetup {
   argv: string[] = []
-  scope: VariableScope = {}
+  scope: VariableSet = {}
   declaration?: Declaration
   useAttributes: boolean
   
   $node: Cash
   meshPath: string | null
   
-  getFragment(): Cash
-  setFragment( $frag ): void
   fragmentPath: string
   fragmentBoundaries: FragmentBoundaries
 }

@@ -1,4 +1,4 @@
-import type { Declaration, Handler, Metavars, MeshRenderer } from '..'
+import type { Declaration, Handler, Metavars, MeshRenderer, VariableSet } from '..'
 
 export interface Input {
   in: Record<string, any> | any[]
@@ -44,10 +44,10 @@ export const handler: Handler<Metavars<Input, State>> = {
       const argvlist = []
       for( let i = _from; i <= _to; _from < _to ? i++ : i-- ){
         const
-        argvalues: Record<string, any> = {},
+        argvalues: VariableSet = {},
         [ivar] = this.input.renderer.argv
 
-        if( ivar ) argvalues[ ivar ] = { value: i, type: 'let' }
+        if( ivar ) argvalues[ ivar ] = { value: i, type: 'arg' }
 
         argvlist.push( argvalues )
       }
@@ -66,11 +66,11 @@ export const handler: Handler<Metavars<Input, State>> = {
 
       for( const each of _in ){
         const 
-        argvalues: Record<string, any> = {},
+        argvalues: VariableSet = {},
         [evar, ivar] = this.input.renderer.argv
 
-        if( evar ) argvalues[ evar ] = { value: each, type: 'let' }
-        if( ivar ) argvalues[ ivar ] = { value: index, type: 'let' }
+        if( evar ) argvalues[ evar ] = { value: each, type: 'arg' }
+        if( ivar ) argvalues[ ivar ] = { value: index, type: 'arg' }
 
         argvlist.push( argvalues )
         index++
@@ -90,12 +90,12 @@ export const handler: Handler<Metavars<Input, State>> = {
 
       for( const [ key, value ] of _in ){
         const 
-        argvalues: Record<string, any> = {},
+        argvalues: VariableSet = {},
         [kvar, vvar, ivar] = this.input.renderer.argv
 
-        if( kvar ) argvalues[ kvar ] = { value: key, type: 'let' } // key
-        if( vvar ) argvalues[ vvar ] = { value: value, type: 'let' } // value
-        if( ivar ) argvalues[ ivar ] = { value: index, type: 'let' } // index
+        if( kvar ) argvalues[ kvar ] = { value: key, type: 'arg' } // key
+        if( vvar ) argvalues[ vvar ] = { value: value, type: 'arg' } // value
+        if( ivar ) argvalues[ ivar ] = { value: index, type: 'arg' } // index
         
         argvlist.push( argvalues )
         index++
@@ -115,12 +115,12 @@ export const handler: Handler<Metavars<Input, State>> = {
 
       for( const key in _in ){
         const 
-        argvalues: Record<string, any> = {},
+        argvalues: VariableSet = {},
         [kvar, vvar, ivar] = this.input.renderer.argv
 
-        if( kvar ) argvalues[ kvar ] = { value: key, type: 'let' } // key
-        if( vvar ) argvalues[ vvar ] = { value: _in[ key ], type: 'let' } // value
-        if( ivar ) argvalues[ ivar ] = { value: index, type: 'let' } // index
+        if( kvar ) argvalues[ kvar ] = { value: key, type: 'arg' } // key
+        if( vvar ) argvalues[ vvar ] = { value: _in[ key ], type: 'arg' } // value
+        if( ivar ) argvalues[ ivar ] = { value: index, type: 'arg' } // index
         
         argvlist.push( argvalues )
         index++

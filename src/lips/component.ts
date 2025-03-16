@@ -5,7 +5,7 @@ import type {
   ComponentScope,
   ComponentOptions,
   InteractiveMetavars,
-  VariableScope,
+  VariableSet,
   MeshRenderer,
   MeshTemplate,
   RenderedNode,
@@ -43,12 +43,12 @@ export default class Component<MT extends Metavars> extends Events {
   private $?: Cash
 
   public input: MT['Input']
-  public state: MT['State']
+  public state: MT['State'] & { toJSON(): MT['State'] }
   public static: MT['Static']
   public context: MT['Context']
 
-  public __key__: string
   public __name__: string
+  public __path__: string
   private __previous: InteractiveMetavars<MT>
   private __stylesheet?: Stylesheet
   private __macros: Map<string, Macro> = new Map() // Cached macros templates
@@ -59,12 +59,7 @@ export default class Component<MT extends Metavars> extends Events {
   // Preserved Child Components
   private PCC: Map<string, Component<MT>> = new Map()
 
-  /**
-   * Nexted Component Count (NCC) in tree
-   * hieralchy and discovery order
-   */
-  private NCC = 0
-  private prekey = '0'
+  private prepath = '0'
   private debug = false
   private isRendered = false
 
@@ -98,10 +93,10 @@ export default class Component<MT extends Metavars> extends Events {
     // console.log( this.template )
   
     if( options?.debug ) this.debug = options.debug
-    if( options?.prekey ) this.prekey = options.prekey
+    if( options?.prepath ) this.prepath = options.prepath
 
     this.__name__ = name
-    this.__key__ = `${this.prekey}.${this.__name__}`
+    this.__path__ = `${this.prepath}/${this.__name__}`
 
     this.declaration = declaration || { name }
 
@@ -111,7 +106,7 @@ export default class Component<MT extends Metavars> extends Events {
     /**
      * Detect all state mutations, including deep mutations
      */
-    this.state = this.lips.IUC.proxyState<MT['State']>( this.__key__, state || {} as MT['State'] )
+    this.state = this.lips.IUC.proxyState<MT['State']>( this.__path__, state || {} as MT['State'] )
     
     macros && this.setMacros( macros )
     handler && this.setHandler( handler )
@@ -173,15 +168,14 @@ export default class Component<MT extends Metavars> extends Events {
     this._setState = setState
     this._getState = getState
 
-    this.lips.IUC.register( this.__key__, () => {
-      /**
-       * Apply update only when a new change 
-       * occured on the state.
-       * 
-       * Merge with initial/active state.
-       */
-      this.state
-      && isDiff( this.__previous?.state as Record<string, any>, this.state as Record<string, any> )
+    /**
+     * Register to queue & apply update only when 
+     * a new change occured on the state.
+     * 
+     * Merge with initial/active state.
+     */
+    this.lips.IUC.register( this.__path__, () => {
+      isDiff( this.__previous?.state as Record<string, any>, this.state as Record<string, any> )
       && this._setState({ ...this._getState(), ...this.state })
     })
     
@@ -376,7 +370,7 @@ export default class Component<MT extends Metavars> extends Events {
     return this.$?.find( selector )
   }
   
-  render( $nodes?: Cash, scope: VariableScope = {}, sharedDeps?: FGUDependencies ): RenderedNode {
+  render( $nodes?: Cash, scope: VariableSet = {}, sharedDeps?: FGUDependencies ): RenderedNode {
     const
     dependencies: FGUDependencies = sharedDeps || new Map(),
     attachableEvents: VirtualEvent[] = []
@@ -472,7 +466,7 @@ export default class Component<MT extends Metavars> extends Events {
       .forEach( ([ key, assign ]) => {
         // Process spread assign
         if( SPREAD_VAR_PATTERN.test( key ) ){
-          const spreadExtract = ( update?: boolean, memo?: VariableScope ) => {
+          const spreadExtract = ( update?: boolean, memo?: VariableSet ) => {
             const spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo || scope )
             if( typeof spreads !== 'object' )
               throw new Error(`Invalid spread operator ${key}`)
@@ -504,13 +498,14 @@ export default class Component<MT extends Metavars> extends Events {
           if( self.__isReactive__( assign as string, scope ) ){
             const 
             deps = self.__extractExpressionDeps__( assign as string, scope ),
-            updateVar = ( memo: VariableScope, by?: string ) => {
+            updateVar = ( memo: VariableSet, by?: string ) => {
               scope[ key ] = {
                 value: self.__evaluate__( assign as string, memo ),
                 type: 'let'
               }
 
               // TODO: Do more than just update scope
+              console.log('scope update --', key, scope[ key ] )
             }
 
             deps.forEach( dep => self.__trackDep__( dependencies, dep, {
@@ -601,13 +596,13 @@ export default class Component<MT extends Metavars> extends Events {
       let
       $fragment = $(boundaries.start),
       // Keep track of the latest mesh scope
-      argvalues: VariableScope = {},
+      argvalues: VariableSet = {},
       activeRenderer = renderer
 
       if( renderer ){
         attrs.literals && Object
         .entries( attrs.literals )
-        .forEach( ([ key, value ]) => argvalues[ key ] = { type: 'const', value } )
+        .forEach( ([ key, value ]) => argvalues[ key ] = { type: 'arg', value } )
 
         attrs.expressions && Object
         .entries( attrs.expressions )
@@ -623,7 +618,7 @@ export default class Component<MT extends Metavars> extends Events {
               if( _key !== '#' && !renderer.argv.includes( _key ) ) continue
 
               argvalues[ _key ] = {
-                type: 'const',
+                type: 'arg',
                 value: spreads[ _key ]
               }
             }
@@ -633,7 +628,7 @@ export default class Component<MT extends Metavars> extends Events {
             if( key !== '#' && !renderer.argv.includes( key ) ) return
 
             argvalues[ key ] = {
-              type: 'const',
+              type: 'arg',
               value: value ? self.__evaluate__( value, scope ) : true
             }
           }
@@ -655,11 +650,11 @@ export default class Component<MT extends Metavars> extends Events {
           if( SPREAD_VAR_PATTERN.test( key ) && self.__isReactive__( key as string, scope ) ){
             const
             deps = self.__extractExpressionDeps__( key as string, scope ),
-            spreadPartialUpdate = ( memo: VariableScope, by?: string ) => {
+            spreadPartialUpdate = ( memo: VariableSet, by?: string ) => {
               if( !activeRenderer ) return
 
               const
-              extracted: VariableScope = {},
+              extracted: VariableSet = {},
               spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo )
               if( typeof spreads !== 'object' )
                 throw new Error(`Invalid spread operator ${key}`)
@@ -669,7 +664,7 @@ export default class Component<MT extends Metavars> extends Events {
                 if( _key !== '#' && !activeRenderer.argv.includes( _key ) ) continue
 
                 extracted[ _key ] = {
-                  type: 'const',
+                  type: 'arg',
                   value: spreads[ _key ]
                 }
               }
@@ -689,12 +684,12 @@ export default class Component<MT extends Metavars> extends Events {
           else if( ( key === '#' || renderer.argv.includes( key ) ) && self.__isReactive__( value as string, scope ) ) {
             const 
             deps = self.__extractExpressionDeps__( value as string, scope ),
-            partialUpdate = ( memo: VariableScope, by?: string ) => {
+            partialUpdate = ( memo: VariableSet, by?: string ) => {
               if( !activeRenderer ) return
 
               activeRenderer.update({
                 [key]: {
-                  type: 'const',
+                  type: 'arg',
                   value: value ? self.__evaluate__( value, memo ) : true
                 }
               }, boundaries )
@@ -715,7 +710,7 @@ export default class Component<MT extends Metavars> extends Events {
       // Track FGU dependency update on the dynamic tag
       if( self.__isReactive__( dtag as string, scope ) ){
         const
-        updateDynamicElement = ( memo: VariableScope, by?: string ) => {
+        updateDynamicElement = ( memo: VariableSet, by?: string ) => {
           // Update the mesh scope with new values
           argvalues = { ...memo, ...argvalues }
 
@@ -779,7 +774,6 @@ export default class Component<MT extends Metavars> extends Events {
         throw new Error(`<${name}> template not found`)
       
       const
-      __key__ = `${self.prekey}.${name}$${self.NCC++}`,
       componentPath = self.__generatePath__('component'),
       boundaries = self.__createBoundaries__( componentPath ),
       { argv, attrs, events } = self.__getAttributes__( $node ),
@@ -792,7 +786,7 @@ export default class Component<MT extends Metavars> extends Events {
       let
       input: any = {},
       $fragment = $(boundaries.start),
-      component = self.PCC.get( __key__ )
+      component = self.PCC.get( componentPath )
 
       /**
        * Cast attributes to compnent inputs
@@ -849,8 +843,6 @@ export default class Component<MT extends Metavars> extends Events {
             $node,
             fragmentPath: componentPath,
             fragmentBoundaries: boundaries,
-            getFragment(){ return $fragment },
-            setFragment( $newFragment ){ $fragment = $newFragment },
             meshPath: null,
             argv,
             scope,
@@ -889,8 +881,6 @@ export default class Component<MT extends Metavars> extends Events {
                         meshPath: `${tagname}[${index}]`,
                         fragmentPath: componentPath,
                         fragmentBoundaries: boundaries,
-                        getFragment(){ return $fragment },
-                        setFragment( $newFragment ){ $fragment = $newFragment },
                         argv,
                         scope,
                         useAttributes: true,
@@ -913,8 +903,6 @@ export default class Component<MT extends Metavars> extends Events {
                         meshPath: tagname,
                         fragmentPath: componentPath,
                         fragmentBoundaries: boundaries,
-                        getFragment(){ return $fragment },
-                        setFragment( $newFragment ){ $fragment = $newFragment },
                         argv,
                         scope,
                         useAttributes: true,
@@ -932,8 +920,6 @@ export default class Component<MT extends Metavars> extends Events {
                         meshPath: `${tagname}[${index}]`,
                         fragmentPath: componentPath,
                         fragmentBoundaries: boundaries,
-                        getFragment(){ return $fragment },
-                        setFragment( $newFragment ){ $fragment = $newFragment },
                         argv,
                         scope,
                         useAttributes: true,
@@ -947,8 +933,6 @@ export default class Component<MT extends Metavars> extends Events {
                       meshPath: tagname,
                       fragmentPath: componentPath,
                       fragmentBoundaries: boundaries,
-                      getFragment(){ return $fragment },
-                      setFragment( $newFragment ){ $fragment = $newFragment },
                       argv,
                       scope,
                       useAttributes: true,
@@ -987,12 +971,12 @@ export default class Component<MT extends Metavars> extends Events {
         }, {
           debug: self.debug,
           lips: self.lips,
-          prekey: __key__
+          prepath: componentPath
         })
 
         $fragment = $fragment.add( component.getNode() )
         // Cache component for reuse.
-        self.PCC.set( __key__, component )
+        self.PCC.set( componentPath, component )
 
         // Listen to this nexted component's events
         Object
@@ -1012,7 +996,7 @@ export default class Component<MT extends Metavars> extends Events {
           }
 
           if( SPREAD_VAR_PATTERN.test( key ) ){
-            const spreadvalues = ( memo: VariableScope ) => {
+            const spreadvalues = ( memo: VariableSet ) => {
               const
               extracted: Record<string, any> = {},
               spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo )
@@ -1040,7 +1024,7 @@ export default class Component<MT extends Metavars> extends Events {
             }
           }
           else {
-            const evalue = ( memo: VariableScope ) => {
+            const evalue = ( memo: VariableSet ) => {
               component?.subInput({
                 [key]: value ? self.__evaluate__( value as string, memo ) : true
               })
@@ -1091,7 +1075,7 @@ export default class Component<MT extends Metavars> extends Events {
        * the component as input.
        */
       let
-      argvalues: VariableScope = {},
+      argvalues: VariableSet = {},
       allvalues: Record<string, any> = {},
       $fragment = $(boundaries.start)
 
@@ -1100,7 +1084,7 @@ export default class Component<MT extends Metavars> extends Events {
        */
       attrs.literals && Object
       .entries( attrs.literals )
-      .forEach( ([ key, value ]) => argvalues[ key ] = { value, type: 'const' } )
+      .forEach( ([ key, value ]) => argvalues[ key ] = { value, type: 'arg' } )
 
       attrs.expressions && Object
       .entries( attrs.expressions )
@@ -1116,7 +1100,7 @@ export default class Component<MT extends Metavars> extends Events {
             if( macro.argv.includes( _key ) )
               argvalues[ _key ] = {
                 value: spreads[ _key ],
-                type: 'let'
+                type: 'arg'
               }
           }
 
@@ -1135,7 +1119,7 @@ export default class Component<MT extends Metavars> extends Events {
           if( macro.argv.includes( key ) )
             argvalues[ key ] = {
               value: val,
-              type: 'let'
+              type: 'arg'
             }
 
           if( macro.argv.includes( key ) )
@@ -1158,7 +1142,7 @@ export default class Component<MT extends Metavars> extends Events {
 
           argvalues[ each ] = {
             value: false, // REVIEW the `false` value assignment later.
-            type: 'let'
+            type: 'arg'
           }
         })
       })
@@ -1175,7 +1159,7 @@ export default class Component<MT extends Metavars> extends Events {
       if( macro.argv.includes('__') )
         argvalues['__'] = {
           value: allvalues,
-          type: 'const'
+          type: 'arg'
         }
 
       /**
@@ -1189,8 +1173,6 @@ export default class Component<MT extends Metavars> extends Events {
         meshPath: null,
         fragmentPath: macroPath,
         fragmentBoundaries: boundaries,
-        getFragment(){ return $fragment },
-        setFragment( $newFragment ){ $fragment = $newFragment },
         argv: macro.argv,
         scope,
         useAttributes: true
@@ -1213,9 +1195,9 @@ export default class Component<MT extends Metavars> extends Events {
         }
 
         if( SPREAD_VAR_PATTERN.test( key ) ){
-          const spreadvalues = ( memo: VariableScope ) => {
+          const spreadvalues = ( memo: VariableSet ) => {
             const
-            extracted: VariableScope = {},
+            extracted: VariableSet = {},
             spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo )
             if( typeof spreads !== 'object' )
               throw new Error(`Invalid spread operator ${key}`)
@@ -1223,7 +1205,7 @@ export default class Component<MT extends Metavars> extends Events {
             for( const _key in spreads )
               extracted[ _key ] = {
                 value: spreads[ _key ],
-                type: 'let'
+                type: 'arg'
               }
 
             macrowire.renderer.update( extracted )
@@ -1244,11 +1226,11 @@ export default class Component<MT extends Metavars> extends Events {
           }
         }
         else {
-          const evalue = ( memo: VariableScope ) => {
+          const evalue = ( memo: VariableSet ) => {
             macrowire.renderer.update({
               [key]: {
                 value: value ? self.__evaluate__( value as string, memo ) : true,
-                type: 'let'
+                type: 'arg'
               }
             })
           }
@@ -1305,8 +1287,8 @@ export default class Component<MT extends Metavars> extends Events {
         .forEach( ([ attr, value ]) => {
           switch( attr ){
             // Inject inner html into the element
-            case 'html': {
-              const updateHTML = ( memo: VariableScope ) => {
+            case '@html': {
+              const updateHTML = ( memo: VariableSet ) => {
                 $fragment.html( self.__evaluate__( value as string, memo ) )
               }
 
@@ -1326,8 +1308,8 @@ export default class Component<MT extends Metavars> extends Events {
             } break
 
             // Inject text into the element
-            case 'text': {
-              const updateText = ( memo: VariableScope ) => {
+            case '@text': {
+              const updateText = ( memo: VariableSet ) => {
                 let text = self.__evaluate__( value as string, memo )
 
                 // Apply translation
@@ -1356,7 +1338,7 @@ export default class Component<MT extends Metavars> extends Events {
 
             // Convert object style attribute to string
             case 'style': {
-              const updateStyle = ( memo: VariableScope ) => {
+              const updateStyle = ( memo: VariableSet ) => {
                 const style = self.__evaluate__( value as string, memo )
                 
                 // Defined in object format
@@ -1390,7 +1372,7 @@ export default class Component<MT extends Metavars> extends Events {
 
             // Inject the evaluation result of any other attributes
             default: {
-              const updateAttrs = ( memo: VariableScope ) => {
+              const updateAttrs = ( memo: VariableSet ) => {
                 const res = value ?
                             self.__evaluate__( value as string, memo )
                             /**
@@ -1440,7 +1422,7 @@ export default class Component<MT extends Metavars> extends Events {
       .forEach( key => {
         if( !SPREAD_VAR_PATTERN.test( key ) ) return
 
-        const updateSpreadAttrs = ( memo: VariableScope ) => {
+        const updateSpreadAttrs = ( memo: VariableSet ) => {
           const
           extracted: Record<string, any> = {},
           spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo )
@@ -1500,7 +1482,7 @@ export default class Component<MT extends Metavars> extends Events {
       if( content && self.__isReactive__( content, scope ) ){
         const
         deps = self.__extractTextDeps__( content, scope ),
-        updateTextContent = ( memo?: VariableScope ) => {
+        updateTextContent = ( memo?: VariableSet ) => {
           const text = self.__interpolate__( content, memo )
           if( !$fragment[0] ) return
           $fragment[0].textContent = text
@@ -1641,18 +1623,16 @@ export default class Component<MT extends Metavars> extends Events {
       argv,
       scope,
       declaration,
-      useAttributes,
-      getFragment,
-      setFragment
+      useAttributes
     } = setup
 
     let
     PARTIAL_CONTENT: Cash | undefined,
-    ITERATOR_SCOPE: VariableScope[] | undefined
+    ITERATOR_SCOPE: VariableSet[] | undefined
 
     const
     PARTIAL_PATHS: string[] = [],
-    partialRender = ( $contents: Cash, argvalues?: VariableScope, index?: number ) => {
+    partialRender = ( $contents: Cash, argvalues?: VariableSet, index?: number ) => {
       // Render the partial
       const
       partialPath = `${fragmentPath}.${meshPath || 'root'}${index !== undefined ? `[${index}]` : ''}`,
@@ -1689,7 +1669,7 @@ export default class Component<MT extends Metavars> extends Events {
       renderer: {
         path: meshPath,
         argv,
-        mesh( argvalues?: VariableScope, clone: boolean = false ){
+        mesh( argvalues?: VariableSet, clone: boolean = false ){
           PARTIAL_CONTENT = $node.contents()
           if( !PARTIAL_CONTENT?.length ) return null
 
@@ -1718,7 +1698,7 @@ export default class Component<MT extends Metavars> extends Events {
           }
           else return partialRender( PARTIAL_CONTENT, argvalues )
         },
-        update( argvalues: VariableScope, boundaries?: FragmentBoundaries ){
+        update( argvalues: VariableSet, boundaries?: FragmentBoundaries ){
           if( !PARTIAL_PATHS.length ) return
           
           boundaries = boundaries || fragmentBoundaries
@@ -1902,8 +1882,8 @@ export default class Component<MT extends Metavars> extends Events {
     this.benchmark.inc('domInsertsCount')
 
     return {
-      start: document.createComment(`start:${this.prekey}.${path}`),
-      end: document.createComment(`end:${this.prekey}.${path}`)
+      start: document.createComment(`start:${this.prepath}.${path}`),
+      end: document.createComment(`end:${this.prepath}.${path}`)
     }
   }
   private __getAttributes__( $node: Cash ){
@@ -1963,7 +1943,7 @@ export default class Component<MT extends Metavars> extends Events {
     return result
   }
 
-  private __evaluate__( script: string, scope?: VariableScope ){
+  private __evaluate__( script: string, scope?: VariableSet ){
     try {
       script = script.trim()
       
@@ -1974,9 +1954,15 @@ export default class Component<MT extends Metavars> extends Events {
 
         const
         expression = `with( scope ){ return ${script}; }`,
-        fn = new Function('self', 'input', 'state', 'static', 'context', 'scope', expression )
+        fn = new Function('self', 'input', 'state', 'static', 'context', 'scope', expression ),
+        /**
+         * Only use none-proxy state for eval
+         * to avoid state mutation expression
+         * during template rendering.
+         */
+        state = this.state.toJSON()
 
-        return fn( this, this.input, this.state, this.static, this.context, _scope || {} )
+        return fn( this, this.input, state, this.static, this.context, _scope || {} )
       }
       else {
         const 
@@ -1988,10 +1974,10 @@ export default class Component<MT extends Metavars> extends Events {
     }
     catch( error ){ return script }
   }
-  private __interpolate__( str: string, scope?: VariableScope ){
+  private __interpolate__( str: string, scope?: VariableSet ){
     return str.replace( /{\s*([^{}]+)\s*}/g, ( _, expr ) => this.__evaluate__( expr, scope ) )
   }
-  private __attachEvent__( element: Cash | Component<MT>, _event: string, instruction: string, scope?: VariableScope ){
+  private __attachEvent__( element: Cash | Component<MT>, _event: string, instruction: string, scope?: VariableSet ){
     /**
      * Execute function script directly attach 
      * as the listener.
@@ -2050,7 +2036,7 @@ export default class Component<MT extends Metavars> extends Events {
     this.benchmark.inc('domRemovalsCount')
   }
 
-  private __extractTextDeps__( expr: string, scope?: VariableScope ): string[] {
+  private __extractTextDeps__( expr: string, scope?: VariableSet ): string[] {
     const deps = new Set<string>()
     
     // Handle interpolation expressions
@@ -2065,7 +2051,7 @@ export default class Component<MT extends Metavars> extends Events {
 
     return Array.from( deps )
   }
-  private __extractExpressionDeps__( expr: string, scope?: VariableScope ): string[] {
+  private __extractExpressionDeps__( expr: string, scope?: VariableSet ): string[] {
     const
     /**
      * Metavars pattern
@@ -2103,7 +2089,7 @@ export default class Component<MT extends Metavars> extends Events {
     // Filter out duplicate deps
     return [ ...new Set( matches.map( m => m[0] ) ) ]
   }
-  private __isReactive__( expr: string, scope?: VariableScope ): boolean {
+  private __isReactive__( expr: string, scope?: VariableSet ): boolean {
     // Reactive component variables
     if( /(state|input|context|self)\.[\w.]+/.test( expr ) ) return true
     // Reactive internal scope
@@ -2241,7 +2227,7 @@ export default class Component<MT extends Metavars> extends Events {
     /**
      * Unregister this component from IUC
      */
-    this.lips.IUC.unregister( this.__key__ )
+    this.lips.IUC.unregister( this.__path__ )
     /**
      * Stop watcher when component's element get 
      * detached from the DOM

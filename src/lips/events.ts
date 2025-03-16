@@ -39,10 +39,16 @@ export default class Events {
   emit( _event: string, ...params: any[] ){
     if( !this.options.emit ) return
 
-    this.__events[ _event ]?.forEach( fn => fn( ...params ) )
+    /**
+     * TODO: Do not allow any proxied variables 
+     * to be emitted out of a component.
+     */
+    const serialized = params.map( p => typeof p.toJSON === 'function' ? p.toJSON() : p )
+
+    this.__events[ _event ]?.forEach( fn => fn( ...serialized ) )
 
     // Once listeners
-    this.__once_events[ _event ]?.forEach( fn => fn( ...params ) )
+    this.__once_events[ _event ]?.forEach( fn => fn( ...serialized ) )
     delete this.__once_events[ _event ]
   }
 }

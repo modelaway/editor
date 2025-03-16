@@ -5,7 +5,309 @@ import english from '../languages/en.json'
 import french from '../languages/fr.json'
 import Layers from '../factory/layers'
 
+
 const lips = new Lips({ debug: true })
+
+function DemoState(){
+  type State = {
+    name: string
+    notes: Record<string, { attended: boolean, mark: number }>
+    history: Array<{ id: string, status: 'missed' | 'completed' | 'ongoing', passed?: boolean }>
+    dates: string[]
+  }
+
+  const
+  state: State = {
+    name: 'Frederick Aggee',
+    notes: {
+      french: {
+        attended: true,
+        mark: 12
+      },
+      physics: {
+        attended: true,
+        mark: 30
+      }
+    },
+    history: [
+      {
+        id: 'text-1',
+        status: 'missed',
+        passed: false
+      },
+      {
+        id: 'text-2',
+        status: 'completed',
+        passed: true
+      }
+    ],
+    dates: [ '01/04/25', ]
+  },
+  handler: Handler<Metavars<any, State>> = {
+    onMount(){
+      setTimeout( () => {
+        state.notes.french = {
+          attended: true,
+          mark: 100
+        }
+      }, 2000 )
+
+      setTimeout( () => state.notes.french.mark = 60, 4000 )
+
+      setTimeout( () => {
+        state.history.push({
+          id: 'text-3',
+          status: 'ongoing'
+        })
+        state.dates = [ '01/04/25', '25/07/25', '12/11/25' ]
+      }, 6000 )
+
+      setTimeout( () => {
+        state.history[2].status = 'completed'
+        state.history[2].passed = true
+      }, 8000 )
+    }
+  },
+  template = `
+    <div>
+      <p>Student: {state.name}</p>
+    
+      <fieldset>
+        <b>Notes</b>
+        <for [topic, record] in=state.notes>
+          <div>
+            <label>{topic}</label>
+            <ul>
+              <li>Attended: {record.attended}</li>
+              <li>Mark: {record.mark}</li>
+            </ul>
+          </div>
+        </for>
+      </fieldset>
+
+      <fieldset>
+        <b>History</b>
+        <for [each, index] in=state.history>
+          <ul>
+            <li>ID: {each.id}</li>
+            <li>Status: {each.status}</li>
+            <li>Passed: {each.passed}</li>
+          </ul>
+        </for>
+      </fieldset>
+
+      <fieldset>
+        <b>Dates</b>
+        <p @html="state.dates.join('<br>')"></p>
+      </fieldset>
+    </div>
+  `
+  
+  lips
+  .render('DemoState', { default: template, state, handler })
+  .appendTo('body')
+}
+
+function DemoForloop(){
+  type State = {
+    numbers: number[]
+  }
+
+  const
+  state: State = {
+    numbers: [1,2,4,6,8,10,12]
+  },
+  handler: Handler<Metavars<any, State>> = {
+    onMount(){
+      setTimeout( () => this.state.numbers[2] = 11, 2000 )
+      setTimeout( () => this.state.numbers[4] = 21, 4000 )
+      setTimeout( () => this.state.numbers[0] = 0, 6000 )
+      setTimeout( () => this.state.numbers[0] = 0, 8000 )
+      setTimeout( () => { console.log('late mutation None --'); this.state.numbers[0] = 0 }, 10000 )
+      setTimeout( () => { console.log('late mutation Chante --'); this.state.numbers[0] = 9 }, 15000 )
+    }
+  },
+  template = `
+    <div>
+      <log('numbers --', state.numbers )/>
+      <for [n, idx] in=state.numbers>
+        <let square="n * 4"/>
+        #<span>[{idx}]-{n}({square})</span>.
+      </for>
+    </div>
+  `
+  
+
+  lips
+  .render('DemoInput', { default: template, state, handler })
+  .appendTo('body')
+}
+
+function DemoSyntaxInteract(){
+  type TemplateInput = {
+    initial: number
+    limit: number
+  }
+  type TemplateState = {
+    count: number
+  }
+
+  const easyCount: Template<Metavars<TemplateInput, TemplateState>> = {
+    state: {
+      count: 0
+    },
+    handler: {
+      onInput(){ 
+        this.state.count = Number( this.input.initial )
+      
+        // const end = setInterval( () => this.state.count++, 5 )
+        // setTimeout( () => clearInterval( end ), 15000 )
+      },
+      handleClick( e: Event ){
+        if( this.state.count >= this.input.limit )
+          return
+
+        this.state.count++
+      }
+    },
+    default: `
+      <div>
+        <div>In component count: {state.count}</div>
+        <if( input.renderer )>
+          <{input.renderer} count=state.count/>
+        </if>
+        <br>
+        <button on-click( handleClick )>Count</button>
+      </div>
+    `
+  }
+
+  lips.register('easycount', easyCount )
+
+  type State = {
+    value: string
+    initial: number
+    attrs: {
+      hidden: boolean
+      title: string
+    }
+    numbers: number[]
+    speech: string
+    traffic: 'red' | 'orange' | 'green'
+  }
+
+  const
+  state: State = {
+    value: 'logger',
+    initial: 5,
+    attrs: {
+      hidden: true,
+      title: 'Spread'
+    },
+    numbers: [1,2],
+    speech: 'hi',
+    traffic: 'orange'
+  },
+  handler: Handler<Metavars<any, State>> = {
+    handleInput( e ){
+      this.state.value = e.target.value
+      this.state.attrs.hidden = e.target.value.length == 2
+
+      if( e.target.value.length == 2 ){
+        this.state.speech = 'hello'
+        this.state.numbers = [0,5,3,6,2,3,6,7,4]
+        this.state.traffic = 'red'
+      }
+
+      else if( e.target.value.length === 4 ){
+        this.state.numbers = [4,3,2,3,3,32]
+        this.state.speech = 'booz'
+        this.state.traffic = 'green'
+      }
+
+      else this.state.traffic = 'orange'
+    },
+    getSum(){
+      return {
+        nbr: 20,
+        read(){ return this.nbr },
+        write( nbr: number ){ return this.nbr = nbr },
+      } as any
+    }
+  },
+  template = `
+    <div style="{ border: '1px solid '+(state.value.length > 5 ? 'red' : 'gray') }">
+      <input value=state.value
+              on-input(handleInput)/>
+
+      <br>
+      <div html=state.value style="color: green"></div>
+      <p ...state.attrs checked on-click(() => console.log('I got clicked'))>
+        <span>Major word in speech is: {state.speech} <span> - {state.value +'-plus'}</span></span>
+        <br><br>
+        <small>Initial count: {state.initial}</small>
+      </p>
+
+      <easycount [count] initial=state.initial>
+        <span>{state.value}: {count}</span>
+      </easycount>
+
+      <p><small>Dynamic here</small></p>
+      <{state.value === 'logger' ? 'easycount' : 'div'}/>
+      
+      <button on-click(() => self.state.initial = 2 )>Change initial</button>
+
+      <br><br>
+      <if( self.getSum() )>
+        <let sum=self.getSum()/>
+        <log('sum --', sum )/>
+
+        <fieldset>
+          <div>First read - {sum.read()}</div>
+          <div>Write - {sum.write( 15 )}</div>
+          <div>Then read again - {sum.read()}</div>
+        </fieldset>
+      </if>
+
+      <br>
+      <if( state.value.includes('b') )>
+        <p><b>{state.value}</b></p>
+      </if>
+      <else-if( state.value.includes('i') )>
+        <p><i>{state.value}</i></p>
+      </else-if>
+      <else-if( state.value.includes('u') )>
+        <p><u>{state.value}</u></p>
+      </else-if>
+
+      <br>
+      <for [n, idx] in=state.numbers>
+        <let square=(idx * 4)/>
+        #<span>[{idx}]-{n}({square})</span>.
+      </for>
+
+      <switch( state.traffic )>
+        <case is="green">
+          <div style="color: green;">Green light</div>
+        </case>
+        <case is="red">
+          <div style="color: red;">Red light</div>
+        </case>
+        <default>
+          <div style="color: orange;">Orange light</div>
+        </case>
+      </switch>
+    </div>
+  `
+
+  lips
+  .render('DemoInput', { default: template, state, handler }, {})
+  .appendTo('body')
+}
+
+/**
+ * ------------------------------------------------------------------------- 
+ */
 
 function Demo1(){
   type Input = {
@@ -1065,190 +1367,9 @@ function DemoLayers(){
   component = Layers( lips, { host }).appendTo('body')
 }
 
-function DemoInput(){
-  type TemplateInput = {
-    initial: number
-    limit: number
-  }
-  type TemplateState = {
-    count: number
-  }
-
-  const easyCount: Template<Metavars<TemplateInput, TemplateState>> = {
-    state: {
-      count: 0
-    },
-    handler: {
-      onInput(){ 
-        this.state.count = Number( this.input.initial )
-      
-        // const end = setInterval( () => this.state.count++, 5 )
-        // setTimeout( () => clearInterval( end ), 15000 )
-      },
-      handleClick( e: Event ){
-        if( this.state.count >= this.input.limit )
-          return
-
-        this.state.count++
-      }
-    },
-    default: `
-      <div>
-        <div>In component count: {state.count}</div>
-        <if( input.renderer )>
-          <{input.renderer} count=state.count/>
-        </if>
-        <br>
-        <button on-click( handleClick )>Count</button>
-      </div>
-    `
-  }
-
-  lips.register('easycount', easyCount )
-
-  type State = {
-    value: string
-    initial: number
-    attrs: {
-      hidden: boolean
-      title: string
-    }
-    numbers: number[]
-    speech: string
-    traffic: 'red' | 'orange' | 'green'
-  }
-
-  const
-  state: State = {
-    value: 'logger',
-    initial: 5,
-    attrs: {
-      hidden: true,
-      title: 'Spread'
-    },
-    numbers: [1,2],
-    speech: 'hi',
-    traffic: 'orange'
-  },
-  handler: Handler<Metavars<any, State>> = {
-    handleInput( e ){
-      this.state.value = e.target.value
-      this.state.attrs.hidden = e.target.value.length == 2
-
-      if( e.target.value.length == 2 ){
-        this.state.speech = 'hello'
-        this.state.numbers = [0,5,3,6,2,3,6,7,4]
-        this.state.traffic = 'red'
-      }
-
-      else if( e.target.value.length === 4 ){
-        this.state.numbers = [4,3,2,3,3,32]
-        this.state.speech = 'booz'
-        this.state.traffic = 'green'
-      }
-
-      else this.state.traffic = 'orange'
-    },
-    getSum(){
-      return {
-        nbr: 20,
-        read(){ return this.nbr },
-        write( nbr: number ){ return this.nbr = nbr },
-      } as any
-    }
-  },
-  template = `
-    <div style="{ border: '1px solid '+(state.value.length > 5 ? 'red' : 'gray') }">
-      <input value=state.value
-              on-input(handleInput)/>
-
-      <br>
-      <div html=state.value style="color: green"></div>
-      <p ...state.attrs checked on-click(() => console.log('I got clicked'))>
-        <span>Major word in speech is: {state.speech} <span> - {state.value +'-plus'}</span></span>
-        <br><br>
-        <small>Initial count: {state.initial}</small>
-      </p>
-
-      <easycount [count] initial=state.initial>
-        <span>{state.value}: {count}</span>
-      </easycount>
-
-      <p><small>Dynamic here</small></p>
-      <{state.value === 'logger' ? 'easycount' : 'div'}/>
-      
-      <button on-click(() => self.state.initial = 2 )>Change initial</button>
-
-      <br><br>
-      <if( self.getSum() )>
-        <let sum=self.getSum()/>
-        <log('sum --', sum )/>
-
-        <fieldset>
-          <div>First read - {sum.read()}</div>
-          <div>Write - {sum.write( 15 )}</div>
-          <div>Then read again - {sum.read()}</div>
-        </fieldset>
-      </if>
-
-      <br>
-      <if( state.value.includes('b') )>
-        <p><b>{state.value}</b></p>
-      </if>
-      <else-if( state.value.includes('i') )>
-        <p><i>{state.value}</i></p>
-      </else-if>
-      <else-if( state.value.includes('u') )>
-        <p><u>{state.value}</u></p>
-      </else-if>
-
-      <br>
-      <for [n, idx] in=state.numbers>
-        <let square=(idx * 4)/>
-        #<span>[{idx}]-{n}({square})</span>.
-      </for>
-
-      <switch( state.traffic )>
-        <case is="green">
-          <div style="color: green;">Green light</div>
-        </case>
-        <case is="red">
-          <div style="color: red;">Red light</div>
-        </case>
-        <default>
-          <div style="color: orange;">Orange light</div>
-        </case>
-      </switch>
-    </div>
-  `
-
-  lips
-  .render('DemoInput', { default: template, state, handler }, {})
-  .appendTo('body')
-}
-
-function DemoForloop(){
-  type State = {
-    numbers: number[]
-  }
-
-  const
-  state: State = {
-    numbers: [1,2,4,6,8,10,12]
-  },
-  template = `
-    <div>
-      <for [n, idx] in=state.numbers>
-        <let square="idx * 4"/>
-        #<span>[{idx}]-{n}({square})</span>.
-      </for>
-    </div>
-  `
-
-  lips
-  .render('DemoInput', { default: template, state }, {})
-  .appendTo('body')
-}
+DemoState()
+// DemoForloop()
+// DemoSyntaxInteract()
 
 // Demo1()
 // Demo2()
@@ -1258,5 +1379,3 @@ function DemoForloop(){
 // Demo6()
 // DemoCart()
 // DemoLayers()
-DemoInput()
-// DemoForloop()

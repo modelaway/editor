@@ -1,3 +1,4 @@
+import { META_ATTRIBUTES } from './utils'
 
 function matchEventHandlers( input: string ): string {
   const pattern = /on-([a-zA-Z-]+)\s*\(/g
@@ -136,7 +137,7 @@ function processAttribute( attr: string ): string {
   const name = attr.substring( 0, equalPos ).trim()
   let value = attr.substring( equalPos + 1 ).trim()
   
-  if( attr.startsWith('@') ) 
+  if( name.startsWith('@') && !META_ATTRIBUTES.includes( name ) ) 
     return `:${name.slice(1)}=${value}`
   
   // Handle event handlers specially

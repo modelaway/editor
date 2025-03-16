@@ -32,6 +32,7 @@ export const ROOT_PATH = '#0'
 export const SYNCTAX_VAR_FLAG = 'SYNTAX:'
 export const SPREAD_VAR_PATTERN = /^\.\.\./
 export const ARGUMENT_VAR_PATTERN = /^\[(.*?)\]$/
+export const META_ATTRIBUTES = ['@html', '@text']
 
 /**
  * Deep difference checker with support for Map, Set,
@@ -60,8 +61,8 @@ export function isDiff( a: any, b: any ){
       return false
     }
     
-    // For Sets with objects, use a Map to cache results
-    const compared = new Map()
+    // For Sets with objects, use a WeakMap to cache results
+    const compared = new WeakMap()
     
     for( const aValue of a ){
       let found = false
@@ -75,17 +76,21 @@ export function isDiff( a: any, b: any ){
           // Skip if value types don't match
           if( typeof bValue !== 'object' ) continue
           
-          // Check cache first
-          const cacheKey = aValue + ':' + bValue
-          if( compared.has( cacheKey ) ){
-            found = compared.get( cacheKey )
+          // Check cache first using WeakMap
+          if( !compared.has( aValue ) ){
+            compared.set( aValue, new WeakMap() )
+          }
+          const valueMap = compared.get( aValue )
+          
+          if( valueMap.has( bValue ) ){
+            found = valueMap.get( bValue )
             if( found ) break
             continue
           }
           
           // Compare objects
           const result = !isDiff( aValue, bValue )
-          compared.set( cacheKey, result )
+          valueMap.set( bValue, result )
           
           if( result ){
             found = true
@@ -116,7 +121,7 @@ export function isDiff( a: any, b: any ){
     }
 
     // For Maps with object keys/values
-    const compared = new Map()
+    const compared = new WeakMap()
 
     for( const [aKey, aValue] of a ){
       // Handle primitive keys using direct lookup
@@ -144,10 +149,14 @@ export function isDiff( a: any, b: any ){
       for( const [bKey, bValue] of b ){
         if( typeof bKey !== 'object' ) continue
 
-        // Check key comparison cache
-        const cacheKey = `${aKey}:${bKey}`
-        if( compared.has( cacheKey ) ){
-          const [keyMatch, valueMatch] = compared.get( cacheKey )
+        // Use WeakMap for caching comparisons
+        if( !compared.has( aKey ) ){
+          compared.set( aKey, new WeakMap() )
+        }
+        const keyMap = compared.get( aKey )
+        
+        if( keyMap.has( bKey ) ){
+          const [keyMatch, valueMatch] = keyMap.get( bKey )
           if( keyMatch ){
             keyFound = true
             valueMatched = valueMatch
@@ -166,11 +175,11 @@ export function isDiff( a: any, b: any ){
                         aValue === bValue
 
           // Cache both key and value comparison results
-          compared.set( cacheKey, [true, valueMatched] )
+          keyMap.set( bKey, [true, valueMatched] )
           
           if( valueMatched ) break
         } else {
-          compared.set( cacheKey, [false, false] )
+          keyMap.set( bKey, [false, false] )
         }
       }
 

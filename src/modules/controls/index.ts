@@ -161,10 +161,10 @@ export default class Controls {
       }
     }
     
-    this.layers = Layers( lips, linput, { events, editor: this.editor })
-    this.layers.appendTo( $shell )
+    // this.layers = Layers( lips, linput, { events, editor: this.editor })
+    // this.layers.appendTo( $shell )
 
-    events.on('layers.handle', this.actions('layers') )
+    // events.on('layers.handle', this.actions('layers') )
 
     /**----------------------------------------------------
      * History stack record visual state

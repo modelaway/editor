@@ -82,38 +82,38 @@ const LayerItem = () => {
           path=input.path
           level=input.depth
           attribute=input.attribute
-          class="context.selection.includes( input.key ) && 'selected'">
+          class=(context.selection.includes( input.key ) && 'selected')>
       <mblock class="nested-indicator"/>
 
       <mblock class="layer-bar">
-        <micon class="'toggle-icon visibility bx '+( input.hidden ? 'bx-hide' : 'bx-show')"
-                on-click( onToggleVisibility, input.key, !input.hidden )></micon>
+        <micon class=('toggle-icon visibility bx '+( input.hidden ? 'bx-hide' : 'bx-show'))
+                on-click( onToggleVisibility, input.key, !input.hidden )/>
 
-        <micon class="ill-icon move-handle bx bx-grid-vertical"></micon>
+        <micon class="ill-icon move-handle bx bx-grid-vertical"/>
 
         <minline style="{ padding: '7px 0 7px '+(20 * input.depth)+'px' }">
           <switch( input.attribute )>
             <case is="group">
-              <micon class="'toggle-icon bx '+( state.collapsed ? 'bx-chevron-down' : 'bx-chevron-right')"
+              <micon class=('toggle-icon bx '+( state.collapsed ? 'bx-chevron-down' : 'bx-chevron-right'))
                       style="padding: 0 4px 0 0"
-                      on-click( onCollapse, input.key )></micon>
+                      on-click( onCollapse, input.key )/>
             </case>
             <default>
               <switch( input.type )>
                 <case is="image">
-                  <micon class="ill-icon bx bx-image-alt"></micon>
+                  <micon class="ill-icon bx bx-image-alt"/>
                 </case>
                 <case is="video">
-                  <micon class="ill-icon bx bx-play-circle"></micon>
+                  <micon class="ill-icon bx bx-play-circle"/>
                 </case>
                 <case is="audio">
-                  <micon class="ill-icon bx bx-volume-low"></micon>
+                  <micon class="ill-icon bx bx-volume-low"/>
                 </case>
                 <case is="text">
-                  <micon class="ill-icon bx bx-text"></micon>
+                  <micon class="ill-icon bx bx-text"/>
                 </case>
                 <default>
-                  <micon class="ill-icon bx bx-shape-square"></micon>
+                  <micon class="ill-icon bx bx-shape-square"/>
                 </default>
               </switch>
             </default>
@@ -128,7 +128,7 @@ const LayerItem = () => {
 
           <if( input.locked )>
             <micon class="toggle-icon bxs bx-lock-alt"
-                    on-click( onToggleLock, input.key )></micon>
+                    on-click( onToggleLock, input.key )/>
           </if>
         </minline>
       </mblock>
@@ -136,8 +136,8 @@ const LayerItem = () => {
       <if( input.layers && input.attribute === 'group' )>
         <layerlist list=input.layers
                     layer=input.key
-                    path="input.path +'.'+ input.key"
-                    depth="input.depth + 1"
+                    path=(input.path +'.'+ input.key)
+                    depth=(input.depth + 1)
                     collapsed=state.collapsed/>
       </if>
     </mli>

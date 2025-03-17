@@ -130,8 +130,8 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
        * 
        * TOI - Tool of interest
        */
-      // console.log('context --', hook?.editor?.lips.getContext() )
-      // hook?.editor?.lips.setContext('toi', variant ? `${key}.${variant}` : key )
+      console.log('context --', hook?.editor?.lips.getContext() )
+      hook?.editor?.lips.setContext('toi', variant ? `${key}.${variant}` : key )
     },
     selectView( key: string, variant?: string ){
       for( const k in this.state.views ){
@@ -223,7 +223,7 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
   const macros = `
     <macro [key, type, active, label, title, icon, disabled, __] name="option">
       <mli active=active
-            class="label ? 'label' : false"
+            class=(label ? 'label' : false)
             title=title
             disabled=disabled
             ${CONTROL_LANG_SELECTOR}
@@ -244,10 +244,12 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
         <mblock toolbar>
           <if( state.tools )>
             <mul options="tools">
+              <log('log tool --', state.tools )/>
               <for [key, each] in=state.tools>
+                <log('each tool --', key, each )/>
                 <if( !each.hidden )>
                   <if( each.variants && !each.custom )>
-                    <const selected="each.variants[ each.selected || '*' ]"/>
+                    <const selected=each.variants[ each.selected || '*' ]/>
                     <option type="tool" key=key ...selected active=each.active/>
                   </if>
                   <else>
@@ -264,7 +266,7 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
               <for [key, each] in=state.views>
                 <if( !each.hidden )>
                   <if( each.variants && !each.custom )>
-                    <const selected="each.variants[ each.selected || '*' ]"/>
+                    <const selected=each.variants[ each.selected || '*' ]/>
                     <option type="view" key=key ...selected active=each.active/>
                   </if>
                   <else>
@@ -286,10 +288,10 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
           </if>
         </mblock>
 
-        <mblock container class="state.expanded && 'expanded'">
+        <mblock container class=(state.expanded && 'expanded')>
           <if( state.content )>
             <switch( state.content.type )>
-              <case is="['tool', 'view']">
+              <case is=['tool', 'view']>
                 <tecaptions ...state.content.body
                             on-select( onHandleSelect, state.content.type, state.content.key )/>
               </case>
@@ -314,7 +316,7 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
           </if>
         </mblock>
 
-        <mblock palette class="state.showPalette && 'expanded'">
+        <mblock palette class=(state.showPalette && 'expanded')>
           <palette/>
         </mblock>
       </mblock>

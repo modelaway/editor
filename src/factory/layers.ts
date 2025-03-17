@@ -217,15 +217,15 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
   }
 
   const handler: Handler<Metavars<LayersInput, State, Static, Context>> = {
-    onInput({ host, settings }){
-      if( host.content ){
-        const tvs = new Traverser
-        this.state.layers = tvs.traverse( cleanContent( host.content ) )
-      }
+    // onInput({ host, settings }){
+    //   if( host.content ){
+    //     const tvs = new Traverser
+    //     this.state.layers = tvs.traverse( cleanContent( host.content ) )
+    //   }
 
-      if( settings?.reduced !== undefined ) 
-        this.state.reduced = settings.reduced
-    },
+    //   if( settings?.reduced !== undefined ) 
+    //     this.state.reduced = settings.reduced
+    // },
     onMount(){
       /**
        * Attach movable control to layer component
@@ -395,7 +395,7 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
             <mlabel>Layers</mlabel>
           </minline>
 
-          <micon class="'toggle-icon bx '+( !state.reduced ? 'bx-chevron-down' : 'bx-chevron-right')"
+          <micon class=('toggle-icon bx '+( !state.reduced ? 'bx-chevron-down' : 'bx-chevron-right'))
                   style="padding: 0 0 0 10px;"
                   on-click( onReduce )/>
         </mblock>

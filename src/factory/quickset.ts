@@ -168,15 +168,15 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
   const macros = `
     <macro [key, type, title, label, active, icon, disabled, value, __] name="option">
       <switch( type )>
-        <case is="['input', 'search']">
+        <case is=['input', 'search']>
           <mli active=active
-                class="'form-input'+( icon && ' addon' )"
+                class=('form-input'+( icon && ' addon' ))
                 ${CONTROL_LANG_SELECTOR}>
-            <if( icon )><micon class=icon></micon></if>
+            <if( icon )><micon class=icon/></if>
 
             <input type="text"
                     disabled=disabled
-                    placeholder="label || title"
+                    placeholder=(label || title)
                     value=value
                     on-change( onSmartHandle, key, __ )
                     on-input( type === 'search' ? 'onSmartHandle' : null, key, __ )>
@@ -185,15 +185,15 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
 
         <default>
           <mli active=active
-                class="label ? 'label' : false"
+                class=(label ? 'label' : false)
                 title=title
                 disabled=disabled
                 ${CONTROL_LANG_SELECTOR}
                 on-click( onSmartHandle, key, __ )>
-            <micon class=icon></micon>
+            <micon class=icon/>
 
             <if( label )>
-              <mlabel ${CONTROL_LANG_SELECTOR} text=label></mlabel>
+              <mlabel ${CONTROL_LANG_SELECTOR}>{label}</mlabel>
             </if>
           </mli>
         </default>
@@ -203,7 +203,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
 
   const template = `
     <mblock ${CONTROL_QUICKSET_SELECTOR}=input.key
-            class="input.settings.editing ? 'editing' : '?'"
+            class=(input.settings.editing ? 'editing' : '?')
             style=self.getStyle()>
       <mblock container>
         <mul>
@@ -222,7 +222,9 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
               </if>
 
               <if( state.extra && !state.showExtra )>
-                <mli title="Extra options" ${CONTROL_LANG_SELECTOR} on-click( onShowExtraOptions, true )><micon class="bx bx-dots-horizontal-rounded"></micon></mli>
+                <mli title="Extra options" ${CONTROL_LANG_SELECTOR} on-click( onShowExtraOptions, true )>
+                  <micon class="bx bx-dots-horizontal-rounded"/>
+                </mli>
               </if>
             </mblock>
 
@@ -232,7 +234,9 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
                   <option key=key ...each/>
                 </for>
 
-                <mli title="Back" ${CONTROL_LANG_SELECTOR} on-click( onShowExtraOptions, false )><micon class="bx bx-chevron-left"></micon></mli>
+                <mli title="Back" ${CONTROL_LANG_SELECTOR} on-click( onShowExtraOptions, false )>
+                  <micon class="bx bx-chevron-left"/>
+                </mli>
               </mblock>
             </if>
           </if>
@@ -240,12 +244,12 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
           <if( state.subOption )>
             <mblock options="sub">
               <mli title="Back" ${CONTROL_LANG_SELECTOR} on-click( onShowSubOptions, false )>
-                <micon class="bx bx-chevron-left"></micon>
+                <micon class="bx bx-chevron-left"/>
               </mli>
 
               <mli class="label">
-                <micon class=state.subOption.icon></micon>
-                <mlabel ${CONTROL_LANG_SELECTOR} text="state.subOption.label || state.subOption.title"></mlabel>
+                <micon class=state.subOption.icon/>
+                <mlabel ${CONTROL_LANG_SELECTOR}>{state.subOption.label || state.subOption.title}</mlabel>
               </mli>
               
               <for [key, each] in=state.subOption.sub>
@@ -275,7 +279,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
       <if( state.suggestions )>
         <const ...state.suggestions/>
 
-        <mblock suggestions style="position == 'top' ? 'bottom: 4.2rem' : 'margin-top: .5rem'">
+        <mblock suggestions style=(position == 'top' ? 'bottom: 4.2rem' : 'margin-top: .5rem')>
           <mblock>
             <if( option.helper )>
               <{option.helper} ...option on-change( onHandleOption, key, option )/>

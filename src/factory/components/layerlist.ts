@@ -6,8 +6,8 @@ type LayerListInput = LayerElement & {
 
 const LayerList = () => {
   const template = `
-    <const layer="input.depth === 0 ? '#' : input.layer"
-            path="input.depth === 0 ? '#' : input.path +'.layers'"/>
+    <const layer=(input.depth === 0 ? '#' : input.layer)
+            path=(input.depth === 0 ? '#' : input.path +'.layers')/>
 
     <mul sortable
           layer=layer

@@ -80,8 +80,8 @@ export default ( lips: Lips, input: MenuInput, hook: HandlerHook ) => {
 
             <mul>
               <for [item] in=each.items>
-                <mli class="item.disabled ? 'disabled' : false">
-                  <micon class=item.icon></micon>
+                <mli class=(item.disabled ? 'disabled' : false)>
+                  <micon class=item.icon/>
                   <minline ${CONTROL_LANG_SELECTOR}>{item.title}</minline>
 
                   <if( item.value )>
@@ -89,14 +89,16 @@ export default ( lips: Lips, input: MenuInput, hook: HandlerHook ) => {
                   </if>
 
                   <if( item.sub )>
-                    <minline class="sub-arrow"><micon class="bx bx-chevron-right"></micon></minline>
+                    <minline class="sub-arrow">
+                      <micon class="bx bx-chevron-right"/>
+                    </minline>
                   </if>
                 </mli>
               </for>
             </mul>
           
             <if( each.separate )>
-              <mblock ${FORM_SEPERATOR_SELECTOR}></mblock>
+              <mblock ${FORM_SEPERATOR_SELECTOR}/>
             </if>
           </mblock>
         </for>
@@ -106,8 +108,8 @@ export default ( lips: Lips, input: MenuInput, hook: HandlerHook ) => {
   
   const template = `
     <mblock ${CONTROL_MENU_SELECTOR}=input.key
-            style="typeof input.position == 'object' ? { left: input.position.left, top: input.position.top } : '?'">
-      <mblock dismiss="menu" backdrop on-click="onDismiss"/>
+            style=(typeof input.position == 'object' ? { left: input.position.left, top: input.position.top } : false)>
+      <mblock dismiss="menu" backdrop on-click(onDismiss)/>
 
       <mblock container>
         <mblock class="header">
@@ -116,7 +118,7 @@ export default ( lips: Lips, input: MenuInput, hook: HandlerHook ) => {
             <mlabel ${CONTROL_LANG_SELECTOR}>{input.caption.title}</mlabel>
 
             <!-- Dismiss control menu -->
-            <span dismiss="menu"  title="Dismiss" ${CONTROL_LANG_SELECTOR} on-click="onDismiss">
+            <span dismiss="menu"  title="Dismiss" ${CONTROL_LANG_SELECTOR} on-click(onDismiss)>
               <micon class="bx bx-x"/>
             </span>
           </mblock>
@@ -124,10 +126,10 @@ export default ( lips: Lips, input: MenuInput, hook: HandlerHook ) => {
           <mul options="tabs">
             <for [option] in=input.options>
               <mli tab=key
-                    class="state.activeTab === key && 'active'" 
+                    class=(state.activeTab === key && 'active') 
                     title=option.title
                     ${CONTROL_LANG_SELECTOR}
-                    on-click="onSwitchTab, key">
+                    on-click(onSwitchTab, key)>
                 <micon class=option.icon/>
               </mli>
             </for>
@@ -136,7 +138,7 @@ export default ( lips: Lips, input: MenuInput, hook: HandlerHook ) => {
 
         <mblock class="body">
           <for [option] in=input.options>
-            <mblock section="attributes" class="state.activeTab === key && 'active'">
+            <mblock section="attributes" class=(state.activeTab === key && 'active')>
               <if( option.fieldsets )>
                 <mfset fieldsets=option.fieldsets/>
               </if>

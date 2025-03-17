@@ -5,10 +5,10 @@ import {
 
 const Inputs = () => {
   const template = `
-    <const id="'input-'+ input.type +'-'+ (input.label || input.name).toLowerCase().replace(/\s+/g, '-')"/>
+    <const id=('input-'+ input.type +'-'+ (input.label || input.name).toLowerCase().replace(/\s+/g, '-'))/>
 
     <switch( input.type )>
-      <case is="['text', 'search']">
+      <case is=['text', 'search']>
         <mblock ${FORM_INPUT_SELECTOR}=input.type>
           <!--<mlabel for=id>{input.label}</mlabel>-->
           <input ${CONTROL_LANG_SELECTOR}
@@ -20,7 +20,7 @@ const Inputs = () => {
                   disabled=input.disabled
                   pattern=input.pattern
                   autofocus=input.autofocus
-                  placeholder="input.placeholder || input.label"
+                  placeholder=(input.placeholder || input.label)
                   on-input( e => self.emit('input', e.target.value ) )
                   on-change( e => self.emit('change', e.target.value ) )>
         </mblock>

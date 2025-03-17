@@ -74,13 +74,13 @@ const MediaScreens = () => {
       <mul>
         <for [key, each] in=static.screens>
           <mli>
-            <mblock class="state.selected && state.selected.key == key && 'selected'"
+            <mblock class=(state.selected && state.selected.key == key && 'selected')
                     on-click( onScreenSelect, key, each )>
               <switch( each.device )>
-                <case is="mobile"><micon class="bx bx-mobile"></micon></case>
-                <case is="tablet"><micon class="bx bx-tab"></micon></case>
-                <case is="desktop"><micon class="bx bx-laptop"></micon></case>
-                <case is="tv"><micon class="bx bx-tv"></micon></case>
+                <case is="mobile"><micon class="bx bx-mobile"/></case>
+                <case is="tablet"><micon class="bx bx-tab"/></case>
+                <case is="desktop"><micon class="bx bx-laptop"/></case>
+                <case is="tv"><micon class="bx bx-tv"/></case>
               </switch>
 
               <mblock>{key}</mblock>

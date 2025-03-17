@@ -68,4 +68,21 @@ export default class NextTick {
       }
     })
   }
+
+  /**
+   * Clear all pending updates and reset state
+   */
+  clear(){
+    this.pendingComponents.clear()
+    this.isPending = false
+  }
+
+  /**
+   * Complete disposal of all resources
+   */
+  dispose(){
+    this.pendingComponents.clear()
+    this.callbacks.clear()
+    this.isPending = false
+  }
 }

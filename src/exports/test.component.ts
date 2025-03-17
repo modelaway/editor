@@ -128,13 +128,11 @@ function DemoForloop(){
     }
   },
   template = `
-    <div>
-      <log('numbers --', state.numbers )/>
-      <for [n, idx] in=state.numbers>
-        <let square="n * 4"/>
-        #<span>[{idx}]-{n}({square})</span>.
-      </for>
-    </div>
+    <log('numbers --', state.numbers )/>
+    <for [n, idx] in=state.numbers>
+      <let square="n * 4"/>
+      #<span>[{idx}]-{n}({square})</span>.
+    </for>
   `
   
 
@@ -1367,9 +1365,9 @@ function DemoLayers(){
   component = Layers( lips, { host }).appendTo('body')
 }
 
-DemoState()
+// DemoState()
 // DemoForloop()
-// DemoSyntaxInteract()
+DemoSyntaxInteract()
 
 // Demo1()
 // Demo2()

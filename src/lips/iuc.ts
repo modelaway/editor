@@ -30,6 +30,26 @@ export default class IUC {
     this.tick.queue( ref )
   }
   
+  dispose(){
+    this.subscriptions.clear()
+    this.tick.dispose()
+  }
+
+  prepareForPotentialUnload(){
+    // Clear all queued updates
+    this.tick.clear()
+    
+    // Release circular references in callbacks
+    this.subscriptions.forEach( ( _, ref ) => {
+      /**
+       * Replace actual functions with empty functions 
+       * to breaks potential circular references 
+       * while maintaining API
+       */
+      this.subscriptions.set( ref, () => {} )
+    })
+  }
+
   /**
    * Create a state proxy handler to detect mutations
    */
@@ -51,7 +71,7 @@ export default class IUC {
       else if( typeof __ === 'object' )
         Object.entries( __ ).forEach( ([ key, value ]) => __[ key ] = deepProxy( value ) )
 
-      const proxy = new Proxy( __, {
+      let proxy = new Proxy( __, {
         get( target: any, prop: string | symbol ){// Special method to unwrap the proxy and get original structure for JSON
           if( prop === 'toJSON' )
             return function(){
@@ -92,6 +112,11 @@ export default class IUC {
               }
               
               return unwrap( proxy )
+            }
+
+          if( prop === 'reset' )
+            return function(){
+              proxy = null
             }
 
           const value = target[ prop ]

@@ -104,11 +104,34 @@ export default class Lips<Context = any> {
     { default: _default, ...scope } = template,
     options: ComponentOptions = {
       debug: this.debug,
-      prekey: '0',
+      prepath: '0',
       lips: this
-    }
+    },
+    component = new Component<MT>( name, _default || '', { ...scope, input }, options )
 
-    return new Component<MT>( name, _default || '', { ...scope, input }, options )
+    // Perform synchronous cleanup operations
+    window.addEventListener( 'beforeunload', () => {
+      this.dispose()
+      component.destroy()
+
+      // REVIEW: Modern browsers ignore return value
+      return null
+    })
+
+    // Enhanced page lifecycle handling
+    window.addEventListener( 'pagehide', (event) => {
+      !event.persisted && this.dispose()
+    });
+    
+    // Visibility change for edge cases
+    document.addEventListener( 'visibilitychange', () => {
+      // Prep for potential unload
+      if( document.visibilityState !== 'hidden' ) return
+      
+      this.IUC.prepareForPotentialUnload()
+    })
+
+    return component
   }
   root<MT extends Metavars>( template: Template<MT>, selector: string ){
     this.__root = this.render('__ROOT__', template )

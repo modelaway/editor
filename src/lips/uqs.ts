@@ -96,14 +96,17 @@ export default class UpdateQueue {
           const sync = dependent.update( dependent.memo, 'enhanced-batch-updator' )
           if( sync ){
             // Update fragment reference if provided
-            if( typeof sync.$fragment === 'object' && sync.$fragment.length ){
-              dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
-            }
+            // typeof sync.$fragment === 'object'
+            // && sync.$fragment.length
+            // && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
+            
+            // Update memo if provided
+            typeof sync.memo === 'object'
+            && sync.memo.length
+            && dependents.set( path, { ...dependent, memo: sync.memo } )
             
             // Run cleanup if provided
-            if( typeof sync.cleanup === 'function' ){
-              sync.cleanup()
-            }
+            typeof sync.cleanup === 'function' && sync.cleanup()
           }
         }
         catch( error ){

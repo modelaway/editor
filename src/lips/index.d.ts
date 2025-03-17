@@ -107,13 +107,15 @@ export type VirtualEventRecord<T> = {
  * (FGU) Fine-Grain Update Dependencies
  */
 export interface FGUSync {
-  $fragment?: Cash
+  // $fragment?: Cash
+  memo?: VariableSet
   cleanup?: () => void
 }
 export interface FGUDependency {
   path: string
   $fragment: Cash | null
   boundaries?: FragmentBoundaries
+  haslet?: boolean
   batch?: boolean
   syntax?: boolean
   partial?: string[]

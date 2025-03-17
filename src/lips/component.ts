@@ -40,10 +40,13 @@ import {
 export default class Component<MT extends Metavars> extends Events {
   private template: string
   private declaration: Declaration
-  private $?: Cash
+  private $?: Cash | null = null
 
   public input: MT['Input']
-  public state: MT['State'] & { toJSON(): MT['State'] }
+  public state: MT['State'] & { 
+    toJSON(): MT['State']
+    reset(): void
+  }
   public static: MT['Static']
   public context: MT['Context']
 
@@ -106,7 +109,7 @@ export default class Component<MT extends Metavars> extends Events {
     /**
      * Detect all state mutations, including deep mutations
      */
-    this.state = this.lips.IUC.proxyState<MT['State']>( this.__path__, state || {} as MT['State'] )
+    this.state = this.lips.IUC.proxyState<MT['State']>( this.__path__, state || {} )
     
     macros && this.setMacros( macros )
     handler && this.setHandler( handler )
@@ -213,14 +216,14 @@ export default class Component<MT extends Metavars> extends Events {
         // Reset benchmark before render
         this.benchmark.reset()
         
-        const { $log } = this.render( undefined, undefined, this.__dependencies )
+        const { $log } = this.render( '', undefined, undefined, this.__dependencies )
         this.$ = $log
         
         /**
          * Assign CSS relationship attribute
          * for only non-syntax components.
          */
-        !declaration?.syntax && this.$?.attr('rel', this.__name__ )
+        !declaration?.syntax && this.$?.each( ( i, el ) => el.setAttribute('rel', this.__name__ ) )
 
         this.isRendered = true
         
@@ -370,7 +373,7 @@ export default class Component<MT extends Metavars> extends Events {
     return this.$?.find( selector )
   }
   
-  render( $nodes?: Cash, scope: VariableSet = {}, sharedDeps?: FGUDependencies ): RenderedNode {
+  render( parentPath: string, $nodes?: Cash, scope: VariableSet = {}, sharedDeps?: FGUDependencies ): RenderedNode {
     const
     dependencies: FGUDependencies = sharedDeps || new Map(),
     attachableEvents: VirtualEvent[] = []
@@ -391,6 +394,11 @@ export default class Component<MT extends Metavars> extends Events {
      */
     let _$ = $()
 
+    function generatePath( type: string ): string {
+      const key = (type === 'component' ? 'c' : '')+ self.__pathCounter++
+
+      return self.__path ? `${self.__path}/${key}` : `#${key}`
+    }
     function isMesh( arg: any ){
       return arg !== null
               && typeof arg === 'object'
@@ -434,7 +442,7 @@ export default class Component<MT extends Metavars> extends Events {
     function execLog( $node: Cash ){
       const
       args = $node.attr(':args'),
-      logPath = self.__generatePath__('log')
+      logPath = generatePath('log')
       if( !args ) return
       
       self.__evaluate__(`console.log(${args})`, scope )
@@ -453,13 +461,18 @@ export default class Component<MT extends Metavars> extends Events {
     }
     function execLet( $node: Cash ){
       const
-      varPath = self.__generatePath__('var'),
+      varPath = generatePath('var'),
       { attrs } = self.__getAttributes__( $node )
       if( !attrs ) return 
       
       Object
       .entries( attrs.literals )
-      .forEach( ([ key, assign ]) => scope[ key ] = { value: assign, type: 'let' } )
+      .forEach( ([ key, assign ]) => {
+        if( scope[ key ] && scope[ key ].type === 'const' )
+          throw new Error(`Cannot override <const ${key}=[value]/> variable`)
+
+        scope[ key ] = { value: assign, type: 'let' }
+      })
 
       Object
       .entries( attrs.expressions )
@@ -471,15 +484,23 @@ export default class Component<MT extends Metavars> extends Events {
             if( typeof spreads !== 'object' )
               throw new Error(`Invalid spread operator ${key}`)
 
-            for( const _key in spreads )
+            for( const _key in spreads ){
+              if( scope[ _key ] && scope[ _key ].type === 'const' )
+                throw new Error(`Cannot override <const ${_key}=[value]/> variable`)
+
               scope[ _key ] = {
                 value: spreads[ _key ],
                 type: 'let'
               }
 
+              if( memo ) memo[ _key ] = scope[ _key ]
+            }
+
             if( update ){
               // TODO: Do more than just update scope
               
+
+              return { memo }
             }
           }
 
@@ -499,6 +520,10 @@ export default class Component<MT extends Metavars> extends Events {
             const 
             deps = self.__extractExpressionDeps__( assign as string, scope ),
             updateVar = ( memo: VariableSet, by?: string ) => {
+              if( scope[ key ] && scope[ key ].type === 'const' )
+                throw new Error(`Cannot override <const ${key}=[value]/> variable`)
+
+              memo[ key ] = 
               scope[ key ] = {
                 value: self.__evaluate__( assign as string, memo ),
                 type: 'let'
@@ -506,6 +531,9 @@ export default class Component<MT extends Metavars> extends Events {
 
               // TODO: Do more than just update scope
               console.log('scope update --', key, scope[ key ] )
+              console.log('let dependencies --', varPath, self.__dependencies.get( key ) )
+
+              return { memo }
             }
 
             deps.forEach( dep => self.__trackDep__( dependencies, dep, {
@@ -516,6 +544,9 @@ export default class Component<MT extends Metavars> extends Events {
               batch: true
             }) )
           }
+
+          if( scope[ key ] && scope[ key ].type === 'const' )
+            throw new Error(`Cannot override <const ${key}=[value]/> variable`)
 
           scope[ key ] = {
             value: self.__evaluate__( assign as string, scope ),
@@ -536,7 +567,14 @@ export default class Component<MT extends Metavars> extends Events {
       
       Object
       .entries( attrs.literals )
-      .forEach( ([ key, assign ]) => scope[ key ] = { value: assign, type: 'const' } )
+      .forEach( ([ key, assign ]) => {
+        if( scope[ key ] && scope[ key ].type === 'const' )
+          throw new Error(`<const ${key}=[value]/> variable already defined`)
+
+        if( !assign ) return
+
+        scope[ key ] = { value: assign, type: 'const' }
+      } )
 
       Object
       .entries( attrs.expressions )
@@ -548,7 +586,7 @@ export default class Component<MT extends Metavars> extends Events {
             throw new Error(`Invalid spread operator ${key}`)
 
           for( const _key in spreads ){
-            if( scope[ _key ]?.type === 'const' )
+            if( scope[ _key ] && scope[ _key ].type === 'const' )
               throw new Error(`<const ${_key}=[value]/> by spread operator ${key}. [${_key}] variable already defined`)
           
             scope[ _key ] = {
@@ -558,7 +596,7 @@ export default class Component<MT extends Metavars> extends Events {
           }
         }
         else {
-          if( scope[ key ]?.type === 'const' )
+          if( scope[ key ] && scope[ key ].type === 'const' )
             throw new Error(`<const ${key}=[value]/> variable already defined`)
 
           if( !assign ) return
@@ -577,20 +615,20 @@ export default class Component<MT extends Metavars> extends Events {
     }
     function execEmptyFragment( $node: Cash ): Cash {
       const
-      elementPath = self.__generatePath__('element'),
+      elementPath = generatePath('element'),
       $contents = $node.contents()
       let $fragment = $()
 
       // Process contents recursively if they exist
       if( $contents.length )
-        $fragment = $fragment.add( self.__withPath__( elementPath, () => self.render( $contents, scope, dependencies ).$log ) )
+        $fragment = $fragment.add( self.__withPath__( elementPath, () => self.render( elementPath, $contents, scope, dependencies ).$log ) )
 
       return $fragment
     }
     function execDynamicElement( $node: Cash, dtag: string, renderer: MeshRenderer | null ): Cash {
       const
       { attrs } = self.__getAttributes__( $node ),
-      elementPath = self.__generatePath__('element'),
+      elementPath = generatePath('element'),
       boundaries = self.__createBoundaries__( elementPath )
       
       let
@@ -774,7 +812,7 @@ export default class Component<MT extends Metavars> extends Events {
         throw new Error(`<${name}> template not found`)
       
       const
-      componentPath = self.__generatePath__('component'),
+      componentPath = generatePath('component'),
       boundaries = self.__createBoundaries__( componentPath ),
       { argv, attrs, events } = self.__getAttributes__( $node ),
       TRACKABLE_ATTRS: Record<string, string> = {}
@@ -1065,7 +1103,7 @@ export default class Component<MT extends Metavars> extends Events {
         throw new Error('Macro component not found')
       
       const
-      macroPath = self.__generatePath__('macro'),
+      macroPath = generatePath('macro'),
       boundaries = self.__createBoundaries__( macroPath ),
       { attrs } = self.__getAttributes__( $node ),
       TRACKABLE_ATTRS: Record<string, string> = {}
@@ -1263,7 +1301,7 @@ export default class Component<MT extends Metavars> extends Events {
     function execElement( $node: Cash ): Cash {
       if( !$node.length || !$node.prop('tagName') ) return $node
 
-      const elementPath = self.__generatePath__('element')
+      const elementPath = generatePath('element')
 
       const
       $fragment = $(`<${$node.prop('tagName').toLowerCase()}/>`),
@@ -1271,7 +1309,7 @@ export default class Component<MT extends Metavars> extends Events {
 
       // Process contents recursively if they exist
       $contents.length
-      && $fragment.append( self.__withPath__( elementPath, () => self.render( $contents, scope, dependencies ).$log ) )
+      && $fragment.append( self.__withPath__( elementPath, () => self.render( elementPath, $contents, scope, dependencies ).$log ) )
 
       const { attrs, events } = self.__getAttributes__( $node )
       /**
@@ -1473,7 +1511,7 @@ export default class Component<MT extends Metavars> extends Events {
     }
     function execText( $node: Cash ): Cash {
       const
-      textPath = self.__generatePath__('element'),
+      textPath = generatePath('element'),
       content = $node.text(),
       // Initial rendering
       $fragment = $(document.createTextNode( self.__interpolate__( content, scope ) ) )
@@ -1635,8 +1673,8 @@ export default class Component<MT extends Metavars> extends Events {
     partialRender = ( $contents: Cash, argvalues?: VariableSet, index?: number ) => {
       // Render the partial
       const
-      partialPath = `${fragmentPath}.${meshPath || 'root'}${index !== undefined ? `[${index}]` : ''}`,
-      { $log, dependencies, events } = self.render( $contents, { ...scope, ...argvalues } )
+      partialPath = `${fragmentPath}.${meshPath || 'r'}${index !== undefined ? `[${index}]` : ''}`,
+      { $log, dependencies, events } = self.render( partialPath, $contents, { ...scope, ...argvalues } )
 
       PARTIAL_PATHS.push( partialPath )
 
@@ -1809,9 +1847,9 @@ export default class Component<MT extends Metavars> extends Events {
                   const sync = dependent.update( dependent.memo, 'mesh-updator' )
                   if( sync ){
                     // Adopt new $fragment
-                    typeof sync.$fragment === 'object'
-                    && sync.$fragment.length
-                    && dependents.set( dependent.path, { ...dependent, $fragment: sync.$fragment } )
+                    // typeof sync.$fragment === 'object'
+                    // && sync.$fragment.length
+                    // && dependents.set( dependent.path, { ...dependent, $fragment: sync.$fragment } )
 
                     // Cleanup callback
                     typeof sync.cleanup === 'function' && sync.cleanup()
@@ -1927,11 +1965,6 @@ export default class Component<MT extends Metavars> extends Events {
     })
     
     return { argv, events, attrs }
-  }
-  private __generatePath__( type: string ): string {
-    const key = (type === 'component' ? 'c' : '')+ this.__pathCounter++
-
-    return this.__path ? `${this.__path}/${key}` : `#${key}`
   }
   private __withPath__<T>( path: string, fn: () => T ): T {
     const prevPath = this.__path
@@ -2100,9 +2133,18 @@ export default class Component<MT extends Metavars> extends Events {
     return false
   }
   private __trackDep__( dependencies: FGUDependencies, dep: string, record: FGUDependency ){
+    /**
+     * Designate dependencies that assign or 
+     * interpolate a `let` variable.
+     */
+    if( record.memo
+        && record.memo[ dep ]
+        && record.memo[ dep ].type === 'let' )
+      record.haslet = true
+
     !dependencies.has( dep ) && dependencies.set( dep, new Map() )
     dependencies.get( dep )?.set( record.path, record )
-    
+
     // Track dependency
     this.benchmark.inc('dependencyTrackCount')
   }
@@ -2173,9 +2215,17 @@ export default class Component<MT extends Metavars> extends Events {
                * $fragment are not reliable after processing it
                * withing the dependency update tracking function.
                */
-              typeof sync.$fragment === 'object'
-              && sync.$fragment.length
-              && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
+              // typeof sync.$fragment === 'object'
+              // && sync.$fragment.length
+              // && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
+
+              /**
+               * Post-update memo for co-dependency update 
+               * processors like partial updates.
+               */
+              typeof sync.memo === 'object'
+              && sync.memo.length
+              && dependents.set( path, { ...dependent, memo: sync.memo } )
 
               /**
                * Manual cleanup callback function after
@@ -2255,12 +2305,24 @@ export default class Component<MT extends Metavars> extends Events {
      */
     this.$?.remove()
     this.PCC?.clear()
+    this.state.reset()
     this.__macros.clear()
     this.__stylesheet?.clear()
     this.__dependencies?.clear()
     this.__batchUpdates?.clear()
 
     // this.__previous = {}
+
+    // Clear DOM references
+    if( this.$ ){
+      this.$.each( ( _, el ) => {
+        $(el).off() // Clear event handlers
+        // $(el).removeData() // Remove custom data
+      })
+      
+      // Clear the reference
+      this.$ = null;
+    }
   }
 
   appendTo( arg: Cash | string ){

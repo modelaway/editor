@@ -362,9 +362,9 @@ export default class Component<MT extends Metavars> extends Events {
     this.__stylesheet = new Stylesheet( this.__name__, cssOptions )
   }
 
-  getNode(){
+  get node(){
     if( !this.$ )
-      throw new Error('getNode() is expected to be call after component get rendered')
+      throw new Error('node() is expected to be call after component get rendered')
 
     return this.$
   }
@@ -994,7 +994,7 @@ export default class Component<MT extends Metavars> extends Events {
       // Use preserved child component is available
       if( component ){
         component.setInput( deepClone( input ) )
-        $fragment = $fragment.add( component.getNode() )
+        $fragment = $fragment.add( component.node )
       }
       // Render child component
       else {
@@ -1014,7 +1014,7 @@ export default class Component<MT extends Metavars> extends Events {
           prepath: componentPath
         })
 
-        $fragment = $fragment.add( component.getNode() )
+        $fragment = $fragment.add( component.node )
         // Cache component for reuse.
         self.PCC.set( componentPath, component )
 
@@ -1651,6 +1651,65 @@ export default class Component<MT extends Metavars> extends Events {
       events: attachableEvents
     }
   }
+  destroy(){
+    /**
+     * Dispose signal effect dependency of this
+     * component.
+     */
+    this.ICE.dispose()
+    /**
+     * Clean up benchmark resources
+     */
+    this.benchmark.dispose()
+    /**
+     * Unregister this component from IUC
+     */
+    this.lips.IUC.unregister( this.__path__ )
+    /**
+     * Stop watcher when component's element get 
+     * detached from the DOM
+     */
+    this.lips.watcher.unwatch( this as any )
+
+    /**
+     * Detached all events
+     */
+    this.VER.forEach( ({ element, _event }) => this.__detachEvent__( element, _event ) )
+    this.VER = []
+
+    /**
+     * Destroy nexted components as well
+     */
+    for( const each in this.PCC ){
+      const component = this.PCC.get( each )
+
+      component?.destroy()
+      component?.delete( each )
+    }
+
+    /**
+     * Cleanup
+     */
+    this.$?.remove()
+    this.PCC?.clear()
+    this.FGUD?.clear()
+    this.state.reset()
+    this.__macros.clear()
+    this.__stylesheet?.clear()
+
+    // this.__previous = {}
+
+    // Clear DOM references
+    if( this.$ ){
+      this.$.each( ( _, el ) => {
+        $(el).off() // Clear event handlers
+        // $(el).removeData() // Remove custom data
+      })
+      
+      // Clear the reference
+      this.$ = null
+    }
+  }
   
   private __meshwire__( setup: MeshWireSetup, TRACKABLE_ATTRS: Record<string, string> ){
     const
@@ -2270,66 +2329,6 @@ export default class Component<MT extends Metavars> extends Events {
     this.benchmark.endRender()
   }
   
-  destroy(){
-    /**
-     * Dispose signal effect dependency of this
-     * component.
-     */
-    this.ICE.dispose()
-    /**
-     * Clean up benchmark resources
-     */
-    this.benchmark.dispose()
-    /**
-     * Unregister this component from IUC
-     */
-    this.lips.IUC.unregister( this.__path__ )
-    /**
-     * Stop watcher when component's element get 
-     * detached from the DOM
-     */
-    this.lips.watcher.unwatch( this as any )
-
-    /**
-     * Detached all events
-     */
-    this.VER.forEach( ({ element, _event }) => this.__detachEvent__( element, _event ) )
-    this.VER = []
-
-    /**
-     * Destroy nexted components as well
-     */
-    for( const each in this.PCC ){
-      const component = this.PCC.get( each )
-
-      component?.destroy()
-      component?.delete( each )
-    }
-
-    /**
-     * Cleanup
-     */
-    this.$?.remove()
-    this.PCC?.clear()
-    this.FGUD?.clear()
-    this.state.reset()
-    this.__macros.clear()
-    this.__stylesheet?.clear()
-
-    // this.__previous = {}
-
-    // Clear DOM references
-    if( this.$ ){
-      this.$.each( ( _, el ) => {
-        $(el).off() // Clear event handlers
-        // $(el).removeData() // Remove custom data
-      })
-      
-      // Clear the reference
-      this.$ = null
-    }
-  }
-
   appendTo( arg: Cash | string ){
     const $to = typeof arg == 'string' ? $(arg) : arg
     this.$?.length && $to.append( this.$ )

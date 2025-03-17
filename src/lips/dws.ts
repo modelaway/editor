@@ -18,7 +18,7 @@ export default class DWS<MT extends Metavars> {
     this.domObserver = new MutationObserver( () => {
       this.observedComponents.forEach( ( watchData, component ) => {
         try {
-          const $node = component.getNode()
+          const $node = component.node
           if( !$node ){
             this.unwatch( component )
             return
@@ -53,7 +53,7 @@ export default class DWS<MT extends Metavars> {
   }
 
   watch( component: Component<MT>, type: 'attach' | 'detach' = 'attach' ){
-    const $node = component.getNode()
+    const $node = component.node
     if( !$node ) return
 
     // For attachment, check if already in DOM

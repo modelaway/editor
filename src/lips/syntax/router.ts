@@ -170,7 +170,7 @@ export const handler: Handler<Metavars<Input<any>, any, Static>> = {
       return
     }
     
-    this.getNode().empty().append( page.getNode() )
+    this.node.empty().append( page.node )
   },
   match( path ){
     const params: any = {}

@@ -14,7 +14,7 @@ import type {
   Declaration,
   FragmentBoundaries,
   VirtualEvent,
-  VirtualEventRecord,
+  VirtualEventsRegistry,
   Macro,
   MeshWireSetup,
   SyntaxAttributes
@@ -55,12 +55,14 @@ export default class Component<MT extends Metavars> extends Events {
   private __previous: InteractiveMetavars<MT>
   private __stylesheet?: Stylesheet
   private __macros: Map<string, Macro> = new Map() // Cached macros templates
-  private __dependencies: FGUDependencies = new Map() // Initial FGU dependencies
-  private __attachedEvents: VirtualEventRecord<Component<MT>>[] = []
   private __renderCache: Map<string, RenderedNode> = new Map()
 
+  // Initial FGU dependencies
+  public FGUD: FGUDependencies = new Map()
   // Preserved Child Components
   private PCC: Map<string, Component<MT>> = new Map()
+  // Virtual Events Registry
+  private VER: VirtualEventsRegistry<Component<MT>>[] = []
 
   private prepath = '0'
   private debug = false
@@ -71,12 +73,12 @@ export default class Component<MT extends Metavars> extends Events {
   private _getState: () => MT['State'] | undefined
 
   // Update Queue System for high-frequency DOM updates
-  private UQS: UQS
+  private UQS: UQS<MT>
   // Internal Component Effect
   private ICE: EffectControl
 
   public lips: Lips
-  private benchmark: Benchmark
+  public benchmark: Benchmark
 
   private __path = ''
   private __pathCounter = 0
@@ -93,8 +95,6 @@ export default class Component<MT extends Metavars> extends Events {
     this.lips = options.lips
     this.template = preprocessor( template )
 
-    // console.log( this.template )
-  
     if( options?.debug ) this.debug = options.debug
     if( options?.prepath ) this.prepath = options.prepath
 
@@ -127,7 +127,7 @@ export default class Component<MT extends Metavars> extends Events {
     /**
      * 
      */
-    this.UQS = new UQS( this.benchmark )
+    this.UQS = new UQS( this )
 
     /**
      * Triggered during component creation
@@ -216,14 +216,14 @@ export default class Component<MT extends Metavars> extends Events {
         // Reset benchmark before render
         this.benchmark.reset()
         
-        const { $log } = this.render( '', undefined, undefined, this.__dependencies )
+        const { $log } = this.render( '', undefined, undefined, this.FGUD )
         this.$ = $log
         
         /**
          * Assign CSS relationship attribute
          * for only non-syntax components.
          */
-        !declaration?.syntax && this.$?.each( ( i, el ) => el.setAttribute('rel', this.__name__ ) )
+        !declaration?.syntax && this.$?.each( ( i, el ) => typeof el.setAttribute == 'function' && el.setAttribute('rel', this.__name__ ) )
 
         this.isRendered = true
         
@@ -318,10 +318,9 @@ export default class Component<MT extends Metavars> extends Events {
     return this
   }
   setMacros( template: string ){
-    const prepo = preprocessor( template )
-    // console.log('prepo macro --', prepo )
-    
-    const $nodes = $(prepo)
+    const 
+    prepo = preprocessor( template ),
+    $nodes = $(prepo)
     if( !$nodes.length ) return
 
     const self = this
@@ -373,7 +372,7 @@ export default class Component<MT extends Metavars> extends Events {
     return this.$?.find( selector )
   }
   
-  render( parentPath: string, $nodes?: Cash, scope: VariableSet = {}, sharedDeps?: FGUDependencies ): RenderedNode {
+  render( inpath: string, $nodes?: Cash, scope: VariableSet = {}, sharedDeps?: FGUDependencies ): RenderedNode {
     const
     dependencies: FGUDependencies = sharedDeps || new Map(),
     attachableEvents: VirtualEvent[] = []
@@ -397,7 +396,7 @@ export default class Component<MT extends Metavars> extends Events {
     function generatePath( type: string ): string {
       const key = (type === 'component' ? 'c' : '')+ self.__pathCounter++
 
-      return self.__path ? `${self.__path}/${key}` : `#${key}`
+      return self.__path ? `${self.__path}/${key}` : `${inpath ? inpath +'/' : '#'}${key}`
     }
     function isMesh( arg: any ){
       return arg !== null
@@ -493,15 +492,17 @@ export default class Component<MT extends Metavars> extends Events {
                 type: 'let'
               }
 
-              if( memo ) memo[ _key ] = scope[ _key ]
+              if( memo ){
+                memo[ _key ] = scope[ _key ]
+
+                /**
+                 * Apply update to related dependencies
+                 */
+                self.__updateVarDepNodes__( _key, varPath, memo )
+              }
             }
 
-            if( update ){
-              // TODO: Do more than just update scope
-              
-
-              return { memo }
-            }
+            if( update ) return { memo }
           }
 
           const deps = self.__extractExpressionDeps__( key as string, scope )
@@ -529,9 +530,10 @@ export default class Component<MT extends Metavars> extends Events {
                 type: 'let'
               }
 
-              // TODO: Do more than just update scope
-              console.log('scope update --', key, scope[ key ] )
-              console.log('let dependencies --', varPath, self.__dependencies.get( key ) )
+              /**
+               * Apply update to related dependencies
+               */
+              self.__updateVarDepNodes__( key, varPath, memo )
 
               return { memo }
             }
@@ -1309,7 +1311,7 @@ export default class Component<MT extends Metavars> extends Events {
 
       // Process contents recursively if they exist
       $contents.length
-      && $fragment.append( self.__withPath__( elementPath, () => self.render( elementPath, $contents, scope, dependencies ).$log ) )
+      && $fragment.append( self.__withPath__( elementPath, () => self.render( elementPath +'.n', $contents, scope, dependencies ).$log ) )
 
       const { attrs, events } = self.__getAttributes__( $node )
       /**
@@ -1686,8 +1688,8 @@ export default class Component<MT extends Metavars> extends Events {
        * 2. From mesh rendering track
        */
       dependencies?.forEach( ( dependents, dep ) => {
-        if( !self.__dependencies?.has( dep ) )
-          self.__dependencies.set( dep, new Map() )
+        if( !self.FGUD?.has( dep ) )
+          self.FGUD.set( dep, new Map() )
         
         // Add partial dependency
         dependents.forEach( ( dependent, path ) => {
@@ -1695,7 +1697,7 @@ export default class Component<MT extends Metavars> extends Events {
                   ? dependent.partial.push( partialPath )
                   : dependent.partial = [ partialPath ]
                   
-          self.__dependencies.get( dep )?.set( path, dependent )
+          self.FGUD.get( dep )?.set( path, dependent )
         } )
       } )
       
@@ -1757,7 +1759,7 @@ export default class Component<MT extends Metavars> extends Events {
             let $partialLog = $()
             if( ITERATOR_SCOPE.length ){
               // Clear existing partial mesh deps
-              self.__dependencies.forEach( ( dependents, dep ) => {
+              self.FGUD.forEach( ( dependents, dep ) => {
                 dependents.forEach( ( dependent ) => {
                   // Process only dependents of this partial
                   dependent.partial 
@@ -1765,7 +1767,7 @@ export default class Component<MT extends Metavars> extends Events {
                   && dependents.delete( dependent.path )
                 })
 
-                !dependents.size && self.__dependencies.delete( dep )
+                !dependents.size && self.FGUD.delete( dep )
               })
 
               // if( ITERATOR_SCOPE.length < argvalues?.['#'].value.length ){
@@ -1808,10 +1810,8 @@ export default class Component<MT extends Metavars> extends Events {
             // Start measuring
             self.benchmark.startRender()
             
-            const batchUpdates = new Set<string>()
-            
             // Execute partial mesh update
-            self.__dependencies.forEach( ( dependents, dep ) => {
+            self.FGUD.forEach( ( dependents, dep ) => {
               dependents.forEach( ( dependent ) => {
                 // Process only dependents of this partial
                 const partialPath = PARTIAL_PATHS.find( p => dependent.partial?.find( pp => p == pp ) )
@@ -1842,14 +1842,14 @@ export default class Component<MT extends Metavars> extends Events {
                   dependent.memo = { ...scope, ...dependent.memo, ...argvalues }
                 }
                 
-                if( dependent.batch ) batchUpdates.add( dependent.path )
+                if( dependent.batch ) self.UQS.queue( dependent.path )
                 else {
-                  const sync = dependent.update( dependent.memo, 'mesh-updator' )
+                  const sync = dependent.update( dependent.memo, 'mesh-partial-updator' )
                   if( sync ){
-                    // Adopt new $fragment
-                    // typeof sync.$fragment === 'object'
-                    // && sync.$fragment.length
-                    // && dependents.set( dependent.path, { ...dependent, $fragment: sync.$fragment } )
+                    // Adopt new memo
+                    typeof sync.memo === 'object'
+                    && sync.memo.length
+                    && dependents.set( dependent.path, { ...dependent, memo: sync.memo } )
 
                     // Cleanup callback
                     typeof sync.cleanup === 'function' && sync.cleanup()
@@ -1857,20 +1857,14 @@ export default class Component<MT extends Metavars> extends Events {
                 }
 
                 self.benchmark.inc('dependencyUpdateCount')
-              })
+              } )
 
               /**
                * Clean up if no more dependents
                */
-              !dependents.size && self.__dependencies.delete( dep )
-            })
-
-            // Execute batch updates
-            if( batchUpdates.size ){
-              self.benchmark.trackBatch( batchUpdates.size )
-              self.UQS.enqueue( self.__dependencies, batchUpdates )
-            }
-
+              !dependents.size && self.FGUD.delete( dep )
+            } )
+            
             // Track update
             self.benchmark.inc('partialUpdateCount')
             // Finish measuring
@@ -1975,6 +1969,15 @@ export default class Component<MT extends Metavars> extends Events {
 
     return result
   }
+  private __getPathParent__( path: string ){
+    const __ = path.split('/')
+    __.pop()
+
+    return __.join('/')
+  }
+  private __hasSamePathParent__( path: string, parentPath: string ){
+    return path.startsWith( parentPath )
+  }
 
   private __evaluate__( script: string, scope?: VariableSet ){
     try {
@@ -2056,7 +2059,7 @@ export default class Component<MT extends Metavars> extends Events {
       })
     }
 
-    this.__attachedEvents.push({ element, _event })
+    this.VER.push({ element, _event })
     
     // Track DOM operation
     this.benchmark.inc('domUpdatesCount')
@@ -2167,16 +2170,14 @@ export default class Component<MT extends Metavars> extends Events {
     return !isEqual( ovalue, nvalue )
   }
   private __updateDepNodes__( current: InteractiveMetavars<MT>, previous: InteractiveMetavars<MT> ){
-    if( !this.__dependencies?.size ) return
+    if( !this.FGUD?.size ) return
 
     // Track update
     this.benchmark.inc('componentUpdateCount')
     // Start measuring
     this.benchmark.startRender()
     
-    // Temporary batched updates
-    const batchUpdates = new Set<string>()
-    this.__dependencies.forEach( ( dependents, dep ) => {
+    this.FGUD.forEach( ( dependents, dep ) => {
       const [ dep_scope, ...parts ] = dep.split('.')
 
       /**
@@ -2202,23 +2203,12 @@ export default class Component<MT extends Metavars> extends Events {
            * For batch updates, collect all updates first
            * and execute batch once.
            */
-          if( batch ) batchUpdates.add( path )
+          if( batch ) this.UQS.queue( path )
 
           // Immediate update
           else {
             const sync = update( memo, 'main-updator' )
             if( sync ){
-              /**
-               * Replace $fragment from the dependency root
-               * 
-               * Required for mesh processing where replaceable
-               * $fragment are not reliable after processing it
-               * withing the dependency update tracking function.
-               */
-              // typeof sync.$fragment === 'object'
-              // && sync.$fragment.length
-              // && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
-
               /**
                * Post-update memo for co-dependency update 
                * processors like partial updates.
@@ -2249,16 +2239,32 @@ export default class Component<MT extends Metavars> extends Events {
       /**
        * Clean up if no more dependents
        */
-      !dependents.size && this.__dependencies?.delete( dep )
+      !dependents.size && this.FGUD?.delete( dep )
     })
 
-    /**
-     * Execute all batched updates
-     */
-    if( batchUpdates.size ){
-      this.benchmark.trackBatch( batchUpdates.size )
-      this.UQS.enqueue( this.__dependencies, batchUpdates )
-    }
+    // Finish measuring
+    this.benchmark.endRender()
+  }
+  private __updateVarDepNodes__( dep: string, varPath: string, newScope: VariableSet ){
+    if( !this.FGUD?.size ) return
+
+    // Track update
+    this.benchmark.inc('partialUpdateCount')
+    // Start measuring
+    this.benchmark.startRender()
+    
+    const dependents = this.FGUD.get( dep )
+    dependents?.forEach( ( dependent, path ) => {
+      if( !dependent.haslet || !this.__hasSamePathParent__( path, this.__getPathParent__( varPath ) ) ) return
+
+      dependent.memo = { ...dependent.memo, ...newScope }
+      
+      if( dependent.batch ) this.UQS.queue( dependent.path )
+      else {
+        const sync = dependent.update( dependent.memo, 'var-partial-updator' )
+        typeof sync?.cleanup === 'function' && sync.cleanup()
+      }
+    } )
 
     // Finish measuring
     this.benchmark.endRender()
@@ -2287,8 +2293,8 @@ export default class Component<MT extends Metavars> extends Events {
     /**
      * Detached all events
      */
-    this.__attachedEvents.forEach( ({ element, _event }) => this.__detachEvent__( element, _event ) )
-    this.__attachedEvents = []
+    this.VER.forEach( ({ element, _event }) => this.__detachEvent__( element, _event ) )
+    this.VER = []
 
     /**
      * Destroy nexted components as well
@@ -2305,11 +2311,10 @@ export default class Component<MT extends Metavars> extends Events {
      */
     this.$?.remove()
     this.PCC?.clear()
+    this.FGUD?.clear()
     this.state.reset()
     this.__macros.clear()
     this.__stylesheet?.clear()
-    this.__dependencies?.clear()
-    this.__batchUpdates?.clear()
 
     // this.__previous = {}
 
@@ -2321,7 +2326,7 @@ export default class Component<MT extends Metavars> extends Events {
       })
       
       // Clear the reference
-      this.$ = null;
+      this.$ = null
     }
   }
 

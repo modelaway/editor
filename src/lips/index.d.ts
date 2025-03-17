@@ -99,7 +99,7 @@ export type VirtualEvent = {
   instruction: string
   scope?: Record<string, any>
 }
-export type VirtualEventRecord<T> = {
+export type VirtualEventsRegistry<T> = {
   element: Cash | T
   _event: string
 }

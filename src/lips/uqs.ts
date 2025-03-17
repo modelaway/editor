@@ -1,14 +1,13 @@
-import { FGUDependencies } from '.'
-import Benchmark from './benchmark'
+import type { Metavars } from '.'
+import type Component from './component'
 
 /**
  * Update Queue System for high-frequency DOM updates
  */
-export default class UpdateQueue {
-  private queue = new Set<string>()
+export default class UpdateQueue<MT extends Metavars > {
+  private pending = new Set<string>()
   private isPending = false
-  private dependencies?: FGUDependencies
-  private benchmark: Benchmark
+  private component: Component<MT>
   
   // Metrics for tracking performance
   private metrics = {
@@ -18,25 +17,22 @@ export default class UpdateQueue {
     avgBatchSize: '0.00'
   }
   
-  constructor( benchmark: Benchmark ){
-    this.benchmark = benchmark
+  constructor( component: Component<MT> ){
+    this.component = component
   }
   
   /**
-   * Enqueue updates to be processed in the next tick
+   * Queue updates to be processed in the next tick
    */
-  enqueue( dependencies: FGUDependencies, paths: Set<string> ){
-    this.dependencies = dependencies
-    
-    // Add paths to the queue
-    paths.forEach( path => {
-      this.queue.add( path )
-      this.benchmark.inc( 'dependencyUpdateCount' )
-    })
+  queue( path: string ){
+    this.pending.add( path )
+    this.component.benchmark.inc('dependencyUpdateCount')
     
     // Schedule processing if not already pending
     if( !this.isPending ){
       this.isPending = true
+      
+      this.component.benchmark.trackBatch( this.pending.size )
       this.scheduleProcessing()
     }
   }
@@ -55,7 +51,7 @@ export default class UpdateQueue {
    */
   private processQueue(){
     // Get all paths to process
-    const pathsToProcess = Array.from( this.queue )
+    const pathsToProcess = Array.from( this.pending )
     
     // Update metrics
     this.metrics.batchCount++
@@ -64,19 +60,19 @@ export default class UpdateQueue {
     this.metrics.avgBatchSize = (this.metrics.updatesProcessed / this.metrics.batchCount).toFixed(2)
     
     // Clear the queue
-    this.queue.clear()
+    this.pending.clear()
     
     // Apply all updates
     this.applyUpdates( pathsToProcess )
     
     // Track batch stats
-    this.benchmark.trackBatch( pathsToProcess.length )
+    this.component.benchmark.trackBatch( pathsToProcess.length )
     
     // Reset pending flag
     this.isPending = false
     
     // Check if more updates were queued during processing
-    if( this.queue.size > 0 ){
+    if( this.pending.size > 0 ){
       this.isPending = true
       this.scheduleProcessing()
     }
@@ -87,7 +83,7 @@ export default class UpdateQueue {
    */
   private applyUpdates( paths: string[] ){
     paths.forEach( path => {
-      this.dependencies?.forEach( dependents => {
+      this.component.FGUD?.forEach( dependents => {
         const dependent = dependents.get( path )
         if( !dependent ) return
         

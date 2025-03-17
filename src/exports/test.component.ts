@@ -108,6 +108,45 @@ function DemoState(){
   .appendTo('body')
 }
 
+function DemoLetConstVariable(){
+  type State = {
+    price: number
+    tax: number
+  }
+
+  const
+  state: State = {
+    price: 150,
+    tax: 0.20
+  },
+  handler: Handler<Metavars<any, State>> = {
+    onMount(){
+      setTimeout( () => this.state.price = 80, 2000 )
+      setTimeout( () => this.state.tax = 0.50, 4000 )
+    }
+  },
+  template = `
+    <!-- Out of context -->
+    <span>-- Upper Total: \${total}</span>
+
+    <ul style="list-style: none">
+      <let total="state.price + (state.price * state.tax)"/>
+      
+      <li>Price: \${state.price}</li>
+      <li>Tax: {state.tax * 100}%</li>
+      <br>
+      <li><b>Total</b>: \${total}</li>
+    </ul>
+
+    <!-- Closure vs initial rendering -->
+    <span>-- Down Total: \${total}</span>
+  `
+  
+  lips
+  .render('DemoLetConstVariable', { default: template, state, handler })
+  .appendTo('body')
+}
+
 function DemoForloop(){
   type State = {
     numbers: number[]
@@ -135,7 +174,6 @@ function DemoForloop(){
     </for>
   `
   
-
   lips
   .render('DemoInput', { default: template, state, handler })
   .appendTo('body')
@@ -158,8 +196,8 @@ function DemoSyntaxInteract(){
       onInput(){ 
         this.state.count = Number( this.input.initial )
       
-        // const end = setInterval( () => this.state.count++, 5 )
-        // setTimeout( () => clearInterval( end ), 15000 )
+        const end = setInterval( () => this.state.count++, 5 )
+        setTimeout( () => clearInterval( end ), 15000 )
       },
       handleClick( e: Event ){
         if( this.state.count >= this.input.limit )
@@ -299,9 +337,14 @@ function DemoSyntaxInteract(){
   `
 
   lips
-  .render('DemoInput', { default: template, state, handler }, {})
+  .render('DemoSyntaxInteract', { default: template, state, handler }, {})
   .appendTo('body')
 }
+
+// DemoState()
+// DemoForloop()
+DemoSyntaxInteract()
+// DemoLetConstVariable()
 
 /**
  * ------------------------------------------------------------------------- 
@@ -1364,10 +1407,6 @@ function DemoLayers(){
   },
   component = Layers( lips, { host }).appendTo('body')
 }
-
-// DemoState()
-// DemoForloop()
-DemoSyntaxInteract()
 
 // Demo1()
 // Demo2()

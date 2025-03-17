@@ -55,7 +55,7 @@ export default class Movable<MT extends Metavars> extends EventEmitter {
       ...options
     }
     
-    this.component.getNode() && this.bind()
+    this.component.node && this.bind()
     this.component.on('component:attached', () => this.bind() )
     this.component.on('component:detached', () => this.unbind() )
     this.component.on('component:attachment-timeout', () => console.warn('Movable component failed to attach within timeout period') )
@@ -152,7 +152,7 @@ export default class Movable<MT extends Metavars> extends EventEmitter {
      * IMPORTANT: Help rebind to the new $block element
      *            instance when component rerenders.
      */
-    this.$block = this.component?.getNode()
+    this.$block = this.component?.node
     if( !this.$block ) return
 
     // Default use $block as handle

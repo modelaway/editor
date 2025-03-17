@@ -394,7 +394,7 @@ export default class View extends EventEmitter {
       metacall: this.metacall.bind(this)
     }
     this.Quickset = Quickset( this.frame.editor.lips, input, hook )
-    let $quickset = this.Quickset.appendTo( this.frame.editor.$viewport ).getNode()
+    let $quickset = this.Quickset.appendTo( this.frame.editor.$viewport ).node
 
     /**
      * Position quickset relatively to the view
@@ -455,7 +455,7 @@ export default class View extends EventEmitter {
       metacall: this.metacall.bind(this)
     }
     this.Menu = Menu( this.frame.editor.lips, input, hook )
-    let $menu = this.Menu.appendTo( this.frame.editor.$viewport ).getNode()
+    let $menu = this.Menu.appendTo( this.frame.editor.$viewport ).node
 
     const
     pWidth = $menu.find(':scope > [container]').width() || 0,

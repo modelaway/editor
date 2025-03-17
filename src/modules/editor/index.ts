@@ -251,7 +251,7 @@ export default class Editor {
      * to text contents
      */
     const shell = Shell( this.lips, {})
-    this.$shell = shell.getNode()
+    this.$shell = shell.node
 
     this.$root.prepend( this.$shell )
     this.$viewport = shell.find('viewport')

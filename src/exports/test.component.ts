@@ -703,7 +703,7 @@ function Demo6(){
   },
   handler: Handler<Metavars<any, State>> = {
     onMount(){
-      this.getNode().css({ color: 'green' })
+      this.node.css({ color: 'green' })
       
       console.log('State: ', this.state.initial )
     },

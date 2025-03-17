@@ -81,11 +81,11 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
     
       const
       indication = typeof this.input.position === 'string' ? this.input.position : 'bottom-center',
-      defPostion = hook?.editor?.controls.letPosition( this.getNode(), indication )
+      defPostion = hook?.editor?.controls.letPosition( this.node, indication )
       if( !defPostion ) return
       
       this.input.position = defPostion
-      this.getNode().css( defPostion )
+      this.node.css( defPostion )
     },
 
     onShowExtraOptions( status: boolean ){

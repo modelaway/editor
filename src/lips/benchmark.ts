@@ -228,11 +228,9 @@ export default class Benchmark {
   }
   
   trackMemory(){
-    if( !this.debug ) return
-
-    // @ts-ignore - Some browsers expose memory info
+    // @ts-ignore - This is a Chrome-specific non-standard API
     if( !this.debug || !window.performance?.memory ) return
-    // @ts-ignore - Some browsers expose memory info
+    // @ts-ignore
     this.stats.memoryUsage = window.performance.memory.usedJSHeapSize / ( 1024 * 1024 )
   }
   trackBatch( size: number ){

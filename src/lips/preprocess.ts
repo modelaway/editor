@@ -188,7 +188,7 @@ export function preprocessor( str: string ): string {
                 .replace(/\s{2,}/g, ' ')
                 .replace(/[\r\n\t]/g, '')
                 // Apply Lips-specific transformations after marking expressions
-                .replace(/<(\w+)([^>]*?)\s*\/>/g, '<$1$2></$1>')
+                .replace(/<([a-zA-Z0-9_-]+)([^>]*?)\s*\/>/g, '<$1$2></$1>')
                 .replace(/<\{([^}]+)\}\s*(.*?)\/>/g, '<lips dtag="$1" $2></lips>')
                 .replace(/(<>)([\s\S]*?)(<\/>)/g, '<lips fragment="true">$2</lips>')
                 .replace(/<if\(\s*(.*?)\s*\)>/g, '<if @by="$1">')

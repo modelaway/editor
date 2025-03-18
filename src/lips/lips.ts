@@ -21,8 +21,8 @@ export default class Lips<Context = any> {
   public watcher: DWS<any>
   public IUC: IUC
 
-  private _setContext: ( ctx: Context ) => void
-  private _getContext: () => Context
+  private __setContext: ( ctx: Context ) => void
+  private __getContext: () => Context
 
   constructor( config?: LipsConfig ){
     if( config?.debug ) 
@@ -33,8 +33,8 @@ export default class Lips<Context = any> {
     
     const [ getContext, setContext ] = signal<Context>( config?.context || {} )
 
-    this._setContext = setContext
-    this._getContext = getContext
+    this.__setContext = setContext
+    this.__getContext = getContext
 
     /**
      * Register syntax components
@@ -150,7 +150,7 @@ export default class Lips<Context = any> {
 
   setContext( arg: Context | string, value?: any ){
     // Always get latest state
-    const currentContext = this._getContext()
+    const currentContext = this.__getContext()
 
     /**
      * Change context only when tangible updates
@@ -161,26 +161,26 @@ export default class Lips<Context = any> {
      */
     if( typeof arg === 'string' ){
       const updates = { ...currentContext, [arg]: value }
-      isDiff( currentContext, updates ) && this._setContext( updates )
+      isDiff( currentContext, updates ) && this.__setContext( updates )
     }
     /**
      * no-array object guard
      */
     else if( !Array.isArray( arg ) ){
       const updates = { ...currentContext, ...arg }
-      isDiff( currentContext, updates ) && this._setContext( updates )
+      isDiff( currentContext, updates ) && this.__setContext( updates )
     }
     
     else throw new Error('Invalid context data')
   }
   getContext(){
-    return this._getContext()
+    return this.__getContext()
   }
   useContext<P extends Context>( fields: (keyof Context)[], fn: ( context: P ) => void ){
     if( !fields.length ) return
 
     effect( () => {
-      const context = this._getContext() as Context
+      const context = this.__getContext() as Context
       if( !context ) return
 
       const ctx = Object.fromEntries( fields.map( field => [ field, context[ field ] ]) ) as unknown as P

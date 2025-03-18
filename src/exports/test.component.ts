@@ -3,8 +3,6 @@ import type { Template, Handler, Metavars } from '../lips'
 import Lips from '../lips/lips'
 import english from '../languages/en.json'
 import french from '../languages/fr.json'
-import Layers from '../factory/layers'
-
 
 const lips = new Lips({ debug: true })
 
@@ -147,6 +145,104 @@ function DemoLetConstVariable(){
   .appendTo('body')
 }
 
+function DemoComponent(){
+  type State = {
+    count: number
+  }
+
+  const
+  template = `<div>
+    <span @text=state.count></span>
+    <br>
+    <button on-click="handleClick">Count</button>
+    <button on-click="() => self.destroy()">Destroy</button>
+  </div>`,
+  state: State = {
+    count: 0
+  },
+  handler: Handler<Metavars<any, State>> = {
+    onMount(){
+      console.log('Component mounted')
+    },
+    onRender(){
+      console.log('Component rendered')
+    },
+    onDestroy(){
+      console.log('Component destroyed')
+    },
+    handleClick( e: Event ){
+      this.state.count++
+    }
+  },
+  stylesheet = `
+    span, button { font: 14px arial; color: rgba(50, 50, 70); }
+  `
+  
+  lips
+  .render<Metavars<any, State>>('DemoComponent', { default: template, state, handler, stylesheet })
+  .appendTo('body')
+}
+
+function DemoAsyncAwait(){
+  type Static = {
+
+  }
+  const
+  template = `<async await="getUser, static.name">
+    <preload>Preloading...</preload>
+    <resolve>
+      <ul>
+        <li @text=response.name></li>
+        <li @text=response.email></li>
+      </ul>
+    </resolve>
+    <catch><span @text=error></span></catch>
+  </async>`,
+  _static = {
+    name: 'Peter Gibson'
+  },
+  handler: Handler<Metavars<any, any, Static>> = {
+    getUser( name ){
+      return new Promise( ( resolve, reject ) => {
+        setTimeout( () => resolve({ name, email: 'g.peter@mail.com' }), 3000 )
+        // setTimeout( () => reject('Unexpected error occured'), 1000 )
+      })
+    }
+  }
+
+  lips
+  .render<Metavars<any, any, Static>>('Demo3', { default: template, _static, handler })
+  .appendTo('body')
+}
+
+function DemoInterpolation(){
+  const
+  template = `
+    <let country="Togo" capital="Lomè"></let>
+    <div>
+      <p>
+        My country is {country}, 
+        The capital of {country} is {capital}
+      </p>
+
+      <p>
+        <const country="Ghana"></const>
+        <!-- <const country="Kenya"></const> -->
+
+        It borderd at west by <span @text=country></span>
+      </p>
+
+      <log( capital )/>
+      <p>
+        I'd love to go back to <span @text=capital></span> in December {new Date().getFullYear() + 1}
+      </p>
+    </div>`
+
+  lips
+  .render('Demo4', { default: template })
+  .appendTo('body')
+}
+
 function DemoForloop(){
   type State = {
     numbers: number[]
@@ -196,8 +292,8 @@ function DemoSyntaxInteract(){
       onInput(){ 
         this.state.count = Number( this.input.initial )
       
-        const end = setInterval( () => this.state.count++, 5 )
-        setTimeout( () => clearInterval( end ), 15000 )
+        // const end = setInterval( () => this.state.count++, 5 )
+        // setTimeout( () => clearInterval( end ), 15000 )
       },
       handleClick( e: Event ){
         if( this.state.count >= this.input.limit )
@@ -277,7 +373,7 @@ function DemoSyntaxInteract(){
               on-input(handleInput)/>
 
       <br>
-      <div html=state.value style="color: green"></div>
+      <div @html=state.value style="color: green"></div>
       <p ...state.attrs checked on-click(() => console.log('I got clicked'))>
         <span>Major word in speech is: {state.speech} <span> - {state.value +'-plus'}</span></span>
         <br><br>
@@ -343,14 +439,18 @@ function DemoSyntaxInteract(){
 
 // DemoState()
 // DemoForloop()
-DemoSyntaxInteract()
+// DemoComponent()
+// DemoAsyncAwait()
+// DemoInterpolation()
+// DemoSyntaxInteract()
 // DemoLetConstVariable()
 
 /**
- * ------------------------------------------------------------------------- 
+ * -------------------------------------------------------------------------
+ * Mini applications demo 
  */
 
-function Demo1(){
+function DemoDeepNexted(){
   type Input = {
     person: string
     default?: string
@@ -366,9 +466,9 @@ function Demo1(){
 
   const
   template = `<div component="Greet" style="!state.online && 'color: red'">
-      <span text=input.person>me</span>:
-      (<span text="state.online ? 'Online' : 'Offline'"></span>)
-      <span text=static.verb>...</span>
+      <span @text=input.person>me</span>:
+      (<span @text="state.online ? 'Online' : 'Offline'"></span>)
+      <span @text=static.verb>...</span>
 
       <div>
         <for [x] from="0" to="2">
@@ -376,7 +476,7 @@ function Demo1(){
             <switch( state.speech )>
               <case is="hi">
                 <span on-click(handleConnect, !state.online)>Hi - </span>
-                <span text=x></span>
+                <span @text=x></span>
               </case>
               <case is="hello">
                 <span>Hello - </span>
@@ -395,8 +495,8 @@ function Demo1(){
             <span>{x}</span>
           </else-if>
           <else>
-            <span text=input.default on-click(handleConnect, !state.online)></span>
-            <span html="<b>Everyone</b>"></span>
+            <span @text=input.default on-click(handleConnect, !state.online)></span>
+            <span @html="<b>Everyone</b>"></span>
           </else>
         </for>
       </div>
@@ -404,12 +504,12 @@ function Demo1(){
       <ul>
         <for [continent, users] in=static.users>
           <li key=continent>
-            <span text=continent>Frederic Dupont</span>:
+            <span @text=continent>Frederic Dupont</span>:
             <ul>
               <for [user, userid] in=users>
                 <li key=userid>
-                  <span text=user.name>Frederic Dupont</span> - 
-                  <span text=user.location>Nice, Belogre</span>
+                  <span @text=user.name>Frederic Dupont</span> - 
+                  <span @text=user.location>Nice, Belogre</span>
                 </li>
               </for>
             </ul>
@@ -454,7 +554,7 @@ function Demo1(){
 
   const
   component = lips
-              .render('DemoInput', { default: template, state, _static, handler }, input )
+              .render('DemoDeepNexted', { default: template, state, _static, handler }, input )
               .appendTo('body')
 
   setTimeout( () => {
@@ -466,105 +566,7 @@ function Demo1(){
   }, 2000 )
 }
 
-function Demo2(){
-  type State = {
-    count: number
-  }
-
-  const
-  template = `<div>
-    <span text=state.count></span>
-    <br>
-    <button on-click="handleClick">Count</button>
-    <button on-click="() => self.destroy()">Destroy</button>
-  </div>`,
-  state: State = {
-    count: 0
-  },
-  handler: Handler<Metavars<any, State>> = {
-    onMount(){
-      console.log('Component mounted')
-    },
-    onRender(){
-      console.log('Component rendered')
-    },
-    onDestroy(){
-      console.log('Component destroyed')
-    },
-    handleClick( e: Event ){
-      this.state.count++
-    }
-  },
-  stylesheet = `
-    span, button { font: 14px arial; color: rgba(50, 50, 70); }
-  `
-  
-  lips
-  .render<Metavars<any, State>>('Demo2', { default: template, state, handler, stylesheet })
-  .appendTo('body')
-}
-
-function Demo3(){
-  type Static = {
-
-  }
-  const
-  template = `<async await="getUser, static.name">
-    <preload>Preloading...</preload>
-    <resolve>
-      <ul>
-        <li text=response.name></li>
-        <li text=response.email></li>
-      </ul>
-    </resolve>
-    <catch><span text=error></span></catch>
-  </async>`,
-  _static = {
-    name: 'Peter Gibson'
-  },
-  handler: Handler<Metavars<any, any, Static>> = {
-    getUser( name ){
-      return new Promise( ( resolve, reject ) => {
-        setTimeout( () => resolve({ name, email: 'g.peter@mail.com' }), 3000 )
-        // setTimeout( () => reject('Unexpected error occured'), 1000 )
-      })
-    }
-  }
-
-  lips
-  .render<Metavars<any, any, Static>>('Demo3', { default: template, _static, handler })
-  .appendTo('body')
-}
-
-function Demo4(){
-  const
-  template = `
-    <let country="Togo" capital="Lomè"></let>
-    <div>
-      <p>
-        My country is {country}, 
-        The capital of {country} is {capital}
-      </p>
-
-      <p>
-        <const country="Ghana"></const>
-        <!-- <const country="Kenya"></const> -->
-
-        It borderd at west by <span text=country></span>
-      </p>
-
-      <log( capital )/>
-      <p>
-        I'd love to go back to <span text=capital></span> in December {new Date().getFullYear() + 1}
-      </p>
-    </div>`
-
-  lips
-  .render('Demo4', { default: template })
-  .appendTo('body')
-}
-
-function Demo5(){
+function DemoSubcomponent(){
   type TemplateInput = {
     initial: number
     limit: number
@@ -588,7 +590,7 @@ function Demo5(){
     },
     default: `
       <div>
-        <span text=state.count></span>
+        <span @text=state.count></span>
         <br>
         <button on-click( handleClick )>Count</button>
       </div>
@@ -627,7 +629,7 @@ function Demo5(){
   lips.root({ default: template, _static, handler }, 'body')
 }
 
-function Demo6(){
+function DemoManyComponent(){
   type TemplateInput = {
     initial: number
   }
@@ -669,7 +671,7 @@ function Demo6(){
     
     default: `<div>
       <{input.renderer}/>: 
-      <span text=state.count></span>
+      <span @text=state.count></span>
       <br>
       <button on-click(handleClick)>Count</button>
     </div>`
@@ -721,7 +723,7 @@ function Demo6(){
       <counter initial=1>Number</counter>
 
       <log( context.online )></log>
-      <p>I'm <span text="context.online ? 'Online' : 'Offline'"></span></p>
+      <p>I'm <span @text="context.online ? 'Online' : 'Offline'"></span></p>
       
       <br><br>
       <button on-click(() => state.initial = 10)>Reinitialize ({state.countUpdate})</button>
@@ -733,7 +735,7 @@ function Demo6(){
   </main>`
 
   lips
-  .render('Demo6', { default: template, state, handler, context: ['online'] }, {} )
+  .render('DemoManyComponent', { default: template, state, handler, context: ['online'] }, {} )
   .appendTo('body')
 
   // Change detault translation language
@@ -743,7 +745,7 @@ function Demo6(){
   }, 5000 )
 }
 
-function DemoCart(){
+function DemoShoppingCart(){
   type CartItem = {
     id: number
     name: string
@@ -774,6 +776,8 @@ function DemoCart(){
           ? { ...item, quantity: item.quantity + 1 }
           : item
       )
+
+      console.log('inc --', itemId, this.state.items.toJSON() )
     },
 
     onDecrementQuantity(itemId: number) {
@@ -782,6 +786,8 @@ function DemoCart(){
           ? { ...item, quantity: item.quantity - 1 }
           : item
       )
+
+      console.log('dec --', itemId, this.state.items.toJSON() )
     },
 
     getTotalItems() {
@@ -804,6 +810,8 @@ function DemoCart(){
   const macros = `
     <macro [id, name, price, quantity] name="item">
       <div key=id class="cart-item">
+        <log( id, name, price, quantity )/>
+      
         <div class="item-info">
           <h3>{name}</h3>
           <p class="item-price">{price.toFixed(2)} each</p>
@@ -952,467 +960,1359 @@ function DemoCart(){
   const input = { key: 'shopping-cart' }
   
   lips
-  .render<Metavars<CartInput, CartState>>('DemoInput', { default: template, state, handler, stylesheet, macros }, input )
+  .render<Metavars<CartInput, CartState>>('DemoCart', { default: template, state, handler, stylesheet, macros }, input )
   .appendTo('body')
 }
 
-function DemoLayers(){
-  const
-  context = {},
-  lips = new Lips({ context }),
-  content = `
-    <section class="header-block">
-      <div class="container-fluid">
-        <div class="row">
-          <div class="col-xl-4 col-lg-4 col-md-4 logo">
-            <a href="/" title="Angular, React, Sass"><img src="https://www.webrecto.com/common/images/logo.png"
-                alt="Angular, React, Sass" title="Angular, React, Sass" /></a>
-          </div>
-          <div class="col-xl-8 col-lg-8 col-md-8 text-right">
-            <div class="header-menu">
-              <ul>
-                <li>Angular</li>
-                <li>React</li>
-                <li>NextJs</li>
-                <li>Sass</li>
-              </ul>
-            </div>
-          </div>
+// DemoDeepNexted()
+// DemoSubcomponent()
+// DemoManyComponent()
+// DemoShoppingCart()
+
+/**
+ * ------------------------------------------------------------------------- 
+ * Animation Demos
+ */
+
+function WaveGraphDemo() {
+  // Types for our wave graph component
+  type WaveGraphInput = {
+    title?: string
+    width?: number
+    height?: number
+    pointCount?: number
+    animationSpeed?: number
+    lineColor?: string
+    backgroundColor?: string
+  }
+
+  type WaveGraphState = {
+    points: Array<{x: number, y: number}>
+    animationFrame: number
+    isRunning: boolean
+    amplitude: number
+    frequency: number
+    phase: number
+  }
+
+  // Default input values
+  const DEFAULT_INPUT: WaveGraphInput = {
+    title: "Interactive Wave Graph",
+    width: 800,
+    height: 400,
+    pointCount: 100,
+    animationSpeed: 50,
+    lineColor: "#3498db",
+    backgroundColor: "#f8f9fa"
+  }
+
+  // Create the wave graph component template
+  const waveGraph: Template<Metavars<WaveGraphInput, WaveGraphState>> = {
+    state: {
+      points: [],
+      animationFrame: 0,
+      isRunning: false,
+      amplitude: 100,
+      frequency: 0.05,
+      phase: 0
+    },
+    handler: {
+      // Initialize the component
+      onCreate() {
+        // Set default values for undefined inputs
+        if (!this.input.width) this.input.width = DEFAULT_INPUT.width
+        if (!this.input.height) this.input.height = DEFAULT_INPUT.height
+        if (!this.input.title) this.input.title = DEFAULT_INPUT.title
+        if (!this.input.pointCount) this.input.pointCount = DEFAULT_INPUT.pointCount
+        if (!this.input.animationSpeed) this.input.animationSpeed = DEFAULT_INPUT.animationSpeed
+        if (!this.input.lineColor) this.input.lineColor = DEFAULT_INPUT.lineColor
+        if (!this.input.backgroundColor) this.input.backgroundColor = DEFAULT_INPUT.backgroundColor
+        
+        // Initialize the points array
+        this.generatePoints()
+      },
+      
+      // When component mounts, start the animation
+      onMount() {
+        // Do an initial manual point generation to ensure we have points
+        this.generatePoints()
+        
+        // Log the initial state to verify points were generated
+        console.log("Initial points:", this.state.points.length, 
+                    "First point:", this.state.points[0],
+                    "Last point:", this.state.points[this.state.points.length-1])
+        
+        setTimeout(() => {
+          this.startAnimation()
+        }, 500) // Small delay to ensure initial render is complete
+      },
+      
+      // Cleanup when component is destroyed
+      onDestroy() {
+        this.stopAnimation()
+      },
+      
+      // Generate wave points
+      generatePoints() {
+        const { width, height, pointCount } = this.input
+        const { amplitude, frequency, phase } = this.state
+
+        if( width === undefined 
+            || height === undefined
+            || pointCount === undefined ) return
+        
+        const points = []
+        const step = width / (pointCount - 1)
+        
+        for (let i = 0; i < pointCount; i++) {
+          const x = i * step
+          const y = amplitude * Math.sin(frequency * x + phase) + (height / 2)
+          points.push({ x, y })
+        }
+        
+        this.state.points = points
+      },
+      
+      // Start the animation loop
+      startAnimation() {
+        if (this.state.isRunning) return
+        
+        this.state.isRunning = true
+        
+        const animate = () => {
+          if (!this.state.isRunning) return
+          
+          // Update phase to create the animation effect
+          this.state.phase += 0.1
+          this.generatePoints()
+          
+          // Schedule the next frame
+          if( !this.input.animationSpeed ) return
+
+          setTimeout(() => {
+            this.state.animationFrame = requestAnimationFrame(animate)
+          }, 1000 / this.input.animationSpeed)
+        }
+        
+        this.state.animationFrame = requestAnimationFrame(animate)
+      },
+      
+      // Stop the animation loop
+      stopAnimation() {
+        this.state.isRunning = false
+        cancelAnimationFrame(this.state.animationFrame)
+      },
+      
+      // Toggle the animation
+      toggleAnimation() {
+        if (this.state.isRunning) {
+          this.stopAnimation()
+        } else {
+          this.startAnimation()
+        }
+      },
+      
+      // Increase amplitude
+      increaseAmplitude() {
+        if( this.input.height === undefined ) return
+
+        this.state.amplitude = Math.min(this.state.amplitude + 10, this.input.height / 2 - 10)
+        this.generatePoints()
+      },
+      
+      // Decrease amplitude
+      decreaseAmplitude() {
+        this.state.amplitude = Math.max(this.state.amplitude - 10, 10)
+        this.generatePoints()
+      },
+      
+      // Increase frequency
+      increaseFrequency() {
+        this.state.frequency += 0.01
+        this.generatePoints()
+      },
+      
+      // Decrease frequency
+      decreaseFrequency() {
+        this.state.frequency = Math.max(this.state.frequency - 0.01, 0.01)
+        this.generatePoints()
+      },
+      
+      // Generate SVG path from points with explicit formatting
+      generatePath() {
+        const points = this.state.points
+        if (!points.length) return ""
+        
+        // Format numbers with fixed precision to avoid SVG parsing issues
+        let path = `M ${points[0].x.toFixed(2)} ${points[0].y.toFixed(2)}`
+        
+        for (let i = 1; i < points.length; i++) {
+          path += ` L ${points[i].x.toFixed(2)} ${points[i].y.toFixed(2)}`
+        }
+        
+        // Log the first part of the path for debugging
+        // console.log("Path data (first 100 chars):", path.substring(0, 100) + "...")
+        
+        return path
+      },
+      
+      // Add a debug helper that returns a static path for testing
+      getDebugPath() {
+        const { width, height } = this.input
+        if( width === undefined || height === undefined ) return
+
+        const midY = height / 2
+        
+        // Simple sine wave path with fixed coordinates
+        return `M 0 ${midY} L ${width/10} ${midY-50} L ${width/5} ${midY} L ${width/3.3} ${midY+50} L ${width/2.5} ${midY} L ${width/2} ${midY-50} L ${width/1.5} ${midY} L ${width/1.25} ${midY+50} L ${width} ${midY}`
+      },
+      
+      // Helper to create a unique pattern ID to avoid conflicts when multiple graphs are used
+      getPatternId() {
+        return "grid-"+ (this.input.title || "").replace(/\s+/g, '-').toLowerCase()
+      }
+    },
+    
+    // The component template with correct Lips syntax
+    default: `
+      <div class="wave-graph-container" style="{ width: (input.width + 40 )+'px', 'background-color': input.backgroundColor}">
+        <h2 class="wave-graph-title">{input.title}</h2>
+        
+        <svg class="wave-graph-svg" 
+            width=input.width 
+            height=input.height 
+            viewBox="'0 0 '+ input.width +' '+ input.height">
+          <!-- Background grid -->
+          <defs>
+            <pattern id=self.getPatternId() width="40" height="40" patternUnits="userSpaceOnUse">
+              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#e0e0e0" stroke-width="1"></path>
+            </pattern>
+          </defs>
+
+          <let patternid=self.getPatternId()/>
+          <rect width=input.width height=input.height fill="'url(#'+ patternid +')'" />
+          
+          <!-- Center horizontal line -->
+          <line x1="0" y1=(input.height / 2) x2=input.width y2=(input.height / 2) 
+                stroke="#ccc" stroke-width="1" stroke-dasharray="5,5" />
+          
+          <!-- Debug static path first to verify SVG is working -->
+          <path d=self.getDebugPath() fill="none" stroke="red" stroke-width="3" />
+          
+          <!-- The dynamic wave path -->
+          <path d=self.generatePath() fill="none" stroke=input.lineColor stroke-width="2.5" vector-effect="non-scaling-stroke" />
+          
+          <!-- Points on the wave -->
+          <for [point, idx] in=state.points>
+            <if(idx % 10 === 0)>
+              <circle cx=point.x cy=point.y r="3" fill=input.lineColor />
+            </if>
+          </for>
+        </svg>
+        
+        <div class="wave-graph-controls">
+          <button class="wave-graph-button {state.isRunning ? 'stop' : ''}" 
+                  on-click(toggleAnimation)>
+            {state.isRunning ? 'Pause' : 'Start'} Animation
+          </button>
+          
+          <button class="wave-graph-button" on-click(increaseAmplitude)>
+            Increase Amplitude
+          </button>
+          
+          <button class="wave-graph-button" on-click(decreaseAmplitude)>
+            Decrease Amplitude
+          </button>
+          
+          <button class="wave-graph-button" on-click(increaseFrequency)>
+            Increase Frequency
+          </button>
+          
+          <button class="wave-graph-button" on-click(decreaseFrequency)>
+            Decrease Frequency
+          </button>
+        </div>
+        
+        <div class="wave-graph-info">
+          <div class="wave-graph-info-item">Status: <b>{state.isRunning ? 'Running' : 'Paused'}</b></div>
+          <div class="wave-graph-info-item">Amplitude: <b>{state.amplitude.toFixed(2)}</b></div>
+          <div class="wave-graph-info-item">Frequency: <b>{state.frequency.toFixed(4)}</b></div>
+          <div class="wave-graph-info-item">Points: <b>{state.points.length}</b></div>
+          <div class="wave-graph-info-item">Point Example: <b>{state.points.length > 0 ? state.points[0].x.toFixed(1) +', '+ state.points[0].y.toFixed(1) : 'None'}</b></div>
+          <div class="wave-graph-info-item">Path Length: <b>{self.generatePath().length}</b> chars</div>
         </div>
       </div>
-    </section>
-    <div class="container-fluid">
-      <div class="mainBlock">
-        <div class="row">
-          <div class="col-md-2 leftPart">
-            <div class="leftBlock">
-              <h5>Tutorials</h5>
-              <div class="leftSection">
-                <ul>
-                  <li><a href="/react/how-to-pass-and-access-data-from-one-route-to-another-in-the-reactjs"
-                      title="How to Pass and Access Data From One Route to Another in the ReactJs">How to Pass and Access
-                      Data From One Route to Another in the ReactJs</a></li>
-                  <li><a href="/react/navigate-to-another-page-on-button-click-in-react"
-                      title="Navigate to Another Page on Button Click in React">Navigate to Another Page on Button Click in
-                      React</a></li>
-                  <li><a href="/react/installing-the-react-router-dom-and-use-in-react-application"
-                      title="Install the React Router Dom and Use in React">Install the React Router Dom and Use in
-                      React</a></li>
-                  <li><a href="/react/nested-components-in-react" title="Nested Components in React">Nested Components in
-                      React</a></li>
-                  <li><a href="/react/change-page-title-dynamically-in-react"
-                      title="Change Page Title Dynamically in React">Change Page Title Dynamically in React</a></li>
-                  <li><a href="/react/implement-lazy-loading-in-react" title="Implement Lazy Loading in React">Implement
-                      Lazy Loading in React</a></li>
-                  <li><a href="/react/react-suspense-example" title="React Suspense Example">React Suspense Example</a></li>
-                  <li><a href="/react/automatic-batching-in-react" title="Automatic Batching in React 18">Automatic Batching
-                      in React 18</a></li>
-                  <li><a href="/angular/angular-signals-example" title="Angular Signals Example">Angular Signals Example</a>
-                  </li>
-                  <li><a href="/angular/output-decorator-in-angular" title="@Output Decorator in Angular">@Output Decorator
-                      in Angular</a></li>
-                  <li><a href="/angular/how-to-use-input-decorator-in-angular"
-                      title="How to Use Input Decorator in Angular">How to Use Input Decorator in Angular</a></li>
-                  <li><a href="/angular/angular-async-validator-in-template-driven-form"
-                      title="Angular Async Validator in Template Driven Form">Angular Async Validator in Template Driven
-                      Form</a></li>
-                  <li><a href="/angular/angular-httpclient-get-example" title="Angular HttpClient get Example">Angular
-                      HttpClient get Example</a></li>
-                  <li><a href="/angular/angular-observable-vs-promise" title="Angular Observable vs Promise">Angular
-                      Observable vs Promise</a></li>
-                  <li><a href="/angular/use-candeactivate-in-angular" title="How to use canDeactivate in Angular">How to use
-                      canDeactivate in Angular</a></li>
-                  <li><a href="/angular/angular-canactivatechild" title="How to use canActivateChild in Angular">How to use
-                      canActivateChild in Angular</a></li>
-                  <li><a href="/angular/angular-markaspristine" title="Angular markAsPristine() Example">Angular
-                      markAsPristine() Example</a></li>
-                  <li><a href="/angular/angular-markasuntouched" title="Angular markAsUntouched() Example">Angular
-                      markAsUntouched() Example</a></li>
-                  <li><a href="/angular/angular-markastouched" title="Angular markAsTouched() Example">Angular
-                      markAsTouched() Example</a></li>
-                  <li><a href="/angular/implement-canActivate-in-angular"
-                      title="How to Implement Lazy Loading in Angular">How to Implement canActivate in Angular</a></li>
-                  <li><a href="/angular/implement-lazy-loading-in-angular"
-                      title="How to Implement Lazy Loading in Angular">How to Implement Lazy Loading in Angular</a></li>
-                  <li><a href="/css/adjust-background-image-size-in-css"
-                      title="How to Adjust Background Image Size in CSS">How to Adjust Background Image Size in CSS</a></li>
-                  <li><a href="/css/set-background-attachment-in-css" title="How to Set Background Attachment in CSS">How to
-                      Set Background Attachment in CSS</a></li>
-                  <li><a href="/css/set-background-color-in-css" title="How to Set Background color in CSS">How to Set
-                      Background color in CSS</a></li>
-                  <li><a href="/css/css-background-repeat-property" title="CSS background-repeat Property">CSS
-                      background-repeat Property</a></li>
-                  <li><a href="/css/css-background-position-y" title="CSS background-position-y Property">CSS
-                      background-position-y Property</a></li>
-                  <li><a href="/css/css-background-position-x" title="CSS background-position-x Property">CSS
-                      background-position-x Property</a></li>
-                  <li><a href="/css/set-background-image-position-in-css"
-                      title="How to Set Background Image Position in CSS">How to Set Background Image Position in CSS</a>
-                  </li>
-                  <li><a href="/css/add-background-image-in-css" title="How to Add Background Image in CSS">How to Add
-                      Background Image in CSS</a></li>
-                  <li><a href="/angular/angular-uppercase-and-lowercase-pipe"
-                      title="Angular uppercase and lowercase Pipe Example"
-                      alt="Angular uppercase and lowercase Pipe Example">Angular uppercase and lowercase Pipe Example</a>
-                  </li>
-                  <li><a href="/angular/angular-async-pipe-example" title="Angular Async Pipe Example">Angular Async Pipe
-                      Example</a></li>
-                  <li><a href="/react/react-interview-questions" title="Top ReactJS Interview Questions and Answers">Top
-                      ReactJS Interview Questions and Answers</a></li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-7 midPart">
-            <div class="content">
-              <div class="contentHd">
+    `,
 
-                <h1>How to Adjust Background Image Size in CSS</h1>
-                <div class="date">By Webrecto, <span>August 24, 2023</span></div>
-              </div>
-              <div class="contentText">
-                <! -- start content -->
-                  <p>The <code>background-size</code> is a specific property of the CSS and it specifies the size of the
-                    background image. It is used to adjust the background image size in html elements with the help of
-                    different types of values. It allows multiple values to control the dimension of the multiple background
-                    image in a single element.</p>
+    // CSS styles for the wave graph
+    stylesheet: `
+      .wave-graph-container {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        margin: 20px auto;
+        overflow: hidden;
+      }
+      
+      .wave-graph-title {
+        font-size: 18px;
+        margin-bottom: 15px;
+        color: #333;
+      }
+      
+      .wave-graph-svg {
+        display: block;
+        border-radius: 4px;
+        margin-bottom: 15px;
+      }
+      
+      .wave-graph-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+      
+      .wave-graph-button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        background-color: #3498db;
+        color: white;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+      
+      .wave-graph-button:hover {
+        background-color: #2980b9;
+      }
+      
+      .wave-graph-button.stop {
+        background-color: #e74c3c;
+      }
+      
+      .wave-graph-button.stop:hover {
+        background-color: #c0392b;
+      }
+      
+      .wave-graph-info {
+        background-color: #f1f1f1;
+        padding: 12px;
+        border-radius: 4px;
+        font-size: 14px;
+      }
+      
+      .wave-graph-info-item {
+        margin-bottom: 5px;
+      }
+    `
+  }
 
-                  <p>The <code>background-size</code> accepts multiple values like <b>length</b>, <b>cover</b>,
-                    <b>contain</b> and <b>inherit</b> for resizing the background image in html container. If we use these
-                    CSS properties, the background image can be stretched or cropped to fit into the available element
-                    space.</p>
-                  <h2>CSS background-size Syntax:</h2>
-                  <p>We can follow the below syntax to use CSS to adjust the element background image size.</p>
-                  <div class="codeSection">
-                    <div class="codeBlock">
-                      <pre class="pre">background-size: auto | contain | cover | length | initial | inherit;</pre>
-                    </div>
-                  </div>
-
-                  <p>In the below syntax, If an element have multiple background images, we can use the comma-separated
-                    values to define the different sizes of each one. In CSS code we can define <b>cover</b> and
-                    <b>contain</b> values for set image dimensions. If we set a single value in background-size, then it
-                    will set only the image width and the image height will be set auto. </p>
-                  <div class="codeSection">
-                    <div class="codeBlock">
-                      <pre class="pre">#multipleImage1 {
-      background-image: url(firstImg.gif), url(secondImg.gif); // comma separated multiple image url
-      background-size: cover, contain; // comma separated size properties
-    }</pre>
-                    </div>
-                  </div>
-
-                  <div class="codeSection">
-                    <div class="codeBlock">
-                      <pre class="pre">#multipleImage2 {
-      background-image: url(firstImg.gif);
-      background-size: 400px; // 400px is width value and height will set auto
-    }</pre>
-                    </div>
-                  </div>
-
-
-                  <h2>Property Values:</h2>
-                  <p><b>auto: </b>This is default values, the background image is displayed in its original size, It doesn't
-                    change anything.</p>
-                  <div class="codeSection">
-                    <div class="codeBlock">
-                      <pre class="pre">background-size: auto;</pre>
-                    </div>
-                  </div>
-
-
-                  <p><b>contain: </b>The contain value sets the background image fully visible without stretching or
-                    cropping.</p>
-                  <div class="codeSection">
-                    <div class="codeBlock">
-                      <pre class="pre">background-size: contain;</pre>
-                    </div>
-                  </div>
-
-
-                  <p><b>cover: </b>This value is used to resize the background image to cover the entire container. It can
-                    be stretched or cropped to fit into the element.</p>
-                  <div class="codeSection">
-                    <div class="codeBlock">
-                      <pre class="pre">background-size: cover;</pre>
-                    </div>
-                  </div>
-
-
-                  <p><b>length: </b>This value sets the width and height of the background image in the container. According
-                    to syntax, the first value sets the image width and the second value sets the height. If we give only
-                    one value then, it will set the element width, and height will set auto in the container.</p>
-                  <div class="codeSection">
-                    <div class="codeBlock">
-                      <pre class="pre">background-size: 400px 300px; // first value is width and second value is height
-    background-size: 400px // first value is width and height is auto </pre>
-                    </div>
-                  </div>
-
-                  <p>In the above syntax, the first value represents horizontal size and the second value represents
-                    vertical size.</p>
-                  <P><b>inherit: </b>This value inherits the property from the parent element.</P>
-
-                  <h2>Example 1: contain</h2>
-                  <p>In the below example, I have set the background image in html DIV element. The width and height of the
-                    <b>DIV</b> container are <br /><code>400 X 400</code>. I used the <code>contain</code> value in the
-                    background size.</p>
-                  <div class="codeSection">
-                    <div class="codeBlock">
-                      <pre class="pre">&lt;!DOCTYPE html&gt;
-    &lt;html&gt;
-    &lt;head&gt;
-        &lt;title&gt;How to Adjust Background Image Size in CSS&lt;/title&gt;
-        &lt;style&gt;
-          .myImg {
-            background-image: url("https://www.webrecto.com/css/images/webrecto.jpg");
-            width: 400px;
-            height: 400px;
-            border: 2px solid #000;
-            background-repeat: no-repeat; 
-            background-size: contain;
-          }
-      &lt;/style&gt;
-    &lt;/head&gt;
-    &lt;body style="text-align:center"&gt;
-        &lt;h1&gt;WebRecto.com&lt;/h1&gt;
-        &lt;h2&gt;background-size: contain;&lt;/h2&gt;
-        &lt;div class="myImg"&gt;
-            We can add content here
-        &lt;/div&gt;
-    &lt;/body&gt;
-    &lt;/html&gt;</pre>
-                    </div>
-                  </div>
-
-                  <h3>Output:</h3>
-                  <p class="imgcenter"><img src="images/bg-contain.jpg" title="How to Adjust Background Image Size in CSS"
-                      alt="How to Adjust Background Image Size in CSS" /></p>
-
-                  <h2>Example 2: cover</h2>
-                  <P>In the below example, I have used the background-size: cover to set the dimensions of the background
-                    image.</P>
-                  <div class="codeSection">
-                    <div class="codeBlock">
-                      <pre class="pre">&lt;!DOCTYPE html&gt;
-    &lt;html&gt;
-    &lt;head&gt;
-        &lt;title&gt;How to Adjust Background Image Size in CSS&lt;/title&gt;
-        &lt;style&gt;
-          .myImg {
-            background-image: url("https://www.webrecto.com/css/images/webrecto.jpg");
-            width: 400px;
-            height: 400px;
-            border: 2px solid #000;
-            background-repeat: no-repeat; 
-            background-size: cover;
-          }
-      &lt;/style&gt;
-    &lt;/head&gt;
-    &lt;body style="text-align:center"&gt;
-        &lt;h1&gt;WebRecto.com&lt;/h1&gt;
-        &lt;h2&gt;background-size: contain;&lt;/h2&gt;
-        &lt;div class="myImg"&gt;
-            We can add content here
-        &lt;/div&gt;
-    &lt;/body&gt;
-    &lt;/html&gt;</pre>
-                    </div>
-                  </div>
-
-                  <h3>Output:</h3>
-                  <p class="imgcenter"><img src="images/bg-cover.jpg" title="How to Adjust Background Image Size in CSS"
-                      alt="How to Adjust Background Image Size in CSS" /></p>
-
-                  <h2>Example 3: length</h2>
-                  <p>In the below example, I have set the background image for the HTML div element. The width and height of
-                    the div element are 400 X 400 and the background-size property is 250 X 200.</p>
-                  <div class="codeSection">
-                    <div class="codeBlock">
-                      <pre class="pre">&lt;!DOCTYPE html&gt;
-    &lt;html&gt;
-    &lt;head&gt;
-        &lt;title&gt;How to Adjust Background Image Size in CSS&lt;/title&gt;
-        &lt;style&gt;
-          .myImg {
-            background-image: url("https://www.webrecto.com/css/images/webrecto.jpg");
-            width: 400px;
-            height: 400px;
-            border: 2px solid #000;
-            background-repeat: no-repeat; 
-            background-size: 250px 200px;
-          }
-      &lt;/style&gt;
-    &lt;/head&gt;
-    &lt;body style="text-align:center"&gt;
-        &lt;h1&gt;WebRecto.com&lt;/h1&gt;
-        &lt;h2&gt;background-size: contain;&lt;/h2&gt;
-        &lt;div class="myImg"&gt;
-            We can add content here
-        &lt;/div&gt;
-    &lt;/body&gt;
-    &lt;/html&gt;</pre>
-                    </div>
-                  </div>
-
-
-                  <! -- end content -->
-              </div>
-            </div>
-          </div>
-          <div class="col-md-3 rightPart">
-            <div class="rightBlock">
-              <div class="rightHead">Useful Links</div>
-              <div class="rightSection">
-                <ul>
-                  <li><a href="/react/how-to-pass-and-access-data-from-one-route-to-another-in-the-reactjs"
-                      title="How to Pass and Access Data From One Route to Another in the ReactJs">How to Pass and Access
-                      Data From One Route to Another in the ReactJs</a></li>
-                  <li><a href="/react/navigate-to-another-page-on-button-click-in-react"
-                      title="Navigate to Another Page on Button Click in React">Navigate to Another Page on Button Click in
-                      React</a></li>
-                  <li><a href="/react/installing-the-react-router-dom-and-use-in-react-application"
-                      title="Install the React Router Dom and Use in React">Install the React Router Dom and Use in
-                      React</a></li>
-                  <li><a href="/react/nested-components-in-react" title="Nested Components in React">Nested Components in
-                      React</a></li>
-                  <li><a href="/react/change-page-title-dynamically-in-react"
-                      title="Change Page Title Dynamically in React">Change Page Title Dynamically in React</a></li>
-                  <li><a href="/react/implement-lazy-loading-in-react" title="Implement Lazy Loading in React">Implement
-                      Lazy Loading in React</a></li>
-                  <li><a href="/react/react-suspense-example" title="React Suspense Example">React Suspense Example</a></li>
-                  <li><a href="/react/automatic-batching-in-react" title="Automatic Batching in React 18">Automatic Batching
-                      in React 18</a></li>
-                  <li><a href="/angular/angular-signals-example" title="Angular Signals Example">Angular Signals Example</a>
-                  </li>
-                  <li><a href="/angular/output-decorator-in-angular" title="@Output Decorator in Angular">@Output Decorator
-                      in Angular</a></li>
-                  <li><a href="/angular/how-to-use-input-decorator-in-angular"
-                      title="How to Use Input Decorator in Angular">How to Use Input Decorator in Angular</a></li>
-                  <li><a href="/angular/angular-async-validator-in-template-driven-form"
-                      title="Angular Async Validator in Template Driven Form">Angular Async Validator in Template Driven
-                      Form</a></li>
-                  <li><a href="/angular/angular-httpclient-get-example" title="Angular HttpClient get Example">Angular
-                      HttpClient get Example</a></li>
-                  <li><a href="/angular/angular-observable-vs-promise" title="Angular Observable vs Promise">Angular
-                      Observable vs Promise</a></li>
-                  <li><a href="/angular/use-candeactivate-in-angular" title="How to use canDeactivate in Angular">How to use
-                      canDeactivate in Angular</a></li>
-                  <li><a href="/angular/angular-canactivatechild" title="How to use canActivateChild in Angular">How to use
-                      canActivateChild in Angular</a></li>
-                  <li><a href="/angular/angular-markaspristine" title="Angular markAsPristine() Example">Angular
-                      markAsPristine() Example</a></li>
-                  <li><a href="/angular/angular-markasuntouched" title="Angular markAsUntouched() Example">Angular
-                      markAsUntouched() Example</a></li>
-                  <li><a href="/angular/angular-markastouched" title="Angular markAsTouched() Example">Angular
-                      markAsTouched() Example</a></li>
-                  <li><a href="/angular/implement-canActivate-in-angular"
-                      title="How to Implement Lazy Loading in Angular">How to Implement canActivate in Angular</a></li>
-                  <li><a href="/angular/implement-lazy-loading-in-angular"
-                      title="How to Implement Lazy Loading in Angular">How to Implement Lazy Loading in Angular</a></li>
-                  <li><a href="/css/adjust-background-image-size-in-css"
-                      title="How to Adjust Background Image Size in CSS">How to Adjust Background Image Size in CSS</a></li>
-                  <li><a href="/css/set-background-attachment-in-css" title="How to Set Background Attachment in CSS">How to
-                      Set Background Attachment in CSS</a></li>
-                  <li><a href="/css/set-background-color-in-css" title="How to Set Background color in CSS">How to Set
-                      Background color in CSS</a></li>
-                  <li><a href="/css/css-background-repeat-property" title="CSS background-repeat Property">CSS
-                      background-repeat Property</a></li>
-                  <li><a href="/css/css-background-position-y" title="CSS background-position-y Property">CSS
-                      background-position-y Property</a></li>
-                  <li><a href="/css/css-background-position-x" title="CSS background-position-x Property">CSS
-                      background-position-x Property</a></li>
-                  <li><a href="/css/set-background-image-position-in-css"
-                      title="How to Set Background Image Position in CSS">How to Set Background Image Position in CSS</a>
-                  </li>
-                  <li><a href="/css/add-background-image-in-css" title="How to Add Background Image in CSS">How to Add
-                      Background Image in CSS</a></li>
-                  <li><a href="/angular/angular-uppercase-and-lowercase-pipe"
-                      title="Angular uppercase and lowercase Pipe Example"
-                      alt="Angular uppercase and lowercase Pipe Example">Angular uppercase and lowercase Pipe Example</a>
-                  </li>
-                  <li><a href="/angular/angular-async-pipe-example" title="Angular Async Pipe Example">Angular Async Pipe
-                      Example</a></li>
-                  <li><a href="/react/react-interview-questions" title="Top ReactJS Interview Questions and Answers">Top
-                      ReactJS Interview Questions and Answers</a></li>
-                </ul>
-              </div>
-            </div>
-          </div>
-
-
-
+  const lips = new Lips({ debug: true })
+  
+  // Register the wave graph component
+  lips.register('wave-graph', waveGraph)
+  
+  // Create a demo app that uses multiple wave graphs
+  const demoApp: Template<Metavars<{}, {}>> = {
+    default: `
+      <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+        <h1>Wave Graph Demonstration</h1>
+        <p>This demo shows interactive wave graphs with real-time animations and controls.</p>
+        
+        <div style="display: flex; flex-direction: column; gap: 30px;">
+          <!-- Default wave graph -->
+          <wave-graph />
+          
+          <!-- Customized wave graphs -->
+          <wave-graph 
+            title="Fast Oscillating Wave" 
+            width="600" 
+            height="300"
+            pointCount="150"
+            animationSpeed="100"
+            lineColor="#e74c3c"
+            backgroundColor="#f7f9fa" />
+            
+          <wave-graph
+            title="Slow Motion Wave"
+            width="600"
+            height="200"
+            pointCount="80" 
+            animationSpeed="20"
+            lineColor="#27ae60"
+            backgroundColor="#f0f0f0" />
         </div>
       </div>
-    </div>
-    <!-- footer -->
-    <div class="container-fluid footerBlock">
-      <div class="container">
-        <div class="row footer">
-          <div class="col-md-5">
-            <h4>About Us</h4>
-            <div style="padding-right: 60px">
-              We are a group of front-end developers. We are enthusiastic to learn and share technologies. To improve our
-              website's content, your valuable suggestions are most welcome. Thanks</br>
-              Email: mywebrecto@gmail.com
-            </div>
-          </div>
-          <div class="col-md-3">
-            <h4>Resources</h4>
-            <ul>
-              <li><a href="https://angular.io/" target="_blank" title="Angular">Angular</a></li>
-              <li><a href="https://react.dev/" target="_blank" title="React">React</a></li>
-              <li><a href="https://redux.js.org/" target="_blank" title="React">Redux</a></li>
-              <li><a href="https://www.w3.org/Style/CSS/Overview.en.html" target="_blank" title="CSS">CSS</a></li>
-              <li><a href="https://developer.mozilla.org/en-US/docs/Web/CSS" target="blank" title="MDN">MDN</a></li>
-              <li><a href="https://tailwindcss.com/" target="blank" title="Tailwind">Tailwind</a></li>
-              <li><a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript" target="_blank"
-                  title="JavaScript">JavaScript</a></li>
-            </ul>
-          </div>
-          <div class="col-md-4 social">
-            <h4>Social Media</h4>
-            <ul>
-              <li><a href="https://twitter.com/webrecto" title="Twitter" target="_blank"><i class="fa fa-twitter"></i></a>
-              </li>
-              <li><a href="https://www.facebook.com/mywebrecto" title="Facebook" target="_blank"><i
-                    class="fa fa-facebook"></i></a></li>
-              <li><i class="fa fa-linkedin"></i></li>
-              <li><i class="fa fa-youtube-play"></i></li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="container-fluid copyrightBlock">
-      <div class="container">
-        <div class="row">
-          <div class="col-md-12 copyright">
-            <ul>
-              <li>©2023 webrecto.com</li>
-              <li><a href="/privacy-policy.php" title="Privacy Policy">Privacy Policy</a></li>
-              <li><a href="/contact-us.php" title="Contact Us">Contact Us</a></li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-  `,
-  host = {
-    key: '0',
-    type: 'frame' as 'frame',
-    title: 'Frame 1',
-    content
-  },
-  component = Layers( lips, { host }).appendTo('body')
+    `
+  }
+  
+  // Render the demo app
+  lips.render('WaveGraphDemo', demoApp).appendTo('body')
 }
 
-// Demo1()
-// Demo2()
-// Demo3() --
-// Demo4()
-// Demo5()
-// Demo6()
-// DemoCart()
-// DemoLayers()
+function AnimationDemo() {
+  type AnimatedCircleState = {
+    x: number
+    y: number
+    direction: number
+    isRunning: boolean
+    timerId: number
+  }
+
+  // This component will animate a circle moving across the screen
+  // Much simpler than a wave to isolate if animation works at all
+  const animatedCircle: Template<Metavars<{}, AnimatedCircleState>> = {
+    state: {
+      x: 50,
+      y: 100,
+      direction: 1,
+      isRunning: false,
+      timerId: 0
+    },
+    handler: {
+      onMount() {
+        // Start animation immediately
+        this.startAnimation();
+      },
+      
+      onDestroy() {
+        // Clean up
+        this.stopAnimation();
+      },
+      
+      startAnimation() {
+        if (this.state.isRunning) return;
+        
+        this.state.isRunning = true;
+        
+        // Use setInterval instead of requestAnimationFrame for simplicity
+        this.state.timerId = window.setInterval(() => {
+          // Move the circle
+          this.state.x += 5 * this.state.direction;
+          
+          // Reverse direction if we hit the edge
+          if (this.state.x > 350 || this.state.x < 50) {
+            this.state.direction *= -1;
+          }
+          
+          // Force a log to verify updates are happening
+          console.log("Circle position:", this.state.x);
+        }, 100); // Update every 100ms
+      },
+      
+      stopAnimation() {
+        if (!this.state.isRunning) return;
+        
+        window.clearInterval(this.state.timerId);
+        this.state.isRunning = false;
+      },
+      
+      toggleAnimation() {
+        if (this.state.isRunning) {
+          this.stopAnimation();
+        } else {
+          this.startAnimation();
+        }
+      }
+    },
+    default: `
+      <div style="padding: 20px; border: 2px solid #333; margin: 20px;">
+        <h2>Simple Circle Animation</h2>
+        <p>Current X: {state.x}, Direction: {state.direction}</p>
+        
+        <svg width="400" height="200" style="border: 1px solid #ccc; background-color: #f0f0f0;">
+          <!-- Static reference line -->
+          <line x1="0" y1="100" x2="400" y2="100" stroke="#ccc" stroke-width="1" />
+          
+          <!-- Animated circle -->
+          <circle cx=state.x cy=state.y r="20" fill="red" />
+        </svg>
+        
+        <button style="margin-top: 10px; padding: 5px 10px;" on-click(toggleAnimation)>
+          {state.isRunning ? 'Pause' : 'Start'}
+        </button>
+      </div>
+    `
+  };
+  
+  type ColorChangingRectState = {
+    colors: string[]
+    currentIndex: number
+    isRunning: boolean
+    timerId: number
+  }
+
+  // Very basic SVG with just rectangles that change color
+  const colorChangingRects: Template<Metavars<{}, ColorChangingRectState>> = {
+    state: {
+      colors: ["#ff0000", "#00ff00", "#0000ff", "#ffff00", "#ff00ff"],
+      currentIndex: 0,
+      isRunning: false,
+      timerId: 0
+    },
+    handler: {
+      onMount() {
+        this.startAnimation();
+      },
+      
+      onDestroy() {
+        this.stopAnimation(); 
+      },
+      
+      startAnimation() {
+        if (this.state.isRunning) return;
+        
+        this.state.isRunning = true;
+        
+        this.state.timerId = window.setInterval(() => {
+          this.state.currentIndex = (this.state.currentIndex + 1) % this.state.colors.length;
+          console.log("Color index:", this.state.currentIndex);
+        }, 1000);
+      },
+      
+      stopAnimation() {
+        window.clearInterval(this.state.timerId);
+        this.state.isRunning = false;
+      },
+      
+      getColor(offset) {
+        const index = (this.state.currentIndex + offset) % this.state.colors.length;
+        return this.state.colors[index];
+      }
+    },
+    default: `
+      <div style="padding: 20px; border: 2px solid #333; margin: 20px;">
+        <h2>Color Changing Rectangles</h2>
+        <p>Current color index: {state.currentIndex}</p>
+        
+        <svg width="400" height="100" style="border: 1px solid #ccc; background-color: #f0f0f0;">
+          <rect x="10" y="10" width="70" height="80" fill=self.getColor(0) />
+          <rect x="90" y="10" width="70" height="80" fill=self.getColor(1) />
+          <rect x="170" y="10" width="70" height="80" fill=self.getColor(2) />
+          <rect x="250" y="10" width="70" height="80" fill=self.getColor(3) />
+          <rect x="330" y="10" width="70" height="80" fill=self.getColor(4) />
+        </svg>
+      </div>
+    `
+  };
+  
+  type HTMLCounterState = {
+    count: number
+    isRunning: boolean
+    timerId: number
+  }
+
+  // Plain HTML animation with no SVG
+  const htmlCounter: Template<Metavars<{}, HTMLCounterState>> = {
+    state: {
+      count: 0,
+      isRunning: false,
+      timerId: 0
+    },
+    handler: {
+      onMount() {
+        this.startCounting();
+      },
+      
+      onDestroy() {
+        this.stopCounting();
+      },
+      
+      startCounting() {
+        if (this.state.isRunning) return;
+        
+        this.state.isRunning = true;
+        
+        this.state.timerId = window.setInterval(() => {
+          this.state.count++;
+          console.log("Count:", this.state.count);
+        }, 1000);
+      },
+      
+      stopCounting() {
+        window.clearInterval(this.state.timerId);
+        this.state.isRunning = false;
+      },
+      
+      toggleCounting() {
+        if (this.state.isRunning) {
+          this.stopCounting();
+        } else {
+          this.startCounting();
+        }
+      }
+    },
+    default: `
+      <div style="padding: 20px; border: 2px solid #333; margin: 20px;">
+        <h2>Simple HTML Counter</h2>
+        
+        <div style="font-size: 48px; text-align: center; padding: 20px; background-color: #f0f0f0;">
+          {state.count}
+        </div>
+        
+        <button style="margin-top: 10px; padding: 5px 10px;" on-click(toggleCounting)>
+          {state.isRunning ? 'Pause' : 'Start'}
+        </button>
+      </div>
+    `
+  };
+  
+  const lips = new Lips({ debug: true });
+  
+  // Register all components
+  lips.register('animated-circle', animatedCircle);
+  lips.register('color-rects', colorChangingRects);
+  lips.register('html-counter', htmlCounter);
+  
+  // Create a test app with all three components
+  const app: Template<Metavars<{}, {}>> = {
+    default: `
+      <div style="max-width: 1200px; margin: 0 auto; padding: 20px;">
+        <h1>Animation Tests</h1>
+        <p>Testing different animation approaches with Lips</p>
+        
+        <!-- Test 1: HTML Count -->
+        <!-- <html-counter/> -->
+
+        <!-- Test 2: SVG with color changes -->
+        <!-- <color-rects/> -->
+        
+        <!-- Test 3: SVG with position animation -->
+        <animated-circle/>
+      </div>
+    `
+  };
+  
+  // Render the app
+  lips.render('AnimationDemo', app).appendTo('body');
+}
+
+function ParticleSystemDemo() {
+  // Types for our particle system component
+  type ParticleSystemInput = {
+    title?: string
+    width?: number
+    height?: number
+    particleCount?: number
+    maxParticleSize?: number
+    minParticleSize?: number
+    speedFactor?: number
+    colorScheme?: 'rainbow' | 'fire' | 'ocean' | 'grayscale'
+    interactive?: boolean
+    showStats?: boolean
+    useGravity?: boolean
+  }
+
+  type Particle = {
+    id: number
+    x: number
+    y: number
+    size: number
+    vx: number
+    vy: number
+    color: string
+    alpha: number
+    rotation: number
+    rotationSpeed: number
+    life: number
+    maxLife: number
+  }
+
+  type ParticleSystemState = {
+    particles: Particle[]
+    animationFrame: number
+    isRunning: boolean
+    mouseX: number
+    mouseY: number
+    hasMouseInput: boolean
+    emissionRate: number
+    frameCount: number
+    lastFrameTime: number
+    fps: number
+    statsUpdateCounter: number
+    emitterX: number
+    emitterY: number
+    gravity: number
+    wind: number
+    turbulence: number
+  }
+
+  // Default input values
+  const DEFAULT_INPUT: ParticleSystemInput = {
+    title: "Interactive Particle System",
+    width: 800,
+    height: 500,
+    particleCount: 200,
+    maxParticleSize: 15,
+    minParticleSize: 2,
+    speedFactor: 1,
+    colorScheme: 'rainbow',
+    interactive: true,
+    showStats: true,
+    useGravity: true
+  }
+
+  // Create the particle system component template
+  const particleSystem: Template<Metavars<ParticleSystemInput, ParticleSystemState>> = {
+    state: {
+      particles: [],
+      animationFrame: 0,
+      isRunning: false,
+      mouseX: 0,
+      mouseY: 0,
+      hasMouseInput: false,
+      emissionRate: 3,
+      frameCount: 0,
+      lastFrameTime: 0,
+      fps: 0,
+      statsUpdateCounter: 0,
+      emitterX: 0,
+      emitterY: 0,
+      gravity: 0.1,
+      wind: 0,
+      turbulence: 0.05
+    },
+    handler: {
+      // Initialize the component
+      onCreate() {
+        // Set default values for undefined inputs
+        if (!this.input.width) this.input.width = DEFAULT_INPUT.width
+        if (!this.input.height) this.input.height = DEFAULT_INPUT.height
+        if (!this.input.title) this.input.title = DEFAULT_INPUT.title
+        if (!this.input.particleCount) this.input.particleCount = DEFAULT_INPUT.particleCount
+        if (!this.input.maxParticleSize) this.input.maxParticleSize = DEFAULT_INPUT.maxParticleSize
+        if (!this.input.minParticleSize) this.input.minParticleSize = DEFAULT_INPUT.minParticleSize
+        if (!this.input.speedFactor) this.input.speedFactor = DEFAULT_INPUT.speedFactor
+        if (!this.input.colorScheme) this.input.colorScheme = DEFAULT_INPUT.colorScheme
+        if (this.input.interactive === undefined) this.input.interactive = DEFAULT_INPUT.interactive
+        if (this.input.showStats === undefined) this.input.showStats = DEFAULT_INPUT.showStats
+        if (this.input.useGravity === undefined) this.input.useGravity = DEFAULT_INPUT.useGravity
+        
+        // Initialize emitter at center
+        if (this.input.width && this.input.height) {
+          this.state.emitterX = this.input.width / 2
+          this.state.emitterY = this.input.height / 2
+        }
+      },
+      
+      // When component mounts, start the animation
+      onMount() {
+        // Add event listeners if interactive
+        if (this.input.interactive) {
+          const container = document.querySelector('.particle-system-container')
+          if (container) {
+            container.addEventListener('mousemove', this.handleMouseMove.bind(this))
+            container.addEventListener('mouseleave', this.handleMouseLeave.bind(this))
+          }
+        }
+        
+        // setTimeout(() => {
+        //   this.startAnimation()
+        // }, 200)
+      },
+      
+      // Cleanup when component is destroyed
+      onDestroy() {
+        this.stopAnimation()
+        
+        // Remove event listeners
+        if (this.input.interactive) {
+          const container = document.querySelector('.particle-system-container')
+          if (container) {
+            container.removeEventListener('mousemove', this.handleMouseMove.bind(this))
+            container.removeEventListener('mouseleave', this.handleMouseLeave.bind(this))
+          }
+        }
+      },
+      
+      // Handle mouse movement for interactive mode
+      handleMouseMove(event: MouseEvent) {
+        const container = event.currentTarget as HTMLElement
+        const rect = container.getBoundingClientRect()
+        
+        this.state.mouseX = event.clientX - rect.left
+        this.state.mouseY = event.clientY - rect.top
+        this.state.hasMouseInput = true
+        
+        // Update emitter position to follow mouse
+        this.state.emitterX = this.state.mouseX
+        this.state.emitterY = this.state.mouseY
+      },
+      
+      // Handle mouse leaving the container
+      handleMouseLeave() {
+        this.state.hasMouseInput = false
+        
+        // Reset emitter to center when mouse leaves
+        if (this.input.width && this.input.height) {
+          this.state.emitterX = this.input.width / 2
+          this.state.emitterY = this.input.height / 2
+        }
+      },
+      
+      // Generate a random color based on the color scheme
+      getRandomColor() {
+        const scheme = this.input.colorScheme || 'rainbow'
+        
+        if (scheme === 'rainbow') {
+          const hue = Math.random() * 360
+          return `hsl(${hue}, 80%, 60%)`
+        } else if (scheme === 'fire') {
+          const hue = Math.random() * 60 + 10 // 10 to 70 (red to yellow)
+          const saturation = 80 + Math.random() * 20 // 80% to 100%
+          const lightness = 50 + Math.random() * 20 // 50% to 70%
+          return `hsl(${hue}, ${saturation}%, ${lightness}%)`
+        } else if (scheme === 'ocean') {
+          const hue = Math.random() * 60 + 180 // 180 to 240 (cyan to blue)
+          const saturation = 70 + Math.random() * 30 // 70% to 100%
+          const lightness = 40 + Math.random() * 30 // 40% to 70%
+          return `hsl(${hue}, ${saturation}%, ${lightness}%)`
+        } else if (scheme === 'grayscale') {
+          const value = Math.floor(Math.random() * 200 + 55) // 55 to 255
+          return `rgb(${value}, ${value}, ${value})`
+        }
+        
+        // Default fallback
+        return `hsl(${Math.random() * 360}, 80%, 60%)`
+      },
+      
+      // Create a new particle
+      createParticle() {
+        if (!this.input.width || !this.input.height) return null
+        
+        const id = Math.random() * 100000 | 0
+        const minSize = this.input.minParticleSize || 2
+        const maxSize = this.input.maxParticleSize || 15
+        const size = minSize + Math.random() * (maxSize - minSize)
+        
+        // Determine starting position (from emitter)
+        const x = this.state.emitterX
+        const y = this.state.emitterY
+        
+        // Random velocity with speed factor
+        const speedFactor = this.input.speedFactor || 1
+        const angle = Math.random() * Math.PI * 2
+        const speed = (0.5 + Math.random() * 2) * speedFactor
+        const vx = Math.cos(angle) * speed
+        const vy = Math.sin(angle) * speed
+        
+        // Random rotation
+        const rotation = Math.random() * Math.PI * 2
+        const rotationSpeed = (Math.random() - 0.5) * 0.1
+        
+        // Lifetime and opacity
+        const maxLife = 50 + Math.random() * 100
+        
+        return {
+          id,
+          x,
+          y,
+          size,
+          vx,
+          vy,
+          color: this.getRandomColor(),
+          alpha: 0.7 + Math.random() * 0.3,
+          rotation,
+          rotationSpeed,
+          life: 0,
+          maxLife
+        }
+      },
+      
+      // Update particle positions and properties
+      updateParticles() {
+        if (!this.input.width || !this.input.height) return
+        
+        // Add new particles based on emission rate
+        for (let i = 0; i < this.state.emissionRate; i++) {
+          if (this.state.particles.length < (this.input.particleCount || 200)) {
+            const newParticle = this.createParticle()
+            if (newParticle) {
+              this.state.particles.push(newParticle)
+            }
+          }
+        }
+        
+        // Update existing particles
+        this.state.particles = this.state.particles.filter(particle => {
+          // Update position
+          particle.x += particle.vx
+          particle.y += particle.vy
+          
+          // Apply gravity if enabled
+          if (this.input.useGravity) {
+            particle.vy += this.state.gravity
+          }
+          
+          // Apply wind
+          particle.vx += this.state.wind
+          
+          // Apply turbulence (random movement)
+          particle.vx += (Math.random() - 0.5) * this.state.turbulence
+          particle.vy += (Math.random() - 0.5) * this.state.turbulence
+          
+          // Update rotation
+          particle.rotation += particle.rotationSpeed
+          
+          // Update life
+          particle.life += 1
+          
+          // Calculate alpha based on life percentage
+          const lifePercentage = particle.life / particle.maxLife
+          particle.alpha = 1 - Math.pow(lifePercentage, 2)
+          
+          // Boundary checks with screen edges
+          const halfSize = particle.size / 2
+          
+          // Bounce off walls with energy loss
+          if (particle.x - halfSize < 0) {
+            particle.x = halfSize
+            particle.vx = -particle.vx * 0.5
+          } else if ( this.input.width && particle.x + halfSize > this.input.width) {
+            particle.x = this.input.width - halfSize
+            particle.vx = -particle.vx * 0.5
+          }
+          
+          // Ground collision with bounce
+          if (this.input.height && particle.y + halfSize > this.input.height) {
+            particle.y = this.input.height - halfSize
+            
+            // Only bounce if velocity is significant
+            if (Math.abs(particle.vy) > 0.5) {
+              particle.vy = -particle.vy * 0.4 // Bounce with energy loss
+            } else {
+              particle.vy = 0 // Stop if too slow
+              // Add friction to horizontal movement
+              particle.vx *= 0.95
+            }
+          }
+          
+          // Keep particles that are still alive
+          return particle.life < particle.maxLife
+        })
+      },
+      
+      // Start the animation loop
+      startAnimation() {
+        if (this.state.isRunning) return
+        
+        this.state.isRunning = true
+        this.state.lastFrameTime = performance.now()
+        
+        const animate = () => {
+          if (!this.state.isRunning) return
+          
+          // Calculate FPS
+          const now = performance.now()
+          const delta = now - this.state.lastFrameTime
+          this.state.lastFrameTime = now
+          
+          // Update FPS counter every 10 frames
+          this.state.statsUpdateCounter++
+          if (this.state.statsUpdateCounter >= 10) {
+            this.state.fps = Math.round(1000 / delta)
+            this.state.statsUpdateCounter = 0
+          }
+          
+          // Update particles
+          this.updateParticles()
+          
+          // Update frame counter
+          this.state.frameCount++
+          
+          // Vary wind and turbulence over time for natural movement
+          this.state.wind = Math.sin(this.state.frameCount * 0.01) * 0.05
+          this.state.turbulence = 0.03 + Math.sin(this.state.frameCount * 0.005) * 0.02
+          
+          // Schedule the next frame
+          this.state.animationFrame = requestAnimationFrame(animate)
+        }
+        
+        this.state.animationFrame = requestAnimationFrame(animate)
+      },
+      
+      // Stop the animation loop
+      stopAnimation() {
+        this.state.isRunning = false
+        cancelAnimationFrame(this.state.animationFrame)
+      },
+      
+      // Toggle the animation
+      toggleAnimation() {
+        if (this.state.isRunning) {
+          this.stopAnimation()
+        } else {
+          this.startAnimation()
+        }
+      },
+      
+      // Change color scheme
+      changeColorScheme(scheme: 'rainbow' | 'fire' | 'ocean' | 'grayscale') {
+        this.input.colorScheme = scheme
+      },
+      
+      // Increase particle count
+      increaseParticleCount() {
+        if (this.input.particleCount) {
+          this.input.particleCount = Math.min(1000, this.input.particleCount + 50)
+        }
+      },
+      
+      // Decrease particle count
+      decreaseParticleCount() {
+        if (this.input.particleCount) {
+          this.input.particleCount = Math.max(50, this.input.particleCount - 50)
+        }
+      },
+      
+      // Toggle gravity
+      toggleGravity() {
+        this.input.useGravity = !this.input.useGravity
+        if (!this.input.useGravity) {
+          // Reset all particle vertical velocities when turning off gravity
+          this.state.particles.forEach(p => {
+            p.vy *= 0.5
+          })
+        }
+      },
+      
+      // Increase emission rate
+      increaseEmissionRate() {
+        this.state.emissionRate = Math.min(20, this.state.emissionRate + 1)
+      },
+      
+      // Decrease emission rate
+      decreaseEmissionRate() {
+        this.state.emissionRate = Math.max(1, this.state.emissionRate - 1)
+      },
+      
+      getParticlePoints( particle ){
+        // Large particles are stars or polygons
+        const points = []
+        const spikes = 5
+        const outerRadius = particle.size / 2
+        const innerRadius = particle.size / 4
+        
+        for (let i = 0; i < spikes * 2; i++) {
+          const radius = i % 2 === 0 ? outerRadius : innerRadius
+          const angle = (Math.PI / spikes) * i
+          const x = particle.x + radius * Math.sin(angle)
+          const y = particle.y + radius * Math.cos(angle)
+          points.push(`${x},${y}`)
+        }
+        
+        return points.join(' ')
+      }
+    },
+    
+    // The component template with correct syntax
+    default: `
+      <div class="particle-system-container" style="{ width: (Number( input.width ) + 40 )+'px', height: (Number( input.height ) + 280)+'px' }">
+        <h2 class="particle-system-title">{input.title}</h2>
+        
+        <svg class="particle-system-svg" 
+            width=input.width 
+            height=input.height 
+            viewBox="'0 0 '+ input.width +' '+ input.height">
+          
+          <!-- Background gradient -->
+          <defs>
+            <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" style="stop-color:#111122;stop-opacity:1" />
+              <stop offset="100%" style="stop-color:#222244;stop-opacity:1" />
+            </linearGradient>
+          </defs>
+          
+          <!-- Background -->
+          <rect width=input.width height=input.height fill="url(#bg-gradient)" />
+          
+          <!-- Emitter -->
+          <if( state.hasMouseInput || input.interactive )>
+            <circle
+              cx=state.emitterX
+              cy=state.emitterY
+              r="10"
+              fill="rgba(255, 255, 255, 0.5)"
+              stroke="white"
+              stroke-width="2"
+            />
+          </if>
+          
+          <!-- Particles -->
+          <if( state.particles.length )>
+            <for [particle] in=state.particles>
+              <if( particle.size < 5 )>
+                <circle
+                  cx=particle.x
+                  cy=particle.y
+                  r=(particle.size/2)
+                  fill=particle.color
+                  opacity=particle.alpha.toFixed(2)
+                  transform="'rotate('+ particle.rotation * 180 / Math.PI +', '+ particle.x +', '+ particle.y +')'"/>
+              </if>
+              <else-if( particle.size < 10 )>
+                <rect 
+                  x=(particle.x - particle.size/2)
+                  y=(particle.y - particle.size/2)
+                  width=particle.size
+                  height=particle.size
+                  fill=particle.color
+                  opacity=particle.alpha.toFixed(2)
+                  transform="'rotate('+ particle.rotation * 180 / Math.PI +', '+ particle.x +', '+ particle.y +')'"/>
+              </else-if>
+              <else>
+                <polygon
+                  points=self.getParticlePoints(particle)
+                  fill=particle.color
+                  opacity=particle.alpha.toFixed(2)
+                  transform="'rotate('+ particle.rotation * 180 / Math.PI +', '+ particle.x +', '+ particle.y +')'"/>
+              </else>
+            </for>
+          </if>
+        </svg>
+        
+        <div class="particle-system-controls">
+          <button class="'particle-system-button '+(state.isRunning ? 'stop' : '')" 
+                  on-click(toggleAnimation)>
+            {state.isRunning ? 'Pause' : 'Start'} Animation
+          </button>
+          
+          <button class="particle-system-button" on-click(increaseParticleCount)>
+            More Particles
+          </button>
+          
+          <button class="particle-system-button" on-click(decreaseParticleCount)>
+            Less Particles
+          </button>
+          
+          <button class="particle-system-button" on-click(toggleGravity)>
+            {input.useGravity ? 'Disable' : 'Enable'} Gravity
+          </button>
+          
+          <button class="particle-system-button" on-click(increaseEmissionRate)>
+            Faster Emission
+          </button>
+          
+          <button class="particle-system-button" on-click(decreaseEmissionRate)>
+            Slower Emission
+          </button>
+          
+          <div class="particle-system-color-controls">
+            <span>Color: </span>
+            <button class="color-button rainbow" on-click(changeColorScheme, 'rainbow')></button>
+            <button class="color-button fire" on-click(changeColorScheme, 'fire')></button>
+            <button class="color-button ocean" on-click(changeColorScheme, 'ocean')></button>
+            <button class="color-button grayscale" on-click(changeColorScheme, 'grayscale')></button>
+          </div>
+        </div>
+        
+        <if(input.showStats)>
+          <div class="particle-system-stats">
+            <div class="stat-item">Status: <b>{state.isRunning ? 'Running' : 'Paused'}</b></div>
+            <div class="stat-item">FPS: <b>{state.fps}</b></div>
+            <div class="stat-item">Particles: <b>{state.particles.length} / {input.particleCount}</b></div>
+            <div class="stat-item">Emission Rate: <b>{state.emissionRate}/frame</b></div>
+            <div class="stat-item">Color Scheme: <b>{input.colorScheme}</b></div>
+            <div class="stat-item">Gravity: <b>{input.useGravity ? 'On' : 'Off'}</b></div>
+          </div>
+        </if>
+      </div>
+    `,
+
+    // CSS styles for the particle system
+    stylesheet: `
+      .particle-system-container {
+        font-family: Arial, sans-serif;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        margin: 20px auto;
+        background-color: #1a1a2e;
+        color: white;
+        overflow: hidden;
+      }
+      
+      .particle-system-title {
+        font-size: 20px;
+        margin-bottom: 15px;
+        color: #eee;
+        text-align: center;
+      }
+      
+      .particle-system-svg {
+        display: block;
+        border-radius: 4px;
+        margin-bottom: 15px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      }
+      
+      .particle-system-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-bottom: 15px;
+        justify-content: center;
+      }
+      
+      .particle-system-button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        background-color: #4a5bf7;
+        color: white;
+        font-size: 14px;
+        cursor: pointer;
+        transition: background-color 0.2s, transform 0.1s;
+      }
+      
+      .particle-system-button:hover {
+        background-color: #6979ff;
+        transform: translateY(-2px);
+      }
+      
+      .particle-system-button:active {
+        transform: translateY(0);
+      }
+      
+      .particle-system-button.stop {
+        background-color: #f75a5a;
+      }
+      
+      .particle-system-button.stop:hover {
+        background-color: #ff7979;
+      }
+      
+      .particle-system-stats {
+        background-color: rgba(0, 0, 0, 0.2);
+        padding: 15px;
+        border-radius: 4px;
+        font-size: 14px;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+      }
+      
+      .stat-item {
+        margin-bottom: 5px;
+        color: white;
+      }
+      
+      .particle-system-color-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      
+      .color-button {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        border: 2px solid white;
+        cursor: pointer;
+        transition: transform 0.2s;
+      }
+      
+      .color-button:hover {
+        transform: scale(1.2);
+      }
+      
+      .color-button.rainbow {
+        background: linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet);
+      }
+      
+      .color-button.fire {
+        background: linear-gradient(to bottom, yellow, orange, red);
+      }
+      
+      .color-button.ocean {
+        background: linear-gradient(to bottom, #00e1ff, #0077ff, #0033cc);
+      }
+      
+      .color-button.grayscale {
+        background: linear-gradient(to bottom, white, gray, black);
+      }
+    `
+  }
+
+  const lips = new Lips({ debug: false })
+  
+  // Register the particle system component
+  lips.register('particle-system', particleSystem)
+  
+  // Create a demo app that uses multiple particle systems
+  const demoApp: Template<Metavars<{}, {}>> = {
+    default: `
+      <div style="max-width: 1200px; margin: 0 auto; padding: 20px; background-color: #121212;">
+        <h1 style="color: white; text-align: center;">Particle System Performance Test</h1>
+        <p style="color: #ccc; text-align: center;">This demo creates multiple particle systems with different configurations to test Lips performance.</p>
+        
+        <div style="display: flex; flex-direction: column; gap: 30px;">
+          <!-- High-performance particle system -->
+          <particle-system 
+            title="High-Performance System (500 particles)" 
+            width="600" 
+            height="400"
+            particleCount="500"
+            maxParticleSize="12"
+            minParticleSize="2"
+            speedFactor="1.2"
+            colorScheme="rainbow"
+            interactive="true"
+            showStats="true"
+            useGravity="true"/>
+            
+          <!-- Medium-performance systems side by side -->
+          <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
+            <particle-system
+              title="Fire Effect"
+              width="400"
+              height="300"
+              particleCount="200" 
+              speedFactor="0.8"
+              colorScheme="fire"
+              interactive="true"
+              showStats="true"
+              useGravity="true"/>
+              
+            <particle-system
+              title="Ocean Effect"
+              width="400"
+              height="300"
+              particleCount="200" 
+              speedFactor="0.8"
+              colorScheme="ocean"
+              interactive="true"
+              showStats="true"
+              useGravity="false"/>
+          </div>
+          
+          <!-- Small particle system for comparison -->
+          <particle-system
+            title="Low-Performance System (50 particles)"
+            width="300"
+            height="200"
+            particleCount="50" 
+            speedFactor="0.5"
+            colorScheme="grayscale"
+            interactive="true"
+            showStats="true"
+            useGravity="true"/>
+        </div>
+      </div>
+    `
+  }
+  
+  // Render the demo app
+  lips.render('ParticleSystemDemo', demoApp).appendTo('body')
+}
+
+// WaveGraphDemo()
+// AnimationDemo()
+ParticleSystemDemo()
+
+/**
+ * ------------------------------------------------------------------------- 
+ */

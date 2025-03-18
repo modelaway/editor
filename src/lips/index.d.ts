@@ -35,12 +35,15 @@ export type Declaration = {
 
 export interface Handler<MT extends Metavars> {
   onCreate?: ( this: Component<MT> ) => void
-  onInput?: ( this: Component<MT>, input: Input ) => void
+  onInput?: ( this: Component<MT>, input: MT['Input'] ) => void
   onMount?: ( this: Component<MT> ) => void
   onRender?: ( this: Component<MT> ) => void
   onUpdate?: ( this: Component<MT> ) => void
+  onAttach?: ( this: Component<MT> ) => void
+  onDetach?: ( this: Component<MT> ) => void
+  onContext?: ( this: Component<MT> ) => void
 
-  [index: string]: ( this: Component<MT>, ...args: any[] ) => void
+  [method: string]: ( this: Component<MT>, ...args: any[] ) => void
 }
 export type Template<MT extends Metavars> = {
   default?: string
@@ -123,6 +126,10 @@ export interface FGUDependency {
   update: ( memo: VariableSet, by?: string ) => FGUSync | void
 }
 export type FGUDependencies = Map<string, Map<string, FGUDependency>>
+export type FGUDBatchEntry = {
+  dep: string
+  dependent: FGUDependency
+}
 
 export type RenderedNode = {
   $log: Cash
@@ -136,8 +143,8 @@ export type FragmentBoundaries = {
 export interface MeshRenderer {
   path: string | null
   argv: string[]
-  mesh( argv?: VariableSet ): Cash
-  update( argv: VariableSet, boundaries?: FragmentBoundaries ): Cash
+  mesh( argvalues?: VariableSet ): Cash
+  update( deps: string[], argvalues: VariableSet, boundaries?: FragmentBoundaries ): Cash
 }
 export type MeshTemplate = Record<string, any> & {
   renderer: MeshRenderer
@@ -147,6 +154,7 @@ export interface MeshWireSetup {
   scope: VariableSet = {}
   declaration?: Declaration
   useAttributes: boolean
+  xmlns?: boolean
   
   $node: Cash
   meshPath: string | null

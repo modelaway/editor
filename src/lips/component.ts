@@ -5,6 +5,7 @@ import type {
   ComponentScope,
   ComponentOptions,
   InteractiveMetavars,
+  Variable,
   VariableSet,
   MeshRenderer,
   MeshTemplate,
@@ -38,7 +39,6 @@ import {
 } from './utils'
 
 export default class Component<MT extends Metavars> extends Events {
-  private template: string
   private declaration: Declaration
   private $?: Cash | null = null
 
@@ -52,6 +52,7 @@ export default class Component<MT extends Metavars> extends Events {
 
   public __name__: string
   public __path__: string
+  private __template__: string
   private __previous: InteractiveMetavars<MT>
   private __stylesheet?: Stylesheet
   private __macros: Map<string, Macro> = new Map() // Cached macros templates
@@ -68,9 +69,9 @@ export default class Component<MT extends Metavars> extends Events {
   private debug = false
   private isRendered = false
 
-  private _setInput: ( input: MT['Input'] ) => void
-  private _setState: ( state: MT['State'] ) => void
-  private _getState: () => MT['State'] | undefined
+  private __setInput: ( input: MT['Input'] ) => void
+  private __setState: ( state: MT['State'] ) => void
+  private __getState: () => MT['State'] | undefined
 
   // Update Queue System for high-frequency DOM updates
   private UQS: UQS<MT>
@@ -93,13 +94,13 @@ export default class Component<MT extends Metavars> extends Events {
   constructor( name: string, template: string, { input, state, context, _static, handler, stylesheet, macros, declaration }: ComponentScope<MT>, options: ComponentOptions ){
     super()
     this.lips = options.lips
-    this.template = preprocessor( template )
-
+    
     if( options?.debug ) this.debug = options.debug
     if( options?.prepath ) this.prepath = options.prepath
 
     this.__name__ = name
     this.__path__ = `${this.prepath}/${this.__name__}`
+    this.__template__ = preprocessor( template )
 
     this.declaration = declaration || { name }
 
@@ -167,9 +168,9 @@ export default class Component<MT extends Metavars> extends Events {
     [ getState, setState ] = signal<MT['State']>( this.state ),
     [ getContext, setContext ] = signal<MT['Context']>( this.context )
 
-    this._setInput = setInput
-    this._setState = setState
-    this._getState = getState
+    this.__setInput = setInput
+    this.__setState = setState
+    this.__getState = getState
 
     /**
      * Register to queue & apply update only when 
@@ -179,7 +180,7 @@ export default class Component<MT extends Metavars> extends Events {
      */
     this.lips.IUC.register( this.__path__, () => {
       isDiff( this.__previous?.state as Record<string, any>, this.state as Record<string, any> )
-      && this._setState({ ...this._getState(), ...this.state })
+      && this.__setState({ ...this.__getState(), ...this.state })
     })
     
     /**
@@ -298,7 +299,7 @@ export default class Component<MT extends Metavars> extends Events {
       return
     
     // Set new input.
-    this._setInput( input )
+    this.__setInput( input )
     
     /**
      * Triggered anytime component recieve new input
@@ -372,7 +373,7 @@ export default class Component<MT extends Metavars> extends Events {
     return this.$?.find( selector )
   }
   
-  render( inpath: string, $nodes?: Cash, scope: VariableSet = {}, sharedDeps?: FGUDependencies ): RenderedNode {
+  render( inpath: string, $nodes?: Cash, scope: VariableSet = {}, sharedDeps?: FGUDependencies, xmlns?: boolean ): RenderedNode {
     const
     dependencies: FGUDependencies = sharedDeps || new Map(),
     attachableEvents: VirtualEvent[] = []
@@ -623,7 +624,7 @@ export default class Component<MT extends Metavars> extends Events {
 
       // Process contents recursively if they exist
       if( $contents.length )
-        $fragment = $fragment.add( self.__withPath__( elementPath, () => self.render( elementPath, $contents, scope, dependencies ).$log ) )
+        $fragment = $fragment.add( self.__withPath__( elementPath, () => self.render( elementPath, $contents, scope, dependencies, xmlns ).$log ) )
 
       return $fragment
     }
@@ -631,7 +632,7 @@ export default class Component<MT extends Metavars> extends Events {
       const
       { attrs } = self.__getAttributes__( $node ),
       elementPath = generatePath('element'),
-      boundaries = self.__createBoundaries__( elementPath )
+      boundaries = self.__getBoundaries__( elementPath )
       
       let
       $fragment = $(boundaries.start),
@@ -699,6 +700,7 @@ export default class Component<MT extends Metavars> extends Events {
               if( typeof spreads !== 'object' )
                 throw new Error(`Invalid spread operator ${key}`)
 
+              const toUpdateDeps: string[] = []
               for( const _key in spreads ){
                 // Only update declared arguments' value
                 if( _key !== '#' && !activeRenderer.argv.includes( _key ) ) continue
@@ -707,9 +709,17 @@ export default class Component<MT extends Metavars> extends Events {
                   type: 'arg',
                   value: spreads[ _key ]
                 }
+                
+                /**
+                 * Schedule only what changed to be
+                 * updated.
+                 */
+                !isEqual( spreads[ _key ], memo[ _key ].value ) 
+                && toUpdateDeps.push( _key )
               }
 
-              activeRenderer.update( extracted, boundaries )
+              toUpdateDeps.length 
+              && activeRenderer.update( toUpdateDeps, extracted, boundaries )
             }
 
             deps.forEach( dep => self.__trackDep__( dependencies, dep, {
@@ -727,7 +737,7 @@ export default class Component<MT extends Metavars> extends Events {
             partialUpdate = ( memo: VariableSet, by?: string ) => {
               if( !activeRenderer ) return
 
-              activeRenderer.update({
+              activeRenderer.update( [ key ], {
                 [key]: {
                   type: 'arg',
                   value: value ? self.__evaluate__( value, memo ) : true
@@ -753,7 +763,7 @@ export default class Component<MT extends Metavars> extends Events {
         updateDynamicElement = ( memo: VariableSet, by?: string ) => {
           // Update the mesh scope with new values
           argvalues = { ...memo, ...argvalues }
-
+          
           /**
            * Re-evaluate dynamic tag expression before 
            * re-rendering the element
@@ -815,7 +825,7 @@ export default class Component<MT extends Metavars> extends Events {
       
       const
       componentPath = generatePath('component'),
-      boundaries = self.__createBoundaries__( componentPath ),
+      boundaries = self.__getBoundaries__( componentPath ),
       { argv, attrs, events } = self.__getAttributes__( $node ),
       TRACKABLE_ATTRS: Record<string, string> = {}
 
@@ -886,6 +896,7 @@ export default class Component<MT extends Metavars> extends Events {
             meshPath: null,
             argv,
             scope,
+            xmlns,
             useAttributes: true,
             declaration: template.declaration,
           }, TRACKABLE_ATTRS )
@@ -923,6 +934,7 @@ export default class Component<MT extends Metavars> extends Events {
                         fragmentBoundaries: boundaries,
                         argv,
                         scope,
+                        xmlns,
                         useAttributes: true,
                         declaration: template.declaration
                       }, TRACKABLE_ATTRS ) )
@@ -945,6 +957,7 @@ export default class Component<MT extends Metavars> extends Events {
                         fragmentBoundaries: boundaries,
                         argv,
                         scope,
+                        xmlns,
                         useAttributes: true,
                         declaration: template.declaration
                       }, TRACKABLE_ATTRS )
@@ -962,6 +975,7 @@ export default class Component<MT extends Metavars> extends Events {
                         fragmentBoundaries: boundaries,
                         argv,
                         scope,
+                        xmlns,
                         useAttributes: true,
                         declaration: template.declaration
                       }, TRACKABLE_ATTRS ) )
@@ -975,6 +989,7 @@ export default class Component<MT extends Metavars> extends Events {
                       fragmentBoundaries: boundaries,
                       argv,
                       scope,
+                      xmlns,
                       useAttributes: true,
                       declaration: template.declaration
                     }, TRACKABLE_ATTRS )
@@ -1106,7 +1121,7 @@ export default class Component<MT extends Metavars> extends Events {
       
       const
       macroPath = generatePath('macro'),
-      boundaries = self.__createBoundaries__( macroPath ),
+      boundaries = self.__getBoundaries__( macroPath ),
       { attrs } = self.__getAttributes__( $node ),
       TRACKABLE_ATTRS: Record<string, string> = {}
       
@@ -1215,6 +1230,7 @@ export default class Component<MT extends Metavars> extends Events {
         fragmentBoundaries: boundaries,
         argv: macro.argv,
         scope,
+        xmlns,
         useAttributes: true
       },
       macrowire = self.__meshwire__( setup, TRACKABLE_ATTRS ),
@@ -1235,59 +1251,73 @@ export default class Component<MT extends Metavars> extends Events {
         }
 
         if( SPREAD_VAR_PATTERN.test( key ) ){
-          const spreadvalues = ( memo: VariableSet ) => {
+          if( !self.__isReactive__( key as string, scope ) ) return
+
+          const 
+          deps = self.__extractExpressionDeps__( key as string, scope ),
+          spreadvalues = ( memo: VariableSet ) => {
             const
             extracted: VariableSet = {},
             spreads = self.__evaluate__( key.replace( SPREAD_VAR_PATTERN, '' ) as string, memo )
             if( typeof spreads !== 'object' )
               throw new Error(`Invalid spread operator ${key}`)
 
-            for( const _key in spreads )
+            const toUpdateDeps: string[] = []
+            for( const _key in spreads ){
               extracted[ _key ] = {
                 value: spreads[ _key ],
                 type: 'arg'
               }
-
-            macrowire.renderer.update( extracted )
-          }
-          
-          if( self.__isReactive__( key as string, scope ) ){
-            const deps = self.__extractExpressionDeps__( key as string, scope )
-
-            deps.forEach( dep => self.__trackDep__( dependencies, dep, {
-              $fragment: null,
-              boundaries,
-              path: `${macroPath}.${key}`,
-              update: spreadvalues,
-              syntax: isSyntax,
-              memo: scope,
-              batch: true
-            }) )
-          }
-        }
-        else {
-          const evalue = ( memo: VariableSet ) => {
-            macrowire.renderer.update({
-              [key]: {
-                value: value ? self.__evaluate__( value as string, memo ) : true,
-                type: 'arg'
-              }
-            })
-          }
-          
-          if( self.__isReactive__( value as string, scope ) ){
-            const deps = self.__extractExpressionDeps__( value as string, scope )
+              
+              /**
+               * Schedule only what changed to be
+               * updated.
+               */
+              !isEqual( spreads[ _key ], memo[ _key ].value ) 
+              && toUpdateDeps.push( _key )
+            }
             
-            deps.forEach( dep => self.__trackDep__( dependencies, dep, {
-              $fragment: null,
-              boundaries,
-              path: `${macroPath}.${key}`,
-              update: evalue,
-              syntax: isSyntax,
-              memo: scope,
-              batch: true
-            }) )
+            toUpdateDeps.length
+            && macrowire.renderer.update( toUpdateDeps, extracted )
+
+            return { memo: { ...memo, ...extracted } }
           }
+
+          deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+            $fragment: null,
+            boundaries,
+            path: `${macroPath}.${key}`,
+            update: spreadvalues,
+            syntax: isSyntax,
+            memo: { ...scope, ...argvalues },
+            batch: true
+          }) )
+        }
+        else if( self.__isReactive__( value as string, scope ) ){
+          const
+          deps = self.__extractExpressionDeps__( value as string, scope ),
+          evalue = ( memo: VariableSet ) => {
+            const
+            newvalue: Variable =
+            memo[ key ] = {
+              value: value ? self.__evaluate__( value as string, memo ) : true,
+              type: 'arg'
+            }
+
+            macrowire.renderer.update( [ key ], { [ key ]: newvalue } )
+
+            return { memo }
+          }
+        
+          deps.forEach( dep => self.__trackDep__( dependencies, dep, {
+            $fragment: null,
+            boundaries,
+            path: `${macroPath}.${key}`,
+            update: evalue,
+            syntax: isSyntax,
+            memo: { ...scope, ...argvalues },
+            batch: true
+          }) )
         }
       })
 
@@ -1303,15 +1333,31 @@ export default class Component<MT extends Metavars> extends Events {
     function execElement( $node: Cash ): Cash {
       if( !$node.length || !$node.prop('tagName') ) return $node
 
-      const elementPath = generatePath('element')
-
+      /**
+       * Special treatement for SVG xml tags
+       * because of their delicate namespace
+       * definition.
+       * 
+       * Note: `xmlns` to indicate to and xmlns 
+       * parent tag's nexted contents, like
+       * 
+       * - rect
+       * - path
+       * - circle
+       * - etc
+       */
       const
-      $fragment = $(`<${$node.prop('tagName').toLowerCase()}/>`),
-      $contents = $node.contents()
-
+      isXMLNS = $node.is('svg') || xmlns,
+      $fragment = isXMLNS
+                    ? $(document.createElementNS('http://www.w3.org/2000/svg', $node.prop('tagName').toLowerCase() ))
+                    // Standard HTML element
+                    : $(`<${$node.prop('tagName').toLowerCase()}/>`),
+      $contents = $node.contents(),
+      elementPath = generatePath('element')
+      
       // Process contents recursively if they exist
       $contents.length
-      && $fragment.append( self.__withPath__( elementPath, () => self.render( elementPath +'.n', $contents, scope, dependencies ).$log ) )
+      && $fragment.append( self.__withPath__( elementPath, () => self.render( elementPath +'.n', $contents, scope, dependencies, isXMLNS ).$log ) )
 
       const { attrs, events } = self.__getAttributes__( $node )
       /**
@@ -1605,7 +1651,7 @@ export default class Component<MT extends Metavars> extends Events {
       this.__renderDepth++
 
       // Process nodes
-      $nodes = $nodes || $(this.template)
+      $nodes = $nodes || $(this.__template__)
       $nodes.each( function(){
         const $node = parse( $(this) )
         if( $node ) _$ = _$.add( $node )
@@ -1721,13 +1767,14 @@ export default class Component<MT extends Metavars> extends Events {
       fragmentBoundaries,
       argv,
       scope,
+      xmlns,
       declaration,
       useAttributes
     } = setup
 
     let
     PARTIAL_CONTENT: Cash | undefined,
-    ITERATOR_SCOPE: VariableSet[] | undefined
+    ITERATOR_REGISTRY: Array<{ boundaries: FragmentBoundaries, argvalues?: VariableSet }> = []
 
     const
     PARTIAL_PATHS: string[] = [],
@@ -1735,7 +1782,7 @@ export default class Component<MT extends Metavars> extends Events {
       // Render the partial
       const
       partialPath = `${fragmentPath}.${meshPath || 'r'}${index !== undefined ? `[${index}]` : ''}`,
-      { $log, dependencies, events } = self.render( partialPath, $contents, { ...scope, ...argvalues } )
+      { $log, dependencies, events } = self.render( partialPath, $contents, { ...scope, ...argvalues }, undefined, xmlns )
 
       PARTIAL_PATHS.push( partialPath )
 
@@ -1762,7 +1809,112 @@ export default class Component<MT extends Metavars> extends Events {
       
       self.benchmark.inc('partialCount')
 
+      /**
+       * Create a dedicated boundaries for each iteration item
+       */
+      if( index !== undefined ){
+        const boundaries = self.__getBoundaries__( partialPath )
+
+        ITERATOR_REGISTRY[ index ] = { argvalues, boundaries }
+
+        let $partial = $(boundaries.start)
+        $partial = $partial.add($log)
+        $partial = $partial.add(boundaries.end)
+        
+        return $partial
+      }
+
       return $log
+    },
+    partialUpdate = ( deps: string[], argvalues: VariableSet, index?: number ) => {
+      // Start measuring
+      self.benchmark.startRender()
+      
+      // Execute partial mesh update
+      deps.forEach( ( dep ) => {
+        const dependents = self.FGUD.get( dep )
+        if( !dependents ) return
+        
+        dependents.forEach( ( dependent ) => {
+          // Process only dependents of this partial
+          const partialPath = PARTIAL_PATHS.find( p => dependent.partial?.find( pp => p == pp ) )
+          if( !dependent.partial || !partialPath ) return
+
+          /**
+           * Targeted iterator item only. 
+           */
+          if( index !== undefined && !new RegExp(`r\\[${index}\\]$`).test( partialPath ) )
+            return
+          
+          if( fragmentBoundaries?.start && !document.contains( fragmentBoundaries.start ) ){
+            console.warn(`${meshPath} -- partial boundaries missing in the DOM`)
+            dependents.delete( dependent.path )
+            return
+          }
+        
+          if( dependent.memo?.[ dep ]
+              && argvalues?.[ dep ]
+              && isEqual( dependent.memo[ dep ], argvalues[ dep ] ) ) return
+
+          dependent.memo = { ...scope, ...dependent.memo, ...argvalues }
+          
+          if( dependent.batch ) self.UQS.queue({ dep, dependent })
+          else {
+            const sync = dependent.update( dependent.memo, 'mesh-partial-updator' )
+            if( sync ){
+              // Adopt new memo
+              typeof sync.memo === 'object'
+              && dependents.set( dependent.path, { ...dependent, memo: sync.memo } )
+
+              // Cleanup callback
+              typeof sync.cleanup === 'function' && sync.cleanup()
+            }
+          }
+
+          self.benchmark.inc('dependencyUpdateCount')
+        } )
+
+        /**
+         * Clean up if no more dependents
+         */
+        !dependents.size && self.FGUD.delete( dep )
+      } )
+      
+      // Update registry
+      if( index !== undefined && ITERATOR_REGISTRY[ index ] )
+        ITERATOR_REGISTRY[ index ].argvalues = argvalues
+
+      // Track update
+      self.benchmark.inc('partialUpdateCount')
+      // Finish measuring
+      self.benchmark.endRender()
+    },
+    partialRemove = ( index: number ) => {
+      if( !ITERATOR_REGISTRY[ index ] ) return
+      console.log( index, ITERATOR_REGISTRY )
+      const boundaries = ITERATOR_REGISTRY[ index ].boundaries
+
+      console.log( boundaries )
+
+      // Must have boundary markers in the DOM
+      if( !document.contains( boundaries.start ) || !document.contains( boundaries.end ) )
+        console.warn(`Partial mesh item<${index}> boundaries missing`)
+        
+      // Collect all nodes between markers to remove
+      const nodesToRemove = []
+      let currentNode = boundaries.start.nextSibling
+
+      while( currentNode && currentNode !== boundaries.end ){
+        nodesToRemove.push( currentNode )
+        currentNode = currentNode.nextSibling
+      }
+
+      // Remove existing content + boundaries
+      $(nodesToRemove).remove()
+      boundaries.start.remove()
+      boundaries.end.remove()
+
+      delete ITERATOR_REGISTRY[ index ]
     },
     wire: MeshTemplate = {
       renderer: {
@@ -1776,11 +1928,11 @@ export default class Component<MT extends Metavars> extends Events {
            * 
            */
           if( declaration?.iterator ){
-            ITERATOR_SCOPE = argvalues?.['#'].value
-            if( !Array.isArray( ITERATOR_SCOPE ) )
+            const itemsValues: VariableSet[] = argvalues?.['#'].value
+            if( !Array.isArray( argvalues?.['#'].value ) )
               throw new Error('Invalid iterator argvalues')
             
-            if( !ITERATOR_SCOPE.length ) return null
+            if( !itemsValues.length ) return null
             
             /**
              * Render many time subsequent content in of an iterator
@@ -1788,7 +1940,7 @@ export default class Component<MT extends Metavars> extends Events {
              * on a one time rendered $log of the same content.
              */
             let $partialLog = $()
-            ITERATOR_SCOPE.forEach( ( values, index ) => {
+            itemsValues.forEach( ( values, index ) => {
               if( !PARTIAL_CONTENT?.length ) return null
               $partialLog = $partialLog.add( partialRender( PARTIAL_CONTENT, values, index ) )
             } )
@@ -1797,138 +1949,58 @@ export default class Component<MT extends Metavars> extends Events {
           }
           else return partialRender( PARTIAL_CONTENT, argvalues )
         },
-        update( argvalues: VariableSet, boundaries?: FragmentBoundaries ){
+        update( deps: string[], argvalues: VariableSet, boundaries?: FragmentBoundaries ){
           if( !PARTIAL_PATHS.length ) return
           
           boundaries = boundaries || fragmentBoundaries
 
           /**
-           * Re-render iterator nodes
+           * Granular rendering of iterator nodes
            */
-          if( declaration?.iterator
-              && Array.isArray( ITERATOR_SCOPE )
-              && Array.isArray( argvalues?.['#'].value )
-              && ITERATOR_SCOPE.length !== argvalues?.['#'].value.length ){
-            if( !PARTIAL_CONTENT?.length ) return
+          if( declaration?.iterator ){
+            const newArgs: VariableSet[] = argvalues?.['#'].value
+            if( !Array.isArray( newArgs ) ) return
 
-            ITERATOR_SCOPE = argvalues?.['#'].value
-            if( !Array.isArray( ITERATOR_SCOPE ) )
-              throw new Error('Invalid iterator argvalues')
-            
-            let $partialLog = $()
-            if( ITERATOR_SCOPE.length ){
-              // Clear existing partial mesh deps
-              self.FGUD.forEach( ( dependents, dep ) => {
-                dependents.forEach( ( dependent ) => {
-                  // Process only dependents of this partial
-                  dependent.partial 
-                  && PARTIAL_PATHS.find( p => dependent.partial?.find( pp => p == pp ) )
-                  && dependents.delete( dependent.path )
-                })
+            if( Array.isArray( ITERATOR_REGISTRY ) ){
+              /**
+               * Perform granular updates when 
+               * length hasn't changed
+               */
+              if( ITERATOR_REGISTRY.length === newArgs.length ){
+                // Update item's dependency without re-rendering
+                for( let i = 0; i < newArgs.length; i++ )
+                  !isEqual( ITERATOR_REGISTRY[ i ].argvalues, newArgs[ i ] )
+                  && partialUpdate( Object.keys( newArgs[ i ] ), newArgs[ i ], i )
 
-                !dependents.size && self.FGUD.delete( dep )
-              })
-
-              // if( ITERATOR_SCOPE.length < argvalues?.['#'].value.length ){
-              //   // TODO: Iterate more nodes
-              //   console.log('----- add more nodes')
-
-              // }
-              // else {
-              //   // TODO: Cleanup nodes && dependencies
-              //   console.log('----- remove nodes')
-              // }
-
-              ITERATOR_SCOPE.forEach( ( values, index ) => {
-                if( !PARTIAL_CONTENT?.length ) return null
-                $partialLog = $partialLog.add( partialRender( PARTIAL_CONTENT, values, index ) )
-              } )
-            }
-
-            // If we have boundary markers and they're in the DOM
-            if( !document.contains( boundaries.start ) || !document.contains( boundaries.end ) )
-              throw new Error('Partial mesh boundaries missing')
-          
-            // Collect all nodes between markers to remove
-            const nodesToRemove = []
-            let currentNode = boundaries.start.nextSibling
-            
-            while( currentNode && currentNode !== boundaries.end ){
-              nodesToRemove.push( currentNode )
-              currentNode = currentNode.nextSibling
-            }
-            
-            // Remove existing content
-            $(nodesToRemove).remove()
-            // Insert new content between markers
-            $partialLog && $(boundaries.start).after( $partialLog )
-          }
-
-          // Update dependencies
-          else {
-            // Start measuring
-            self.benchmark.startRender()
-            
-            // Execute partial mesh update
-            self.FGUD.forEach( ( dependents, dep ) => {
-              dependents.forEach( ( dependent ) => {
-                // Process only dependents of this partial
-                const partialPath = PARTIAL_PATHS.find( p => dependent.partial?.find( pp => p == pp ) )
-                if( !dependent.partial || !partialPath ) return
-                
-                if( (fragmentBoundaries?.start && !document.contains( fragmentBoundaries.start )) ){
-                  console.warn(`${meshPath} -- partial boundaries missing in the DOM`)
-                  dependents.delete( dependent.path )
-                  return
-                }
-                
-                if( declaration?.iterator ){
-                  const
-                  [ _, index ] = partialPath.match(/\[(\d+)\]$/) || [],
-                  argvaluesByIndex = argvalues?.['#'].value[ Number( index ) ]
-                  
-                  if( argvaluesByIndex?.[ dep ]
-                      && dependent.memo?.[ dep ]
-                      && isEqual( dependent.memo[ dep ], argvaluesByIndex[ dep ] ) ) return
-
-                  dependent.memo = { ...scope, ...dependent.memo, ...argvaluesByIndex }
-                }
-                else {
-                  if( dependent.memo?.[ dep ]
-                      && argvalues?.[ dep ]
-                      && isEqual( dependent.memo[ dep ], argvalues[ dep ] ) ) return
-
-                  dependent.memo = { ...scope, ...dependent.memo, ...argvalues }
-                }
-                
-                if( dependent.batch ) self.UQS.queue( dependent.path )
-                else {
-                  const sync = dependent.update( dependent.memo, 'mesh-partial-updator' )
-                  if( sync ){
-                    // Adopt new memo
-                    typeof sync.memo === 'object'
-                    && sync.memo.length
-                    && dependents.set( dependent.path, { ...dependent, memo: sync.memo } )
-
-                    // Cleanup callback
-                    typeof sync.cleanup === 'function' && sync.cleanup()
-                  }
-                }
-
-                self.benchmark.inc('dependencyUpdateCount')
-              } )
+                return
+              }
 
               /**
-               * Clean up if no more dependents
+               * Update incrementally existing items when 
+               * length has changed
                */
-              !dependents.size && self.FGUD.delete( dep )
-            } )
-            
-            // Track update
-            self.benchmark.inc('partialUpdateCount')
-            // Finish measuring
-            self.benchmark.endRender()
+              const existsLength = Math.min( ITERATOR_REGISTRY.length, newArgs.length )
+              for( let i = 0; i < existsLength; i++ )
+                partialUpdate( Object.keys( newArgs[ i ] ), newArgs[ i ], i )
+              
+              // Add new items additions
+              if( newArgs.length > ITERATOR_REGISTRY.length ){
+                if( !PARTIAL_CONTENT?.length ) return
+
+                for( let i = ITERATOR_REGISTRY.length; i < newArgs.length; i++ ){
+                  const $partialLog = partialRender( PARTIAL_CONTENT, newArgs[ i ], i )
+                  $(boundaries.end).before( $partialLog )
+                }
+              }
+              // Remove items
+              else if( newArgs.length < ITERATOR_REGISTRY.length ){
+                for( let i = newArgs.length; i < ITERATOR_REGISTRY.length; i++ )
+                  partialRemove( i )
+              }
+            }
           }
+          // Update dependencies
+          else partialUpdate( deps, argvalues )
         }
       }
     }
@@ -1967,14 +2039,14 @@ export default class Component<MT extends Metavars> extends Events {
 
     return wire
   }
-  private __createBoundaries__( path: string ): FragmentBoundaries {
+  private __getBoundaries__( path: string ): FragmentBoundaries {
     // Track DOM operations for boundary creation
     this.benchmark.inc('domOperations')
     this.benchmark.inc('domInsertsCount')
 
     return {
-      start: document.createComment(`start:${this.prepath}.${path}`),
-      end: document.createComment(`end:${this.prepath}.${path}`)
+      start: document.createComment(`s:${this.prepath}.${path}`),
+      end: document.createComment(`e:${this.prepath}.${path}`)
     }
   }
   private __getAttributes__( $node: Cash ){
@@ -2230,7 +2302,7 @@ export default class Component<MT extends Metavars> extends Events {
   }
   private __updateDepNodes__( current: InteractiveMetavars<MT>, previous: InteractiveMetavars<MT> ){
     if( !this.FGUD?.size ) return
-
+    
     // Track update
     this.benchmark.inc('componentUpdateCount')
     // Start measuring
@@ -2262,7 +2334,7 @@ export default class Component<MT extends Metavars> extends Events {
            * For batch updates, collect all updates first
            * and execute batch once.
            */
-          if( batch ) this.UQS.queue( path )
+          if( batch ) this.UQS.queue({ dep, dependent })
 
           // Immediate update
           else {
@@ -2273,7 +2345,6 @@ export default class Component<MT extends Metavars> extends Events {
                * processors like partial updates.
                */
               typeof sync.memo === 'object'
-              && sync.memo.length
               && dependents.set( path, { ...dependent, memo: sync.memo } )
 
               /**
@@ -2300,7 +2371,7 @@ export default class Component<MT extends Metavars> extends Events {
        */
       !dependents.size && this.FGUD?.delete( dep )
     })
-
+    
     // Finish measuring
     this.benchmark.endRender()
   }
@@ -2314,11 +2385,12 @@ export default class Component<MT extends Metavars> extends Events {
     
     const dependents = this.FGUD.get( dep )
     dependents?.forEach( ( dependent, path ) => {
-      if( !dependent.haslet || !this.__hasSamePathParent__( path, this.__getPathParent__( varPath ) ) ) return
+      if( !dependent.haslet
+          || !this.__hasSamePathParent__( path, this.__getPathParent__( varPath ) ) ) return
 
       dependent.memo = { ...dependent.memo, ...newScope }
       
-      if( dependent.batch ) this.UQS.queue( dependent.path )
+      if( dependent.batch ) this.UQS.queue({ dep, dependent })
       else {
         const sync = dependent.update( dependent.memo, 'var-partial-updator' )
         typeof sync?.cleanup === 'function' && sync.cleanup()

@@ -1,11 +1,11 @@
-import type { Metavars } from '.'
+import type { FGUDBatchEntry, FGUDependency, Metavars } from '.'
 import type Component from './component'
 
 /**
  * Update Queue System for high-frequency DOM updates
  */
 export default class UpdateQueue<MT extends Metavars > {
-  private pending = new Set<string>()
+  private pending = new Set<FGUDBatchEntry>()
   private isPending = false
   private component: Component<MT>
   
@@ -24,15 +24,13 @@ export default class UpdateQueue<MT extends Metavars > {
   /**
    * Queue updates to be processed in the next tick
    */
-  queue( path: string ){
-    this.pending.add( path )
+  queue( entry: FGUDBatchEntry ){
+    this.pending.add( entry )
     this.component.benchmark.inc('dependencyUpdateCount')
     
     // Schedule processing if not already pending
     if( !this.isPending ){
       this.isPending = true
-      
-      this.component.benchmark.trackBatch( this.pending.size )
       this.scheduleProcessing()
     }
   }
@@ -41,33 +39,29 @@ export default class UpdateQueue<MT extends Metavars > {
    * Schedule processing using microtasks for better performance
    */
   private scheduleProcessing(){
-    Promise.resolve().then( () => {
-      this.processQueue()
-    })
+    Promise.resolve().then( () => this.processQueue() )
   }
   
   /**
    * Process all queued updates in a batch
    */
   private processQueue(){
-    // Get all paths to process
-    const pathsToProcess = Array.from( this.pending )
+    // Get all dependency entries to process
+    const entriesToProcess = Array.from( this.pending )
     
     // Update metrics
     this.metrics.batchCount++
-    this.metrics.lastBatchSize = pathsToProcess.length
-    this.metrics.updatesProcessed += pathsToProcess.length
+    this.metrics.lastBatchSize = entriesToProcess.length
+    this.metrics.updatesProcessed += entriesToProcess.length
     this.metrics.avgBatchSize = (this.metrics.updatesProcessed / this.metrics.batchCount).toFixed(2)
     
     // Clear the queue
     this.pending.clear()
+    // Track batch stats
+    this.component.benchmark.trackBatch( entriesToProcess.length )
     
     // Apply all updates
-    this.applyUpdates( pathsToProcess )
-    
-    // Track batch stats
-    this.component.benchmark.trackBatch( pathsToProcess.length )
-    
+    this.applyUpdates( entriesToProcess )
     // Reset pending flag
     this.isPending = false
     
@@ -81,34 +75,23 @@ export default class UpdateQueue<MT extends Metavars > {
   /**
    * Apply updates to the DOM
    */
-  private applyUpdates( paths: string[] ){
-    paths.forEach( path => {
-      this.component.FGUD?.forEach( dependents => {
-        const dependent = dependents.get( path )
-        if( !dependent ) return
-        
-        try {
-          // Apply the update
-          const sync = dependent.update( dependent.memo, 'enhanced-batch-updator' )
-          if( sync ){
-            // Update fragment reference if provided
-            // typeof sync.$fragment === 'object'
-            // && sync.$fragment.length
-            // && dependents.set( path, { ...dependent, $fragment: sync.$fragment } )
-            
-            // Update memo if provided
-            typeof sync.memo === 'object'
-            && sync.memo.length
-            && dependents.set( path, { ...dependent, memo: sync.memo } )
-            
-            // Run cleanup if provided
-            typeof sync.cleanup === 'function' && sync.cleanup()
-          }
+  private applyUpdates( entries: FGUDBatchEntry[] ){
+    entries.forEach( ({ dep, dependent }) => {
+      try {
+        // Apply the update
+        const sync = dependent.update( dependent.memo, 'enhanced-batch-updator' )
+        if( sync ){
+          // Update memo if provided
+          typeof sync.memo === 'object'
+          && this.component.FGUD.get( dep )?.set( dependent.path, { ...dependent, memo: sync.memo } )
+          
+          // Run cleanup if provided
+          typeof sync.cleanup === 'function' && sync.cleanup()
         }
-        catch( error ){
-          console.error( 'Failed to update dependency --', error )
-        }
-      })
+      }
+      catch( error ){
+        console.error( 'Failed to update dependency --', error )
+      }
     })
   }
   

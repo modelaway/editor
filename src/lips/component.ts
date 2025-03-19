@@ -1843,7 +1843,7 @@ export default class Component<MT extends Metavars> extends Events {
           /**
            * Targeted iterator item only. 
            */
-          if( index !== undefined && !new RegExp(`r\\[${index}\\]$`).test( partialPath ) )
+          if( index !== undefined && !partialPath.endsWith(`r[${index}]`) )
             return
           
           if( fragmentBoundaries?.start && !document.contains( fragmentBoundaries.start ) ){
@@ -1891,14 +1891,15 @@ export default class Component<MT extends Metavars> extends Events {
     },
     partialRemove = ( index: number ) => {
       if( !ITERATOR_REGISTRY[ index ] ) return
-      console.log( index, ITERATOR_REGISTRY )
       const boundaries = ITERATOR_REGISTRY[ index ].boundaries
 
-      console.log( boundaries )
+      delete ITERATOR_REGISTRY[ index ]
 
       // Must have boundary markers in the DOM
-      if( !document.contains( boundaries.start ) || !document.contains( boundaries.end ) )
+      if( !document.contains( boundaries.start ) || !document.contains( boundaries.end ) ){
         console.warn(`Partial mesh item<${index}> boundaries missing`)
+        return
+      }
         
       // Collect all nodes between markers to remove
       const nodesToRemove = []
@@ -1913,8 +1914,6 @@ export default class Component<MT extends Metavars> extends Events {
       $(nodesToRemove).remove()
       boundaries.start.remove()
       boundaries.end.remove()
-
-      delete ITERATOR_REGISTRY[ index ]
     },
     wire: MeshTemplate = {
       renderer: {
@@ -2371,7 +2370,7 @@ export default class Component<MT extends Metavars> extends Events {
        */
       !dependents.size && this.FGUD?.delete( dep )
     })
-    
+
     // Finish measuring
     this.benchmark.endRender()
   }

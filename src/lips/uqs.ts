@@ -79,7 +79,7 @@ export default class UpdateQueue<MT extends Metavars > {
     entries.forEach( ({ dep, dependent }) => {
       try {
         // Apply the update
-        const sync = dependent.update( dependent.memo, 'enhanced-batch-updator' )
+        const sync = dependent.update( dependent.memo, 'batch-updator' )
         if( sync ){
           // Update memo if provided
           typeof sync.memo === 'object'

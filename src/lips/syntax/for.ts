@@ -41,7 +41,7 @@ export const handler: Handler<Metavars<Input, State, Static>> = {
     let { in: _in, from: _from, to: _to } = this.input
     if( _in === undefined && _from === undefined )
       throw new Error('Invalid <for> arguments')
-
+    
     this.static.processingBatch = true
     try {
       if( _from !== undefined ){

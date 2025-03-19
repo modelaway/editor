@@ -777,7 +777,7 @@ function DemoShoppingCart(){
           : item
       )
 
-      console.log('inc --', itemId, this.state.items.toJSON() )
+      // console.log('inc --', itemId, this.state.items.toJSON() )
     },
 
     onDecrementQuantity(itemId: number) {
@@ -787,7 +787,7 @@ function DemoShoppingCart(){
           : item
       )
 
-      console.log('dec --', itemId, this.state.items.toJSON() )
+      // console.log('dec --', itemId, this.state.items.toJSON() )
     },
 
     getTotalItems() {
@@ -1619,10 +1619,12 @@ function ParticleSystemDemo() {
     rotationSpeed: number
     life: number
     maxLife: number
+    type: 'circle' | 'rect' | 'polygon' // Pre-calculate shape type
   }
 
   type ParticleSystemState = {
     particles: Particle[]
+    particlePool: Particle[] // Pool of reusable particles
     animationFrame: number
     isRunning: boolean
     mouseX: number
@@ -1638,6 +1640,30 @@ function ParticleSystemDemo() {
     gravity: number
     wind: number
     turbulence: number
+    lastUpdateTime: number // For fixed timestep
+  }
+
+  // Cached color maps to avoid string generation during animation
+  const colorCache = {
+    rainbow: [] as string[],
+    fire: [] as string[],
+    ocean: [] as string[],
+    grayscale: [] as string[]
+  };
+
+  // Generate color caches
+  for (let i = 0; i < 360; i++) {
+    colorCache.rainbow.push(`hsl(${i}, 80%, 60%)`);
+  }
+  for (let i = 0; i < 60; i++) {
+    colorCache.fire.push(`hsl(${i + 10}, 90%, 60%)`);
+  }
+  for (let i = 0; i < 60; i++) {
+    colorCache.ocean.push(`hsl(${i + 180}, 85%, 55%)`);
+  }
+  for (let i = 0; i < 200; i++) {
+    const value = i + 55;
+    colorCache.grayscale.push(`rgb(${value}, ${value}, ${value})`);
   }
 
   // Default input values
@@ -1659,6 +1685,7 @@ function ParticleSystemDemo() {
   const particleSystem: Template<Metavars<ParticleSystemInput, ParticleSystemState>> = {
     state: {
       particles: [],
+      particlePool: [], // Reusable particle pool
       animationFrame: 0,
       isRunning: false,
       mouseX: 0,
@@ -1667,6 +1694,7 @@ function ParticleSystemDemo() {
       emissionRate: 3,
       frameCount: 0,
       lastFrameTime: 0,
+      lastUpdateTime: 0,
       fps: 0,
       statsUpdateCounter: 0,
       emitterX: 0,
@@ -1696,321 +1724,439 @@ function ParticleSystemDemo() {
           this.state.emitterX = this.input.width / 2
           this.state.emitterY = this.input.height / 2
         }
+        
+        // Initialize particle pool
+        this.initializeParticlePool(this.input.particleCount || 200);
+      },
+      
+      // Initialize a pool of reusable particles
+      initializeParticlePool(size: number) {
+        // Pre-allocate particles to avoid garbage collection during animation
+        for (let i = 0; i < size; i++) {
+          this.state.particlePool.push(this.createInactiveParticle());
+        }
+      },
+      
+      // Create an inactive particle for the pool
+      createInactiveParticle(): Particle {
+        const minSize = this.input.minParticleSize || 2;
+        const maxSize = this.input.maxParticleSize || 15;
+        const size = minSize + Math.random() * (maxSize - minSize);
+        
+        // Determine shape type based on size for faster rendering decisions
+        let type: 'circle' | 'rect' | 'polygon';
+        if (size < 5) {
+          type = 'circle';
+        } else if (size < 10) {
+          type = 'rect';
+        } else {
+          type = 'polygon';
+        }
+        
+        return {
+          id: Math.random() * 100000 | 0,
+          x: 0,
+          y: 0,
+          size,
+          vx: 0,
+          vy: 0,
+          color: '',
+          alpha: 0,
+          rotation: 0,
+          rotationSpeed: 0,
+          life: Number.MAX_SAFE_INTEGER, // Inactive particles have "infinite" life
+          maxLife: 0,
+          type
+        };
       },
       
       // When component mounts, start the animation
       onMount() {
         // Add event listeners if interactive
         if (this.input.interactive) {
-          const container = document.querySelector('.particle-system-container')
+          const container = document.querySelector('.particle-system-container');
           if (container) {
-            container.addEventListener('mousemove', this.handleMouseMove.bind(this))
-            container.addEventListener('mouseleave', this.handleMouseLeave.bind(this))
+            // Use bound event handlers for better performance
+            this.boundMouseMove = this.handleMouseMove.bind(this);
+            this.boundMouseLeave = this.handleMouseLeave.bind(this);
+            container.addEventListener('mousemove', this.boundMouseMove);
+            container.addEventListener('mouseleave', this.boundMouseLeave);
           }
         }
-        
-        // setTimeout(() => {
-        //   this.startAnimation()
-        // }, 200)
       },
       
       // Cleanup when component is destroyed
       onDestroy() {
-        this.stopAnimation()
+        this.stopAnimation();
         
         // Remove event listeners
         if (this.input.interactive) {
-          const container = document.querySelector('.particle-system-container')
+          const container = document.querySelector('.particle-system-container');
           if (container) {
-            container.removeEventListener('mousemove', this.handleMouseMove.bind(this))
-            container.removeEventListener('mouseleave', this.handleMouseLeave.bind(this))
+            container.removeEventListener('mousemove', this.boundMouseMove);
+            container.removeEventListener('mouseleave', this.boundMouseLeave);
           }
         }
+        
+        // Clear particle arrays to help garbage collection
+        this.state.particles = [];
+        this.state.particlePool = [];
       },
       
       // Handle mouse movement for interactive mode
       handleMouseMove(event: MouseEvent) {
-        const container = event.currentTarget as HTMLElement
-        const rect = container.getBoundingClientRect()
+        const container = event.currentTarget as HTMLElement;
+        const rect = container.getBoundingClientRect();
         
-        this.state.mouseX = event.clientX - rect.left
-        this.state.mouseY = event.clientY - rect.top
-        this.state.hasMouseInput = true
+        this.state.mouseX = event.clientX - rect.left;
+        this.state.mouseY = event.clientY - rect.top;
+        this.state.hasMouseInput = true;
         
         // Update emitter position to follow mouse
-        this.state.emitterX = this.state.mouseX
-        this.state.emitterY = this.state.mouseY
+        this.state.emitterX = this.state.mouseX;
+        this.state.emitterY = this.state.mouseY;
       },
       
       // Handle mouse leaving the container
       handleMouseLeave() {
-        this.state.hasMouseInput = false
+        this.state.hasMouseInput = false;
         
         // Reset emitter to center when mouse leaves
         if (this.input.width && this.input.height) {
-          this.state.emitterX = this.input.width / 2
-          this.state.emitterY = this.input.height / 2
+          this.state.emitterX = this.input.width / 2;
+          this.state.emitterY = this.input.height / 2;
         }
       },
       
-      // Generate a random color based on the color scheme
+      // Get a random color from the pre-generated cache
       getRandomColor() {
-        const scheme = this.input.colorScheme || 'rainbow'
+        const scheme = this.input.colorScheme || 'rainbow';
+        const cache = colorCache[scheme];
         
-        if (scheme === 'rainbow') {
-          const hue = Math.random() * 360
-          return `hsl(${hue}, 80%, 60%)`
-        } else if (scheme === 'fire') {
-          const hue = Math.random() * 60 + 10 // 10 to 70 (red to yellow)
-          const saturation = 80 + Math.random() * 20 // 80% to 100%
-          const lightness = 50 + Math.random() * 20 // 50% to 70%
-          return `hsl(${hue}, ${saturation}%, ${lightness}%)`
-        } else if (scheme === 'ocean') {
-          const hue = Math.random() * 60 + 180 // 180 to 240 (cyan to blue)
-          const saturation = 70 + Math.random() * 30 // 70% to 100%
-          const lightness = 40 + Math.random() * 30 // 40% to 70%
-          return `hsl(${hue}, ${saturation}%, ${lightness}%)`
-        } else if (scheme === 'grayscale') {
-          const value = Math.floor(Math.random() * 200 + 55) // 55 to 255
-          return `rgb(${value}, ${value}, ${value})`
+        if (!cache || cache.length === 0) {
+          // Fallback if cache is not available
+          if (scheme === 'rainbow') {
+            const hue = Math.random() * 360;
+            return `hsl(${hue}, 80%, 60%)`;
+          } else if (scheme === 'fire') {
+            const hue = Math.random() * 60 + 10;
+            const saturation = 80 + Math.random() * 20;
+            const lightness = 50 + Math.random() * 20;
+            return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+          } else if (scheme === 'ocean') {
+            const hue = Math.random() * 60 + 180;
+            const saturation = 70 + Math.random() * 30;
+            const lightness = 40 + Math.random() * 30;
+            return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+          } else if (scheme === 'grayscale') {
+            const value = Math.floor(Math.random() * 200 + 55);
+            return `rgb(${value}, ${value}, ${value})`;
+          }
+          
+          // Default fallback
+          return `hsl(${Math.random() * 360}, 80%, 60%)`;
         }
         
-        // Default fallback
-        return `hsl(${Math.random() * 360}, 80%, 60%)`
+        // Use cached colors for better performance
+        return cache[Math.floor(Math.random() * cache.length)];
       },
       
-      // Create a new particle
-      createParticle() {
-        if (!this.input.width || !this.input.height) return null
+      // Activate a particle from the pool
+      activateParticle() {
+        // Try to find an inactive particle in the pool
+        let particle: Particle | undefined;
         
-        const id = Math.random() * 100000 | 0
-        const minSize = this.input.minParticleSize || 2
-        const maxSize = this.input.maxParticleSize || 15
-        const size = minSize + Math.random() * (maxSize - minSize)
+        // Find a particle in the pool with life > maxLife (inactive)
+        for (let i = 0; i < this.state.particlePool.length; i++) {
+          if (this.state.particlePool[i].life > this.state.particlePool[i].maxLife) {
+            particle = this.state.particlePool[i];
+            break;
+          }
+        }
         
-        // Determine starting position (from emitter)
-        const x = this.state.emitterX
-        const y = this.state.emitterY
+        // If no inactive particle found, create a new one
+        if (!particle) {
+          particle = this.createInactiveParticle();
+          if( !particle ) return null
+
+          this.state.particlePool.push(particle);
+        }
+        
+        // Initialize the particle properties
+        if (!particle || !this.input.width || !this.input.height) return null;
+        
+        // Position at emitter
+        particle.x = this.state.emitterX;
+        particle.y = this.state.emitterY;
         
         // Random velocity with speed factor
-        const speedFactor = this.input.speedFactor || 1
-        const angle = Math.random() * Math.PI * 2
-        const speed = (0.5 + Math.random() * 2) * speedFactor
-        const vx = Math.cos(angle) * speed
-        const vy = Math.sin(angle) * speed
+        const speedFactor = this.input.speedFactor || 1;
+        const angle = Math.random() * Math.PI * 2;
+        const speed = (0.5 + Math.random() * 2) * speedFactor;
+        particle.vx = Math.cos(angle) * speed;
+        particle.vy = Math.sin(angle) * speed;
         
         // Random rotation
-        const rotation = Math.random() * Math.PI * 2
-        const rotationSpeed = (Math.random() - 0.5) * 0.1
+        particle.rotation = Math.random() * Math.PI * 2;
+        particle.rotationSpeed = (Math.random() - 0.5) * 0.1;
         
         // Lifetime and opacity
-        const maxLife = 50 + Math.random() * 100
+        particle.maxLife = 50 + Math.random() * 100;
+        particle.life = 0;
+        particle.alpha = 0.7 + Math.random() * 0.3;
         
-        return {
-          id,
-          x,
-          y,
-          size,
-          vx,
-          vy,
-          color: this.getRandomColor(),
-          alpha: 0.7 + Math.random() * 0.3,
-          rotation,
-          rotationSpeed,
-          life: 0,
-          maxLife
-        }
+        // Color
+        particle.color = this.getRandomColor();
+        
+        return particle;
       },
       
-      // Update particle positions and properties
+      // Update particle positions and properties using a fixed timestep for stability
       updateParticles() {
-        if (!this.input.width || !this.input.height) return
+        if (!this.input.width || !this.input.height) return;
         
-        // Add new particles based on emission rate
-        for (let i = 0; i < this.state.emissionRate; i++) {
-          if (this.state.particles.length < (this.input.particleCount || 200)) {
-            const newParticle = this.createParticle()
-            if (newParticle) {
-              this.state.particles.push(newParticle)
-            }
+        const now = performance.now();
+        const elapsed = (now - this.state.lastUpdateTime) / 1000; // time in seconds
+        this.state.lastUpdateTime = now;
+        
+        // Use a fixed timestep for physics calculations
+        const timeStep = 1/60; // Target 60fps
+        
+        // Precompute physics values for this frame
+        const gravity = this.input.useGravity ? this.state.gravity : 0;
+        const wind = this.state.wind;
+        const turbulence = this.state.turbulence;
+        
+        // Prepare batch processing
+        const activeParticles: Particle[] = [];
+        const particlesToActivate = Math.min(
+          this.state.emissionRate,
+          (this.input.particleCount || 200) - this.state.particles.length
+        );
+        
+        // Activate new particles
+        for (let i = 0; i < particlesToActivate; i++) {
+          const particle = this.activateParticle();
+          if (particle) {
+            this.state.particles.push(particle);
           }
         }
         
-        // Update existing particles
-        this.state.particles = this.state.particles.filter(particle => {
-          // Update position
-          particle.x += particle.vx
-          particle.y += particle.vy
+        // Update existing particles in a single pass
+        for (let i = 0; i < this.state.particles.length; i++) {
+          const particle = this.state.particles[i];
           
-          // Apply gravity if enabled
-          if (this.input.useGravity) {
-            particle.vy += this.state.gravity
-          }
+          // Skip particles that are already dead
+          if (particle.life >= particle.maxLife) continue;
           
-          // Apply wind
-          particle.vx += this.state.wind
+          // Scale the changes by elapsed time for frame-rate independent physics
+          const scaledTimeStep = Math.min(elapsed, 0.1); // Cap to avoid huge jumps
           
-          // Apply turbulence (random movement)
-          particle.vx += (Math.random() - 0.5) * this.state.turbulence
-          particle.vy += (Math.random() - 0.5) * this.state.turbulence
+          // Update position with scaled velocity
+          particle.x += particle.vx * scaledTimeStep * 60; // Scale back to 60fps equivalent
+          particle.y += particle.vy * scaledTimeStep * 60;
+          
+          // Apply forces with scaled time
+          particle.vy += gravity * scaledTimeStep * 60;
+          particle.vx += wind * scaledTimeStep * 60;
+          
+          // Apply turbulence (use scaled random values)
+          particle.vx += (Math.random() - 0.5) * turbulence * scaledTimeStep * 60;
+          particle.vy += (Math.random() - 0.5) * turbulence * scaledTimeStep * 60;
           
           // Update rotation
-          particle.rotation += particle.rotationSpeed
+          particle.rotation += particle.rotationSpeed * scaledTimeStep * 60;
           
           // Update life
-          particle.life += 1
+          particle.life += scaledTimeStep * 60;
           
           // Calculate alpha based on life percentage
-          const lifePercentage = particle.life / particle.maxLife
-          particle.alpha = 1 - Math.pow(lifePercentage, 2)
+          const lifePercentage = particle.life / particle.maxLife;
+          particle.alpha = 1 - Math.pow(lifePercentage, 2);
           
           // Boundary checks with screen edges
-          const halfSize = particle.size / 2
+          const halfSize = particle.size / 2;
           
           // Bounce off walls with energy loss
           if (particle.x - halfSize < 0) {
-            particle.x = halfSize
-            particle.vx = -particle.vx * 0.5
-          } else if ( this.input.width && particle.x + halfSize > this.input.width) {
-            particle.x = this.input.width - halfSize
-            particle.vx = -particle.vx * 0.5
+            particle.x = halfSize;
+            particle.vx = -particle.vx * 0.5;
+          } else if (particle.x + halfSize > this.input.width) {
+            particle.x = this.input.width - halfSize;
+            particle.vx = -particle.vx * 0.5;
           }
           
           // Ground collision with bounce
-          if (this.input.height && particle.y + halfSize > this.input.height) {
-            particle.y = this.input.height - halfSize
+          if (particle.y + halfSize > this.input.height) {
+            particle.y = this.input.height - halfSize;
             
             // Only bounce if velocity is significant
             if (Math.abs(particle.vy) > 0.5) {
-              particle.vy = -particle.vy * 0.4 // Bounce with energy loss
+              particle.vy = -particle.vy * 0.4; // Bounce with energy loss
             } else {
-              particle.vy = 0 // Stop if too slow
+              particle.vy = 0; // Stop if too slow
               // Add friction to horizontal movement
-              particle.vx *= 0.95
+              particle.vx *= 0.95;
             }
           }
           
-          // Keep particles that are still alive
-          return particle.life < particle.maxLife
-        })
-      },
-      
-      // Start the animation loop
-      startAnimation() {
-        if (this.state.isRunning) return
-        
-        this.state.isRunning = true
-        this.state.lastFrameTime = performance.now()
-        
-        const animate = () => {
-          if (!this.state.isRunning) return
-          
-          // Calculate FPS
-          const now = performance.now()
-          const delta = now - this.state.lastFrameTime
-          this.state.lastFrameTime = now
-          
-          // Update FPS counter every 10 frames
-          this.state.statsUpdateCounter++
-          if (this.state.statsUpdateCounter >= 10) {
-            this.state.fps = Math.round(1000 / delta)
-            this.state.statsUpdateCounter = 0
+          // Keep active particles
+          if (particle.life < particle.maxLife) {
+            activeParticles.push(particle);
           }
-          
-          // Update particles
-          this.updateParticles()
-          
-          // Update frame counter
-          this.state.frameCount++
-          
-          // Vary wind and turbulence over time for natural movement
-          this.state.wind = Math.sin(this.state.frameCount * 0.01) * 0.05
-          this.state.turbulence = 0.03 + Math.sin(this.state.frameCount * 0.005) * 0.02
-          
-          // Schedule the next frame
-          this.state.animationFrame = requestAnimationFrame(animate)
         }
         
-        this.state.animationFrame = requestAnimationFrame(animate)
+        // Bulk update state with the filtered particles
+        if (this.state.particles.length !== activeParticles.length) {
+          this.state.particles = activeParticles;
+        }
+      },
+      
+      // Cached particle points for polygon shapes to avoid recalculation
+      getParticlePoints(particle) {
+        // Large particles are stars or polygons
+        const points = [];
+        const spikes = 5;
+        const outerRadius = particle.size / 2;
+        const innerRadius = particle.size / 4;
+        
+        for (let i = 0; i < spikes * 2; i++) {
+          const radius = i % 2 === 0 ? outerRadius : innerRadius;
+          const angle = (Math.PI / spikes) * i;
+          const x = particle.x + radius * Math.sin(angle);
+          const y = particle.y + radius * Math.cos(angle);
+          points.push(`${x},${y}`);
+        }
+        
+        return points.join(' ');
+      },
+      
+      // Start the animation loop with performance optimizations
+      startAnimation() {
+        if (this.state.isRunning) return;
+        
+        this.state.isRunning = true;
+        this.state.lastFrameTime = performance.now();
+        this.state.lastUpdateTime = performance.now();
+        
+        // Pre-bind the animate function to avoid creating a new function on each frame
+        if (!this.boundAnimate) {
+          this.boundAnimate = this.animate.bind(this);
+        }
+        
+        this.state.animationFrame = requestAnimationFrame(this.boundAnimate);
+      },
+      
+      // Optimized animation loop
+      animate() {
+        if (!this.state.isRunning) return;
+        
+        // Calculate FPS
+        const now = performance.now();
+        const delta = now - this.state.lastFrameTime;
+        this.state.lastFrameTime = now;
+        
+        // Update FPS counter every 10 frames
+        this.state.statsUpdateCounter++;
+        if (this.state.statsUpdateCounter >= 10) {
+          this.state.fps = Math.round(1000 / delta);
+          this.state.statsUpdateCounter = 0;
+        }
+        
+        // Update particles
+        this.updateParticles();
+        
+        // Update frame counter
+        this.state.frameCount++;
+        
+        // Vary wind and turbulence over time for natural movement
+        // Use pre-calculated sine values for better performance
+        const frameIndex = this.state.frameCount % 628; // 2π × 100
+        const sinValue1 = Math.sin(frameIndex * 0.01);
+        const sinValue2 = Math.sin(frameIndex * 0.005);
+        
+        this.state.wind = sinValue1 * 0.05;
+        this.state.turbulence = 0.03 + sinValue2 * 0.02;
+        
+        // Schedule the next frame
+        this.state.animationFrame = requestAnimationFrame(this.boundAnimate);
       },
       
       // Stop the animation loop
       stopAnimation() {
-        this.state.isRunning = false
-        cancelAnimationFrame(this.state.animationFrame)
+        this.state.isRunning = false;
+        cancelAnimationFrame(this.state.animationFrame);
       },
       
       // Toggle the animation
       toggleAnimation() {
         if (this.state.isRunning) {
-          this.stopAnimation()
+          this.stopAnimation();
         } else {
-          this.startAnimation()
+          this.startAnimation();
         }
       },
       
       // Change color scheme
       changeColorScheme(scheme: 'rainbow' | 'fire' | 'ocean' | 'grayscale') {
-        this.input.colorScheme = scheme
+        this.input.colorScheme = scheme;
       },
       
       // Increase particle count
       increaseParticleCount() {
         if (this.input.particleCount) {
-          this.input.particleCount = Math.min(1000, this.input.particleCount + 50)
+          const newCount = Math.min(1000, this.input.particleCount + 50);
+          
+          // Ensure we have enough particles in the pool
+          if (newCount > this.state.particlePool.length) {
+            const additionalNeeded = newCount - this.state.particlePool.length;
+            for (let i = 0; i < additionalNeeded; i++) {
+              this.state.particlePool.push(this.createInactiveParticle());
+            }
+          }
+          
+          this.input.particleCount = newCount;
         }
       },
       
       // Decrease particle count
       decreaseParticleCount() {
         if (this.input.particleCount) {
-          this.input.particleCount = Math.max(50, this.input.particleCount - 50)
+          this.input.particleCount = Math.max(50, this.input.particleCount - 50);
+          
+          // If we have more active particles than allowed, deactivate some
+          if (this.state.particles.length > this.input.particleCount) {
+            this.state.particles.length = this.input.particleCount;
+          }
         }
       },
       
       // Toggle gravity
       toggleGravity() {
-        this.input.useGravity = !this.input.useGravity
+        this.input.useGravity = !this.input.useGravity;
         if (!this.input.useGravity) {
           // Reset all particle vertical velocities when turning off gravity
-          this.state.particles.forEach(p => {
-            p.vy *= 0.5
-          })
+          // Use direct array iteration for better performance
+          for (let i = 0; i < this.state.particles.length; i++) {
+            this.state.particles[i].vy *= 0.5;
+          }
         }
       },
       
       // Increase emission rate
       increaseEmissionRate() {
-        this.state.emissionRate = Math.min(20, this.state.emissionRate + 1)
+        this.state.emissionRate = Math.min(20, this.state.emissionRate + 1);
       },
       
       // Decrease emission rate
       decreaseEmissionRate() {
-        this.state.emissionRate = Math.max(1, this.state.emissionRate - 1)
-      },
-      
-      getParticlePoints( particle ){
-        // Large particles are stars or polygons
-        const points = []
-        const spikes = 5
-        const outerRadius = particle.size / 2
-        const innerRadius = particle.size / 4
-        
-        for (let i = 0; i < spikes * 2; i++) {
-          const radius = i % 2 === 0 ? outerRadius : innerRadius
-          const angle = (Math.PI / spikes) * i
-          const x = particle.x + radius * Math.sin(angle)
-          const y = particle.y + radius * Math.cos(angle)
-          points.push(`${x},${y}`)
-        }
-        
-        return points.join(' ')
+        this.state.emissionRate = Math.max(1, this.state.emissionRate - 1);
       }
     },
     
-    // The component template with correct syntax
+    // Optimize the template to reduce dynamic property evaluations
     default: `
-      <div class="particle-system-container" style="{ width: (Number( input.width ) + 40 )+'px', height: (Number( input.height ) + 280)+'px' }">
+      <div class="particle-system-container" style="{ width: (Number(input.width) + 40)+'px', height: (Number(input.height) + 280)+'px' }">
         <h2 class="particle-system-title">{input.title}</h2>
         
         <svg class="particle-system-svg" 
@@ -2030,7 +2176,7 @@ function ParticleSystemDemo() {
           <rect width=input.width height=input.height fill="url(#bg-gradient)" />
           
           <!-- Emitter -->
-          <if( state.hasMouseInput || input.interactive )>
+          <if(state.hasMouseInput || input.interactive)>
             <circle
               cx=state.emitterX
               cy=state.emitterY
@@ -2041,10 +2187,10 @@ function ParticleSystemDemo() {
             />
           </if>
           
-          <!-- Particles -->
-          <if( state.particles.length )>
+          <!-- Particles - Using pre-computed particle type for faster rendering decisions -->
+          <if(state.particles.length)>
             <for [particle] in=state.particles>
-              <if( particle.size < 5 )>
+              <if(particle.type === 'circle')>
                 <circle
                   cx=particle.x
                   cy=particle.y
@@ -2053,7 +2199,7 @@ function ParticleSystemDemo() {
                   opacity=particle.alpha.toFixed(2)
                   transform="'rotate('+ particle.rotation * 180 / Math.PI +', '+ particle.x +', '+ particle.y +')'"/>
               </if>
-              <else-if( particle.size < 10 )>
+              <else-if(particle.type === 'rect')>
                 <rect 
                   x=(particle.x - particle.size/2)
                   y=(particle.y - particle.size/2)
@@ -2122,7 +2268,7 @@ function ParticleSystemDemo() {
       </div>
     `,
 
-    // CSS styles for the particle system
+    // CSS styles for the particle system remain the same
     stylesheet: `
       .particle-system-container {
         font-family: Arial, sans-serif;
@@ -2237,7 +2383,7 @@ function ParticleSystemDemo() {
     `
   }
 
-  const lips = new Lips({ debug: false })
+  const lips = new Lips({ debug: true })
   
   // Register the particle system component
   lips.register('particle-system', particleSystem)

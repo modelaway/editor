@@ -155,7 +155,7 @@ export default class Movable<MT extends Metavars> extends EventEmitter {
     if( !this.$block ) return
 
     // Default use $block as handle
-    this.$handle = this.options.handle && this.component?.find( this.options.handle ) || this.$block
+    this.$handle = this.options.handle && this.$block.find( this.options.handle ) || this.$block
 
     this.unbind()
 

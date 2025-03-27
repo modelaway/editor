@@ -21,7 +21,7 @@ export default class Creator implements HandleInterface {
      * - target element
      * - holder element
      */
-    if( !$(e.target).is( this.context.$viewport ) ) return
+    if( !this.context.$viewport.is( e.target ) ) return
 
     const rect = this.context.$canvas.get(0)?.getBoundingClientRect()
     if( !rect ) return

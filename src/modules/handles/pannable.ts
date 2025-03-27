@@ -22,11 +22,11 @@ export default class Pannable implements HandleInterface {
      * - target element
      * - holder element
      */
-    if( !$(e.target).is( this.context.$viewport ) ) return
+    if( !this.context.$viewport.is( e.target ) ) return
 
     this.context.isPanning = true
     this.context.$viewport.css('cursor', 'grabbing')
-
+    
     this.startX = e.pageX - this.context.canvasOffset.x
     this.startY = e.pageY - this.context.canvasOffset.y
   }
@@ -87,7 +87,7 @@ export default class Pannable implements HandleInterface {
 
   enable(){
     if( !this.context.$viewport.length ) return
-
+    
     this.context
     .events( this.context.$viewport )
     .on('mousedown.pan', e => {

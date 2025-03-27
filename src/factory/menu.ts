@@ -1,5 +1,4 @@
-import type Lips from '../lips/lips'
-import type { Handler, Metavars } from '../lips'
+import Lips, { Handler, Metavars } from '@lipsjs/lips'
 import type { ViewCaption } from '../types/view'
 import type { HandlerHook } from '../types/controls'
 

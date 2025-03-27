@@ -1,6 +1,5 @@
 import type Frame from '../frame'
-import type { Metavars } from '../../lips'
-import type Component from '../../lips/component'
+import type { Metavars, Component } from '@lipsjs/lips'
 import type { HandlerHook } from '../../types/controls'
 import type { ViewBlockProperties, ViewDefinition, ViewInstance } from '../../types/view'
 

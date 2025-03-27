@@ -1,5 +1,5 @@
 import type { MediaScreen } from '../../types/frame'
-import type { Handler, Metavars } from '../../lips'
+import type { Handler, Metavars } from '@lipsjs/lips'
 
 import { MEDIA_SCREENS } from '../../modules/constants'
 

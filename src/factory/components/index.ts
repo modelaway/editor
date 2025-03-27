@@ -1,4 +1,4 @@
-import type Lips from '../../lips/lips'
+import type Lips from '@lipsjs/lips'
 
 import styles from './styles'
 import assets from './assets'

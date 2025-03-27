@@ -1,4 +1,4 @@
-import type { Handler, Metavars } from '../../lips'
+import type { Handler, Metavars } from '@lipsjs/lips'
 
 export type XPInput = {}
 

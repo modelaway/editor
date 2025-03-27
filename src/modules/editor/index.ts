@@ -1,5 +1,6 @@
-import $, { type Cash } from 'cash-dom'
+import Lips from '@lipsjs/lips'
 import EventEmitter from 'events'
+import $, { type Cash } from 'cash-dom'
 
 import I18N from '../i18n'
 import Store from '../store'
@@ -11,7 +12,6 @@ import Controls from '../controls'
 import Functions from '../functions'
 import Shell from '../../factory/shell'
 import Components from '../../factory/components'
-import Lips from '../../lips/lips'
 import { debug } from '../utils'
 
 window.mlang = {

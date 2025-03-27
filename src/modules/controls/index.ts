@@ -1,7 +1,6 @@
 import type Editor from '../editor'
 import type { Cash } from 'cash-dom'
-import type { Metavars } from '../../lips'
-import type Component from '../../lips/component'
+import type { Metavars, Component } from '@lipsjs/lips'
 import type { FrameOption } from '../../types/frame'
 
 import { EDITOR_EDGE_PADDING } from '../constants'

@@ -18,15 +18,15 @@
   "private": false,
   "scripts": {
     "dev": "bun compile --watch",
-    "compile": "bun build --entrypoints ./src/exports/* ./src/plugins/* ./src/lips/lips.ts --entry-naming [name].min.[ext] --minify --root . --outdir ./dist --target browser --format esm --sourcemap=external",
+    "compile": "bun build --entrypoints ./src/exports/* ./src/plugins/* --entry-naming [name].min.[ext] --minify --root . --outdir ./dist --target browser --format esm --sourcemap=external",
     "build:declaration": "tsc --project tsconfig.types.json",
     "prepack": "bun compile && bun run build:declaration",
     "test": "Echo 'Error: No test specified' && exit 1",
     "test:view": "yarn build:tsc && jest test/auth.test.js"
   },
   "dependencies": {
+    "@lipsjs/lips": "^0.0.8",
     "boxicons": "^2.1.4",
-    "cash-dom": "^8.1.5",
     "diff-match-patch": "^1.0.5",
     "events": "^3.3.0",
     "lz-string": "^1.5.0",

@@ -1,5 +1,4 @@
-import type Lips from '../lips/lips'
-import type { Metavars  } from '../lips'
+import Lips, { Metavars } from '@lipsjs/lips'
 
 export type ShellInput = {
 

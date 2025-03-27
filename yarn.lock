@@ -9,6 +9,14 @@
   dependencies:
     regenerator-runtime "^0.14.0"
 
+"@lipsjs/lips@^0.0.8":
+  version "0.0.8"
+  resolved "https://registry.yarnpkg.com/@lipsjs/lips/-/lips-0.0.8.tgz#0111bf8030f5d0302b89e383ad32885bbe0f4021"
+  integrity sha512-AoEKjZ/L2eJXYmYqzIdJVUiO8KxnOIJH2hNcpJkpEFmXmWFWWAk0sCvojobizJQB2YiD6EHs5q4Rs1keyNoMog==
+  dependencies:
+    cash-dom "^8.1.5"
+    stylis "^4.3.4"
+
 "@types/diff-match-patch@^1.0.36":
   version "1.0.36"
   resolved "https://registry.yarnpkg.com/@types/diff-match-patch/-/diff-match-patch-1.0.36.tgz#dcef10a69d357fe9d43ac4ff2eca6b85dbf466af"

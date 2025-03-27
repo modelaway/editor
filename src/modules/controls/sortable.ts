@@ -1,6 +1,5 @@
 import type Editor from '../editor'
-import type { Metavars } from '../../lips'
-import type Component from '../../lips/component'
+import type { Metavars, Component } from '@lipsjs/lips'
 
 import $, { type Cash } from 'cash-dom'
 import { EventEmitter } from 'events'

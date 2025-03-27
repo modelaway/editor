@@ -1,5 +1,5 @@
 
-import type { Handler, Metavars } from '../../lips'
+import type { Handler, Metavars } from '@lipsjs/lips'
 
 type State = {
   selected: string | null

@@ -105,11 +105,9 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
 
       switch( option.type ){
         case 'search': option.value = this.input.options[ key ].value = arg.target.value; break
-        case 'suggestion': option.value = arg; break
+        // case 'suggestion': option.value = arg; break
       }
 
-      console.log( this.input.options )
-      
       this.state.suggestions = { position, key, option }
 
       /**
@@ -117,7 +115,6 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
        */
       hook?.editor?.$viewport?.on('click.quickset-suggestions', () => {
         this.state.suggestions = null
-
         hook?.editor?.$viewport?.off('.quickset-suggestions')
       })
     },
@@ -169,7 +166,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
       <switch( type )>
         <case is=['input', 'search']>
           <mli active=active
-                class=('form-input'+( icon && ' addon' ))
+                class="form-input{icon ? ' addon' : ''}"
                 ${CONTROL_LANG_SELECTOR}>
             <if( icon )><micon class=icon/></if>
 
@@ -202,7 +199,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
 
   const template = `
     <mblock ${CONTROL_QUICKSET_SELECTOR}=input.key
-            class=(input.settings.editing ? 'editing' : '?')
+            class=(input.settings.editing && 'editing')
             style=self.getStyle()>
       <mblock container>
         <mul>

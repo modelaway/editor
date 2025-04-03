@@ -1,5 +1,4 @@
 import Lips, { Handler, Metavars } from '@lipsjs/lips'
-// import type { Handler, Metavars } from '@lipsjs/lips'
 import type { HandlerHook } from '../types/controls'
 
 import $ from 'cash-dom'
@@ -32,7 +31,6 @@ export type ToolbarState = {
 }
 
 export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
-  
   const state: ToolbarState = {
     tools: {},
     views: {},
@@ -113,24 +111,20 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
           case 'tool': if( this.input.tools ) body = this.input.tools[ option.parent ]; break
           case 'view': if( this.input.views ) body = this.input.views[ option.parent ]; break
         }
-        
+
       this.viewBodyContent({ type, key, body })
     },
 
     selectTool( key: string, variant?: string ){
-      console.log('selectTool --', key )
       for( const k in this.state.tools ){
         this.state.tools[ k ].active = ( k === key )
       }
-
-      console.log( this.state.tools )
-
+      
       /**
        * Put in context selected tool
        * 
        * TOI - Tool of interest
        */
-      console.log('context --', hook?.editor?.lips.getContext() )
       hook?.editor?.lips.setContext('toi', variant ? `${key}.${variant}` : key )
     },
     selectView( key: string, variant?: string ){
@@ -167,7 +161,6 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
     },
 
     onHandleOption( type: ContentType, key: string, option: ToolbarOption ){
-      console.log('handle --', type, key, option)
       if( option.disabled ) return
 
       // console.log(`Option [${key}] -- `, option )
@@ -197,12 +190,11 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
       e.preventDefault()
       if( type === 'global' || option.disabled ) return
 
-      // console.log(`Option [${key}] -- `, option )
+      // console.log(`Option [${key}] -- `, type, option )
       this.viewOptionCaptions( type, key, option )
     },
 
     onHandleSelect( type: string, key: string, selected: string ){
-      // console.log('selected --', key, selected )
       switch( type ){
         case 'tool': {
           if( !this.state.tools[ key ] ) return
@@ -223,7 +215,7 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
   const macros = `
     <macro [key, type, active, label, title, icon, disabled, __] name="option">
       <mli active=active
-            class=(label ? 'label' : false)
+            class=(label && 'label')
             title=title
             disabled=disabled
             ${CONTROL_LANG_SELECTOR}
@@ -244,13 +236,14 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
         <mblock toolbar>
           <if( state.tools )>
             <mul options="tools">
-              <log('log tool --', state.tools )/>
               <for [key, each] in=state.tools>
-                <log('each tool --', key, each )/>
                 <if( !each.hidden )>
                   <if( each.variants && !each.custom )>
-                    <const selected=each.variants[ each.selected || '*' ]/>
-                    <option type="tool" key=key ...selected active=each.active/>
+                    <let selected=each.variants[ each.selected || '*' ]/>
+                    <option type="tool"
+                            key=key
+                            ...selected
+                            active=(each.active ?? false)/>
                   </if>
                   <else>
                     <option type="tool" key=key ...each/>
@@ -262,12 +255,16 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
 
           <if( state.views )>
             <div divider></div>
+            
             <mul options="views">
               <for [key, each] in=state.views>
                 <if( !each.hidden )>
                   <if( each.variants && !each.custom )>
-                    <const selected=each.variants[ each.selected || '*' ]/>
-                    <option type="view" key=key ...selected active=each.active/>
+                    <let selected=each.variants[ each.selected || '*' ]/>
+                    <option type="view"
+                            key=key
+                            ...selected
+                            active=(each.active ?? false)/>
                   </if>
                   <else>
                     <option type="view" key=key ...each/>
@@ -426,7 +423,7 @@ const stylesheet = `
       transition: ease var(--me-slide-transition);
 
       &.expanded {
-        transform: translateX(0%);
+        transform: translateX(0);
       }
     }
     [container]{

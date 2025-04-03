@@ -32,11 +32,10 @@ const TECaptions = () => {
       this.state.instructions = this.state.selected ? this.state.items[ this.state.selected ].instructions : undefined
     },
     onHandleSelect( key: string ){
-      console.log('click---', key )
       this.state.selected = key
       this.state.instructions = this.state.items[ key ].instructions
 
-      // this.emit('select', this.state.selected )
+      this.emit('select', this.state.selected )
     }
   }
 

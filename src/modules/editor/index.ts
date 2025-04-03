@@ -1,4 +1,4 @@
-import Lips from '@lipsjs/lips'
+import Lips from '../../../../@lips/dist/lips.min'
 import EventEmitter from 'events'
 import $, { type Cash } from 'cash-dom'
 
@@ -254,7 +254,7 @@ export default class Editor {
     this.$shell = shell.node
 
     this.$root.prepend( this.$shell )
-    this.$viewport = shell.find('viewport')
+    this.$viewport = this.$shell.find('viewport')
 
     if( !this.$viewport?.length )
       throw new Error('Unexpected error occured')

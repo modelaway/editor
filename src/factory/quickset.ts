@@ -126,6 +126,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
 
       switch( option.type ){
         case 'input': option.value = arg.target.value; break
+        case 'suggestion': option.value = arg; break
       }
 
       option.meta
@@ -162,7 +163,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
   }
 
   const macros = `
-    <macro [key, type, title, label, active, icon, disabled, value, __] name="option">
+    <macro [key, type, title, label, active, icon, disabled, value] name="option">
       <switch( type )>
         <case is=['input', 'search']>
           <mli active=active
@@ -174,8 +175,8 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
                     disabled=disabled
                     placeholder=(label || title)
                     value=value
-                    on-change( onSmartHandle, key, __ )
-                    on-input( type === 'search' ? 'onSmartHandle' : null, key, __ )>
+                    on-change( onSmartHandle, key, argvalues )
+                    on-input( type === 'search' ? 'onSmartHandle' : null, key, argvalues )>
           </mli>
         </case>
 
@@ -185,7 +186,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
                 title=title
                 disabled=disabled
                 ${CONTROL_LANG_SELECTOR}
-                on-click( onSmartHandle, key, __ )>
+                on-click( onSmartHandle, key, argvalues )>
             <micon class=icon/>
 
             <if( label )>
@@ -273,7 +274,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
       </mblock>
 
       <if( state.suggestions )>
-        <const ...state.suggestions/>
+        <let ...state.suggestions/>
 
         <mblock suggestions style=(position == 'top' ? 'bottom: 4.2rem' : 'margin-top: .5rem')>
           <mblock>

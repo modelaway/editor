@@ -9,10 +9,10 @@
   dependencies:
     regenerator-runtime "^0.14.0"
 
-"@lipsjs/lips@^0.0.10":
-  version "0.0.10"
-  resolved "https://registry.yarnpkg.com/@lipsjs/lips/-/lips-0.0.10.tgz#cd47e84d790f303130663089eb0e4bf017e2eaeb"
-  integrity sha512-YsNM8n9/SzfDhP5ir3gcBfkUL6unRCMP2ulFI/n8iwJeTGhwj0JKwAuksD6TCxdM0fTfSRnH3Xdmr867p9AX8A==
+"@lipsjs/lips@^0.0.12":
+  version "0.0.12"
+  resolved "https://registry.yarnpkg.com/@lipsjs/lips/-/lips-0.0.12.tgz#f8b28d81a4752a91f84cd72611c71f6ca6a5bb6b"
+  integrity sha512-CYdGj9/R3rJInmHGgpdtBdFfKy0pMpL8lraj536jtIw+8hMBg04G/FMmS8yxrK1vrF5o38P95J0rw5gauYW/qQ==
   dependencies:
     cash-dom "^8.1.5"
     stylis "^4.3.4"

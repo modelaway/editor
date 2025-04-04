@@ -25,7 +25,7 @@
     "test:view": "yarn build:tsc && jest test/auth.test.js"
   },
   "dependencies": {
-    "@lipsjs/lips": "^0.0.10",
+    "@lipsjs/lips": "^0.0.12",
     "boxicons": "^2.1.4",
     "diff-match-patch": "^1.0.5",
     "events": "^3.3.0",

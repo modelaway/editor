@@ -1,18 +1,10 @@
-import type Editor from '../editor'
 import type { ViewDefinition } from '../../types/view'
 import { debug } from '../utils'
 import { Cash } from 'cash-dom'
 
 export default class ViewStore {
   private list: Record<string, ViewDefinition> = {}
-
-  constructor({ settings }: Editor ){
-    /**
-     * General settings inherited from Modela
-     */
-    // this.settings = settings
-  }
-
+  
   add( view: ViewDefinition ){
     if( !view )
       throw new Error('Undefined view definition')
@@ -64,6 +56,7 @@ export default class ViewStore {
     return null
   }
   getOptions(){
+    // HACK: Serve all available view options object directly from here for now.
     const options = {
       text: {
         title: 'Text',

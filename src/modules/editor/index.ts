@@ -1,5 +1,5 @@
-import Lips from '@lipsjs/lips'
-// import Lips from '../../../../@lips/dist/lips.min'
+// import Lips from '@lipsjs/lips'
+import Lips from '../../../../@lips/dist/lips.min'
 import EventEmitter from 'events'
 import $, { type Cash } from 'cash-dom'
 

@@ -86,15 +86,15 @@ const LayerItem = () => {
       <mblock class="nested-indicator"/>
 
       <mblock class="layer-bar">
-        <micon class=('toggle-icon visibility bx '+( input.hidden ? 'bx-hide' : 'bx-show'))
+        <micon class="toggle-icon visibility bx {input.hidden ? 'bx-hide' : 'bx-show'}"
                 on-click( onToggleVisibility, input.key, !input.hidden )/>
 
         <micon class="ill-icon move-handle bx bx-grid-vertical"/>
 
-        <minline style="{ padding: '7px 0 7px '+(20 * input.depth)+'px' }">
+        <minline style="padding: 7px 0 7px {20 * input.depth}px">
           <switch( input.attribute )>
             <case is="group">
-              <micon class=('toggle-icon bx '+( state.collapsed ? 'bx-chevron-down' : 'bx-chevron-right'))
+              <micon class="toggle-icon bx {state.collapsed ? 'bx-chevron-down' : 'bx-chevron-right'}"
                       style="padding: 0 4px 0 0"
                       on-click( onCollapse, input.key )/>
             </case>
@@ -136,7 +136,7 @@ const LayerItem = () => {
       <if( input.layers && input.attribute === 'group' )>
         <layerlist list=input.layers
                     layer=input.key
-                    path=(input.path +'.'+ input.key)
+                    path="{input.path}.{input.key}"
                     depth=(input.depth + 1)
                     collapsed=state.collapsed/>
       </if>

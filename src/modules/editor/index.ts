@@ -1,4 +1,5 @@
-import Lips from '../../../../@lips/dist/lips.min'
+import Lips from '@lipsjs/lips'
+// import Lips from '../../../../@lips/dist/lips.min'
 import EventEmitter from 'events'
 import $, { type Cash } from 'cash-dom'
 
@@ -63,7 +64,7 @@ export default class Editor {
      * Workspace view preferences
      */
     viewQuickSet: true,
-    viewLayers: false,
+    viewLayers: true,
     viewToolbar: true
   }
   public settings: ModelaSettings = {}

@@ -13,11 +13,13 @@ const LayerList = () => {
           layer=layer
           path=path
           style="{ display: input.collapsed ? 'block' : 'none' }">
-      <for [key, each] in=input.list>
-        <layeritem ...each
-                    path=path
-                    depth=input.depth/>
-      </for>
+      <if( input.list.length )>
+        <for [key, each] in=input.list>
+          <layeritem ...each
+                      path=path
+                      depth=input.depth/>
+        </for>
+      </if>
     </mul>
   `
 

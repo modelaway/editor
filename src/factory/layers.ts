@@ -218,13 +218,13 @@ export default ( lips: Lips, input: LayersInput, hook?: HandlerHook ) => {
   const handler: Handler<Metavars<LayersInput, State, Static, Context>> = {
     onInput({ host, settings }){
       // FIXME: Reverse to object or drop the use of traversal.
-      if( host.content ){
-        const tvs = new Traverser
-        this.state.layers = tvs.traverse( cleanContent( host.content ) )
-      }
+      // if( host.content ){
+      //   const tvs = new Traverser
+      //   this.state.layers = tvs.traverse( cleanContent( host.content ) )
+      // }
 
-      if( settings?.reduced !== undefined ) 
-        this.state.reduced = settings.reduced
+      // if( settings?.reduced !== undefined ) 
+      //   this.state.reduced = settings.reduced
     },
     onMount(){
       /**

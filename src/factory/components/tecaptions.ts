@@ -28,7 +28,7 @@ const TECaptions = () => {
         this.state.items = { '*': option }
         this.state.selected = '*'
       }
-
+      
       this.state.instructions = this.state.selected ? this.state.items[ this.state.selected ].instructions : undefined
     },
     onHandleSelect( key: string ){
@@ -43,10 +43,13 @@ const TECaptions = () => {
     <mblock>
       <mul>
         <for [key, item] in=state.items>
-          <mli id="track" class=(state.selected == key && 'selected')
+          <log( state.selected, key )/>
+          <mli id="track" 
+                class=(state.selected === key && 'selected')
                 on-click( onHandleSelect, key )>
             <micon class=item.icon/>
             <mlabel>{item.title}</mlabel>
+            <div>({key})</div>
           </mli>
         </for>
       </mul>

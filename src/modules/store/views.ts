@@ -69,7 +69,7 @@ export default class ViewStore {
             tool: 'TEXT',
             parent: 'text'
           },
-          'circle': {
+          'paragraph': {
             icon: 'bx bx-paragraph',
             title: 'Paragraph text',
             shortcut: 'command + y',

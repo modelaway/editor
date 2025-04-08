@@ -116,9 +116,8 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
     },
 
     selectTool( key: string, variant?: string ){
-      for( const k in this.state.tools ){
+      for( const k in this.state.tools )
         this.state.tools[ k ].active = ( k === key )
-      }
       
       /**
        * Put in context selected tool
@@ -163,7 +162,7 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
     onHandleOption( type: ContentType, key: string, option: ToolbarOption ){
       if( option.disabled ) return
 
-      // console.log(`Option [${key}] -- `, option )
+      console.log(`Option [${key}] -- `, option )
       switch( type ){
         case 'tool': {
           if( option.custom ) this.viewOptionCaptions( type, key, option )
@@ -213,16 +212,16 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
   }
 
   const macros = `
-    <macro [key, type, active, label, title, icon, disabled, __] name="option">
+    <macro [key, type, active, label, title, icon, disabled] name="option">
       <mli active=active
             class=(label && 'label')
             title=title
             disabled=disabled
             ${CONTROL_LANG_SELECTOR}
-            on-click( onHandleOption, type, key, __ )
-            on-contextmenu( onShowOptionCaptions, type, key, __ )>
-        <micon class=icon></micon>
-
+            on-click( onHandleOption, type, key, arguments )
+            on-contextmenu( onShowOptionCaptions, type, key, arguments )>
+        <micon class=icon/>
+        
         <if( label )>
           <mlabel ${CONTROL_LANG_SELECTOR}>{label}</mlabel>
         </if>
@@ -254,7 +253,7 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
           </if>
 
           <if( state.views )>
-            <div divider></div>
+            <div divider/>
             
             <mul options="views">
               <for [key, each] in=state.views>
@@ -298,12 +297,15 @@ export default ( lips: Lips, input: ToolbarInput, hook?: HandlerHook ) => {
                   <case is="styles">
                     <styles ...state.content.body/>
                   </case>
+
                   <case is="assets">
                     <assets ...state.content.body/>
                   </case>
+
                   <case is="plugins">
                     <plugins ...state.content.body/>
                   </case>
+
                   <case is="settings">
                     <settings ...state.content.body/>
                   </case>

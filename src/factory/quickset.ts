@@ -175,8 +175,8 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
                     disabled=disabled
                     placeholder=(label || title)
                     value=value
-                    on-change( onSmartHandle, key, argvalues )
-                    on-input( type === 'search' ? 'onSmartHandle' : null, key, argvalues )>
+                    on-change( onSmartHandle, key, arguments )
+                    on-input( type === 'search' ? 'onSmartHandle' : null, key, arguments )>
           </mli>
         </case>
 
@@ -186,7 +186,7 @@ export default ( lips: Lips, input: QuicksetInput, hook?: HandlerHook ) => {
                 title=title
                 disabled=disabled
                 ${CONTROL_LANG_SELECTOR}
-                on-click( onSmartHandle, key, argvalues )>
+                on-click( onSmartHandle, key, arguments )>
             <micon class=icon/>
 
             <if( label )>

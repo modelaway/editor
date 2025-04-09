@@ -43,13 +43,11 @@ const TECaptions = () => {
     <mblock>
       <mul>
         <for [key, item] in=state.items>
-          <log( state.selected, key )/>
           <mli id="track" 
                 class=(state.selected === key && 'selected')
                 on-click( onHandleSelect, key )>
             <micon class=item.icon/>
             <mlabel>{item.title}</mlabel>
-            <div>({key})</div>
           </mli>
         </for>
       </mul>
